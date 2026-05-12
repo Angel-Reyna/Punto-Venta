@@ -1,0 +1,2 @@
+import { prisma } from "../../config/prisma";
+export async function auditLog(input:{ userId?:string; action:string; tableName:string; recordId?:string; oldData?:unknown; newData?:unknown; ipAddress?:string }){ return prisma.auditLog.create({ data:{ userId:input.userId, action:input.action, tableName:input.tableName, recordId:input.recordId, oldData:input.oldData as object|undefined, newData:input.newData as object|undefined, ipAddress:input.ipAddress } }); }

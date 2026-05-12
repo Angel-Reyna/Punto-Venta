@@ -1,0 +1,120 @@
+# =========================
+# Dependencies
+# =========================
+node_modules/
+**/node_modules/
+
+.pnp
+.pnp.js
+
+# =========================
+# Builds / outputs
+# =========================
+dist/
+**/dist/
+build/
+**/build/
+.vite/
+**/.vite/
+.cache/
+**/.cache/
+
+# TypeScript
+*.tsbuildinfo
+
+# =========================
+# Environment variables / secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# Prisma
+apps/api/prisma/dev.db
+apps/api/prisma/dev.db-journal
+apps/api/prisma/migrations/migration_lock.toml
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# =========================
+# Tests / coverage
+# =========================
+coverage/
+**/coverage/
+.nyc_output/
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# =========================
+# VS Code
+# =========================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# =========================
+# Temporary files
+# =========================
+tmp/
+temp/
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# =========================
+# Package managers
+# =========================
+npm-cache/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnpm-store/
+
+# =========================
+# Docker / local runtime
+# =========================
+docker-data/
+postgres_data/
+*.pid
+
+# =========================
+# Uploads / generated files
+# =========================
+uploads/
+exports/
+*.xlsx
+*.pdf
+
+# Keep examples if needed
+!examples/**/*.xlsx
+!examples/**/*.pdf
+
+# Local notes / personal files
+Notas/
+
+**/Notas.md
+**/Proyecto.md

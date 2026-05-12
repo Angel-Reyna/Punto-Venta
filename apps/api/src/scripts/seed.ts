@@ -1,0 +1,3 @@
+import bcrypt from "bcrypt"; import { prisma } from "../config/prisma"; import { env } from "../config/env";
+async function main(){ const passwordHash=await bcrypt.hash('Admin12345',env.BCRYPT_ROUNDS); await prisma.user.upsert({where:{email:'admin@pos.local'},update:{},create:{name:'Administrador',email:'admin@pos.local',passwordHash,role:'ADMIN'}}); await prisma.product.upsert({where:{sku:'SKU-CAFE-001'},update:{},create:{sku:'SKU-CAFE-001',name:'Café americano',description:'Producto de ejemplo',costPrice:18,salePrice:35,promoPercent:0,stock:30,minStock:5}}); console.log('Seed completado');}
+main().catch(e=>{console.error(e);process.exit(1);}).finally(async()=>prisma.$disconnect());
