@@ -5,7 +5,8 @@ import {
   CardContent,
   Grid,
   Typography,
-  Box
+  Box,
+  Chip
 } from "@mui/material";
 
 import InventoryIcon from "@mui/icons-material/Inventory2";
@@ -15,59 +16,118 @@ import PaidIcon from "@mui/icons-material/Paid";
 
 import { api } from "../api/client";
 import { PageHeader } from "../components/PageHeader";
+import { useAuth } from "../auth/AuthContext";
 
-type Metrics = {
+type DashboardMetrics = {
+  role: "ADMIN" | "CASHIER";
+
   products: number;
+
   lowStock: number;
+
   users: number;
+
   todaySalesCount: number;
+
   todaySalesTotal: number;
 };
 
 export function DashboardPage() {
+  const { isAdmin } = useAuth();
+
   const [metrics, setMetrics] =
-    useState<Metrics | null>(null);
+    useState<DashboardMetrics | null>(null);
 
   useEffect(() => {
     api
       .get("/dashboard")
-      .then(({ data }) =>
-        setMetrics(data)
-      );
+      .then(({ data }) => {
+        setMetrics(data);
+      });
   }, []);
 
   const cards = [
-    {
-      title: "Productos activos",
-      value: metrics?.products ?? 0,
-      icon: <InventoryIcon fontSize="large" />
-    },
-    {
-      title: "Bajo inventario",
-      value: metrics?.lowStock ?? 0,
-      icon: <WarningIcon fontSize="large" />
-    },
+    ...(isAdmin
+      ? [
+          {
+            title: "Productos activos",
+            value: metrics?.products ?? 0,
+            icon: (
+              <InventoryIcon fontSize="large" />
+            )
+          },
+
+          {
+            title: "Bajo inventario",
+            value: metrics?.lowStock ?? 0,
+            icon: (
+              <WarningIcon fontSize="large" />
+            )
+          }
+        ]
+      : []),
+
     {
       title: "Ventas de hoy",
       value:
         metrics?.todaySalesCount ?? 0,
-      icon: <PointOfSaleIcon fontSize="large" />
+
+      icon: (
+        <PointOfSaleIcon fontSize="large" />
+      )
     },
+
     {
       title: "Total vendido hoy",
       value: `$${(
         metrics?.todaySalesTotal ?? 0
       ).toFixed(2)}`,
-      icon: <PaidIcon fontSize="large" />
-    }
+
+      icon: (
+        <PaidIcon fontSize="large" />
+      )
+    },
+
+    ...(isAdmin
+      ? [
+          {
+            title: "Usuarios activos",
+            value: metrics?.users ?? 0,
+
+            icon: (
+              <InventoryIcon fontSize="large" />
+            )
+          }
+        ]
+      : [])
   ];
 
   return (
     <>
       <PageHeader
         title="Dashboard"
-        subtitle="Resumen operativo del negocio"
+        subtitle={
+          isAdmin
+            ? "Resumen administrativo del sistema"
+            : "Resumen personal de ventas"
+        }
       />
+
+      <Box sx={{ mb: 3 }}>
+        <Chip
+          label={
+            isAdmin
+              ? "Administrador"
+              : "Vendedor"
+          }
+
+          color={
+            isAdmin
+              ? "primary"
+              : "success"
+          }
+        />
+      </Box>
 
       <Grid
         container
@@ -78,7 +138,7 @@ export function DashboardPage() {
             item
             xs={12}
             sm={6}
-            lg={3}
+            lg={4}
             key={card.title}
           >
             <Card

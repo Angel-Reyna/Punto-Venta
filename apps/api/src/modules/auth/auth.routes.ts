@@ -1,6 +1,104 @@
-import { Router } from "express"; import bcrypt from "bcrypt"; import jwt from "jsonwebtoken"; import { z } from "zod"; import { validate } from "../../middlewares/validate"; import { asyncHandler } from "../../utils/asyncHandler"; import { prisma } from "../../config/prisma"; import { env } from "../../config/env"; import { AppError } from "../../utils/AppError";
-const loginSchema=z.object({body:z.object({email:z.string().email(),password:z.string().min(6)})}); const refreshSchema=z.object({body:z.object({refreshToken:z.string().min(10)})});
-export const authRouter=Router();
-function access(u:{id:string,email:string,role:any}){return jwt.sign(u,env.JWT_ACCESS_SECRET,{expiresIn:env.ACCESS_TOKEN_EXPIRES_IN});} function refreshToken(u:{id:string,email:string,role:any}){return jwt.sign(u,env.JWT_REFRESH_SECRET,{expiresIn:env.REFRESH_TOKEN_EXPIRES_IN});}
-authRouter.post('/login', validate(loginSchema), asyncHandler(async(req,res)=>{ const user=await prisma.user.findUnique({where:{email:req.body.email}}); if(!user||!user.isActive) throw new AppError(401,'Credenciales inválidas'); if(!await bcrypt.compare(req.body.password,user.passwordHash)) throw new AppError(401,'Credenciales inválidas'); const payload={id:user.id,email:user.email,role:user.role}; res.json({user:{id:user.id,name:user.name,email:user.email,role:user.role},accessToken:access(payload),refreshToken:refreshToken(payload)}); }));
-authRouter.post('/refresh', validate(refreshSchema), asyncHandler(async(req,res)=>{ try{ const d=jwt.verify(req.body.refreshToken, env.JWT_REFRESH_SECRET) as any; res.json({accessToken:access({id:d.id,email:d.email,role:d.role})}); }catch{ throw new AppError(401,'Refresh token inválido'); } }));
+import { Router } from "express";
+
+import { env } from "../../config/env";
+import { validate } from "../../middlewares/validate";
+import { asyncHandler } from "../../utils/asyncHandler";
+
+import {
+  loginSchema,
+  registerCashierSchema
+} from "./auth.schemas";
+
+import * as service from "./auth.service";
+
+export const authRouter = Router();
+
+const refreshCookieOptions = {
+  httpOnly: true,
+
+  secure: env.NODE_ENV === "production",
+
+  sameSite:
+    env.NODE_ENV === "production"
+      ? ("none" as const)
+      : ("lax" as const),
+
+  path: "/api/auth",
+
+  maxAge: 7 * 24 * 60 * 60 * 1000
+};
+
+authRouter.post(
+  "/login",
+  validate(loginSchema),
+  asyncHandler(async (req, res) => {
+    const result = await service.login(
+      req.body.email,
+      req.body.password
+    );
+
+    res.cookie(
+      "refreshToken",
+      result.refreshToken,
+      refreshCookieOptions
+    );
+
+    res.json({
+      accessToken: result.accessToken,
+      user: result.user
+    });
+  })
+);
+
+authRouter.post(
+  "/refresh",
+  asyncHandler(async (req, res) => {
+    const refreshToken =
+      req.cookies?.refreshToken;
+
+    const result = await service.refresh(
+      refreshToken
+    );
+
+    res.cookie(
+      "refreshToken",
+      result.refreshToken,
+      refreshCookieOptions
+    );
+
+    res.json({
+      accessToken: result.accessToken
+    });
+  })
+);
+
+authRouter.post(
+  "/logout",
+  asyncHandler(async (_req, res) => {
+    res.clearCookie(
+      "refreshToken",
+      refreshCookieOptions
+    );
+
+    res.json({
+      message: "Sesión cerrada correctamente"
+    });
+  })
+);
+
+authRouter.post(
+  "/register-cashier",
+  validate(registerCashierSchema),
+  asyncHandler(async (req, res) => {
+    const user = await service.registerCashier(
+      req.body.name,
+      req.body.email,
+      req.body.password
+    );
+
+    res.status(201).json({
+      message: "Cuenta de vendedor creada correctamente",
+      user
+    });
+  })
+);

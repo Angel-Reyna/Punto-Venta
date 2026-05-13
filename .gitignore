@@ -118,3 +118,7 @@ Notas/
 
 **/Notas.md
 **/Proyecto.md
+
+.env
+.env.*
+!.env.example

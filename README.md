@@ -1,4 +1,4 @@
-# POS Senior App
+# Punto de venta App
 
 Aplicación web completa para punto de venta, inventario, productos, reportes y auditoría.
 

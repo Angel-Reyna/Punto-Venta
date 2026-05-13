@@ -8,6 +8,8 @@ import {
 
 import { AppLayout } from "./layout/AppLayout";
 
+import { useAuth } from "./auth/AuthContext";
+
 import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ProductsPage } from "./pages/ProductsPage";
@@ -17,16 +19,14 @@ import { ReportsPage } from "./pages/ReportsPage";
 import { UsersPage } from "./pages/UsersPage";
 import { AuditPage } from "./pages/AuditPage";
 
-import { useAuth } from "./auth/AuthContext";
-
 function ProtectedRoute({
   children
 }: {
   children: ReactNode;
 }) {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
 
-  if (!user) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
@@ -38,13 +38,27 @@ function AdminRoute({
 }: {
   children: ReactNode;
 }) {
-  const { user } = useAuth();
+  const { isAdmin } = useAuth();
 
-  if (user?.role !== "ADMIN") {
+  if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
 
   return children;
+}
+
+function ProtectedLayout({
+  children
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <ProtectedRoute>
+      <AppLayout>
+        {children}
+      </AppLayout>
+    </ProtectedRoute>
+  );
 }
 
 export default function App() {
@@ -58,85 +72,71 @@ export default function App() {
       <Route
         path="/"
         element={
-          <ProtectedRoute>
-            <AppLayout>
-              <DashboardPage />
-            </AppLayout>
-          </ProtectedRoute>
+          <ProtectedLayout>
+            <DashboardPage />
+          </ProtectedLayout>
         }
       />
 
       <Route
         path="/products"
         element={
-          <ProtectedRoute>
-            <AppLayout>
-              <ProductsPage />
-            </AppLayout>
-          </ProtectedRoute>
+          <ProtectedLayout>
+            <ProductsPage />
+          </ProtectedLayout>
         }
       />
 
       <Route
         path="/sales"
         element={
-          <ProtectedRoute>
-            <AppLayout>
-              <SalesPage />
-            </AppLayout>
-          </ProtectedRoute>
+          <ProtectedLayout>
+            <SalesPage />
+          </ProtectedLayout>
         }
       />
 
       <Route
         path="/inventory"
         element={
-          <ProtectedRoute>
+          <ProtectedLayout>
             <AdminRoute>
-              <AppLayout>
-                <InventoryPage />
-              </AppLayout>
+              <InventoryPage />
             </AdminRoute>
-          </ProtectedRoute>
+          </ProtectedLayout>
         }
       />
 
       <Route
         path="/reports"
         element={
-          <ProtectedRoute>
+          <ProtectedLayout>
             <AdminRoute>
-              <AppLayout>
-                <ReportsPage />
-              </AppLayout>
+              <ReportsPage />
             </AdminRoute>
-          </ProtectedRoute>
+          </ProtectedLayout>
         }
       />
 
       <Route
         path="/users"
         element={
-          <ProtectedRoute>
+          <ProtectedLayout>
             <AdminRoute>
-              <AppLayout>
-                <UsersPage />
-              </AppLayout>
+              <UsersPage />
             </AdminRoute>
-          </ProtectedRoute>
+          </ProtectedLayout>
         }
       />
 
       <Route
         path="/audit"
         element={
-          <ProtectedRoute>
+          <ProtectedLayout>
             <AdminRoute>
-              <AppLayout>
-                <AuditPage />
-              </AppLayout>
+              <AuditPage />
             </AdminRoute>
-          </ProtectedRoute>
+          </ProtectedLayout>
         }
       />
 

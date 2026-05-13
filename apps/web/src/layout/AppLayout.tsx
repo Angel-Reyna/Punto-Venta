@@ -1,4 +1,5 @@
 import { ReactNode, useState } from "react";
+
 import {
   AppBar,
   Box,
@@ -16,6 +17,7 @@ import {
 } from "@mui/material";
 
 import MenuIcon from "@mui/icons-material/Menu";
+
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import InventoryIcon from "@mui/icons-material/Inventory2";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
@@ -25,6 +27,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import LogoutIcon from "@mui/icons-material/Logout";
 
 import { NavLink } from "react-router-dom";
+
 import { useAuth } from "../auth/AuthContext";
 
 const drawerWidth = 250;
@@ -34,7 +37,11 @@ export function AppLayout({
 }: {
   children: ReactNode;
 }) {
-  const { user, logout } = useAuth();
+  const {
+    user,
+    logout,
+    isAdmin
+  } = useAuth();
 
   const theme = useTheme();
 
@@ -42,76 +49,139 @@ export function AppLayout({
     theme.breakpoints.down("md")
   );
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] =
+    useState(false);
 
-  const isAdmin = user?.role === "ADMIN";
-
-  const items = [
+  const menuItems = [
     {
       label: "Dashboard",
       to: "/",
       icon: <DashboardIcon />,
-      show: true
+      visible: true
     },
+
     {
       label: "Productos",
       to: "/products",
       icon: <InventoryIcon />,
-      show: true
+      visible: true
     },
-    {
-      label: "Inventario",
-      to: "/inventory",
-      icon: <InventoryIcon />,
-      show: isAdmin
-    },
+
     {
       label: "Ventas",
       to: "/sales",
       icon: <PointOfSaleIcon />,
-      show: true
+      visible: true
     },
+
+    {
+      label: "Inventario",
+      to: "/inventory",
+      icon: <InventoryIcon />,
+      visible: isAdmin
+    },
+
     {
       label: "Reportes",
       to: "/reports",
       icon: <AssessmentIcon />,
-      show: isAdmin
+      visible: isAdmin
     },
+
     {
       label: "Usuarios",
       to: "/users",
       icon: <PeopleIcon />,
-      show: isAdmin
+      visible: isAdmin
     },
+
     {
       label: "Auditoría",
       to: "/audit",
       icon: <HistoryIcon />,
-      show: isAdmin
+      visible: isAdmin
     }
   ];
 
   const drawerContent = (
-    <List>
-      {items
-        .filter((item) => item.show)
-        .map((item) => (
-          <ListItemButton
-            key={item.to}
-            component={NavLink}
-            to={item.to}
-            onClick={() => setOpen(false)}
-          >
-            <ListItemIcon>
-              {item.icon}
-            </ListItemIcon>
+    <Box>
+      <Box
+        sx={{
+          px: 2,
+          py: 3,
+          borderBottom:
+            "1px solid #e2e8f0"
+        }}
+      >
+        <Typography
+          variant="h6"
+          fontWeight={800}
+        >
+          POS Senior
+        </Typography>
 
-            <ListItemText
-              primary={item.label}
-            />
-          </ListItemButton>
-        ))}
-    </List>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+        >
+          {user?.name}
+        </Typography>
+
+        <Typography
+          variant="caption"
+          color="primary"
+          fontWeight={700}
+        >
+          {user?.role}
+        </Typography>
+      </Box>
+
+      <List>
+        {menuItems
+          .filter(
+            (item) => item.visible
+          )
+          .map((item) => (
+            <ListItemButton
+              key={item.to}
+
+              component={NavLink}
+
+              to={item.to}
+
+              onClick={() =>
+                setOpen(false)
+              }
+
+              sx={{
+                "&.active": {
+                  background:
+                    "#dbeafe",
+
+                  color:
+                    "#1d4ed8",
+
+                  "& .MuiListItemIcon-root":
+                    {
+                      color:
+                        "#1d4ed8"
+                    }
+                }
+              }}
+            >
+              <ListItemIcon>
+                {item.icon}
+              </ListItemIcon>
+
+              <ListItemText
+                primary={
+                  item.label
+                }
+              />
+            </ListItemButton>
+          ))}
+      </List>
+    </Box>
   );
 
   return (
@@ -132,8 +202,12 @@ export function AppLayout({
             <IconButton
               color="inherit"
               edge="start"
-              onClick={() => setOpen(true)}
-              sx={{ mr: 1 }}
+              onClick={() =>
+                setOpen(true)
+              }
+              sx={{
+                mr: 1
+              }}
             >
               <MenuIcon />
             </IconButton>
@@ -143,21 +217,38 @@ export function AppLayout({
             variant="h6"
             sx={{
               flexGrow: 1,
-              fontWeight: 700
+              fontWeight: 800
             }}
           >
             POS Senior
           </Typography>
 
           {!isMobile && (
-            <Typography sx={{ mr: 2 }}>
-              {user?.name} · {user?.role}
-            </Typography>
+            <Box
+              sx={{
+                textAlign: "right",
+                mr: 2
+              }}
+            >
+              <Typography
+                variant="body2"
+              >
+                {user?.name}
+              </Typography>
+
+              <Typography
+                variant="caption"
+              >
+                {user?.role}
+              </Typography>
+            </Box>
           )}
 
           <Button
             color="inherit"
-            startIcon={<LogoutIcon />}
+            startIcon={
+              <LogoutIcon />
+            }
             onClick={logout}
           >
             Salir
@@ -176,7 +267,9 @@ export function AppLayout({
             ? open
             : true
         }
-        onClose={() => setOpen(false)}
+        onClose={() =>
+          setOpen(false)
+        }
         ModalProps={{
           keepMounted: true
         }}
@@ -187,7 +280,10 @@ export function AppLayout({
 
           "& .MuiDrawer-paper": {
             width: drawerWidth,
-            pt: 8,
+            pt: isMobile
+              ? 0
+              : 8,
+
             borderRight:
               "1px solid #e2e8f0"
           }
