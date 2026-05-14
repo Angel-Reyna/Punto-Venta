@@ -1,10 +1,12 @@
 import { FormEvent, useEffect, useState } from "react";
 
 import {
+  Alert,
   Box,
   Button,
   Card,
   CardContent,
+  Chip,
   MenuItem,
   TextField
 } from "@mui/material";
@@ -27,8 +29,9 @@ type User = {
 };
 
 export function UsersPage() {
-  const [rows, setRows] =
-    useState<User[]>([]);
+  const [rows, setRows] = useState<User[]>([]);
+
+  const [message, setMessage] = useState("");
 
   const [form, setForm] = useState({
     name: "",
@@ -38,9 +41,7 @@ export function UsersPage() {
   });
 
   async function load() {
-    const response =
-      await api.get("/users");
-
+    const response = await api.get("/users");
     setRows(response.data);
   }
 
@@ -48,12 +49,14 @@ export function UsersPage() {
     load();
   }, []);
 
-  async function submit(
-    event: FormEvent
-  ) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
 
+    setMessage("");
+
     await api.post("/users", form);
+
+    setMessage("Usuario creado correctamente");
 
     setForm({
       name: "",
@@ -62,7 +65,15 @@ export function UsersPage() {
       role: "CASHIER"
     });
 
-    load();
+    await load();
+  }
+
+  async function toggleUser(userId: string) {
+    await api.patch(`/users/${userId}/toggle`);
+
+    setMessage("Estado del usuario actualizado");
+
+    await load();
   }
 
   const columns: GridColDef[] = [
@@ -81,28 +92,42 @@ export function UsersPage() {
     {
       field: "role",
       headerName: "Rol",
-      width: 120
+      width: 130,
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={
+            params.value === "ADMIN"
+              ? "primary"
+              : "success"
+          }
+        />
+      )
     },
     {
       field: "isActive",
-      headerName: "Activo",
-      width: 100
+      headerName: "Estado",
+      width: 130,
+      renderCell: (params) => (
+        <Chip
+          label={params.value ? "Activo" : "Inactivo"}
+          size="small"
+          color={params.value ? "success" : "default"}
+        />
+      )
     },
     {
       field: "actions",
       headerName: "",
-      width: 130,
+      width: 150,
       sortable: false,
+      filterable: false,
       renderCell: (params) => (
         <Button
           size="small"
-          onClick={() =>
-            api
-              .patch(
-                `/users/${params.row.id}/toggle`
-              )
-              .then(load)
-          }
+          variant="outlined"
+          onClick={() => toggleUser(params.row.id)}
         >
           Cambiar
         </Button>
@@ -114,8 +139,14 @@ export function UsersPage() {
     <>
       <PageHeader
         title="Usuarios"
-        subtitle="Administradores y cajeros"
+        subtitle="Administración exclusiva para usuarios con rol ADMIN"
       />
+
+      {message && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {message}
+        </Alert>
+      )}
 
       <Card sx={{ mb: 2 }}>
         <CardContent>
@@ -124,12 +155,10 @@ export function UsersPage() {
             onSubmit={submit}
             sx={{
               display: "flex",
-
               flexDirection: {
                 xs: "column",
                 md: "row"
               },
-
               gap: 2
             }}
           >
@@ -162,6 +191,7 @@ export function UsersPage() {
               label="Contraseña"
               type="password"
               value={form.password}
+              helperText="Mínimo 8 caracteres, una mayúscula, una minúscula y un número."
               onChange={(event) =>
                 setForm({
                   ...form,
@@ -197,7 +227,8 @@ export function UsersPage() {
               disabled={
                 !form.name ||
                 !form.email ||
-                !form.password
+                !form.password ||
+                !form.role
               }
             >
               Crear
@@ -207,16 +238,8 @@ export function UsersPage() {
       </Card>
 
       <Card>
-        <CardContent
-          sx={{
-            overflowX: "auto"
-          }}
-        >
-          <Box
-            sx={{
-              minWidth: 760
-            }}
-          >
+        <CardContent sx={{ overflowX: "auto" }}>
+          <Box sx={{ minWidth: 820 }}>
             <DataGrid
               autoHeight
               rows={rows}

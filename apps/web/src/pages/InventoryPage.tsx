@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 
 import {
+  Alert,
   Box,
   Button,
   Card,
   CardContent,
+  Chip,
   MenuItem,
   TextField
 } from "@mui/material";
@@ -34,11 +36,11 @@ type Movement = {
 };
 
 export function InventoryPage() {
-  const [products, setProducts] =
-    useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [movements, setMovements] = useState<Movement[]>([]);
 
-  const [movements, setMovements] =
-    useState<Movement[]>([]);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   const [form, setForm] = useState({
     productId: "",
@@ -47,39 +49,47 @@ export function InventoryPage() {
   });
 
   async function load() {
-    const productsResponse =
-      await api.get("/products");
+    try {
+      const productsResponse = await api.get("/products");
+      const movementsResponse = await api.get("/inventory/movements");
 
-    const movementsResponse =
-      await api.get(
-        "/inventory/movements"
-      );
-
-    setProducts(productsResponse.data);
-    setMovements(
-      movementsResponse.data
-    );
+      setProducts(productsResponse.data);
+      setMovements(movementsResponse.data);
+    } catch {
+      setError("No se pudo cargar el inventario");
+    }
   }
 
   useEffect(() => {
     load();
   }, []);
 
-  async function submit(
-    type: "in" | "out"
-  ) {
-    await api.post(
-      `/inventory/${type}`,
-      form
-    );
+  async function submit(type: "in" | "out") {
+    setMessage("");
+    setError("");
 
-    setForm({
-      productId: "",
-      quantity: 1,
-      reason: ""
-    });
+    try {
+      await api.post(`/inventory/${type}`, form);
 
-    load();
+      setMessage(
+        type === "in"
+          ? "Entrada registrada correctamente"
+          : "Salida registrada correctamente"
+      );
+
+      setForm({
+        productId: "",
+        quantity: 1,
+        reason: ""
+      });
+
+      await load();
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message ??
+          "No se pudo registrar el movimiento"
+      );
+    }
   }
 
   const columns: GridColDef[] = [
@@ -93,10 +103,7 @@ export function InventoryPage() {
       headerName: "Producto",
       flex: 1,
       minWidth: 220,
-      valueGetter: (
-        _value,
-        row
-      ) => row.product?.name
+      valueGetter: (_value, row) => row.product?.name
     },
     {
       field: "type",
@@ -116,24 +123,47 @@ export function InventoryPage() {
     }
   ];
 
+  const formIsInvalid =
+    !form.productId ||
+    !form.reason.trim() ||
+    form.reason.trim().length < 3 ||
+    form.quantity <= 0;
+
   return (
     <>
       <PageHeader
         title="Inventario"
-        subtitle="Entradas, salidas y movimientos"
+        subtitle="Entradas y salidas manuales exclusivas para ADMIN"
       />
+
+      <Box sx={{ mb: 2 }}>
+        <Chip
+          color="primary"
+          label="Acceso exclusivo ADMIN"
+        />
+      </Box>
+
+      {message && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {message}
+        </Alert>
+      )}
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
 
       <Card sx={{ mb: 2 }}>
         <CardContent>
           <Box
             sx={{
               display: "flex",
-
               flexDirection: {
                 xs: "column",
                 md: "row"
               },
-
               gap: 2
             }}
           >
@@ -145,8 +175,7 @@ export function InventoryPage() {
               onChange={(event) =>
                 setForm({
                   ...form,
-                  productId:
-                    event.target.value
+                  productId: event.target.value
                 })
               }
               sx={{
@@ -156,19 +185,11 @@ export function InventoryPage() {
                 }
               }}
             >
-              {products.map(
-                (product) => (
-                  <MenuItem
-                    key={product.id}
-                    value={product.id}
-                  >
-                    {product.sku} ·{" "}
-                    {product.name} ·
-                    stock{" "}
-                    {product.stock}
-                  </MenuItem>
-                )
-              )}
+              {products.map((product) => (
+                <MenuItem key={product.id} value={product.id}>
+                  {product.sku} · {product.name} · stock {product.stock}
+                </MenuItem>
+              ))}
             </TextField>
 
             <TextField
@@ -176,12 +197,13 @@ export function InventoryPage() {
               label="Cantidad"
               type="number"
               value={form.quantity}
+              inputProps={{
+                min: 1
+              }}
               onChange={(event) =>
                 setForm({
                   ...form,
-                  quantity: Number(
-                    event.target.value
-                  )
+                  quantity: Number(event.target.value)
                 })
               }
             />
@@ -190,21 +212,19 @@ export function InventoryPage() {
               fullWidth
               label="Motivo"
               value={form.reason}
+              helperText="Mínimo 3 caracteres"
               onChange={(event) =>
                 setForm({
                   ...form,
-                  reason:
-                    event.target.value
+                  reason: event.target.value
                 })
               }
             />
 
             <Button
               fullWidth
-              onClick={() =>
-                submit("in")
-              }
-              disabled={!form.productId}
+              onClick={() => submit("in")}
+              disabled={formIsInvalid}
             >
               Entrada
             </Button>
@@ -212,10 +232,8 @@ export function InventoryPage() {
             <Button
               fullWidth
               color="warning"
-              onClick={() =>
-                submit("out")
-              }
-              disabled={!form.productId}
+              onClick={() => submit("out")}
+              disabled={formIsInvalid}
             >
               Salida
             </Button>
@@ -224,16 +242,8 @@ export function InventoryPage() {
       </Card>
 
       <Card>
-        <CardContent
-          sx={{
-            overflowX: "auto"
-          }}
-        >
-          <Box
-            sx={{
-              minWidth: 760
-            }}
-          >
+        <CardContent sx={{ overflowX: "auto" }}>
+          <Box sx={{ minWidth: 760 }}>
             <DataGrid
               autoHeight
               rows={movements}

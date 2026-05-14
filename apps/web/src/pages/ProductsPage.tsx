@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
   Alert,
@@ -32,15 +32,17 @@ type Product = {
   id: string;
   sku: string;
   name: string;
-  description?: string;
-  costPrice: number;
+  description?: string | null;
+
   salePrice: number;
   promoPercent: number;
-  stock: number;
-  minStock: number;
-  isActive: boolean;
-  marginPercent: number;
   finalPrice: number;
+  stock: number;
+
+  costPrice?: number;
+  marginPercent?: number;
+  minStock?: number;
+  isActive?: boolean;
 };
 
 const initialForm = {
@@ -55,14 +57,10 @@ const initialForm = {
 };
 
 export function ProductsPage() {
-  const { user } = useAuth();
+  const { isAdmin } = useAuth();
 
-  const isAdmin =
-    user?.role === "ADMIN";
-
-  const [rows, setRows] = useState<
-    Product[]
-  >([]);
+  const [rows, setRows] =
+    useState<Product[]>([]);
 
   const [open, setOpen] =
     useState(false);
@@ -98,7 +96,7 @@ export function ProductsPage() {
 
     setForm(initialForm);
 
-    load();
+    await load();
   }
 
   async function downloadTemplate() {
@@ -141,105 +139,147 @@ export function ProductsPage() {
     const response =
       await api.post(
         "/products/import/excel",
-        formData
+        formData,
+        {
+          headers: {
+            "Content-Type":
+              "multipart/form-data"
+          }
+        }
       );
 
     setMessage(
       `Productos importados: ${response.data.imported}`
     );
 
-    load();
+    await load();
   }
 
-  const columns: GridColDef[] = [
-    {
-      field: "sku",
-      headerName: "SKU",
-      width: 130
-    },
+  async function toggleProduct(
+    productId: string
+  ) {
+    await api.patch(
+      `/products/${productId}/toggle`
+    );
 
-    {
-      field: "name",
-      headerName: "Producto",
-      flex: 1,
-      minWidth: 220
-    },
+    await load();
+  }
 
-    {
-      field: "costPrice",
-      headerName: "Costo",
-      width: 100
-    },
+  const columns =
+    useMemo<GridColDef[]>(() => {
+      const baseColumns: GridColDef[] = [
+        {
+          field: "sku",
+          headerName: "SKU",
+          width: 130
+        },
 
-    {
-      field: "salePrice",
-      headerName: "Venta",
-      width: 100
-    },
+        {
+          field: "name",
+          headerName: "Producto",
+          flex: 1,
+          minWidth: 220
+        },
 
-    {
-      field: "marginPercent",
-      headerName: "Margen %",
-      width: 110
-    },
+        {
+          field: "salePrice",
+          headerName: "Venta",
+          width: 110,
+          valueFormatter: (value) =>
+            `$${Number(value).toFixed(2)}`
+        },
 
-    {
-      field: "promoPercent",
-      headerName: "Promo %",
-      width: 110
-    },
+        {
+          field: "promoPercent",
+          headerName: "Promo %",
+          width: 110,
+          valueFormatter: (value) =>
+            `${Number(value).toFixed(2)}%`
+        },
 
-    {
-      field: "finalPrice",
-      headerName: "Precio final",
-      width: 130
-    },
+        {
+          field: "finalPrice",
+          headerName: "Precio final",
+          width: 140,
+          valueFormatter: (value) =>
+            `$${Number(value).toFixed(2)}`
+        },
 
-    {
-      field: "stock",
-      headerName: "Stock",
-      width: 90
-    },
+        {
+          field: "stock",
+          headerName: "Stock",
+          width: 90
+        }
+      ];
 
-    {
-      field: "isActive",
-      headerName: "Activo",
-      width: 90
-    },
+      if (!isAdmin) {
+        return baseColumns;
+      }
 
-    ...(isAdmin
-      ? [
-          {
-            field: "actions",
-            headerName: "",
-            width: 80,
-            sortable: false,
+      return [
+        ...baseColumns.slice(0, 2),
 
-            renderCell: (
-              params: any
-            ) => (
-              <IconButton
-                onClick={() =>
-                  api
-                    .patch(
-                      `/products/${params.row.id}/toggle`
-                    )
-                    .then(load)
-                }
-              >
-                <ToggleOffIcon />
-              </IconButton>
-            )
-          }
-        ]
-      : [])
-  ];
+        {
+          field: "costPrice",
+          headerName: "Costo",
+          width: 110,
+          valueFormatter: (value) =>
+            `$${Number(value).toFixed(2)}`
+        },
+
+        ...baseColumns.slice(2),
+
+        {
+          field: "marginPercent",
+          headerName: "Margen %",
+          width: 120,
+          valueFormatter: (value) =>
+            `${Number(value).toFixed(2)}%`
+        },
+
+        {
+          field: "minStock",
+          headerName: "Stock mín.",
+          width: 110
+        },
+
+        {
+          field: "isActive",
+          headerName: "Activo",
+          width: 90,
+          valueFormatter: (value) =>
+            value ? "Sí" : "No"
+        },
+
+        {
+          field: "actions",
+          headerName: "",
+          width: 90,
+          sortable: false,
+          filterable: false,
+
+          renderCell: (params) => (
+            <IconButton
+              onClick={() =>
+                toggleProduct(params.row.id)
+              }
+            >
+              <ToggleOffIcon />
+            </IconButton>
+          )
+        }
+      ];
+    }, [isAdmin]);
 
   return (
     <>
       <PageHeader
         title="Productos"
-        subtitle="Alta manual, consulta, promociones y carga por Excel"
+        subtitle={
+          isAdmin
+            ? "Alta, edición, promociones, costos y carga por Excel"
+            : "Consulta de productos disponibles"
+        }
         action={
           isAdmin && (
             <Button
@@ -268,25 +308,18 @@ export function ProductsPage() {
         <Box
           sx={{
             display: "flex",
-
             flexDirection: {
               xs: "column",
               sm: "row"
             },
-
             gap: 1,
-
             mb: 2
           }}
         >
           <Button
             fullWidth
-            startIcon={
-              <DownloadIcon />
-            }
-            onClick={
-              downloadTemplate
-            }
+            startIcon={<DownloadIcon />}
+            onClick={downloadTemplate}
           >
             Descargar formato Excel
           </Button>
@@ -294,9 +327,7 @@ export function ProductsPage() {
           <Button
             fullWidth
             component="label"
-            startIcon={
-              <UploadIcon />
-            }
+            startIcon={<UploadIcon />}
           >
             Importar Excel
 
@@ -306,8 +337,7 @@ export function ProductsPage() {
               accept=".xlsx,.xls"
               onChange={(event) =>
                 importExcel(
-                  event.target
-                    .files?.[0]
+                  event.target.files?.[0]
                 )
               }
             />
@@ -323,7 +353,9 @@ export function ProductsPage() {
         >
           <Box
             sx={{
-              minWidth: 980
+              minWidth: isAdmin
+                ? 1180
+                : 760
             }}
           >
             <DataGrid
@@ -336,92 +368,88 @@ export function ProductsPage() {
         </CardContent>
       </Card>
 
-      <Dialog
-        open={open}
-        onClose={() =>
-          setOpen(false)
-        }
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          Nuevo producto
-        </DialogTitle>
+      {isAdmin && (
+        <Dialog
+          open={open}
+          onClose={() =>
+            setOpen(false)
+          }
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            Nuevo producto
+          </DialogTitle>
 
-        <DialogContent>
-          <Box
-            component="form"
-            onSubmit={submit}
-            sx={{ mt: 1 }}
-          >
-            <Grid
-              container
-              spacing={2}
+          <DialogContent>
+            <Box
+              component="form"
+              onSubmit={submit}
+              sx={{ mt: 1 }}
             >
-              {Object.entries(
-                form
-              ).map(
-                ([key, value]) => (
-                  <Grid
-                    item
-                    xs={12}
-                    md={
-                      key ===
-                      "description"
-                        ? 12
-                        : 6
-                    }
-                    key={key}
-                  >
-                    <TextField
-                      fullWidth
-                      label={key}
-                      value={value}
-                      type={
-                        typeof value ===
-                        "number"
-                          ? "number"
-                          : "text"
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setForm({
-                          ...form,
-
-                          [key]:
-                            typeof value ===
-                            "number"
-                              ? Number(
-                                  event
-                                    .target
-                                    .value
-                                )
-                              : event
-                                  .target
-                                  .value
-                        })
-                      }
-                    />
-                  </Grid>
-                )
-              )}
-
               <Grid
-                item
-                xs={12}
+                container
+                spacing={2}
               >
-                <Button
-                  type="submit"
-                  fullWidth
+                {Object.entries(form).map(
+                  ([key, value]) => (
+                    <Grid
+                      item
+                      xs={12}
+                      md={
+                        key ===
+                        "description"
+                          ? 12
+                          : 6
+                      }
+                      key={key}
+                    >
+                      <TextField
+                        fullWidth
+                        label={key}
+                        value={value}
+                        type={
+                          typeof value ===
+                          "number"
+                            ? "number"
+                            : "text"
+                        }
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+
+                            [key]:
+                              typeof value ===
+                              "number"
+                                ? Number(
+                                    event.target
+                                      .value
+                                  )
+                                : event.target
+                                    .value
+                          })
+                        }
+                      />
+                    </Grid>
+                  )
+                )}
+
+                <Grid
+                  item
+                  xs={12}
                 >
-                  Guardar
-                </Button>
+                  <Button
+                    type="submit"
+                    fullWidth
+                  >
+                    Guardar
+                  </Button>
+                </Grid>
               </Grid>
-            </Grid>
-          </Box>
-        </DialogContent>
-      </Dialog>
+            </Box>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }

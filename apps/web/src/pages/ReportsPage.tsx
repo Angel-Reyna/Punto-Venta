@@ -1,10 +1,12 @@
 import { useState } from "react";
 
 import {
+  Alert,
   Box,
   Button,
   Card,
   CardContent,
+  Chip,
   TextField,
   Typography
 } from "@mui/material";
@@ -20,42 +22,49 @@ type ReportData = {
 };
 
 export function ReportsPage() {
-  const today =
-    new Date().toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
 
-  const [from, setFrom] =
-    useState(today);
+  const [from, setFrom] = useState(today);
+  const [to, setTo] = useState(today);
 
-  const [to, setTo] =
-    useState(today);
+  const [data, setData] = useState<ReportData | null>(null);
 
-  const [data, setData] =
-    useState<ReportData | null>(null);
+  const [error, setError] = useState("");
+
+  function datesAreInvalid() {
+    return !from || !to || new Date(from) > new Date(to);
+  }
 
   async function consult() {
-    const response = await api.get(
-      `/reports/sales?from=${from}&to=${to}`
-    );
+    setError("");
+
+    if (datesAreInvalid()) {
+      setError("El rango de fechas no es válido");
+      return;
+    }
+
+    const response = await api.get(`/reports/sales?from=${from}&to=${to}`);
 
     setData(response.data);
   }
 
   async function downloadPdf() {
-    const response = await api.get(
-      `/reports/sales/pdf?from=${from}&to=${to}`,
-      {
-        responseType: "blob"
-      }
-    );
+    setError("");
 
-    const url =
-      URL.createObjectURL(response.data);
+    if (datesAreInvalid()) {
+      setError("El rango de fechas no es válido");
+      return;
+    }
 
-    const anchor =
-      document.createElement("a");
+    const response = await api.get(`/reports/sales/pdf?from=${from}&to=${to}`, {
+      responseType: "blob"
+    });
+
+    const url = URL.createObjectURL(response.data);
+    const anchor = document.createElement("a");
 
     anchor.href = url;
-    anchor.download = "reporte-ventas.pdf";
+    anchor.download = `reporte-ventas-${from}-${to}.pdf`;
     anchor.click();
 
     URL.revokeObjectURL(url);
@@ -65,22 +74,32 @@ export function ReportsPage() {
     <>
       <PageHeader
         title="Reportes"
-        subtitle="Ventas por rango de fechas y descarga en PDF"
+        subtitle="Consulta administrativa de ventas por rango de fechas"
       />
+
+      <Box sx={{ mb: 2 }}>
+        <Chip
+          color="primary"
+          label="Acceso exclusivo ADMIN"
+        />
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
 
       <Card>
         <CardContent>
           <Box
             sx={{
               display: "flex",
-
               flexDirection: {
                 xs: "column",
                 md: "row"
               },
-
               gap: 2,
-
               mb: 3
             }}
           >
@@ -89,9 +108,7 @@ export function ReportsPage() {
               label="Desde"
               type="date"
               value={from}
-              onChange={(event) =>
-                setFrom(event.target.value)
-              }
+              onChange={(event) => setFrom(event.target.value)}
               InputLabelProps={{
                 shrink: true
               }}
@@ -102,9 +119,7 @@ export function ReportsPage() {
               label="Hasta"
               type="date"
               value={to}
-              onChange={(event) =>
-                setTo(event.target.value)
-              }
+              onChange={(event) => setTo(event.target.value)}
               InputLabelProps={{
                 shrink: true
               }}
@@ -113,6 +128,7 @@ export function ReportsPage() {
             <Button
               fullWidth
               onClick={consult}
+              disabled={datesAreInvalid()}
             >
               Consultar
             </Button>
@@ -120,8 +136,9 @@ export function ReportsPage() {
             <Button
               fullWidth
               onClick={downloadPdf}
+              disabled={datesAreInvalid()}
             >
-              PDF
+              Descargar PDF
             </Button>
           </Box>
 
@@ -132,13 +149,11 @@ export function ReportsPage() {
               </Typography>
 
               <Typography>
-                Subtotal: $
-                {data.subtotal.toFixed(2)}
+                Subtotal: ${data.subtotal.toFixed(2)}
               </Typography>
 
               <Typography>
-                Descuentos: $
-                {data.discount.toFixed(2)}
+                Descuentos: ${data.discount.toFixed(2)}
               </Typography>
 
               <Typography

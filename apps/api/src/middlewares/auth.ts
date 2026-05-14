@@ -1,18 +1,15 @@
 import { NextFunction, Request, Response } from "express";
-import * as jwt from "jsonwebtoken";
-import { z } from "zod";
+import jwt from "jsonwebtoken";
 import { Role } from "@prisma/client";
 
 import { env } from "../config/env";
 import { AppError } from "../utils/AppError";
 
-import "../types";
-
-const jwtPayloadSchema = z.object({
-  sub: z.string(),
-  role: z.nativeEnum(Role),
-  email: z.string().email()
-});
+type JwtPayloadUser = {
+  sub: string;
+  email: string;
+  role: Role;
+};
 
 export function requireAuth(
   req: Request,
@@ -28,12 +25,14 @@ export function requireAuth(
   const token = header.replace("Bearer ", "");
 
   try {
-    const decoded = jwt.verify(
+    const payload = jwt.verify(
       token,
       env.JWT_ACCESS_SECRET
-    );
+    ) as JwtPayloadUser;
 
-    const payload = jwtPayloadSchema.parse(decoded);
+    if (!payload.sub || !payload.email || !payload.role) {
+      throw new AppError(401, "Token inválido");
+    }
 
     req.user = {
       id: payload.sub,
@@ -42,7 +41,7 @@ export function requireAuth(
     };
 
     next();
-  } catch (error) {
+  } catch {
     throw new AppError(401, "Token inválido o expirado");
   }
 }

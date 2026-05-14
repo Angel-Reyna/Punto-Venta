@@ -20,15 +20,10 @@ export function LoginPage() {
   const { login } = useAuth();
 
   const [mode, setMode] = useState<Mode>("login");
-
   const [name, setName] = useState("");
-
   const [email, setEmail] = useState("admin@pos.local");
-
   const [password, setPassword] = useState("Admin12345");
-
   const [error, setError] = useState("");
-
   const [success, setSuccess] = useState("");
 
   async function submit(event: FormEvent) {
@@ -40,9 +35,7 @@ export function LoginPage() {
     try {
       if (mode === "login") {
         await login(email, password);
-
-        location.href = "/";
-
+        window.location.href = "/";
         return;
       }
 
@@ -52,17 +45,13 @@ export function LoginPage() {
         password
       });
 
-      setSuccess(
-        "Cuenta de vendedor creada correctamente. Ya puedes iniciar sesión."
-      );
-
+      setSuccess("Cuenta de vendedor creada correctamente. Ya puedes iniciar sesión.");
       setMode("login");
+      setName("");
+      setEmail("");
       setPassword("");
     } catch (err: any) {
-      setError(
-        err?.response?.data?.message ??
-          "No se pudo completar la operación"
-      );
+      setError(err?.response?.data?.message ?? "No se pudo completar la operación");
     }
   }
 
@@ -79,6 +68,7 @@ export function LoginPage() {
     }
 
     setMode("login");
+    setName("");
     setEmail("admin@pos.local");
     setPassword("Admin12345");
   }
@@ -93,51 +83,20 @@ export function LoginPage() {
         p: 2
       }}
     >
-      <Card
-        sx={{
-          width: "100%",
-          maxWidth: 440,
-          borderRadius: 4
-        }}
-      >
-        <CardContent
-          sx={{
-            p: {
-              xs: 3,
-              sm: 4
-            }
-          }}
-        >
+      <Card sx={{ width: "100%", maxWidth: 440, borderRadius: 4 }}>
+        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
           <Typography variant="h4" fontWeight={800} mb={1}>
             POS Senior
           </Typography>
 
           <Typography color="text.secondary" mb={3}>
-            {mode === "login"
-              ? "Acceso al sistema"
-              : "Crear cuenta de vendedor"}
+            {mode === "login" ? "Acceso al sistema" : "Crear cuenta de vendedor"}
           </Typography>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
-          {success && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              {success}
-            </Alert>
-          )}
-
-          <Box
-            component="form"
-            onSubmit={submit}
-            sx={{
-              display: "grid",
-              gap: 2
-            }}
-          >
+          <Box component="form" onSubmit={submit} sx={{ display: "grid", gap: 2 }}>
             {mode === "register" && (
               <TextField
                 fullWidth
@@ -171,11 +130,7 @@ export function LoginPage() {
               fullWidth
               size="large"
               type="submit"
-              disabled={
-                mode === "register"
-                  ? !name || !email || !password
-                  : !email || !password
-              }
+              disabled={mode === "register" ? !name || !email || !password : !email || !password}
             >
               {mode === "login" ? "Entrar" : "Crear cuenta"}
             </Button>
@@ -184,9 +139,7 @@ export function LoginPage() {
           <Divider sx={{ my: 3 }} />
 
           <Button fullWidth variant="outlined" onClick={switchMode}>
-            {mode === "login"
-              ? "Crear cuenta de vendedor"
-              : "Ya tengo cuenta"}
+            {mode === "login" ? "Crear cuenta de vendedor" : "Ya tengo cuenta"}
           </Button>
         </CardContent>
       </Card>

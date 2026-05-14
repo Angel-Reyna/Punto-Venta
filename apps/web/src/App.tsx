@@ -1,13 +1,13 @@
 import { ReactNode } from "react";
 
 import {
+  BrowserRouter,
   Navigate,
   Route,
   Routes
 } from "react-router-dom";
 
 import { AppLayout } from "./layout/AppLayout";
-
 import { useAuth } from "./auth/AuthContext";
 
 import { LoginPage } from "./pages/LoginPage";
@@ -19,11 +19,7 @@ import { ReportsPage } from "./pages/ReportsPage";
 import { UsersPage } from "./pages/UsersPage";
 import { AuditPage } from "./pages/AuditPage";
 
-function ProtectedRoute({
-  children
-}: {
-  children: ReactNode;
-}) {
+function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
@@ -33,11 +29,7 @@ function ProtectedRoute({
   return children;
 }
 
-function AdminRoute({
-  children
-}: {
-  children: ReactNode;
-}) {
+function AdminRoute({ children }: { children: ReactNode }) {
   const { isAdmin } = useAuth();
 
   if (!isAdmin) {
@@ -47,103 +39,93 @@ function AdminRoute({
   return children;
 }
 
-function ProtectedLayout({
-  children
-}: {
-  children: ReactNode;
-}) {
+function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute>
-      <AppLayout>
-        {children}
-      </AppLayout>
+      <AppLayout>{children}</AppLayout>
     </ProtectedRoute>
   );
 }
 
 export default function App() {
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={<LoginPage />}
-      />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
 
-      <Route
-        path="/"
-        element={
-          <ProtectedLayout>
-            <DashboardPage />
-          </ProtectedLayout>
-        }
-      />
+        <Route
+          path="/"
+          element={
+            <ProtectedLayout>
+              <DashboardPage />
+            </ProtectedLayout>
+          }
+        />
 
-      <Route
-        path="/products"
-        element={
-          <ProtectedLayout>
-            <ProductsPage />
-          </ProtectedLayout>
-        }
-      />
+        <Route
+          path="/products"
+          element={
+            <ProtectedLayout>
+              <ProductsPage />
+            </ProtectedLayout>
+          }
+        />
 
-      <Route
-        path="/sales"
-        element={
-          <ProtectedLayout>
-            <SalesPage />
-          </ProtectedLayout>
-        }
-      />
+        <Route
+          path="/sales"
+          element={
+            <ProtectedLayout>
+              <SalesPage />
+            </ProtectedLayout>
+          }
+        />
 
-      <Route
-        path="/inventory"
-        element={
-          <ProtectedLayout>
-            <AdminRoute>
-              <InventoryPage />
-            </AdminRoute>
-          </ProtectedLayout>
-        }
-      />
+        <Route
+          path="/inventory"
+          element={
+            <ProtectedLayout>
+              <AdminRoute>
+                <InventoryPage />
+              </AdminRoute>
+            </ProtectedLayout>
+          }
+        />
 
-      <Route
-        path="/reports"
-        element={
-          <ProtectedLayout>
-            <AdminRoute>
-              <ReportsPage />
-            </AdminRoute>
-          </ProtectedLayout>
-        }
-      />
+        <Route
+          path="/reports"
+          element={
+            <ProtectedLayout>
+              <AdminRoute>
+                <ReportsPage />
+              </AdminRoute>
+            </ProtectedLayout>
+          }
+        />
 
-      <Route
-        path="/users"
-        element={
-          <ProtectedLayout>
-            <AdminRoute>
-              <UsersPage />
-            </AdminRoute>
-          </ProtectedLayout>
-        }
-      />
+        <Route
+          path="/users"
+          element={
+            <ProtectedLayout>
+              <AdminRoute>
+                <UsersPage />
+              </AdminRoute>
+            </ProtectedLayout>
+          }
+        />
 
-      <Route
-        path="/audit"
-        element={
-          <ProtectedLayout>
-            <AdminRoute>
-              <AuditPage />
-            </AdminRoute>
-          </ProtectedLayout>
-        }
-      />
+        <Route
+          path="/audit"
+          element={
+            <ProtectedLayout>
+              <AdminRoute>
+                <AuditPage />
+              </AdminRoute>
+            </ProtectedLayout>
+          }
+        />
 
-      <Route
-        path="*"
-        element={<Navigate to="/" replace />}
-      />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

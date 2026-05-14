@@ -2,7 +2,6 @@ import {
   createContext,
   ReactNode,
   useContext,
-  useEffect,
   useMemo,
   useState
 } from "react";
@@ -18,151 +17,87 @@ type User = {
 
 type LoginResponse = {
   accessToken: string;
-
   user: User;
 };
 
 type AuthContextValue = {
   user: User | null;
-
   accessToken: string | null;
-
-  login: (
-    email: string,
-    password: string
-  ) => Promise<void>;
-
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-
   isAdmin: boolean;
-
   isAuthenticated: boolean;
 };
 
-const AuthContext =
-  createContext<AuthContextValue>(
-    {} as AuthContextValue
-  );
+const AuthContext = createContext<AuthContextValue>({} as AuthContextValue);
 
-const ACCESS_KEY =
-  "pos_access_token";
-
+const ACCESS_KEY = "pos_access_token";
 const USER_KEY = "pos_user";
 
-export function AuthProvider({
-  children
-}: {
-  children: ReactNode;
-}) {
-  const [accessToken, setAccessToken] =
-    useState<string | null>(null);
+function getStoredUser(): User | null {
+  const storedUser = localStorage.getItem(USER_KEY);
 
-  const [user, setUser] =
-    useState<User | null>(null);
+  if (!storedUser) return null;
 
-  useEffect(() => {
-    const storedToken =
-      localStorage.getItem(
-        ACCESS_KEY
-      );
+  try {
+    return JSON.parse(storedUser) as User;
+  } catch {
+    localStorage.removeItem(USER_KEY);
+    return null;
+  }
+}
 
-    const storedUser =
-      localStorage.getItem(USER_KEY);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [accessToken, setAccessToken] = useState<string | null>(() =>
+    localStorage.getItem(ACCESS_KEY)
+  );
 
-    if (
-      storedToken &&
-      storedUser
-    ) {
-      setAccessToken(storedToken);
+  const [user, setUser] = useState<User | null>(() => getStoredUser());
 
-      setUser(
-        JSON.parse(storedUser)
-      );
-    }
-  }, []);
-
-  async function login(
-    email: string,
-    password: string
-  ) {
-    const response =
-      await api.post<LoginResponse>(
-        "/auth/login",
-        {
-          email,
-          password
-        }
-      );
+  async function login(email: string, password: string) {
+    const response = await api.post<LoginResponse>("/auth/login", {
+      email,
+      password
+    });
 
     const data = response.data;
 
-    localStorage.setItem(
-      ACCESS_KEY,
-      data.accessToken
-    );
+    localStorage.setItem(ACCESS_KEY, data.accessToken);
+    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
 
-    localStorage.setItem(
-      USER_KEY,
-      JSON.stringify(data.user)
-    );
-
-    setAccessToken(
-      data.accessToken
-    );
-
+    setAccessToken(data.accessToken);
     setUser(data.user);
   }
 
   async function logout() {
     try {
-      await api.post(
-        "/auth/logout"
-      );
-    } catch {}
+      await api.post("/auth/logout");
+    } catch {
+      // No bloquear logout local si el backend no responde.
+    }
 
-    localStorage.removeItem(
-      ACCESS_KEY
-    );
-
-    localStorage.removeItem(
-      USER_KEY
-    );
+    localStorage.removeItem(ACCESS_KEY);
+    localStorage.removeItem(USER_KEY);
 
     setAccessToken(null);
-
     setUser(null);
 
-    window.location.href =
-      "/login";
+    window.location.href = "/login";
   }
 
   const value = useMemo(
     () => ({
       user,
-
       accessToken,
-
       login,
-
       logout,
-
-      isAdmin:
-        user?.role === "ADMIN",
-
-      isAuthenticated:
-        !!accessToken && !!user
+      isAdmin: user?.role === "ADMIN",
+      isAuthenticated: Boolean(accessToken && user)
     }),
-
     [user, accessToken]
   );
 
-  return (
-    <AuthContext.Provider
-      value={value}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

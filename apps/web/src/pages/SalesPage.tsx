@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   IconButton,
   MenuItem,
   TextField,
@@ -20,6 +21,7 @@ import {
 
 import { api } from "../api/client";
 import { PageHeader } from "../components/PageHeader";
+import { useAuth } from "../auth/AuthContext";
 
 type Product = {
   id: string;
@@ -28,7 +30,8 @@ type Product = {
   salePrice: number;
   stock: number;
   promoPercent: number;
-  isActive: boolean;
+  finalPrice?: number;
+  isActive?: boolean;
 };
 
 type CartItem = {
@@ -36,7 +39,21 @@ type CartItem = {
   quantity: number;
 };
 
+type Sale = {
+  id: string;
+  customerName?: string;
+  total: number;
+  createdAt: string;
+  cashier?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+};
+
 export function SalesPage() {
+  const { isAdmin } = useAuth();
+
   const [products, setProducts] =
     useState<Product[]>([]);
 
@@ -44,7 +61,7 @@ export function SalesPage() {
     useState<CartItem[]>([]);
 
   const [sales, setSales] =
-    useState<any[]>([]);
+    useState<Sale[]>([]);
 
   const [customerName, setCustomerName] =
     useState("");
@@ -59,7 +76,7 @@ export function SalesPage() {
     setProducts(
       productsResponse.data.filter(
         (product: Product) =>
-          product.isActive
+          product.isActive !== false
       )
     );
 
@@ -81,13 +98,16 @@ export function SalesPage() {
 
         if (!product) return sum;
 
-        return (
-          sum +
+        const price =
+          product.finalPrice ??
           product.salePrice *
-            item.quantity *
             (1 -
               product.promoPercent /
-                100)
+                100);
+
+        return (
+          sum +
+          price * item.quantity
         );
       },
       0
@@ -98,43 +118,90 @@ export function SalesPage() {
     if (!cart.length) return;
 
     await api.post("/sales", {
-      customerName,
+      customerName:
+        customerName || undefined,
+
       items: cart
     });
 
     setCart([]);
     setCustomerName("");
 
-    load();
+    await load();
   }
 
-  const columns: GridColDef[] = [
-    {
-      field: "createdAt",
-      headerName: "Fecha",
-      width: 190
-    },
-    {
-      field: "customerName",
-      headerName: "Cliente",
-      flex: 1,
-      minWidth: 180
-    },
-    {
-      field: "total",
-      headerName: "Total",
-      width: 120,
-      valueFormatter: (value) =>
-        `$${Number(value).toFixed(2)}`
-    }
-  ];
+  const columns =
+    useMemo<GridColDef[]>(() => {
+      const baseColumns: GridColDef[] = [
+        {
+          field: "createdAt",
+          headerName: "Fecha",
+          width: 190
+        },
+
+        {
+          field: "customerName",
+          headerName: "Cliente",
+          flex: 1,
+          minWidth: 180,
+          valueGetter: (_value, row) =>
+            row.customerName || "Sin cliente"
+        },
+
+        {
+          field: "total",
+          headerName: "Total",
+          width: 130,
+          valueFormatter: (value) =>
+            `$${Number(value).toFixed(2)}`
+        }
+      ];
+
+      if (!isAdmin) {
+        return baseColumns;
+      }
+
+      return [
+        ...baseColumns,
+
+        {
+          field: "cashier",
+          headerName: "Cajero",
+          flex: 1,
+          minWidth: 220,
+          valueGetter: (_value, row) =>
+            row.cashier
+              ? `${row.cashier.name} (${row.cashier.email})`
+              : "Sin cajero"
+        }
+      ];
+    }, [isAdmin]);
 
   return (
     <>
       <PageHeader
         title="Ventas"
-        subtitle="Registro de ventas por cajero"
+        subtitle={
+          isAdmin
+            ? "Registro de ventas y consulta global"
+            : "Registro de ventas y consulta de tus ventas"
+        }
       />
+
+      <Box sx={{ mb: 2 }}>
+        <Chip
+          color={
+            isAdmin
+              ? "primary"
+              : "success"
+          }
+          label={
+            isAdmin
+              ? "Vista administrador: todas las ventas"
+              : "Vista vendedor: solo tus ventas"
+          }
+        />
+      </Box>
 
       <Card sx={{ mb: 2 }}>
         <CardContent>
@@ -186,9 +253,7 @@ export function SalesPage() {
                             ? {
                                 ...current,
                                 productId:
-                                  event
-                                    .target
-                                    .value
+                                  event.target.value
                               }
                             : current
                       )
@@ -206,10 +271,12 @@ export function SalesPage() {
                       <MenuItem
                         key={product.id}
                         value={product.id}
+                        disabled={
+                          product.stock <= 0
+                        }
                       >
                         {product.sku} ·{" "}
-                        {product.name} ·
-                        stock{" "}
+                        {product.name} · stock{" "}
                         {product.stock}
                       </MenuItem>
                     )
@@ -221,6 +288,9 @@ export function SalesPage() {
                   label="Cantidad"
                   type="number"
                   value={item.quantity}
+                  inputProps={{
+                    min: 1
+                  }}
                   onChange={(event) =>
                     setCart(
                       cart.map(
@@ -234,9 +304,7 @@ export function SalesPage() {
                                 ...current,
                                 quantity:
                                   Number(
-                                    event
-                                      .target
-                                      .value
+                                    event.target.value
                                   )
                               }
                             : current
@@ -253,8 +321,7 @@ export function SalesPage() {
                           _,
                           currentIndex
                         ) =>
-                          currentIndex !==
-                          index
+                          currentIndex !== index
                       )
                     )
                   }
@@ -288,8 +355,7 @@ export function SalesPage() {
                     ...cart,
                     {
                       productId:
-                        products[0]?.id ??
-                        "",
+                        products[0]?.id ?? "",
                       quantity: 1
                     }
                   ])
@@ -303,7 +369,14 @@ export function SalesPage() {
                 fullWidth
                 color="success"
                 onClick={createSale}
-                disabled={!cart.length}
+                disabled={
+                  !cart.length ||
+                  cart.some(
+                    (item) =>
+                      !item.productId ||
+                      item.quantity <= 0
+                  )
+                }
               >
                 Cobrar
               </Button>
@@ -333,7 +406,9 @@ export function SalesPage() {
         >
           <Box
             sx={{
-              minWidth: 620
+              minWidth: isAdmin
+                ? 860
+                : 620
             }}
           >
             <DataGrid
