@@ -18,6 +18,7 @@ import { SalesPage } from "./pages/SalesPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { UsersPage } from "./pages/UsersPage";
 import { AuditPage } from "./pages/AuditPage";
+import { SellerActivityPage } from "./pages/SellerActivityPage";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -119,6 +120,17 @@ export default function App() {
             <ProtectedLayout>
               <AdminRoute>
                 <AuditPage />
+              </AdminRoute>
+            </ProtectedLayout>
+          }
+        />
+
+        <Route
+          path="/seller-activity"
+          element={
+            <ProtectedLayout>
+              <AdminRoute>
+                <SellerActivityPage />
               </AdminRoute>
             </ProtectedLayout>
           }

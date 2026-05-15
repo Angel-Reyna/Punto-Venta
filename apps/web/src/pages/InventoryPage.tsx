@@ -26,17 +26,35 @@ type Product = {
   stock: number;
 };
 
+type Warehouse = {
+  id: string;
+  name: string;
+  description?: string | null;
+  isActive: boolean;
+};
+
 type Movement = {
   id: string;
-  type: string;
+  type: "IN" | "OUT" | "ADJUSTMENT" | "SALE" | "RETURN";
   quantity: number;
-  reason?: string;
+  reason?: string | null;
   createdAt: string;
-  product: Product;
+
+  product: {
+    id: string;
+    sku: string;
+    name: string;
+  };
+
+  warehouse?: {
+    id: string;
+    name: string;
+  } | null;
 };
 
 export function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
 
   const [message, setMessage] = useState("");
@@ -44,16 +62,27 @@ export function InventoryPage() {
 
   const [form, setForm] = useState({
     productId: "",
+    warehouseId: "",
     quantity: 1,
     reason: ""
   });
 
   async function load() {
     try {
-      const productsResponse = await api.get("/products");
-      const movementsResponse = await api.get("/inventory/movements");
+      setError("");
+
+      const [
+        productsResponse,
+        warehousesResponse,
+        movementsResponse
+      ] = await Promise.all([
+        api.get("/products"),
+        api.get("/inventory/warehouses"),
+        api.get("/inventory/movements")
+      ]);
 
       setProducts(productsResponse.data);
+      setWarehouses(warehousesResponse.data);
       setMovements(movementsResponse.data);
     } catch {
       setError("No se pudo cargar el inventario");
@@ -69,7 +98,15 @@ export function InventoryPage() {
     setError("");
 
     try {
-      await api.post(`/inventory/${type}`, form);
+      await api.post(`/inventory/${type}`, {
+        productId: form.productId,
+
+        warehouseId: form.warehouseId || undefined,
+
+        quantity: form.quantity,
+
+        reason: form.reason.trim()
+      });
 
       setMessage(
         type === "in"
@@ -79,6 +116,7 @@ export function InventoryPage() {
 
       setForm({
         productId: "",
+        warehouseId: "",
         quantity: 1,
         reason: ""
       });
@@ -96,19 +134,45 @@ export function InventoryPage() {
     {
       field: "createdAt",
       headerName: "Fecha",
-      width: 190
+      width: 190,
+      valueFormatter: (value) =>
+        new Date(value).toLocaleString()
     },
     {
       field: "product",
       headerName: "Producto",
       flex: 1,
-      minWidth: 220,
-      valueGetter: (_value, row) => row.product?.name
+      minWidth: 240,
+      valueGetter: (_value, row) =>
+        row.product
+          ? `${row.product.sku} · ${row.product.name}`
+          : "N/A"
+    },
+    {
+      field: "warehouse",
+      headerName: "Almacén",
+      flex: 1,
+      minWidth: 180,
+      valueGetter: (_value, row) =>
+        row.warehouse?.name ?? "Sin almacén"
     },
     {
       field: "type",
       headerName: "Tipo",
-      width: 120
+      width: 130,
+      renderCell: (params) => (
+        <Chip
+          size="small"
+          label={params.value}
+          color={
+            params.value === "IN" || params.value === "RETURN"
+              ? "success"
+              : params.value === "OUT" || params.value === "SALE"
+              ? "warning"
+              : "default"
+          }
+        />
+      )
     },
     {
       field: "quantity",
@@ -119,7 +183,8 @@ export function InventoryPage() {
       field: "reason",
       headerName: "Motivo",
       flex: 1,
-      minWidth: 220
+      minWidth: 240,
+      valueGetter: (_value, row) => row.reason || "N/A"
     }
   ];
 
@@ -137,10 +202,7 @@ export function InventoryPage() {
       />
 
       <Box sx={{ mb: 2 }}>
-        <Chip
-          color="primary"
-          label="Acceso exclusivo ADMIN"
-        />
+        <Chip color="primary" label="Acceso exclusivo ADMIN" />
       </Box>
 
       {message && (
@@ -188,6 +250,30 @@ export function InventoryPage() {
               {products.map((product) => (
                 <MenuItem key={product.id} value={product.id}>
                   {product.sku} · {product.name} · stock {product.stock}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              fullWidth
+              label="Almacén"
+              value={form.warehouseId}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  warehouseId: event.target.value
+                })
+              }
+              helperText="Si no eliges almacén, se usará el principal"
+            >
+              <MenuItem value="">
+                Almacén principal automático
+              </MenuItem>
+
+              {warehouses.map((warehouse) => (
+                <MenuItem key={warehouse.id} value={warehouse.id}>
+                  {warehouse.name}
                 </MenuItem>
               ))}
             </TextField>
@@ -243,7 +329,7 @@ export function InventoryPage() {
 
       <Card>
         <CardContent sx={{ overflowX: "auto" }}>
-          <Box sx={{ minWidth: 760 }}>
+          <Box sx={{ minWidth: 980 }}>
             <DataGrid
               autoHeight
               rows={movements}

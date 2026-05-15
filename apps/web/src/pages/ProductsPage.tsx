@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -31,8 +32,14 @@ import { useAuth } from "../auth/AuthContext";
 type Product = {
   id: string;
   sku: string;
+  barcode?: string | null;
   name: string;
   description?: string | null;
+
+  category?: {
+    id: string;
+    name: string;
+  } | null;
 
   salePrice: number;
   promoPercent: number;
@@ -46,230 +53,323 @@ type Product = {
 };
 
 const initialForm = {
+  categoryId: "",
   sku: "",
+  barcode: "",
   name: "",
   description: "",
   costPrice: 0,
   salePrice: 0,
   promoPercent: 0,
-  stock: 0,
   minStock: 0
 };
+
+function safeTrim(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
 
 export function ProductsPage() {
   const { isAdmin } = useAuth();
 
-  const [rows, setRows] =
-    useState<Product[]>([]);
+  const [rows, setRows] = useState<Product[]>([]);
+  const [open, setOpen] = useState(false);
 
-  const [open, setOpen] =
-    useState(false);
+  const [form, setForm] = useState(initialForm);
 
-  const [form, setForm] =
-    useState(initialForm);
-
-  const [message, setMessage] =
-    useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   async function load() {
-    const response =
-      await api.get("/products");
+    try {
+      setError("");
 
-    setRows(response.data);
+      const response = await api.get("/products");
+
+      setRows(response.data);
+    } catch {
+      setError("No se pudieron cargar los productos");
+    }
   }
 
   useEffect(() => {
     load();
   }, []);
 
-  async function submit(
-    event: FormEvent
-  ) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
 
-    await api.post(
-      "/products",
-      form
-    );
+    setMessage("");
+    setError("");
 
-    setOpen(false);
+    try {
+      await api.post("/products", {
+        categoryId: safeTrim(form.categoryId) || undefined,
+        sku: safeTrim(form.sku),
+        barcode: safeTrim(form.barcode) || undefined,
+        name: safeTrim(form.name),
+        description: safeTrim(form.description) || undefined,
+        costPrice: Number(form.costPrice ?? 0),
+        salePrice: Number(form.salePrice ?? 0),
+        promoPercent: Number(form.promoPercent ?? 0),
+        minStock: Number(form.minStock ?? 0)
+      });
 
-    setForm(initialForm);
+      setMessage("Producto creado correctamente");
+      setOpen(false);
+      setForm(initialForm);
 
-    await load();
+      await load();
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message ??
+          "No se pudo crear el producto"
+      );
+    }
   }
 
   async function downloadTemplate() {
-    const response =
-      await api.get(
-        "/products/template/excel",
-        {
-          responseType: "blob"
-        }
-      );
+    setError("");
 
-    const url =
-      URL.createObjectURL(
-        response.data
-      );
+    try {
+      const response = await api.get("/products/template/excel", {
+        responseType: "blob"
+      });
 
-    const anchor =
-      document.createElement("a");
+      const url = URL.createObjectURL(response.data);
+      const anchor = document.createElement("a");
 
-    anchor.href = url;
+      anchor.href = url;
+      anchor.download = "formato-productos.xlsx";
+      anchor.click();
 
-    anchor.download =
-      "formato-productos.xlsx";
-
-    anchor.click();
-
-    URL.revokeObjectURL(url);
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("No se pudo descargar el formato Excel");
+    }
   }
 
-  async function importExcel(
-    file?: File
-  ) {
+  async function importExcel(file?: File) {
     if (!file) return;
 
-    const formData =
-      new FormData();
+    setMessage("");
+    setError("");
 
-    formData.append("file", file);
+    try {
+      const formData = new FormData();
 
-    const response =
-      await api.post(
+      formData.append("file", file);
+
+      const response = await api.post(
         "/products/import/excel",
         formData,
         {
           headers: {
-            "Content-Type":
-              "multipart/form-data"
+            "Content-Type": "multipart/form-data"
           }
         }
       );
 
-    setMessage(
-      `Productos importados: ${response.data.imported}`
-    );
+      setMessage(`Productos importados: ${response.data.imported}`);
 
-    await load();
+      await load();
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message ??
+          "No se pudo importar el archivo Excel"
+      );
+    }
   }
 
-  async function toggleProduct(
-    productId: string
-  ) {
-    await api.patch(
-      `/products/${productId}/toggle`
-    );
+  async function toggleProduct(productId: string) {
+    setMessage("");
+    setError("");
 
-    await load();
+    try {
+      await api.patch(`/products/${productId}/toggle`);
+
+      setMessage("Estado del producto actualizado");
+
+      await load();
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message ??
+          "No se pudo actualizar el producto"
+      );
+    }
   }
 
-  const columns =
-    useMemo<GridColDef[]>(() => {
-      const baseColumns: GridColDef[] = [
-        {
-          field: "sku",
-          headerName: "SKU",
-          width: 130
-        },
-
-        {
-          field: "name",
-          headerName: "Producto",
-          flex: 1,
-          minWidth: 220
-        },
-
-        {
-          field: "salePrice",
-          headerName: "Venta",
-          width: 110,
-          valueFormatter: (value) =>
-            `$${Number(value).toFixed(2)}`
-        },
-
-        {
-          field: "promoPercent",
-          headerName: "Promo %",
-          width: 110,
-          valueFormatter: (value) =>
-            `${Number(value).toFixed(2)}%`
-        },
-
-        {
-          field: "finalPrice",
-          headerName: "Precio final",
-          width: 140,
-          valueFormatter: (value) =>
-            `$${Number(value).toFixed(2)}`
-        },
-
-        {
-          field: "stock",
-          headerName: "Stock",
-          width: 90
-        }
-      ];
-
-      if (!isAdmin) {
-        return baseColumns;
+  const columns = useMemo<GridColDef[]>(() => {
+    const baseColumns: GridColDef[] = [
+      {
+        field: "sku",
+        headerName: "SKU",
+        width: 140
+      },
+      {
+        field: "barcode",
+        headerName: "Código",
+        width: 150,
+        valueGetter: (_value, row) => row.barcode || "N/A"
+      },
+      {
+        field: "name",
+        headerName: "Producto",
+        flex: 1,
+        minWidth: 220
+      },
+      {
+        field: "category",
+        headerName: "Categoría",
+        width: 160,
+        valueGetter: (_value, row) => row.category?.name ?? "Sin categoría"
+      },
+      {
+        field: "salePrice",
+        headerName: "Venta",
+        width: 120,
+        valueFormatter: (value) => `$${Number(value).toFixed(2)}`
+      },
+      {
+        field: "promoPercent",
+        headerName: "Promo %",
+        width: 120,
+        valueFormatter: (value) => `${Number(value).toFixed(2)}%`
+      },
+      {
+        field: "finalPrice",
+        headerName: "Precio final",
+        width: 140,
+        valueFormatter: (value) => `$${Number(value).toFixed(2)}`
+      },
+      {
+        field: "stock",
+        headerName: "Stock",
+        width: 100,
+        renderCell: (params) => (
+          <Chip
+            size="small"
+            label={params.value}
+            color={Number(params.value) <= 0 ? "error" : "success"}
+            variant="outlined"
+          />
+        )
       }
+    ];
 
-      return [
-        ...baseColumns.slice(0, 2),
+    if (!isAdmin) {
+      return baseColumns;
+    }
 
-        {
-          field: "costPrice",
-          headerName: "Costo",
-          width: 110,
-          valueFormatter: (value) =>
-            `$${Number(value).toFixed(2)}`
-        },
+    return [
+      {
+        field: "sku",
+        headerName: "SKU",
+        width: 140
+      },
+      {
+        field: "barcode",
+        headerName: "Código",
+        width: 150,
+        valueGetter: (_value, row) => row.barcode || "N/A"
+      },
+      {
+        field: "name",
+        headerName: "Producto",
+        flex: 1,
+        minWidth: 220
+      },
+      {
+        field: "category",
+        headerName: "Categoría",
+        width: 160,
+        valueGetter: (_value, row) => row.category?.name ?? "Sin categoría"
+      },
+      {
+        field: "costPrice",
+        headerName: "Costo",
+        width: 120,
+        valueFormatter: (value) => `$${Number(value ?? 0).toFixed(2)}`
+      },
+      {
+        field: "salePrice",
+        headerName: "Venta",
+        width: 120,
+        valueFormatter: (value) => `$${Number(value).toFixed(2)}`
+      },
+      {
+        field: "promoPercent",
+        headerName: "Promo %",
+        width: 120,
+        valueFormatter: (value) => `${Number(value).toFixed(2)}%`
+      },
+      {
+        field: "finalPrice",
+        headerName: "Precio final",
+        width: 140,
+        valueFormatter: (value) => `$${Number(value).toFixed(2)}`
+      },
+      {
+        field: "marginPercent",
+        headerName: "Margen %",
+        width: 130,
+        valueFormatter: (value) => `${Number(value ?? 0).toFixed(2)}%`
+      },
+      {
+        field: "stock",
+        headerName: "Stock",
+        width: 100,
+        renderCell: (params) => (
+          <Chip
+            size="small"
+            label={params.value}
+            color={Number(params.value) <= 0 ? "error" : "success"}
+            variant="outlined"
+          />
+        )
+      },
+      {
+        field: "minStock",
+        headerName: "Stock mín.",
+        width: 120
+      },
+      {
+        field: "isActive",
+        headerName: "Estado",
+        width: 130,
+        renderCell: (params) => (
+          <Chip
+            size="small"
+            label={params.value ? "Activo" : "Inactivo"}
+            color={params.value ? "success" : "default"}
+          />
+        )
+      },
+      {
+        field: "actions",
+        headerName: "",
+        width: 90,
+        sortable: false,
+        filterable: false,
+        renderCell: (params) => (
+          <IconButton
+            onClick={() => toggleProduct(params.row.id)}
+            title="Activar/desactivar"
+          >
+            <ToggleOffIcon />
+          </IconButton>
+        )
+      }
+    ];
+  }, [isAdmin]);
 
-        ...baseColumns.slice(2),
-
-        {
-          field: "marginPercent",
-          headerName: "Margen %",
-          width: 120,
-          valueFormatter: (value) =>
-            `${Number(value).toFixed(2)}%`
-        },
-
-        {
-          field: "minStock",
-          headerName: "Stock mín.",
-          width: 110
-        },
-
-        {
-          field: "isActive",
-          headerName: "Activo",
-          width: 90,
-          valueFormatter: (value) =>
-            value ? "Sí" : "No"
-        },
-
-        {
-          field: "actions",
-          headerName: "",
-          width: 90,
-          sortable: false,
-          filterable: false,
-
-          renderCell: (params) => (
-            <IconButton
-              onClick={() =>
-                toggleProduct(params.row.id)
-              }
-            >
-              <ToggleOffIcon />
-            </IconButton>
-          )
-        }
-      ];
-    }, [isAdmin]);
+const formIsInvalid =
+  !safeTrim(form.sku) ||
+  !safeTrim(form.name) ||
+  Number(form.costPrice ?? 0) < 0 ||
+  Number(form.salePrice ?? 0) < 0 ||
+  Number(form.promoPercent ?? 0) < 0 ||
+  Number(form.promoPercent ?? 0) > 100 ||
+  Number(form.minStock ?? 0) < 0;
 
   return (
     <>
@@ -277,17 +377,15 @@ export function ProductsPage() {
         title="Productos"
         subtitle={
           isAdmin
-            ? "Alta, edición, promociones, costos y carga por Excel"
-            : "Consulta de productos disponibles"
+            ? "Alta, consulta, precios, promociones, categorías y carga por Excel"
+            : "Consulta de productos activos disponibles"
         }
         action={
           isAdmin && (
             <Button
               fullWidth
               startIcon={<AddIcon />}
-              onClick={() =>
-                setOpen(true)
-              }
+              onClick={() => setOpen(true)}
             >
               Nuevo
             </Button>
@@ -295,12 +393,26 @@ export function ProductsPage() {
         }
       />
 
+      <Box sx={{ mb: 2 }}>
+        <Chip
+          color={isAdmin ? "primary" : "success"}
+          label={
+            isAdmin
+              ? "Vista ADMIN: productos completos"
+              : "Vista VENDEDOR: catálogo activo"
+          }
+        />
+      </Box>
+
       {message && (
-        <Alert
-          sx={{ mb: 2 }}
-          severity="success"
-        >
+        <Alert severity="success" sx={{ mb: 2 }}>
           {message}
+        </Alert>
+      )}
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
         </Alert>
       )}
 
@@ -330,34 +442,19 @@ export function ProductsPage() {
             startIcon={<UploadIcon />}
           >
             Importar Excel
-
             <input
               hidden
               type="file"
               accept=".xlsx,.xls"
-              onChange={(event) =>
-                importExcel(
-                  event.target.files?.[0]
-                )
-              }
+              onChange={(event) => importExcel(event.target.files?.[0])}
             />
           </Button>
         </Box>
       )}
 
       <Card>
-        <CardContent
-          sx={{
-            overflowX: "auto"
-          }}
-        >
-          <Box
-            sx={{
-              minWidth: isAdmin
-                ? 1180
-                : 760
-            }}
-          >
+        <CardContent sx={{ overflowX: "auto" }}>
+          <Box sx={{ minWidth: isAdmin ? 1420 : 980 }}>
             <DataGrid
               autoHeight
               rows={rows}
@@ -371,76 +468,159 @@ export function ProductsPage() {
       {isAdmin && (
         <Dialog
           open={open}
-          onClose={() =>
-            setOpen(false)
-          }
+          onClose={() => setOpen(false)}
           maxWidth="md"
           fullWidth
         >
-          <DialogTitle>
-            Nuevo producto
-          </DialogTitle>
+          <DialogTitle>Nuevo producto</DialogTitle>
 
           <DialogContent>
             <Box
               component="form"
               onSubmit={submit}
-              sx={{ mt: 1 }}
+              sx={{
+                mt: 1
+              }}
             >
-              <Grid
-                container
-                spacing={2}
-              >
-                {Object.entries(form).map(
-                  ([key, value]) => (
-                    <Grid
-                      item
-                      xs={12}
-                      md={
-                        key ===
-                        "description"
-                          ? 12
-                          : 6
-                      }
-                      key={key}
-                    >
-                      <TextField
-                        fullWidth
-                        label={key}
-                        value={value}
-                        type={
-                          typeof value ===
-                          "number"
-                            ? "number"
-                            : "text"
-                        }
-                        onChange={(event) =>
-                          setForm({
-                            ...form,
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="SKU"
+                    value={form.sku}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        sku: event.target.value
+                      })
+                    }
+                  />
+                </Grid>
 
-                            [key]:
-                              typeof value ===
-                              "number"
-                                ? Number(
-                                    event.target
-                                      .value
-                                  )
-                                : event.target
-                                    .value
-                          })
-                        }
-                      />
-                    </Grid>
-                  )
-                )}
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Código de barras"
+                    value={form.barcode}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        barcode: event.target.value
+                      })
+                    }
+                  />
+                </Grid>
 
-                <Grid
-                  item
-                  xs={12}
-                >
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Nombre"
+                    value={form.name}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        name: event.target.value
+                      })
+                    }
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Descripción"
+                    value={form.description}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        description: event.target.value
+                      })
+                    }
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Costo"
+                    type="number"
+                    value={form.costPrice}
+                    inputProps={{
+                      min: 0,
+                      step: 0.01
+                    }}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        costPrice: Number(event.target.value)
+                      })
+                    }
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Precio de venta"
+                    type="number"
+                    value={form.salePrice}
+                    inputProps={{
+                      min: 0,
+                      step: 0.01
+                    }}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        salePrice: Number(event.target.value)
+                      })
+                    }
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Promoción %"
+                    type="number"
+                    value={form.promoPercent}
+                    inputProps={{
+                      min: 0,
+                      max: 100,
+                      step: 0.01
+                    }}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        promoPercent: Number(event.target.value)
+                      })
+                    }
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Stock mínimo"
+                    type="number"
+                    value={form.minStock}
+                    inputProps={{
+                      min: 0,
+                      step: 1
+                    }}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        minStock: Number(event.target.value)
+                      })
+                    }
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
                   <Button
                     type="submit"
                     fullWidth
+                    disabled={formIsInvalid}
                   >
                     Guardar
                   </Button>

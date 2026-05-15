@@ -1,132 +1,232 @@
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import { Role } from "@prisma/client";
-
+import crypto from "crypto";
 import { prisma } from "../../config/prisma";
-import { env } from "../../config/env";
 import { AppError } from "../../utils/AppError";
+import { env } from "../../config/env";
+import {
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken
+} from "./auth.tokens";
+import { hashToken, safeCompareHash } from "./token-hash";
 
-type TokenPayload = {
-  sub: string;
-  role: Role;
+type ClientMeta = {
+  userAgent?: string;
+  ipAddress?: string;
 };
 
-function signAccessToken(user: {
-  id: string;
-  role: Role;
-}) {
-  return jwt.sign(
-    {
-      role: user.role
-    },
-    env.JWT_ACCESS_SECRET,
-    {
-      subject: user.id,
-      expiresIn: "15m"
-    }
-  );
+type LoginInput = {
+  email: string;
+  password: string;
+};
+
+type AuthResult = {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
+  accessToken: string;
+  refreshToken: string;
+};
+
+function getRefreshExpiresAt(): Date {
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + env.REFRESH_TOKEN_TTL_DAYS);
+  return expiresAt;
 }
 
-function signRefreshToken(user: {
+function toPublicUser(user: {
   id: string;
-  role: Role;
+  name: string;
+  email: string;
+  role: string;
 }) {
-  return jwt.sign(
-    {
-      role: user.role
-    },
-    env.JWT_REFRESH_SECRET,
-    {
-      subject: user.id,
-      expiresIn: "7d"
-    }
-  );
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role
+  };
 }
 
 export async function login(
-  email: string,
-  password: string
-) {
+  input: LoginInput,
+  meta: ClientMeta
+): Promise<AuthResult> {
+  const email = input.email.trim().toLowerCase();
+
   const user = await prisma.user.findUnique({
     where: { email }
   });
 
-  if (!user) {
+  if (!user || !user.isActive) {
     throw new AppError(401, "Credenciales inválidas");
   }
 
-  if (!user.isActive) {
-    throw new AppError(403, "Usuario desactivado");
-  }
+  const passwordIsValid = await bcrypt.compare(input.password, user.passwordHash);
 
-  const passwordValid = await bcrypt.compare(
-    password,
-    user.passwordHash
-  );
-
-  if (!passwordValid) {
+  if (!passwordIsValid) {
     throw new AppError(401, "Credenciales inválidas");
   }
 
-  return {
-    accessToken: signAccessToken({
-      id: user.id,
-      role: user.role
-    }),
+  const sessionId = crypto.randomUUID();
+  const refreshToken = signRefreshToken(user.id, sessionId);
+  const accessToken = signAccessToken(user);
 
-    refreshToken: signRefreshToken({
-      id: user.id,
-      role: user.role
-    }),
-
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role
-    }
-  };
-}
-
-export async function refresh(
-  refreshToken?: string
-) {
-  if (!refreshToken) {
-    throw new AppError(401, "Refresh token requerido");
-  }
-
-  let payload: TokenPayload;
-
-  try {
-    payload = jwt.verify(
-      refreshToken,
-      env.JWT_REFRESH_SECRET
-    ) as TokenPayload;
-  } catch {
-    throw new AppError(401, "Refresh token inválido");
-  }
-
-  const user = await prisma.user.findUnique({
-    where: {
-      id: payload.sub
+  await prisma.refreshSession.create({
+    data: {
+      id: sessionId,
+      userId: user.id,
+      tokenHash: hashToken(refreshToken),
+      userAgent: meta.userAgent,
+      ipAddress: meta.ipAddress,
+      expiresAt: getRefreshExpiresAt()
     }
   });
 
-  if (!user || !user.isActive) {
-    throw new AppError(401, "Usuario inválido");
+  return {
+    user: toPublicUser(user),
+    accessToken,
+    refreshToken
+  };
+}
+
+export async function refreshSession(
+  refreshToken: string,
+  meta: ClientMeta
+): Promise<AuthResult> {
+  const payload = verifyRefreshToken(refreshToken);
+  const incomingHash = hashToken(refreshToken);
+
+  const currentSession = await prisma.refreshSession.findUnique({
+    where: { id: payload.sessionId },
+    include: { user: true }
+  });
+
+  if (!currentSession) {
+    throw new AppError(401, "Sesión inválida");
   }
 
-  return {
-    accessToken: signAccessToken({
-      id: user.id,
-      role: user.role
-    }),
+  const tokenMatches = safeCompareHash(currentSession.tokenHash, incomingHash);
 
-    refreshToken: signRefreshToken({
-      id: user.id,
-      role: user.role
+  if (!tokenMatches) {
+    await prisma.refreshSession.updateMany({
+      where: {
+        userId: currentSession.userId,
+        revokedAt: null
+      },
+      data: {
+        revokedAt: new Date()
+      }
+    });
+
+    throw new AppError(401, "Sesión inválida. Se revocaron las sesiones activas.");
+  }
+
+  if (currentSession.revokedAt) {
+    await prisma.refreshSession.updateMany({
+      where: {
+        userId: currentSession.userId,
+        revokedAt: null
+      },
+      data: {
+        revokedAt: new Date()
+      }
+    });
+
+    throw new AppError(401, "Refresh token reutilizado. Sesiones revocadas.");
+  }
+
+  if (currentSession.expiresAt.getTime() <= Date.now()) {
+    await prisma.refreshSession.update({
+      where: { id: currentSession.id },
+      data: { revokedAt: new Date() }
+    });
+
+    throw new AppError(401, "Sesión expirada");
+  }
+
+  if (!currentSession.user.isActive) {
+    await prisma.refreshSession.updateMany({
+      where: {
+        userId: currentSession.userId,
+        revokedAt: null
+      },
+      data: {
+        revokedAt: new Date()
+      }
+    });
+
+    throw new AppError(401, "Usuario inactivo");
+  }
+
+  const nextSessionId = crypto.randomUUID();
+  const nextRefreshToken = signRefreshToken(currentSession.userId, nextSessionId);
+  const nextAccessToken = signAccessToken(currentSession.user);
+
+  await prisma.$transaction([
+    prisma.refreshSession.update({
+      where: { id: currentSession.id },
+      data: {
+        revokedAt: new Date(),
+        replacedBySessionId: nextSessionId
+      }
+    }),
+    prisma.refreshSession.create({
+      data: {
+        id: nextSessionId,
+        userId: currentSession.userId,
+        tokenHash: hashToken(nextRefreshToken),
+        userAgent: meta.userAgent,
+        ipAddress: meta.ipAddress,
+        expiresAt: getRefreshExpiresAt()
+      }
     })
+  ]);
+
+  return {
+    user: toPublicUser(currentSession.user),
+    accessToken: nextAccessToken,
+    refreshToken: nextRefreshToken
   };
+}
+
+export async function logout(refreshToken?: string): Promise<void> {
+  if (!refreshToken) return;
+
+  try {
+    const payload = verifyRefreshToken(refreshToken);
+    const incomingHash = hashToken(refreshToken);
+
+    const session = await prisma.refreshSession.findUnique({
+      where: { id: payload.sessionId }
+    });
+
+    if (!session) return;
+    if (!safeCompareHash(session.tokenHash, incomingHash)) return;
+    if (session.revokedAt) return;
+
+    await prisma.refreshSession.update({
+      where: { id: session.id },
+      data: { revokedAt: new Date() }
+    });
+  } catch {
+    return;
+  }
+}
+
+export async function logoutAll(userId: string): Promise<void> {
+  await prisma.refreshSession.updateMany({
+    where: {
+      userId,
+      revokedAt: null
+    },
+    data: {
+      revokedAt: new Date()
+    }
+  });
 }
 
 export async function registerCashier(
@@ -134,28 +234,29 @@ export async function registerCashier(
   email: string,
   password: string
 ) {
+  const cleanName = name.trim();
+  const cleanEmail = email.trim().toLowerCase();
+
   const existingUser = await prisma.user.findUnique({
-    where: { email }
+    where: {
+      email: cleanEmail
+    }
   });
 
   if (existingUser) {
     throw new AppError(409, "El correo ya está registrado");
   }
 
-  const passwordHash = await bcrypt.hash(
-    password,
-    env.BCRYPT_ROUNDS
-  );
+  const passwordHash = await bcrypt.hash(password, env.BCRYPT_ROUNDS);
 
   return prisma.user.create({
     data: {
-      name,
-      email,
+      name: cleanName,
+      email: cleanEmail,
       passwordHash,
       role: "CASHIER",
       isActive: true
     },
-
     select: {
       id: true,
       name: true,

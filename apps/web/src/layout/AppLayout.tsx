@@ -25,6 +25,7 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import PeopleIcon from "@mui/icons-material/People";
 import HistoryIcon from "@mui/icons-material/History";
 import LogoutIcon from "@mui/icons-material/Logout";
+import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 
 import { NavLink } from "react-router-dom";
 
@@ -92,6 +93,13 @@ export function AppLayout({
       label: "Usuarios",
       to: "/users",
       icon: <PeopleIcon />,
+      visible: isAdmin
+    },
+
+    {
+      label: "Historial vendedores",
+      to: "/seller-activity",
+      icon: <ManageSearchIcon />,
       visible: isAdmin
     },
 

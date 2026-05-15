@@ -63,3 +63,16 @@ export function requireRole(...roles: Role[]) {
     next();
   };
 }
+
+/**
+ * Alias de compatibilidad.
+ * Permite rutas antiguas que usen requireRoles(...)
+ * mientras estandarizamos todo a requireRole(...).
+ */
+export function requireRoles(...roles: Role[] | [Role[]]) {
+  const normalizedRoles = Array.isArray(roles[0])
+    ? roles[0]
+    : (roles as Role[]);
+
+  return requireRole(...normalizedRoles);
+}

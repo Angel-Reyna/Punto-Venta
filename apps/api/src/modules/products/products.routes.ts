@@ -1,13 +1,14 @@
-import { Router } from "express";
-import multer = require("multer");
+import { Router, type Request } from "express";
+import multer from "multer";
 import { Role } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "../../config/prisma";
+import { AppError } from "../../utils/AppError";
 
 import {
   requireAuth,
-  requireRole
+  requireRoles
 } from "../../middlewares/auth";
 
 import { validate } from "../../middlewares/validate";
@@ -24,7 +25,6 @@ import {
 
 const upload = multer({
   storage: multer.memoryStorage(),
-
   limits: {
     fileSize: 4 * 1024 * 1024
   }
@@ -32,7 +32,11 @@ const upload = multer({
 
 const createSchema = z.object({
   body: z.object({
+    categoryId: z.string().uuid().optional().nullable(),
+
     sku: z.string().min(1).max(80),
+
+    barcode: z.string().max(80).optional().nullable(),
 
     name: z.string().min(2).max(160),
 
@@ -43,8 +47,6 @@ const createSchema = z.object({
     salePrice: z.coerce.number().min(0),
 
     promoPercent: z.coerce.number().min(0).max(100).default(0),
-
-    stock: z.coerce.number().int().min(0).default(0),
 
     minStock: z.coerce.number().int().min(0).default(0)
   })
@@ -57,6 +59,46 @@ const updateSchema = z.object({
 export const productsRouter = Router();
 
 productsRouter.use(requireAuth);
+
+function getRouteId(req: Request) {
+  const id = req.params.id;
+
+  if (Array.isArray(id) || !id) {
+    throw new AppError(400, "ID inválido");
+  }
+
+  return id;
+}
+
+async function getProductStock(productId: string) {
+  const movements = await prisma.inventoryMovement.findMany({
+    where: {
+      productId
+    },
+    select: {
+      type: true,
+      quantity: true
+    }
+  });
+
+  return movements.reduce((stock, movement) => {
+    if (
+      movement.type === "IN" ||
+      movement.type === "RETURN"
+    ) {
+      return stock + movement.quantity;
+    }
+
+    if (
+      movement.type === "OUT" ||
+      movement.type === "SALE"
+    ) {
+      return stock - movement.quantity;
+    }
+
+    return stock;
+  }, 0);
+}
 
 productsRouter.get(
   "/",
@@ -92,64 +134,83 @@ productsRouter.get(
 
     const products = await prisma.product.findMany({
       where,
-
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      },
       orderBy: {
         createdAt: "desc"
       }
     });
 
-    const mappedProducts = products.map((product) => {
-    const salePrice = Number(product.salePrice);
+    const mappedProducts = await Promise.all(
+      products.map(async (product) => {
+        const stock = await getProductStock(product.id);
 
-    const promoPercent = Number(product.promoPercent);
+        const salePrice = Number(product.salePrice);
 
-    const finalPrice = calculateFinalPrice(
-        salePrice,
-        promoPercent
+        const promoPercent = Number(product.promoPercent);
+
+        const finalPrice = calculateFinalPrice(
+          salePrice,
+          promoPercent
+        );
+
+        if (req.user?.role !== Role.ADMIN) {
+          return {
+            id: product.id,
+            sku: product.sku,
+            barcode: product.barcode,
+            name: product.name,
+            description: product.description,
+            category: product.category,
+            salePrice,
+            promoPercent,
+            finalPrice,
+            stock
+          };
+        }
+
+        return {
+          ...product,
+          costPrice: Number(product.costPrice),
+          salePrice,
+          promoPercent,
+          marginPercent: calculateMargin(
+            Number(product.costPrice),
+            salePrice
+          ),
+          finalPrice,
+          stock
+        };
+      })
     );
 
-    if (req.user?.role !== Role.ADMIN) {
-        return {
-        id: product.id,
-        sku: product.sku,
-        name: product.name,
-        description: product.description,
-        salePrice,
-        promoPercent,
-        finalPrice,
-        stock: product.stock
-        };
-    }
-
-    return {
-        ...product,
-
-        costPrice: Number(product.costPrice),
-
-        salePrice,
-
-        promoPercent,
-
-        marginPercent: calculateMargin(
-        Number(product.costPrice),
-        salePrice
-        ),
-
-        finalPrice
-    };
-    });
-
-res.json(mappedProducts);
+    res.json(mappedProducts);
   })
 );
 
 productsRouter.post(
   "/",
-  requireRole(Role.ADMIN),
+  requireRoles(Role.ADMIN),
   validate(createSchema),
   asyncHandler(async (req, res) => {
     const product = await prisma.product.create({
-      data: req.body
+      data: {
+        categoryId: req.body.categoryId,
+        sku: req.body.sku,
+        barcode: req.body.barcode,
+        name: req.body.name,
+        description: req.body.description,
+        costPrice: req.body.costPrice,
+        salePrice: req.body.salePrice,
+        promoPercent: req.body.promoPercent,
+        minStock: req.body.minStock
+      }
     });
 
     await auditLog({
@@ -167,25 +228,27 @@ productsRouter.post(
 
 productsRouter.patch(
   "/:id",
-  requireRole(Role.ADMIN),
+  requireRoles(Role.ADMIN),
   validate(updateSchema),
   asyncHandler(async (req, res) => {
+    const productId = getRouteId(req);
+
     const oldData = await prisma.product.findUniqueOrThrow({
       where: {
-        id: String(req.params.id)
+        id: productId
       }
     });
 
     const product = await prisma.product.update({
       where: {
-        id: String(req.params.id)
+        id: productId
       },
       data: req.body
     });
 
     await auditLog({
       userId: req.user?.id,
-      action: "UPDATE",
+      action: "UPDATE_PRODUCT",
       tableName: "Product",
       recordId: product.id,
       oldData,
@@ -199,19 +262,20 @@ productsRouter.patch(
 
 productsRouter.patch(
   "/:id/toggle",
-  requireRole(Role.ADMIN),
+  requireRoles(Role.ADMIN),
   asyncHandler(async (req, res) => {
+    const productId = getRouteId(req);
+
     const oldData = await prisma.product.findUniqueOrThrow({
       where: {
-        id: String(req.params.id)
+        id: productId
       }
     });
 
     const product = await prisma.product.update({
       where: {
-        id: String(req.params.id)
+        id: productId
       },
-
       data: {
         isActive: !oldData.isActive
       }
@@ -219,7 +283,7 @@ productsRouter.patch(
 
     await auditLog({
       userId: req.user?.id,
-      action: "TOGGLE_ACTIVE",
+      action: "TOGGLE_PRODUCT_ACTIVE",
       tableName: "Product",
       recordId: product.id,
       oldData,
@@ -233,7 +297,7 @@ productsRouter.patch(
 
 productsRouter.get(
   "/template/excel",
-  requireRole(Role.ADMIN),
+  requireRoles(Role.ADMIN),
   (_req, res) => {
     res.setHeader(
       "Content-Disposition",
@@ -251,7 +315,7 @@ productsRouter.get(
 
 productsRouter.post(
   "/import/excel",
-  requireRole(Role.ADMIN),
+  requireRoles(Role.ADMIN),
   upload.single("file"),
   asyncHandler(async (req, res) => {
     if (!req.file) {
@@ -260,7 +324,10 @@ productsRouter.post(
       });
     }
 
-    const imported = await importProducts(req.file.buffer);
+  const imported = await importProducts(
+    req.file.buffer,
+    req.user!.id
+  );
 
     await auditLog({
       userId: req.user?.id,

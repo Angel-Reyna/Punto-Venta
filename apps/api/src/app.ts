@@ -17,6 +17,7 @@ import { salesRouter } from "./modules/sales/sales.routes";
 import { reportsRouter } from "./modules/reports/reports.routes";
 import { auditRouter } from "./modules/audit/audit.routes";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes";
+import { sellerActivityRouter } from "./modules/seller-activity/seller-activity.routes";
 
 export const app = express();
 
@@ -95,5 +96,5 @@ app.use("/api/inventory", inventoryRouter);
 app.use("/api/sales", salesRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/audit", auditRouter);
-
+app.use("/api/seller-activity", sellerActivityRouter);
 app.use(errorHandler);

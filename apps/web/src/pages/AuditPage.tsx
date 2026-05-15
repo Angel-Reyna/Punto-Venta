@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 
 import {
+  Alert,
   Box,
   Card,
   CardContent,
-  Chip,
-  Alert
+  Chip
 } from "@mui/material";
 
 import {
@@ -20,8 +20,10 @@ type AuditLog = {
   id: string;
   action: string;
   tableName: string;
-  recordId?: string;
-  ipAddress?: string;
+  recordId?: string | null;
+  oldData?: unknown;
+  newData?: unknown;
+  ipAddress?: string | null;
   createdAt: string;
 
   user?: {
@@ -29,7 +31,7 @@ type AuditLog = {
     name: string;
     email: string;
     role: "ADMIN" | "CASHIER";
-  };
+  } | null;
 };
 
 export function AuditPage() {
@@ -38,10 +40,16 @@ export function AuditPage() {
 
   async function load() {
     try {
-      const response = await api.get("/audit");
+      setError("");
+
+      const response = await api.get<AuditLog[]>("/audit");
+
       setRows(response.data);
-    } catch {
-      setError("No se pudo cargar la auditoría");
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message ??
+          "No se pudo cargar la auditoría"
+      );
     }
   }
 
@@ -53,30 +61,32 @@ export function AuditPage() {
     {
       field: "createdAt",
       headerName: "Fecha",
-      width: 190
+      width: 190,
+      valueFormatter: (value) => new Date(value).toLocaleString()
     },
     {
       field: "action",
       headerName: "Acción",
-      width: 190,
+      width: 210,
       renderCell: (params) => (
         <Chip
           label={params.value}
           color="primary"
           size="small"
+          variant="outlined"
         />
       )
     },
     {
       field: "tableName",
       headerName: "Tabla",
-      width: 160
+      width: 170
     },
     {
       field: "recordId",
       headerName: "Registro",
       flex: 1,
-      minWidth: 220,
+      minWidth: 240,
       valueGetter: (_value, row) => row.recordId || "N/A"
     },
     {
@@ -92,13 +102,21 @@ export function AuditPage() {
     {
       field: "role",
       headerName: "Rol",
-      width: 130,
-      valueGetter: (_value, row) => row.user?.role ?? "N/A"
+      width: 140,
+      valueGetter: (_value, row) => row.user?.role ?? "N/A",
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value === "ADMIN" ? "primary" : "success"}
+          variant="outlined"
+        />
+      )
     },
     {
       field: "ipAddress",
       headerName: "IP",
-      width: 160,
+      width: 170,
       valueGetter: (_value, row) => row.ipAddress || "N/A"
     }
   ];
@@ -111,10 +129,7 @@ export function AuditPage() {
       />
 
       <Box sx={{ mb: 2 }}>
-        <Chip
-          color="primary"
-          label="Acceso exclusivo ADMIN"
-        />
+        <Chip color="primary" label="Acceso exclusivo ADMIN" />
       </Box>
 
       {error && (
@@ -125,7 +140,7 @@ export function AuditPage() {
 
       <Card>
         <CardContent sx={{ overflowX: "auto" }}>
-          <Box sx={{ minWidth: 1080 }}>
+          <Box sx={{ minWidth: 1180 }}>
             <DataGrid
               autoHeight
               rows={rows}

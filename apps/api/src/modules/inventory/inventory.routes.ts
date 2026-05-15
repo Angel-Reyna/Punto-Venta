@@ -20,7 +20,16 @@ const movementSchema = z.object({
   body: z.object({
     productId: z.string().uuid(),
 
-    quantity: z.coerce.number().int().positive(),
+    warehouseId: z
+      .string()
+      .uuid()
+      .optional()
+      .nullable(),
+
+    quantity: z.coerce
+      .number()
+      .int()
+      .positive(),
 
     reason: z
       .string()
@@ -36,23 +45,191 @@ inventoryRouter.use(
   requireRole(Role.ADMIN)
 );
 
+async function getOrCreateDefaultWarehouse() {
+  return prisma.warehouse.upsert({
+    where: {
+      name: "Almacén principal"
+    },
+    update: {},
+    create: {
+      name: "Almacén principal",
+      description: "Almacén principal del negocio",
+      isActive: true
+    }
+  });
+}
+
+async function resolveWarehouseId(
+  warehouseId?: string | null
+) {
+  if (warehouseId) {
+    const warehouse =
+      await prisma.warehouse.findUnique({
+        where: {
+          id: warehouseId
+        }
+      });
+
+    if (!warehouse) {
+      throw new AppError(
+        404,
+        "Almacén no encontrado"
+      );
+    }
+
+    if (!warehouse.isActive) {
+      throw new AppError(
+        400,
+        "Almacén inactivo"
+      );
+    }
+
+    return warehouse.id;
+  }
+
+  const warehouse =
+    await getOrCreateDefaultWarehouse();
+
+  return warehouse.id;
+}
+
+async function getCurrentStock(
+  productId: string,
+  warehouseId?: string | null
+) {
+  const movements =
+    await prisma.inventoryMovement.findMany({
+      where: {
+        productId,
+
+        ...(warehouseId
+          ? {
+              warehouseId
+            }
+          : {})
+      },
+
+      select: {
+        type: true,
+        quantity: true
+      }
+    });
+
+  return movements.reduce(
+    (stock, movement) => {
+      if (
+        movement.type === "IN" ||
+        movement.type === "RETURN"
+      ) {
+        return stock + movement.quantity;
+      }
+
+      if (
+        movement.type === "OUT" ||
+        movement.type === "SALE"
+      ) {
+        return stock - movement.quantity;
+      }
+
+      return stock;
+    },
+    0
+  );
+}
+
+inventoryRouter.get(
+  "/warehouses",
+  asyncHandler(async (_req, res) => {
+    const warehouses =
+      await prisma.warehouse.findMany({
+        where: {
+          isActive: true
+        },
+
+        orderBy: {
+          name: "asc"
+        }
+      });
+
+    res.json(warehouses);
+  })
+);
+
 inventoryRouter.get(
   "/movements",
   asyncHandler(async (_req, res) => {
     const movements =
       await prisma.inventoryMovement.findMany({
         include: {
-          product: true
+          product: {
+            select: {
+              id: true,
+              sku: true,
+              name: true
+            }
+          },
+
+          warehouse: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
         },
 
         orderBy: {
           createdAt: "desc"
         },
 
-        take: 300
+        take: 500
       });
 
     res.json(movements);
+  })
+);
+
+inventoryRouter.get(
+  "/stock",
+  asyncHandler(async (_req, res) => {
+    const products =
+      await prisma.product.findMany({
+        where: {
+          isActive: true
+        },
+
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+
+        orderBy: {
+          name: "asc"
+        }
+      });
+
+    const stock = await Promise.all(
+      products.map(async (product) => {
+        const quantity =
+          await getCurrentStock(product.id);
+
+        return {
+          id: product.id,
+          sku: product.sku,
+          name: product.name,
+          category: product.category,
+          minStock: product.minStock,
+          stock: quantity,
+          lowStock:
+            quantity <= product.minStock
+        };
+      })
+    );
+
+    res.json(stock);
   })
 );
 
@@ -61,48 +238,63 @@ inventoryRouter.post(
   validate(movementSchema),
   asyncHandler(async (req, res) => {
     const product =
-      await prisma.product.findUniqueOrThrow({
+      await prisma.product.findUnique({
         where: {
           id: req.body.productId
         }
       });
 
+    if (!product) {
+      throw new AppError(
+        404,
+        "Producto no encontrado"
+      );
+    }
+
+    if (!product.isActive) {
+      throw new AppError(
+        400,
+        "Producto inactivo"
+      );
+    }
+
+    const warehouseId =
+      await resolveWarehouseId(
+        req.body.warehouseId
+      );
+
     const movement =
-      await prisma.$transaction(async (tx) => {
-        await tx.product.update({
-          where: {
-            id: req.body.productId
+      await prisma.inventoryMovement.create({
+        data: {
+          productId: product.id,
+
+          warehouseId,
+
+          type: "IN",
+
+          quantity: req.body.quantity,
+
+          reason: req.body.reason,
+
+          createdBy: req.user!.id
+        },
+
+        include: {
+          product: {
+            select: {
+              id: true,
+              sku: true,
+              name: true
+            }
           },
 
-          data: {
-            stock: {
-              increment:
-                req.body.quantity
+          warehouse: {
+            select: {
+              id: true,
+              name: true
             }
           }
-        });
-
-        return tx.inventoryMovement.create({
-          data: {
-            productId:
-              req.body.productId,
-
-            quantity:
-              req.body.quantity,
-
-            reason:
-              req.body.reason,
-
-            type: "IN",
-
-            createdBy:
-              req.user!.id
-          },
-
-          include: {
-            product: true
-          }
-        });
+        }
       });
 
     await auditLog({
@@ -110,23 +302,16 @@ inventoryRouter.post(
 
       action: "INVENTORY_IN",
 
-      tableName:
-        "InventoryMovement",
+      tableName: "InventoryMovement",
 
       recordId: movement.id,
 
       newData: {
-        productId:
-          product.id,
-
-        productName:
-          product.name,
-
-        quantity:
-          req.body.quantity,
-
-        reason:
-          req.body.reason
+        productId: product.id,
+        productName: product.name,
+        warehouseId,
+        quantity: req.body.quantity,
+        reason: req.body.reason
       },
 
       ipAddress: req.ip
@@ -141,58 +326,78 @@ inventoryRouter.post(
   validate(movementSchema),
   asyncHandler(async (req, res) => {
     const product =
-      await prisma.product.findUniqueOrThrow({
+      await prisma.product.findUnique({
         where: {
           id: req.body.productId
         }
       });
 
+    if (!product) {
+      throw new AppError(
+        404,
+        "Producto no encontrado"
+      );
+    }
+
+    if (!product.isActive) {
+      throw new AppError(
+        400,
+        "Producto inactivo"
+      );
+    }
+
+    const warehouseId =
+      await resolveWarehouseId(
+        req.body.warehouseId
+      );
+
+    const currentStock =
+      await getCurrentStock(
+        product.id,
+        warehouseId
+      );
+
     if (
-      product.stock <
-      req.body.quantity
+      currentStock < req.body.quantity
     ) {
       throw new AppError(
         400,
-        "Stock insuficiente"
+        `Stock insuficiente. Stock actual: ${currentStock}`
       );
     }
 
     const movement =
-      await prisma.$transaction(async (tx) => {
-        await tx.product.update({
-          where: {
-            id: req.body.productId
+      await prisma.inventoryMovement.create({
+        data: {
+          productId: product.id,
+
+          warehouseId,
+
+          type: "OUT",
+
+          quantity: req.body.quantity,
+
+          reason: req.body.reason,
+
+          createdBy: req.user!.id
+        },
+
+        include: {
+          product: {
+            select: {
+              id: true,
+              sku: true,
+              name: true
+            }
           },
 
-          data: {
-            stock: {
-              decrement:
-                req.body.quantity
+          warehouse: {
+            select: {
+              id: true,
+              name: true
             }
           }
-        });
-
-        return tx.inventoryMovement.create({
-          data: {
-            productId:
-              req.body.productId,
-
-            quantity:
-              req.body.quantity,
-
-            reason:
-              req.body.reason,
-
-            type: "OUT",
-
-            createdBy:
-              req.user!.id
-          },
-
-          include: {
-            product: true
-          }
-        });
+        }
       });
 
     await auditLog({
@@ -200,23 +405,16 @@ inventoryRouter.post(
 
       action: "INVENTORY_OUT",
 
-      tableName:
-        "InventoryMovement",
+      tableName: "InventoryMovement",
 
       recordId: movement.id,
 
       newData: {
-        productId:
-          product.id,
-
-        productName:
-          product.name,
-
-        quantity:
-          req.body.quantity,
-
-        reason:
-          req.body.reason
+        productId: product.id,
+        productName: product.name,
+        warehouseId,
+        quantity: req.body.quantity,
+        reason: req.body.reason
       },
 
       ipAddress: req.ip
