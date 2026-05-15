@@ -18,6 +18,7 @@ import {
 
 import { api } from "../api/client";
 import { PageHeader } from "../components/PageHeader";
+import { getApiErrorMessage } from "../utils/apiError";
 
 type Product = {
   id: string;
@@ -85,7 +86,7 @@ export function InventoryPage() {
       setWarehouses(warehousesResponse.data);
       setMovements(movementsResponse.data);
     } catch {
-      setError("No se pudo cargar el inventario");
+      setError("No se pudo cargar el inventario ni los movimientos recientes.");
     }
   }
 
@@ -110,8 +111,8 @@ export function InventoryPage() {
 
       setMessage(
         type === "in"
-          ? "Entrada registrada correctamente"
-          : "Salida registrada correctamente"
+          ? "Entrada registrada correctamente."
+          : "Salida registrada correctamente."
       );
 
       setForm({
@@ -124,8 +125,10 @@ export function InventoryPage() {
       await load();
     } catch (err: any) {
       setError(
-        err?.response?.data?.message ??
-          "No se pudo registrar el movimiento"
+        getApiErrorMessage(
+          err,
+          "No se pudo registrar el movimiento. Verifica producto, cantidad y motivo."
+        )
       );
     }
   }
@@ -198,7 +201,7 @@ export function InventoryPage() {
     <>
       <PageHeader
         title="Inventario"
-        subtitle="Entradas y salidas manuales exclusivas para ADMIN"
+        subtitle="Registra entradas y salidas manuales. El sistema valida stock disponible antes de descontar."
       />
 
       <Box sx={{ mb: 2 }}>
@@ -296,7 +299,7 @@ export function InventoryPage() {
 
             <TextField
               fullWidth
-              label="Motivo"
+              label="Motivo del movimiento"
               value={form.reason}
               helperText="Mínimo 3 caracteres"
               onChange={(event) =>
@@ -312,7 +315,7 @@ export function InventoryPage() {
               onClick={() => submit("in")}
               disabled={formIsInvalid}
             >
-              Entrada
+              Registrar entrada
             </Button>
 
             <Button
@@ -321,7 +324,7 @@ export function InventoryPage() {
               onClick={() => submit("out")}
               disabled={formIsInvalid}
             >
-              Salida
+              Registrar salida
             </Button>
           </Box>
         </CardContent>

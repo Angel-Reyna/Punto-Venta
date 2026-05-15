@@ -10,15 +10,15 @@ export function validate(schema: AnyZodObject) {
         params: req.params
       });
 
-      if ("body" in parsed) {
+      if (Object.prototype.hasOwnProperty.call(parsed, "body")) {
         req.body = parsed.body;
       }
 
-      if ("query" in parsed) {
+      if (Object.prototype.hasOwnProperty.call(parsed, "query")) {
         req.query = parsed.query;
       }
 
-      if ("params" in parsed) {
+      if (Object.prototype.hasOwnProperty.call(parsed, "params")) {
         req.params = parsed.params;
       }
 

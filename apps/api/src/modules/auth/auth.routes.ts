@@ -89,9 +89,7 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
 
-    await service.logout(
-      typeof refreshToken === "string" ? refreshToken : undefined
-    );
+    await service.logout(typeof refreshToken === "string" ? refreshToken : undefined);
 
     res.clearCookie(REFRESH_COOKIE_NAME, clearRefreshCookieOptions);
 
@@ -132,7 +130,7 @@ authRouter.get(
       throw new AppError(401, "Usuario inactivo");
     }
 
-    return res.json({
+    return res.status(200).json({
       user: {
         id: user.id,
         name: user.name,
@@ -149,11 +147,7 @@ authRouter.post(
   requireRole(Role.ADMIN),
   validate(registerCashierSchema),
   asyncHandler(async (req, res) => {
-    const user = await service.registerCashier(
-      req.body.name,
-      req.body.email,
-      req.body.password
-    );
+    const user = await service.registerCashier(req.body.name, req.body.email, req.body.password);
 
     return res.status(201).json({
       message: "Cuenta de vendedor creada correctamente",

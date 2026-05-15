@@ -55,7 +55,7 @@ export function AppLayout({
 
   const menuItems = [
     {
-      label: "Dashboard",
+      label: "Inicio",
       to: "/",
       icon: <DashboardIcon />,
       visible: true
@@ -69,7 +69,7 @@ export function AppLayout({
     },
 
     {
-      label: "Ventas",
+      label: "Nueva venta",
       to: "/sales",
       icon: <PointOfSaleIcon />,
       visible: true
@@ -97,7 +97,7 @@ export function AppLayout({
     },
 
     {
-      label: "Historial vendedores",
+      label: "Actividad vendedores",
       to: "/seller-activity",
       icon: <ManageSearchIcon />,
       visible: isAdmin
@@ -125,7 +125,15 @@ export function AppLayout({
           variant="h6"
           fontWeight={800}
         >
-          POS Senior
+          Punta Venta
+        </Typography>
+
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", mb: 1 }}
+        >
+          Sistema POS
         </Typography>
 
         <Typography
@@ -228,7 +236,7 @@ export function AppLayout({
               fontWeight: 800
             }}
           >
-            POS Senior
+            Punta Venta
           </Typography>
 
           {!isMobile && (
@@ -253,13 +261,15 @@ export function AppLayout({
           )}
 
           <Button
+            variant="text"
             color="inherit"
             startIcon={
               <LogoutIcon />
             }
             onClick={logout}
+            aria-label="Cerrar sesión"
           >
-            Salir
+            Cerrar sesión
           </Button>
         </Toolbar>
       </AppBar>

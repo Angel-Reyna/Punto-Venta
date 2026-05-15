@@ -55,7 +55,8 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
       typeof payload !== "object" ||
       payload.type !== "access" ||
       typeof payload.sub !== "string" ||
-      typeof payload.email !== "string"
+      typeof payload.email !== "string" ||
+      !Object.values(Role).includes(payload.role as Role)
     ) {
       throw new AppError(401, "Token inválido");
     }

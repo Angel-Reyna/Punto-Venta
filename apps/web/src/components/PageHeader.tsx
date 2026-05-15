@@ -14,25 +14,20 @@ export function PageHeader({
     <Box
       sx={{
         display: "flex",
-
         flexDirection: {
           xs: "column",
           sm: "row"
         },
-
         alignItems: {
           xs: "stretch",
-          sm: "center"
+          sm: "flex-start"
         },
-
         justifyContent: "space-between",
-
         gap: 2,
-
         mb: 3
       }}
     >
-      <Box>
+      <Box sx={{ maxWidth: 760 }}>
         <Typography
           variant="h4"
           fontWeight={800}
@@ -40,7 +35,8 @@ export function PageHeader({
             fontSize: {
               xs: "1.6rem",
               sm: "2rem"
-            }
+            },
+            lineHeight: 1.15
           }}
         >
           {title}
@@ -50,7 +46,8 @@ export function PageHeader({
           <Typography
             color="text.secondary"
             sx={{
-              mt: 0.5
+              mt: 0.75,
+              lineHeight: 1.55
             }}
           >
             {subtitle}
@@ -64,6 +61,11 @@ export function PageHeader({
             width: {
               xs: "100%",
               sm: "auto"
+            },
+            display: "flex",
+            justifyContent: {
+              xs: "stretch",
+              sm: "flex-end"
             }
           }}
         >

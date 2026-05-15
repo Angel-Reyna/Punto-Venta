@@ -2,11 +2,16 @@ import {
   createContext,
   ReactNode,
   useContext,
+  useEffect,
   useMemo,
   useState
 } from "react";
 
 import { api } from "../api/client";
+import {
+  clearAccessToken,
+  setAccessToken
+} from "./tokenStore";
 
 type User = {
   id: string;
@@ -15,72 +20,85 @@ type User = {
   role: "ADMIN" | "CASHIER";
 };
 
-type LoginResponse = {
+type AuthResponse = {
   accessToken: string;
   user: User;
 };
 
+type AuthStatus = "loading" | "authenticated" | "guest";
+
 type AuthContextValue = {
   user: User | null;
-  accessToken: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isAdmin: boolean;
   isAuthenticated: boolean;
+  isLoading: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue>({} as AuthContextValue);
 
-const ACCESS_KEY = "pos_access_token";
-const USER_KEY = "pos_user";
-
-function getStoredUser(): User | null {
-  const storedUser = localStorage.getItem(USER_KEY);
-
-  if (!storedUser) return null;
-
-  try {
-    return JSON.parse(storedUser) as User;
-  } catch {
-    localStorage.removeItem(USER_KEY);
-    return null;
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [accessToken, setAccessToken] = useState<string | null>(() =>
-    localStorage.getItem(ACCESS_KEY)
-  );
+  const [status, setStatus] = useState<AuthStatus>("loading");
+  const [user, setUser] = useState<User | null>(null);
 
-  const [user, setUser] = useState<User | null>(() => getStoredUser());
+  useEffect(() => {
+    let isMounted = true;
+
+    async function bootstrapSession() {
+      try {
+        const response = await api.post<AuthResponse>("/auth/refresh");
+
+        if (!isMounted) return;
+
+        setAccessToken(response.data.accessToken);
+        setUser(response.data.user);
+        setStatus("authenticated");
+      } catch {
+        if (!isMounted) return;
+
+        clearAccessToken();
+        setUser(null);
+        setStatus("guest");
+      }
+    }
+
+    function handleAuthExpired() {
+      clearAccessToken();
+      setUser(null);
+      setStatus("guest");
+    }
+
+    window.addEventListener("pos:auth-expired", handleAuthExpired);
+    bootstrapSession();
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("pos:auth-expired", handleAuthExpired);
+    };
+  }, []);
 
   async function login(email: string, password: string) {
-    const response = await api.post<LoginResponse>("/auth/login", {
-      email,
+    const response = await api.post<AuthResponse>("/auth/login", {
+      email: email.trim().toLowerCase(),
       password
     });
 
-    const data = response.data;
-
-    localStorage.setItem(ACCESS_KEY, data.accessToken);
-    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-
-    setAccessToken(data.accessToken);
-    setUser(data.user);
+    setAccessToken(response.data.accessToken);
+    setUser(response.data.user);
+    setStatus("authenticated");
   }
 
   async function logout() {
     try {
       await api.post("/auth/logout");
     } catch {
-      // No bloquear logout local si el backend no responde.
+      // El logout local no debe depender de la disponibilidad del backend.
     }
 
-    localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem(USER_KEY);
-
-    setAccessToken(null);
+    clearAccessToken();
     setUser(null);
+    setStatus("guest");
 
     window.location.href = "/login";
   }
@@ -88,13 +106,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       user,
-      accessToken,
       login,
       logout,
       isAdmin: user?.role === "ADMIN",
-      isAuthenticated: Boolean(accessToken && user)
+      isAuthenticated: status === "authenticated" && Boolean(user),
+      isLoading: status === "loading"
     }),
-    [user, accessToken]
+    [user, status]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

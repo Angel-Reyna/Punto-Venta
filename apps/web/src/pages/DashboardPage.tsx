@@ -19,6 +19,7 @@ import PeopleIcon from "@mui/icons-material/People";
 import { api } from "../api/client";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../auth/AuthContext";
+import { getApiErrorMessage } from "../utils/apiError";
 
 type DashboardMetrics = {
   role: "ADMIN" | "CASHIER";
@@ -42,8 +43,13 @@ export function DashboardPage() {
       const response = await api.get<DashboardMetrics>("/dashboard");
 
       setMetrics(response.data);
-    } catch {
-      setError("No se pudo cargar el dashboard");
+    } catch (err: unknown) {
+      setError(
+        getApiErrorMessage(
+          err,
+          "No se pudo cargar el resumen. Intenta actualizar la página."
+        )
+      );
     }
   }
 
@@ -99,8 +105,8 @@ export function DashboardPage() {
         title="Dashboard"
         subtitle={
           isAdmin
-            ? "Resumen administrativo del sistema"
-            : "Resumen personal de ventas"
+            ? "Indicadores clave del negocio, ventas del día y alertas de inventario."
+            : "Tus ventas del día y métricas principales para operar."
         }
       />
 

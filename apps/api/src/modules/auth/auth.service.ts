@@ -238,9 +238,7 @@ export async function registerCashier(
   const cleanEmail = email.trim().toLowerCase();
 
   const existingUser = await prisma.user.findUnique({
-    where: {
-      email: cleanEmail
-    }
+    where: { email: cleanEmail }
   });
 
   if (existingUser) {
@@ -257,6 +255,7 @@ export async function registerCashier(
       role: "CASHIER",
       isActive: true
     },
+
     select: {
       id: true,
       name: true,

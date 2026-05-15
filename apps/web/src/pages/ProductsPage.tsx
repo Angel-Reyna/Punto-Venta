@@ -28,6 +28,7 @@ import ToggleOffIcon from "@mui/icons-material/ToggleOff";
 import { api } from "../api/client";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../auth/AuthContext";
+import { getApiErrorMessage } from "../utils/apiError";
 
 type Product = {
   id: string;
@@ -87,7 +88,7 @@ export function ProductsPage() {
 
       setRows(response.data);
     } catch {
-      setError("No se pudieron cargar los productos");
+      setError("No se pudo cargar el catálogo de productos.");
     }
   }
 
@@ -114,15 +115,17 @@ export function ProductsPage() {
         minStock: Number(form.minStock ?? 0)
       });
 
-      setMessage("Producto creado correctamente");
+      setMessage("Producto creado correctamente.");
       setOpen(false);
       setForm(initialForm);
 
       await load();
     } catch (err: any) {
       setError(
-        err?.response?.data?.message ??
-          "No se pudo crear el producto"
+        getApiErrorMessage(
+          err,
+          "No se pudo crear el producto. Revisa SKU, precios y campos obligatorios."
+        )
       );
     }
   }
@@ -144,7 +147,7 @@ export function ProductsPage() {
 
       URL.revokeObjectURL(url);
     } catch {
-      setError("No se pudo descargar el formato Excel");
+      setError("No se pudo descargar el formato Excel.");
     }
   }
 
@@ -174,8 +177,10 @@ export function ProductsPage() {
       await load();
     } catch (err: any) {
       setError(
-        err?.response?.data?.message ??
-          "No se pudo importar el archivo Excel"
+        getApiErrorMessage(
+          err,
+          "No se pudo importar el archivo Excel. Verifica que uses el formato correcto."
+        )
       );
     }
   }
@@ -187,13 +192,15 @@ export function ProductsPage() {
     try {
       await api.patch(`/products/${productId}/toggle`);
 
-      setMessage("Estado del producto actualizado");
+      setMessage("Estado del producto actualizado.");
 
       await load();
     } catch (err: any) {
       setError(
-        err?.response?.data?.message ??
-          "No se pudo actualizar el producto"
+        getApiErrorMessage(
+          err,
+          "No se pudo actualizar el producto."
+        )
       );
     }
   }
@@ -377,8 +384,8 @@ const formIsInvalid =
         title="Productos"
         subtitle={
           isAdmin
-            ? "Alta, consulta, precios, promociones, categorías y carga por Excel"
-            : "Consulta de productos activos disponibles"
+            ? "Gestiona catálogo, precios, promociones, stock mínimo e importación por Excel."
+            : "Consulta productos activos, precios y stock disponible."
         }
         action={
           isAdmin && (
@@ -387,7 +394,7 @@ const formIsInvalid =
               startIcon={<AddIcon />}
               onClick={() => setOpen(true)}
             >
-              Nuevo
+              Nuevo producto
             </Button>
           )
         }
@@ -433,7 +440,7 @@ const formIsInvalid =
             startIcon={<DownloadIcon />}
             onClick={downloadTemplate}
           >
-            Descargar formato Excel
+            Descargar formato
           </Button>
 
           <Button
@@ -441,7 +448,7 @@ const formIsInvalid =
             component="label"
             startIcon={<UploadIcon />}
           >
-            Importar Excel
+            Importar productos
             <input
               hidden
               type="file"
@@ -500,7 +507,7 @@ const formIsInvalid =
                 <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
-                    label="Código de barras"
+                    label="Código de barras opcional"
                     value={form.barcode}
                     onChange={(event) =>
                       setForm({
@@ -514,7 +521,7 @@ const formIsInvalid =
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Nombre"
+                    label="Nombre del producto"
                     value={form.name}
                     onChange={(event) =>
                       setForm({
@@ -528,7 +535,7 @@ const formIsInvalid =
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Descripción"
+                    label="Descripción opcional"
                     value={form.description}
                     onChange={(event) =>
                       setForm({
@@ -542,7 +549,7 @@ const formIsInvalid =
                 <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
-                    label="Costo"
+                    label="Costo unitario"
                     type="number"
                     value={form.costPrice}
                     inputProps={{
@@ -580,7 +587,7 @@ const formIsInvalid =
                 <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
-                    label="Promoción %"
+                    label="Promoción (%)"
                     type="number"
                     value={form.promoPercent}
                     inputProps={{
@@ -622,7 +629,7 @@ const formIsInvalid =
                     fullWidth
                     disabled={formIsInvalid}
                   >
-                    Guardar
+                    Guardar producto
                   </Button>
                 </Grid>
               </Grid>

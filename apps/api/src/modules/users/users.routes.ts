@@ -6,38 +6,38 @@ import { z } from "zod";
 import { prisma } from "../../config/prisma";
 import { env } from "../../config/env";
 
-import {
-  requireAuth,
-  requireRole
-} from "../../middlewares/auth";
-
+import { requireAuth, requireRole } from "../../middlewares/auth";
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
+import { AppError } from "../../utils/AppError";
 import { auditLog } from "../audit/audit.service";
+
+const passwordSchema = z
+  .string()
+  .min(8, "La contraseña debe tener al menos 8 caracteres")
+  .max(72, "La contraseña no debe superar 72 caracteres")
+  .regex(/[A-Z]/, "La contraseña debe incluir una mayúscula")
+  .regex(/[a-z]/, "La contraseña debe incluir una minúscula")
+  .regex(/[0-9]/, "La contraseña debe incluir un número");
 
 const createUserSchema = z.object({
   body: z.object({
-    name: z.string().min(2).max(80),
-    email: z.string().email(),
+    name: z.string().trim().min(2).max(80),
+    email: z.string().trim().toLowerCase().email().max(255),
+    password: passwordSchema,
+    role: z.nativeEnum(Role)
+  })
+});
 
-    password: z
-      .string()
-      .min(8)
-      .max(72)
-      .regex(/[A-Z]/)
-      .regex(/[a-z]/)
-      .regex(/[0-9]/),
-
-    role: z.enum(["ADMIN", "CASHIER"])
+const toggleUserSchema = z.object({
+  params: z.object({
+    id: z.string().uuid()
   })
 });
 
 export const usersRouter = Router();
 
-usersRouter.use(
-  requireAuth,
-  requireRole(Role.ADMIN)
-);
+usersRouter.use(requireAuth, requireRole(Role.ADMIN));
 
 usersRouter.get(
   "/",
@@ -56,7 +56,7 @@ usersRouter.get(
       }
     });
 
-    res.json(users);
+    return res.status(200).json(users);
   })
 );
 
@@ -64,10 +64,17 @@ usersRouter.post(
   "/",
   validate(createUserSchema),
   asyncHandler(async (req, res) => {
-    const passwordHash = await bcrypt.hash(
-      req.body.password,
-      env.BCRYPT_ROUNDS
-    );
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email: req.body.email
+      }
+    });
+
+    if (existingUser) {
+      throw new AppError(409, "El correo ya está registrado");
+    }
+
+    const passwordHash = await bcrypt.hash(req.body.password, env.BCRYPT_ROUNDS);
 
     const user = await prisma.user.create({
       data: {
@@ -95,23 +102,33 @@ usersRouter.post(
       ipAddress: req.ip
     });
 
-    res.status(201).json(user);
+    return res.status(201).json(user);
   })
 );
 
 usersRouter.patch(
   "/:id/toggle",
+  validate(toggleUserSchema),
   asyncHandler(async (req, res) => {
-    const oldData =
-      await prisma.user.findUniqueOrThrow({
-        where: {
-          id: String(req.params.id)
-        }
-      });
+    const targetUserId = String(req.params.id);
+
+    if (targetUserId === req.user?.id) {
+      throw new AppError(400, "No puedes desactivar tu propio usuario");
+    }
+
+    const oldData = await prisma.user.findUnique({
+      where: {
+        id: targetUserId
+      }
+    });
+
+    if (!oldData) {
+      throw new AppError(404, "Usuario no encontrado");
+    }
 
     const user = await prisma.user.update({
       where: {
-        id: String(req.params.id)
+        id: targetUserId
       },
       data: {
         isActive: !oldData.isActive
@@ -126,6 +143,18 @@ usersRouter.patch(
       }
     });
 
+    if (!user.isActive) {
+      await prisma.refreshSession.updateMany({
+        where: {
+          userId: user.id,
+          revokedAt: null
+        },
+        data: {
+          revokedAt: new Date()
+        }
+      });
+    }
+
     await auditLog({
       userId: req.user?.id,
       action: "TOGGLE_ACTIVE",
@@ -136,6 +165,6 @@ usersRouter.patch(
       ipAddress: req.ip
     });
 
-    res.json(user);
+    return res.status(200).json(user);
   })
 );

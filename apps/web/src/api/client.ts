@@ -1,4 +1,9 @@
 import axios from "axios";
+import {
+  clearAccessToken,
+  getAccessToken,
+  setAccessToken
+} from "../auth/tokenStore";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -11,7 +16,7 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const accessToken = localStorage.getItem("pos_access_token");
+  const accessToken = getAccessToken();
 
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
@@ -22,38 +27,31 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-
   async (error) => {
     const originalRequest = error.config;
-
     const status = error?.response?.status;
-
     const url = originalRequest?.url ?? "";
 
     const isAuthRoute =
       url.includes("/auth/login") ||
-      url.includes("/auth/register-cashier") ||
       url.includes("/auth/logout") ||
       url.includes("/auth/refresh");
 
-    if (status === 401 && !originalRequest?._retry && !isAuthRoute) {
+    if (status === 401 && originalRequest && !originalRequest._retry && !isAuthRoute) {
       originalRequest._retry = true;
 
       try {
         const response = await api.post("/auth/refresh");
-
         const newAccessToken = response.data.accessToken;
 
-        localStorage.setItem("pos_access_token", newAccessToken);
+        setAccessToken(newAccessToken);
 
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
         return api(originalRequest);
       } catch {
-        localStorage.removeItem("pos_access_token");
-        localStorage.removeItem("pos_user");
-
-        window.location.href = "/login";
+        clearAccessToken();
+        window.dispatchEvent(new Event("pos:auth-expired"));
       }
     }
 

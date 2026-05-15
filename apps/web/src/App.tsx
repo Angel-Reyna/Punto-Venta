@@ -7,6 +7,11 @@ import {
   Routes
 } from "react-router-dom";
 
+import {
+  Box,
+  CircularProgress
+} from "@mui/material";
+
 import { AppLayout } from "./layout/AppLayout";
 import { useAuth } from "./auth/AuthContext";
 
@@ -20,8 +25,26 @@ import { UsersPage } from "./pages/UsersPage";
 import { AuditPage } from "./pages/AuditPage";
 import { SellerActivityPage } from "./pages/SellerActivityPage";
 
+function FullPageLoader() {
+  return (
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center"
+      }}
+    >
+      <CircularProgress />
+    </Box>
+  );
+}
+
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <FullPageLoader />;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

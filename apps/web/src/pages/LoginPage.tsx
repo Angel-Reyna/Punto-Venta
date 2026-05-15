@@ -1,4 +1,5 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 
 import {
   Alert,
@@ -6,71 +7,61 @@ import {
   Button,
   Card,
   CardContent,
+  CircularProgress,
   Divider,
+  Stack,
   TextField,
   Typography
 } from "@mui/material";
 
-import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-
-type Mode = "login" | "register";
+import { getApiErrorMessage } from "../utils/apiError";
 
 export function LoginPage() {
-  const { login } = useAuth();
+  const navigate = useNavigate();
+  const { login, isAuthenticated, isLoading } = useAuth();
 
-  const [mode, setMode] = useState<Mode>("login");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("admin@pos.local");
-  const [password, setPassword] = useState("Admin12345");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    setError("");
+  }, [email, password]);
+
+  if (!isLoading && isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    setSubmitted(true);
 
-    setError("");
-    setSuccess("");
+    const cleanEmail = email.trim().toLowerCase();
 
-    try {
-      if (mode === "login") {
-        await login(email, password);
-        window.location.href = "/";
-        return;
-      }
-
-      await api.post("/auth/register-cashier", {
-        name,
-        email,
-        password
-      });
-
-      setSuccess("Cuenta de vendedor creada correctamente. Ya puedes iniciar sesión.");
-      setMode("login");
-      setName("");
-      setEmail("");
-      setPassword("");
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? "No se pudo completar la operación");
-    }
-  }
-
-  function switchMode() {
-    setError("");
-    setSuccess("");
-
-    if (mode === "login") {
-      setMode("register");
-      setName("");
-      setEmail("");
-      setPassword("");
+    if (!cleanEmail || !password) {
+      setError("Escribe tu correo y contraseña para iniciar sesión.");
       return;
     }
 
-    setMode("login");
-    setName("");
-    setEmail("admin@pos.local");
-    setPassword("Admin12345");
+    setSubmitting(true);
+    setError("");
+
+    try {
+      await login(cleanEmail, password);
+      navigate("/", { replace: true });
+    } catch (err: unknown) {
+      setError(
+        getApiErrorMessage(
+          err,
+          "No se pudo iniciar sesión. Revisa tus datos e inténtalo de nuevo."
+        )
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -79,50 +70,56 @@ export function LoginPage() {
         minHeight: "100vh",
         display: "grid",
         placeItems: "center",
-        background: "linear-gradient(135deg,#0f172a,#1e293b)",
+        background:
+          "radial-gradient(circle at top left, rgba(37,99,235,0.28), transparent 32%), linear-gradient(135deg,#0f172a,#1e293b)",
         p: 2
       }}
     >
-      <Card sx={{ width: "100%", maxWidth: 440, borderRadius: 4 }}>
+      <Card sx={{ width: "100%", maxWidth: 460, borderRadius: 4 }}>
         <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
-          <Typography variant="h4" fontWeight={800} mb={1}>
-            POS Senior
-          </Typography>
+          <Stack spacing={1} sx={{ mb: 3 }}>
+            <Typography variant="h4" fontWeight={800}>
+              Punta Venta
+            </Typography>
 
-          <Typography color="text.secondary" mb={3}>
-            {mode === "login" ? "Acceso al sistema" : "Crear cuenta de vendedor"}
-          </Typography>
+            <Typography color="text.secondary">
+              Inicia sesión para registrar ventas, consultar productos y administrar el punto de venta.
+            </Typography>
+          </Stack>
 
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+          <Divider sx={{ mb: 3 }} />
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
 
           <Box component="form" onSubmit={submit} sx={{ display: "grid", gap: 2 }}>
-            {mode === "register" && (
-              <TextField
-                fullWidth
-                label="Nombre"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-            )}
-
             <TextField
               fullWidth
-              label="Correo"
+              autoFocus
+              required
+              label="Correo electrónico"
+              placeholder="usuario@empresa.com"
+              type="email"
+              autoComplete="email"
               value={email}
+              error={submitted && !email.trim()}
+              helperText={submitted && !email.trim() ? "El correo es obligatorio." : " "}
               onChange={(event) => setEmail(event.target.value)}
             />
 
             <TextField
               fullWidth
+              required
               label="Contraseña"
+              placeholder="Escribe tu contraseña"
               type="password"
+              autoComplete="current-password"
               value={password}
-              helperText={
-                mode === "register"
-                  ? "Mínimo 8 caracteres, una mayúscula, una minúscula y un número."
-                  : undefined
-              }
+              error={submitted && !password}
+              helperText={submitted && !password ? "La contraseña es obligatoria." : " "}
               onChange={(event) => setPassword(event.target.value)}
             />
 
@@ -130,17 +127,16 @@ export function LoginPage() {
               fullWidth
               size="large"
               type="submit"
-              disabled={mode === "register" ? !name || !email || !password : !email || !password}
+              disabled={submitting || !email.trim() || !password}
+              startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : undefined}
             >
-              {mode === "login" ? "Entrar" : "Crear cuenta"}
+              {submitting ? "Validando acceso..." : "Iniciar sesión"}
             </Button>
           </Box>
 
-          <Divider sx={{ my: 3 }} />
-
-          <Button fullWidth variant="outlined" onClick={switchMode}>
-            {mode === "login" ? "Crear cuenta de vendedor" : "Ya tengo cuenta"}
-          </Button>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 3 }}>
+            Usa la cuenta asignada por el administrador. Por seguridad, las sesiones se cierran desde el servidor.
+          </Typography>
         </CardContent>
       </Card>
     </Box>

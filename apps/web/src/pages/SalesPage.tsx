@@ -23,6 +23,7 @@ import {
 import { api } from "../api/client";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../auth/AuthContext";
+import { getApiErrorMessage } from "../utils/apiError";
 
 type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "MIXED";
 
@@ -98,7 +99,7 @@ export function SalesPage() {
       setProducts(productsResponse.data);
       setSales(salesResponse.data);
     } catch {
-      setError("No se pudo cargar ventas o productos");
+      setError("No se pudo cargar la venta ni el catálogo de productos.");
     }
   }
 
@@ -142,7 +143,7 @@ export function SalesPage() {
     setError("");
 
     if (cartIsInvalid) {
-      setError("Revisa productos, cantidades y stock disponible");
+      setError("Agrega al menos un producto y verifica que la cantidad no supere el stock disponible.");
       return;
     }
 
@@ -165,8 +166,10 @@ export function SalesPage() {
       await load();
     } catch (err: any) {
       setError(
-        err?.response?.data?.message ??
-          "No se pudo registrar la venta"
+        getApiErrorMessage(
+          err,
+          "No se pudo registrar la venta. Verifica productos, stock y método de pago."
+        )
       );
     }
   }
@@ -175,7 +178,7 @@ export function SalesPage() {
     const firstAvailableProduct = products.find((product) => product.stock > 0);
 
     if (!firstAvailableProduct) {
-      setError("No hay productos con stock disponible");
+      setError("No hay productos con stock disponible para vender.");
       return;
     }
 
@@ -266,8 +269,8 @@ export function SalesPage() {
         title="Ventas"
         subtitle={
           isAdmin
-            ? "Registro de ventas y consulta global"
-            : "Registro de ventas y consulta de tus ventas"
+            ? "Registra ventas, revisa tickets recientes y consulta el historial global."
+            : "Registra ventas y consulta únicamente tus tickets recientes."
         }
       />
 
@@ -309,9 +312,9 @@ export function SalesPage() {
             >
               <TextField
                 fullWidth
-                label="Cliente"
+                label="Cliente opcional"
                 value={customerName}
-                helperText="Opcional. Si lo llenas, se creará un cliente simple."
+                helperText="Déjalo vacío para venta sin cliente."
                 onChange={(event) => setCustomerName(event.target.value)}
               />
 
@@ -450,12 +453,13 @@ export function SalesPage() {
                 onClick={createSale}
                 disabled={cartIsInvalid}
               >
-                Cobrar
+                Registrar venta
               </Button>
 
               <Typography
                 variant="h6"
                 fontWeight={800}
+                aria-live="polite"
                 sx={{
                   minWidth: {
                     xs: "100%",

@@ -5,33 +5,46 @@ export const theme = createTheme({
     mode: "light",
 
     primary: {
-      main: "#2563eb"
+      main: "#2563eb",
+      dark: "#1d4ed8"
+    },
+
+    success: {
+      main: "#16a34a",
+      dark: "#15803d"
     },
 
     background: {
-      default: "#f8fafc"
+      default: "#f8fafc",
+      paper: "#ffffff"
+    },
+
+    text: {
+      primary: "#0f172a",
+      secondary: "#64748b"
     }
   },
 
   shape: {
-    borderRadius: 16
+    borderRadius: 14
   },
 
   typography: {
-    fontFamily:
-      "Inter, Roboto, sans-serif",
+    fontFamily: "Inter, Roboto, sans-serif",
 
     h4: {
-      fontWeight: 800
+      fontWeight: 800,
+      letterSpacing: "-0.03em"
     },
 
     h5: {
-      fontWeight: 700
+      fontWeight: 750,
+      letterSpacing: "-0.02em"
     },
 
     button: {
       textTransform: "none",
-      fontWeight: 600
+      fontWeight: 700
     }
   },
 
@@ -39,13 +52,17 @@ export const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          boxShadow:
-            "0 1px 3px rgba(0,0,0,0.08)"
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 12px 30px rgba(15, 23, 42, 0.06)"
         }
       }
     },
 
     MuiButton: {
+      defaultProps: {
+        variant: "contained",
+        disableElevation: true
+      },
       styleOverrides: {
         root: {
           borderRadius: 12,
@@ -56,7 +73,19 @@ export const theme = createTheme({
 
     MuiTextField: {
       defaultProps: {
-        size: "small"
+        size: "small",
+        fullWidth: true,
+        InputLabelProps: {
+          shrink: true
+        }
+      }
+    },
+
+    MuiAlert: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12
+        }
       }
     }
   }

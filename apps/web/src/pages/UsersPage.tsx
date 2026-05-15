@@ -18,6 +18,7 @@ import {
 
 import { api } from "../api/client";
 import { PageHeader } from "../components/PageHeader";
+import { getApiErrorMessage } from "../utils/apiError";
 
 type UserRole = "ADMIN" | "CASHIER";
 
@@ -58,8 +59,10 @@ export function UsersPage() {
       setRows(response.data);
     } catch (err: any) {
       setError(
-        err?.response?.data?.message ??
-          "No se pudieron cargar los usuarios"
+        getApiErrorMessage(
+          err,
+          "No se pudieron cargar los usuarios."
+        )
       );
     }
   }
@@ -82,15 +85,17 @@ export function UsersPage() {
         role: form.role
       });
 
-      setMessage("Usuario creado correctamente");
+      setMessage("Usuario creado correctamente.");
 
       setForm(initialForm);
 
       await load();
     } catch (err: any) {
       setError(
-        err?.response?.data?.message ??
-          "No se pudo crear el usuario"
+        getApiErrorMessage(
+          err,
+          "No se pudo crear el usuario. Revisa nombre, correo, contraseña y rol."
+        )
       );
     }
   }
@@ -102,13 +107,15 @@ export function UsersPage() {
     try {
       await api.patch(`/users/${userId}/toggle`);
 
-      setMessage("Estado del usuario actualizado");
+      setMessage("Estado del usuario actualizado.");
 
       await load();
     } catch (err: any) {
       setError(
-        err?.response?.data?.message ??
-          "No se pudo actualizar el usuario"
+        getApiErrorMessage(
+          err,
+          "No se pudo actualizar el usuario."
+        )
       );
     }
   }
@@ -192,7 +199,7 @@ export function UsersPage() {
     <>
       <PageHeader
         title="Usuarios"
-        subtitle="Administración exclusiva para usuarios con rol ADMIN"
+        subtitle="Crea usuarios, asigna rol y activa o desactiva accesos desde un solo lugar."
       />
 
       <Box sx={{ mb: 2 }}>
@@ -227,7 +234,7 @@ export function UsersPage() {
           >
             <TextField
               fullWidth
-              label="Nombre"
+              label="Nombre completo"
               value={form.name}
               onChange={(event) =>
                 setForm({
@@ -239,7 +246,7 @@ export function UsersPage() {
 
             <TextField
               fullWidth
-              label="Correo"
+              label="Correo electrónico"
               type="email"
               value={form.email}
               onChange={(event) =>
@@ -278,11 +285,11 @@ export function UsersPage() {
               }
             >
               <MenuItem value="ADMIN">
-                ADMIN
+                Administrador
               </MenuItem>
 
               <MenuItem value="CASHIER">
-                CASHIER
+                Vendedor
               </MenuItem>
             </TextField>
 
@@ -291,7 +298,7 @@ export function UsersPage() {
               fullWidth
               disabled={formIsInvalid}
             >
-              Crear
+              Crear usuario
             </Button>
           </Box>
         </CardContent>
