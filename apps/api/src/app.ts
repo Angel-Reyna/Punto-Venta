@@ -2,12 +2,12 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
-import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 
 import { env } from "./config/env";
 
 import { errorHandler } from "./middlewares/errorHandler";
+import { apiRateLimiter } from "./middlewares/rateLimit";
 
 import { authRouter } from "./modules/auth/auth.routes";
 import { usersRouter } from "./modules/users/users.routes";
@@ -22,6 +22,7 @@ import { sellerActivityRouter } from "./modules/seller-activity/seller-activity.
 export const app = express();
 
 app.disable("x-powered-by");
+app.set("trust proxy", env.NODE_ENV === "production" ? 1 : false);
 
 app.use(
   helmet({
@@ -73,14 +74,7 @@ app.use(
   })
 );
 
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 300,
-    standardHeaders: true,
-    legacyHeaders: false
-  })
-);
+app.use(apiRateLimiter);
 
 app.get("/health", (_req, res) => {
   res.json({

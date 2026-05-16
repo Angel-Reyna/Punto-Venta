@@ -7,11 +7,12 @@ import {
   useState
 } from "react";
 
-import { api } from "../api/client";
 import {
-  clearAccessToken,
-  setAccessToken
-} from "./tokenStore";
+  api,
+  clearClientAuthState,
+  refreshSession,
+  setClientAuthSession
+} from "../api/client";
 
 type User = {
   id: string;
@@ -47,24 +48,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function bootstrapSession() {
       try {
-        const response = await api.post<AuthResponse>("/auth/refresh");
+        const session = await refreshSession();
 
         if (!isMounted) return;
 
-        setAccessToken(response.data.accessToken);
-        setUser(response.data.user);
+        setUser(session.user);
         setStatus("authenticated");
       } catch {
         if (!isMounted) return;
 
-        clearAccessToken();
+        clearClientAuthState();
         setUser(null);
         setStatus("guest");
       }
     }
 
     function handleAuthExpired() {
-      clearAccessToken();
+      clearClientAuthState();
       setUser(null);
       setStatus("guest");
     }
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password
     });
 
-    setAccessToken(response.data.accessToken);
+    setClientAuthSession(response.data.accessToken);
     setUser(response.data.user);
     setStatus("authenticated");
   }
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // El logout local no debe depender de la disponibilidad del backend.
     }
 
-    clearAccessToken();
+    clearClientAuthState();
     setUser(null);
     setStatus("guest");
 

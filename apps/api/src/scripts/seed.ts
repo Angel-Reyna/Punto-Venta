@@ -9,19 +9,24 @@ async function main() {
     env.BCRYPT_ROUNDS
   );
 
-  const admin = await prisma.user.upsert({
-    where: {
-      email: "admin@pos.local"
-    },
-    update: {},
-    create: {
-      name: "Administrador",
-      email: "admin@pos.local",
-      passwordHash,
-      role: "ADMIN",
-      isActive: true
-    }
-  });
+const admin = await prisma.user.upsert({
+  where: {
+    email: "admin@pos.local"
+  },
+  update: {
+    name: "Administrador",
+    passwordHash,
+    role: "ADMIN",
+    isActive: true
+  },
+  create: {
+    name: "Administrador",
+    email: "admin@pos.local",
+    passwordHash,
+    role: "ADMIN",
+    isActive: true
+  }
+});
 
   const category = await prisma.productCategory.upsert({
     where: {

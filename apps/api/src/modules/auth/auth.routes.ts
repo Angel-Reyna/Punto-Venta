@@ -4,6 +4,11 @@ import { Role } from "@prisma/client";
 import { env } from "../../config/env";
 import { prisma } from "../../config/prisma";
 import { requireAuth, requireRole } from "../../middlewares/auth";
+import {
+  authLoginRateLimiter,
+  authRefreshRateLimiter,
+  authSensitiveActionRateLimiter
+} from "../../middlewares/rateLimit";
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { AppError } from "../../utils/AppError";
@@ -49,6 +54,7 @@ function getRefreshTokenFromCookie(req: Request): string {
 
 authRouter.post(
   "/login",
+  authLoginRateLimiter,
   validate(loginSchema),
   asyncHandler(async (req, res) => {
     const result = await service.login(
@@ -70,6 +76,7 @@ authRouter.post(
 
 authRouter.post(
   "/refresh",
+  authRefreshRateLimiter,
   asyncHandler(async (req, res) => {
     const refreshToken = getRefreshTokenFromCookie(req);
 
@@ -99,6 +106,7 @@ authRouter.post(
 
 authRouter.post(
   "/logout-all",
+  authSensitiveActionRateLimiter,
   requireAuth,
   asyncHandler(async (req, res) => {
     await service.logoutAll(req.user!.id);
@@ -143,6 +151,7 @@ authRouter.get(
 
 authRouter.post(
   "/register-cashier",
+  authSensitiveActionRateLimiter,
   requireAuth,
   requireRole(Role.ADMIN),
   validate(registerCashierSchema),
