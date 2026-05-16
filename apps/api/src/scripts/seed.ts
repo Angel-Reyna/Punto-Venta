@@ -66,16 +66,37 @@ async function main() {
     }
   });
 
-  await prisma.inventoryMovement.create({
-    data: {
-      productId: product.id,
-      warehouseId: warehouse.id,
-      type: "IN",
-      quantity: 30,
-      reason: "Stock inicial",
-      createdBy: admin.id
+  const existingBalance = await prisma.inventoryBalance.findUnique({
+    where: {
+      productId_warehouseId: {
+        productId: product.id,
+        warehouseId: warehouse.id
+      }
     }
   });
+
+  if (!existingBalance) {
+    await prisma.$transaction(async (tx) => {
+      await tx.inventoryBalance.create({
+        data: {
+          productId: product.id,
+          warehouseId: warehouse.id,
+          quantity: 30
+        }
+      });
+
+      await tx.inventoryMovement.create({
+        data: {
+          productId: product.id,
+          warehouseId: warehouse.id,
+          type: "IN",
+          quantity: 30,
+          reason: "Stock inicial",
+          createdBy: admin.id
+        }
+      });
+    });
+  }
 
   console.log("Seed completado");
 }

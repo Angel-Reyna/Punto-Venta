@@ -131,7 +131,8 @@ model Product {
 
   category       ProductCategory?    @relation(fields: [categoryId], references: [id])
   saleItems      SaleItem[]
-  inventoryMoves InventoryMovement[]
+  inventoryMoves     InventoryMovement[]
+  inventoryBalances InventoryBalance[]
 
   @@index([categoryId])
   @@index([isActive])
@@ -147,9 +148,27 @@ model Warehouse {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  inventoryMoves InventoryMovement[]
+  inventoryMoves     InventoryMovement[]
+  inventoryBalances InventoryBalance[]
 
   @@index([isActive])
+}
+
+
+model InventoryBalance {
+  id          String   @id @default(uuid())
+  productId   String
+  warehouseId String
+  quantity    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, warehouseId])
+  @@index([warehouseId])
+  @@index([quantity])
 }
 
 model InventoryMovement {

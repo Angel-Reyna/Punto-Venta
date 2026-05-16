@@ -1,6 +1,15 @@
+import { Prisma } from "@prisma/client";
 import XLSX from "xlsx";
 
 import { prisma } from "../../config/prisma";
+import { AppError } from "../../utils/AppError";
+
+import {
+  getOrCreateDefaultWarehouse,
+  increaseStock
+} from "../inventory/inventory.service";
+
+const MAX_IMPORT_ROWS = 1_000;
 
 export function calculateMargin(
   costPrice: number,
@@ -54,27 +63,108 @@ export function productTemplateBuffer() {
   });
 }
 
-async function getOrCreateDefaultWarehouse() {
-  return prisma.warehouse.upsert({
-    where: {
-      name: "Almacén principal"
-    },
-    update: {},
-    create: {
-      name: "Almacén principal",
-      description: "Almacén principal del negocio",
-      isActive: true
-    }
-  });
+function cleanString(value: unknown) {
+  const text = String(value ?? "").trim();
+
+  return text || null;
+}
+
+function readRequiredString(
+  row: Record<string, unknown>,
+  field: string,
+  rowNumber: number
+) {
+  const value = cleanString(row[field]);
+
+  if (!value) {
+    throw new AppError(
+      400,
+      `Fila ${rowNumber}: ${field} es requerido`
+    );
+  }
+
+  return value;
+}
+
+function readNonNegativeNumber(
+  row: Record<string, unknown>,
+  field: string,
+  rowNumber: number,
+  defaultValue = 0
+) {
+  const rawValue = row[field];
+
+  if (
+    rawValue === undefined ||
+    rawValue === null ||
+    rawValue === ""
+  ) {
+    return defaultValue;
+  }
+
+  const value = Number(rawValue);
+
+  if (!Number.isFinite(value) || value < 0) {
+    throw new AppError(
+      400,
+      `Fila ${rowNumber}: ${field} debe ser un número mayor o igual a 0`
+    );
+  }
+
+  return value;
+}
+
+function readNonNegativeInteger(
+  row: Record<string, unknown>,
+  field: string,
+  rowNumber: number,
+  defaultValue = 0
+) {
+  const value = readNonNegativeNumber(
+    row,
+    field,
+    rowNumber,
+    defaultValue
+  );
+
+  if (!Number.isInteger(value)) {
+    throw new AppError(
+      400,
+      `Fila ${rowNumber}: ${field} debe ser un número entero`
+    );
+  }
+
+  return value;
+}
+
+function readPromoPercent(
+  row: Record<string, unknown>,
+  rowNumber: number
+) {
+  const value = readNonNegativeNumber(
+    row,
+    "promoPercent",
+    rowNumber,
+    0
+  );
+
+  if (value > 100) {
+    throw new AppError(
+      400,
+      `Fila ${rowNumber}: promoPercent no puede ser mayor a 100`
+    );
+  }
+
+  return value;
 }
 
 async function getOrCreateCategory(
-  categoryName?: string
+  tx: Prisma.TransactionClient,
+  categoryName?: string | null
 ) {
-  const name =
-    categoryName?.trim() || "General";
+  const name = categoryName?.trim() || "General";
 
-  return prisma.productCategory.upsert({
+  return tx.productCategory.upsert({
     where: {
       name
     },
@@ -91,132 +181,147 @@ export async function importProducts(
   buffer: Buffer,
   userId: string
 ) {
-  const workbook = XLSX.read(buffer);
+  const workbook = XLSX.read(buffer, {
+    type: "buffer"
+  });
 
   const sheetName = workbook.SheetNames[0];
+
+  if (!sheetName) {
+    throw new AppError(
+      400,
+      "El archivo no contiene hojas válidas"
+    );
+  }
 
   const sheet = workbook.Sheets[sheetName];
 
   const rows =
     XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
 
-  const warehouse =
-    await getOrCreateDefaultWarehouse();
-
-  const imported = [];
-
-  for (const row of rows) {
-    const sku = String(row.sku ?? "").trim();
-
-    const name = String(row.name ?? "").trim();
-
-    if (!sku || !name) {
-      continue;
-    }
-
-    const category = await getOrCreateCategory(
-      row.categoryName
-        ? String(row.categoryName)
-        : "General"
+  if (rows.length === 0) {
+    throw new AppError(
+      400,
+      "El archivo no contiene productos para importar"
     );
-
-    const initialStock = Number(
-      row.initialStock ?? 0
-    );
-
-    const product =
-      await prisma.product.upsert({
-        where: {
-          sku
-        },
-
-        update: {
-          categoryId: category.id,
-
-          barcode: row.barcode
-            ? String(row.barcode)
-            : undefined,
-
-          name,
-
-          description: row.description
-            ? String(row.description)
-            : undefined,
-
-          costPrice: Number(
-            row.costPrice ?? 0
-          ),
-
-          salePrice: Number(
-            row.salePrice ?? 0
-          ),
-
-          promoPercent: Number(
-            row.promoPercent ?? 0
-          ),
-
-          minStock: Number(
-            row.minStock ?? 0
-          ),
-
-          isActive: true
-        },
-
-        create: {
-          categoryId: category.id,
-
-          sku,
-
-          barcode: row.barcode
-            ? String(row.barcode)
-            : undefined,
-
-          name,
-
-          description: row.description
-            ? String(row.description)
-            : undefined,
-
-          costPrice: Number(
-            row.costPrice ?? 0
-          ),
-
-          salePrice: Number(
-            row.salePrice ?? 0
-          ),
-
-          promoPercent: Number(
-            row.promoPercent ?? 0
-          ),
-
-          minStock: Number(
-            row.minStock ?? 0
-          ),
-
-          isActive: true
-        }
-      });
-
-    if (initialStock > 0) {
-      await prisma.inventoryMovement.create({
-        data: {
-          productId: product.id,
-
-          warehouseId: warehouse.id,
-
-          type: "IN",
-
-          quantity: initialStock,
-
-          reason: "Stock inicial desde importación Excel",
-
-          createdBy: userId
-        }
-      });
-    }
-
-    imported.push(product);
   }
 
-  return imported;
+  if (rows.length > MAX_IMPORT_ROWS) {
+    throw new AppError(
+      400,
+      `El archivo excede el límite de ${MAX_IMPORT_ROWS} productos por importación`
+    );
+  }
+
+  return prisma.$transaction(
+    async (tx) => {
+      const warehouse = await getOrCreateDefaultWarehouse(tx);
+
+      const imported = [];
+
+      for (const [index, row] of rows.entries()) {
+        const rowNumber = index + 2;
+
+        const sku = readRequiredString(
+          row,
+          "sku",
+          rowNumber
+        );
+
+        const name = readRequiredString(
+          row,
+          "name",
+          rowNumber
+        );
+
+        const category = await getOrCreateCategory(
+          tx,
+          cleanString(row.categoryName)
+        );
+
+        const costPrice = readNonNegativeNumber(
+          row,
+          "costPrice",
+          rowNumber,
+          0
+        );
+
+        const salePrice = readNonNegativeNumber(
+          row,
+          "salePrice",
+          rowNumber,
+          0
+        );
+
+        const promoPercent = readPromoPercent(
+          row,
+          rowNumber
+        );
+
+        const minStock = readNonNegativeInteger(
+          row,
+          "minStock",
+          rowNumber,
+          0
+        );
+
+        const initialStock = readNonNegativeInteger(
+          row,
+          "initialStock",
+          rowNumber,
+          0
+        );
+
+        const product = await tx.product.upsert({
+          where: {
+            sku
+          },
+
+          update: {
+            categoryId: category.id,
+            barcode: cleanString(row.barcode),
+            name,
+            description: cleanString(row.description),
+            costPrice,
+            salePrice,
+            promoPercent,
+            minStock,
+            isActive: true
+          },
+
+          create: {
+            categoryId: category.id,
+            sku,
+            barcode: cleanString(row.barcode),
+            name,
+            description: cleanString(row.description),
+            costPrice,
+            salePrice,
+            promoPercent,
+            minStock,
+            isActive: true
+          }
+        });
+
+        if (initialStock > 0) {
+          await increaseStock(tx, {
+            productId: product.id,
+            warehouseId: warehouse.id,
+            quantity: initialStock,
+            reason: "Stock inicial desde importación Excel",
+            createdBy: userId,
+            type: "IN"
+          });
+        }
+
+        imported.push(product);
+      }
+
+      return imported;
+    },
+    {
+      maxWait: 5_000,
+      timeout: 30_000
+    }
+  );
 }

@@ -5,39 +5,11 @@ import { prisma } from "../../config/prisma";
 import { requireAuth } from "../../middlewares/auth";
 import { asyncHandler } from "../../utils/asyncHandler";
 
+import { getProductStocks } from "../inventory/inventory.service";
+
 export const dashboardRouter = Router();
 
 dashboardRouter.use(requireAuth);
-
-async function getCurrentStock(productId: string) {
-  const movements = await prisma.inventoryMovement.findMany({
-    where: {
-      productId
-    },
-    select: {
-      type: true,
-      quantity: true
-    }
-  });
-
-  return movements.reduce((stock, movement) => {
-    if (
-      movement.type === "IN" ||
-      movement.type === "RETURN"
-    ) {
-      return stock + movement.quantity;
-    }
-
-    if (
-      movement.type === "OUT" ||
-      movement.type === "SALE"
-    ) {
-      return stock - movement.quantity;
-    }
-
-    return stock;
-  }, 0);
-}
 
 dashboardRouter.get(
   "/",
@@ -70,6 +42,10 @@ dashboardRouter.get(
             createdAt: {
               gte: todayStart
             }
+          },
+          select: {
+            id: true,
+            total: true
           }
         }),
 
@@ -84,20 +60,15 @@ dashboardRouter.get(
         })
       ]);
 
-      const stockResults = await Promise.all(
-        products.map(async (product) => {
-          const stock = await getCurrentStock(product.id);
-
-          return {
-            stock,
-            minStock: product.minStock
-          };
-        })
+      const stocks = await getProductStocks(
+        products.map((product) => product.id)
       );
 
-      const lowStock = stockResults.filter(
-        (item) => item.stock <= item.minStock
-      ).length;
+      const lowStock = products.filter((product) => {
+        const stock = stocks.get(product.id) ?? 0;
+
+        return stock <= product.minStock;
+      }).length;
 
       return res.json({
         role: "ADMIN",
@@ -124,6 +95,10 @@ dashboardRouter.get(
         createdAt: {
           gte: todayStart
         }
+      },
+      select: {
+        id: true,
+        total: true
       }
     });
 

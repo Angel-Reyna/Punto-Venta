@@ -15,6 +15,7 @@ import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
 
 import { auditLog } from "../audit/audit.service";
+import { getProductStocks } from "../inventory/inventory.service";
 
 import {
   calculateFinalPrice,
@@ -70,36 +71,6 @@ function getRouteId(req: Request) {
   return id;
 }
 
-async function getProductStock(productId: string) {
-  const movements = await prisma.inventoryMovement.findMany({
-    where: {
-      productId
-    },
-    select: {
-      type: true,
-      quantity: true
-    }
-  });
-
-  return movements.reduce((stock, movement) => {
-    if (
-      movement.type === "IN" ||
-      movement.type === "RETURN"
-    ) {
-      return stock + movement.quantity;
-    }
-
-    if (
-      movement.type === "OUT" ||
-      movement.type === "SALE"
-    ) {
-      return stock - movement.quantity;
-    }
-
-    return stock;
-  }, 0);
-}
-
 productsRouter.get(
   "/",
   asyncHandler(async (req, res) => {
@@ -147,9 +118,12 @@ productsRouter.get(
       }
     });
 
-    const mappedProducts = await Promise.all(
-      products.map(async (product) => {
-        const stock = await getProductStock(product.id);
+    const stocks = await getProductStocks(
+      products.map((product) => product.id)
+    );
+
+    const mappedProducts = products.map((product) => {
+        const stock = stocks.get(product.id) ?? 0;
 
         const salePrice = Number(product.salePrice);
 
@@ -187,8 +161,7 @@ productsRouter.get(
           finalPrice,
           stock
         };
-      })
-    );
+      });
 
     res.json(mappedProducts);
   })

@@ -1,3 +1,5 @@
+import { randomUUID } from "crypto";
+
 import { Router, type Request } from "express";
 import { Prisma, Role } from "@prisma/client";
 import { z } from "zod";
@@ -11,6 +13,10 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { AppError } from "../../utils/AppError";
 
 import { auditLog } from "../audit/audit.service";
+import {
+  decreaseStock,
+  getOrCreateDefaultWarehouse
+} from "../inventory/inventory.service";
 
 const saleSchema = z.object({
   body: z.object({
@@ -31,6 +37,7 @@ const saleSchema = z.object({
             .number()
             .int()
             .positive()
+            .max(1_000_000)
         })
       )
       .min(1)
@@ -101,66 +108,9 @@ function generateFolio() {
 
   const dd = String(date.getDate()).padStart(2, "0");
 
-  const random = Math.random().toString(36).slice(2, 8).toUpperCase();
+  const random = randomUUID().slice(0, 8).toUpperCase();
 
   return `SALE-${yyyy}${mm}${dd}-${random}`;
-}
-
-async function getOrCreateDefaultWarehouse(
-  tx: Prisma.TransactionClient
-) {
-  return tx.warehouse.upsert({
-    where: {
-      name: "Almacén principal"
-    },
-    update: {},
-    create: {
-      name: "Almacén principal",
-      description: "Almacén principal del negocio",
-      isActive: true
-    }
-  });
-}
-
-async function getCurrentStock(
-  tx: Prisma.TransactionClient,
-  productId: string,
-  warehouseId?: string | null
-) {
-  const movements = await tx.inventoryMovement.findMany({
-    where: {
-      productId,
-
-      ...(warehouseId
-        ? {
-            warehouseId
-          }
-        : {})
-    },
-
-    select: {
-      type: true,
-      quantity: true
-    }
-  });
-
-  return movements.reduce((stock, movement) => {
-    if (
-      movement.type === "IN" ||
-      movement.type === "RETURN"
-    ) {
-      return stock + movement.quantity;
-    }
-
-    if (
-      movement.type === "OUT" ||
-      movement.type === "SALE"
-    ) {
-      return stock - movement.quantity;
-    }
-
-    return stock;
-  }, 0);
 }
 
 async function resolveCustomer(
@@ -410,19 +360,6 @@ salesRouter.post(
           );
         }
 
-        const currentStock = await getCurrentStock(
-          tx,
-          product.id,
-          warehouse.id
-        );
-
-        if (currentStock < item.quantity) {
-          throw new AppError(
-            400,
-            `Stock insuficiente para ${product.name}. Stock actual: ${currentStock}`
-          );
-        }
-
         const unitPrice = Number(product.salePrice);
 
         const promoPercent = Number(product.promoPercent);
@@ -491,20 +428,14 @@ salesRouter.post(
       });
 
       for (const item of preparedItems) {
-        await tx.inventoryMovement.create({
-          data: {
-            productId: item.product.id,
-
-            warehouseId: warehouse.id,
-
-            type: "SALE",
-
-            quantity: item.quantity,
-
-            reason: `Venta ${createdSale.folio}`,
-
-            createdBy: req.user!.id
-          }
+        await decreaseStock(tx, {
+          productId: item.product.id,
+          warehouseId: warehouse.id,
+          type: "SALE",
+          quantity: item.quantity,
+          reason: `Venta ${createdSale.folio}`,
+          createdBy: req.user!.id,
+          insufficientStockMessage: `Stock insuficiente para ${item.product.name}.`
         });
       }
 
