@@ -13,16 +13,26 @@ jest.mock("../src/config/prisma", () => ({
 
 const inventoryServiceMock = {
   getOrCreateDefaultWarehouse: jest.fn(),
-  decreaseStock: jest.fn()
+  decreaseStock: jest.fn(),
+  increaseStock: jest.fn()
 };
 
 jest.mock("../src/modules/inventory/inventory.service", () => inventoryServiceMock);
 
+const cashRegisterServiceMock = {
+  recordSaleCashMovement: jest.fn(),
+  recordReturnCashMovement: jest.fn()
+};
+
+jest.mock("../src/modules/cash-register/cash-register.service", () => cashRegisterServiceMock);
+
 import { Role } from "@prisma/client";
 
 import {
+  cancelSale,
   createSale,
-  listSales
+  listSales,
+  returnSaleItems
 } from "../src/modules/sales/sales.service";
 
 describe("sales.service", () => {
@@ -184,7 +194,99 @@ describe("sales.service", () => {
         type: "SALE"
       })
     );
+    expect(cashRegisterServiceMock.recordSaleCashMovement).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        cashierId: "cashier-1",
+        saleId: "sale-1",
+        amount: 270
+      })
+    );
     expect(tx.sellerActivityLog.create).toHaveBeenCalled();
     expect(sale.total).toBe(270);
+  });
+
+  it("requires admin role to cancel sales", async () => {
+    await expect(
+      cancelSale(
+        {
+          id: "cashier-1",
+          email: "cashier@pos.local",
+          role: Role.CASHIER
+        },
+        "sale-1",
+        {
+          reason: "Cliente solicitó cancelación"
+        }
+      )
+    ).rejects.toMatchObject({
+      statusCode: 403
+    });
+  });
+
+  it("rejects returning more items than available", async () => {
+    const tx = {
+      sale: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260518-ABC123",
+          cashierId: "cashier-1",
+          status: "COMPLETED",
+          total: 100,
+          items: [
+            {
+              id: "item-1",
+              saleId: "sale-1",
+              productId: "product-1",
+              quantity: 2,
+              unitPrice: 50,
+              discount: 0,
+              total: 100
+            }
+          ],
+          payments: [
+            {
+              method: "CARD",
+              amount: 100
+            }
+          ],
+          returns: [
+            {
+              items: [
+                {
+                  saleItemId: "item-1",
+                  quantity: 1
+                }
+              ]
+            }
+          ]
+        })
+      }
+    };
+
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
+
+    await expect(
+      returnSaleItems(
+        {
+          id: "admin-1",
+          email: "admin@pos.local",
+          role: Role.ADMIN
+        },
+        "sale-1",
+        {
+          reason: "Producto devuelto por cliente",
+          items: [
+            {
+              saleItemId: "item-1",
+              quantity: 2
+            }
+          ]
+        }
+      )
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: "Cantidad a devolver inválida. Disponible para devolver: 1."
+    });
   });
 });

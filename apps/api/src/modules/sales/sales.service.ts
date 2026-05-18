@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 
-import { PaymentMethod, Prisma, Role } from "@prisma/client";
+import { PaymentMethod, Prisma, Role, SaleStatus } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "../../config/prisma";
@@ -13,8 +13,13 @@ import {
 } from "../../utils/pagination";
 import {
   decreaseStock,
-  getOrCreateDefaultWarehouse
+  getOrCreateDefaultWarehouse,
+  increaseStock
 } from "../inventory/inventory.service";
+import {
+  recordReturnCashMovement,
+  recordSaleCashMovement
+} from "../cash-register/cash-register.service";
 
 export const saleSchema = z.object({
   body: z.object({
@@ -33,7 +38,32 @@ export const saleSchema = z.object({
   })
 });
 
+export const cancelSaleSchema = z.object({
+  body: z.object({
+    reason: z.string().trim().min(5).max(500),
+    refundMethod: z.nativeEnum(PaymentMethod).optional()
+  })
+});
+
+export const returnSaleSchema = z.object({
+  body: z.object({
+    reason: z.string().trim().min(5).max(500),
+    refundMethod: z.nativeEnum(PaymentMethod).optional(),
+    items: z
+      .array(
+        z.object({
+          saleItemId: z.string().uuid(),
+          quantity: z.coerce.number().int().positive().max(1_000_000)
+        })
+      )
+      .min(1)
+      .max(200)
+  })
+});
+
 export type CreateSaleInput = z.infer<typeof saleSchema>["body"];
+export type CancelSaleInput = z.infer<typeof cancelSaleSchema>["body"];
+export type ReturnSaleInput = z.infer<typeof returnSaleSchema>["body"];
 
 type CurrentUser = {
   id: string;
@@ -75,12 +105,47 @@ const saleDetailsInclude = {
       }
     }
   },
-  payments: true
+  payments: true,
+  returns: {
+    include: {
+      cashier: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      },
+      items: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              sku: true,
+              name: true
+            }
+          }
+        }
+      }
+    },
+    orderBy: {
+      createdAt: "desc"
+    }
+  }
 } satisfies Prisma.SaleInclude;
 
 const createdSaleInclude = {
   items: true,
   payments: true
+} satisfies Prisma.SaleInclude;
+
+const saleMutationInclude = {
+  items: true,
+  payments: true,
+  returns: {
+    include: {
+      items: true
+    }
+  }
 } satisfies Prisma.SaleInclude;
 
 type SaleWithDetails = Prisma.SaleGetPayload<{
@@ -89,6 +154,10 @@ type SaleWithDetails = Prisma.SaleGetPayload<{
 
 type SaleWithItemsAndPayments = Prisma.SaleGetPayload<{
   include: typeof createdSaleInclude;
+}>;
+
+type SaleForMutation = Prisma.SaleGetPayload<{
+  include: typeof saleMutationInclude;
 }>;
 
 type PreparedSaleItem = {
@@ -149,6 +218,22 @@ function aggregateSaleItems(items: CreateSaleInput["items"]) {
 
   return [...quantities.entries()].map(([productId, quantity]) => ({
     productId,
+    quantity
+  }));
+}
+
+function aggregateReturnItems(items: ReturnSaleInput["items"]) {
+  const quantities = new Map<string, number>();
+
+  for (const item of items) {
+    quantities.set(
+      item.saleItemId,
+      (quantities.get(item.saleItemId) ?? 0) + item.quantity
+    );
+  }
+
+  return [...quantities.entries()].map(([saleItemId, quantity]) => ({
+    saleItemId,
     quantity
   }));
 }
@@ -270,6 +355,16 @@ function mapSaleDetails(sale: SaleWithDetails) {
     payments: sale.payments.map((payment) => ({
       ...payment,
       amount: Number(payment.amount)
+    })),
+    returns: sale.returns.map((saleReturn) => ({
+      ...saleReturn,
+      refundTotal: Number(saleReturn.refundTotal),
+      items: saleReturn.items.map((item) => ({
+        ...item,
+        unitPrice: Number(item.unitPrice),
+        discount: Number(item.discount),
+        total: Number(item.total)
+      }))
     }))
   };
 }
@@ -294,6 +389,85 @@ function mapCreatedSale(sale: SaleWithItemsAndPayments) {
   };
 }
 
+function assertAdmin(user: CurrentUser) {
+  if (user.role !== Role.ADMIN) {
+    throw new AppError(403, "Solo un administrador puede realizar esta operación");
+  }
+}
+
+function resolveRefundMethod(
+  requestedMethod: PaymentMethod | undefined,
+  payments: SaleForMutation["payments"]
+) {
+  if (requestedMethod) {
+    return requestedMethod;
+  }
+
+  const hasCash = payments.some((payment) => payment.method === PaymentMethod.CASH);
+
+  if (hasCash) {
+    return PaymentMethod.CASH;
+  }
+
+  return payments[0]?.method ?? PaymentMethod.CASH;
+}
+
+function hasCashRefund(refundMethod: PaymentMethod) {
+  return refundMethod === PaymentMethod.CASH;
+}
+
+async function recordSaleCashMovementIfRegisterIsOpen(
+  tx: Prisma.TransactionClient,
+  input: {
+    cashierId: string;
+    saleId: string;
+    amount: number;
+    reason: string;
+  }
+) {
+  try {
+    await recordSaleCashMovement(tx, input);
+  } catch (error) {
+    if (error instanceof AppError && error.statusCode === 409) {
+      return;
+    }
+
+    throw error;
+  }
+}
+
+function getReturnedQuantities(sale: SaleForMutation) {
+  const returnedQuantities = new Map<string, number>();
+
+  for (const saleReturn of sale.returns) {
+    for (const item of saleReturn.items) {
+      returnedQuantities.set(
+        item.saleItemId,
+        (returnedQuantities.get(item.saleItemId) ?? 0) + item.quantity
+      );
+    }
+  }
+
+  return returnedQuantities;
+}
+
+function computeNextReturnStatus(
+  sale: SaleForMutation,
+  newReturnQuantities: Map<string, number>
+) {
+  const previouslyReturned = getReturnedQuantities(sale);
+
+  const allReturned = sale.items.every((item) => {
+    const totalReturned =
+      (previouslyReturned.get(item.id) ?? 0) +
+      (newReturnQuantities.get(item.id) ?? 0);
+
+    return totalReturned >= item.quantity;
+  });
+
+  return allReturned ? SaleStatus.REFUNDED : SaleStatus.PARTIALLY_REFUNDED;
+}
+
 export async function listSales(
   user: CurrentUser,
   query: Record<string, unknown>
@@ -309,13 +483,13 @@ export async function listSales(
   const paymentMethod = getOptionalString(query.paymentMethod, 30);
   const { dateFrom, dateTo } = getDateRange(query);
 
-  if (status && !["COMPLETED", "CANCELLED", "REFUNDED"].includes(status)) {
+  if (status && !Object.values(SaleStatus).includes(status as SaleStatus)) {
     throw new AppError(400, "status inválido");
   }
 
   if (
     paymentMethod &&
-    !["CASH", "CARD", "TRANSFER", "MIXED"].includes(paymentMethod)
+    !Object.values(PaymentMethod).includes(paymentMethod as PaymentMethod)
   ) {
     throw new AppError(400, "paymentMethod inválido");
   }
@@ -337,7 +511,7 @@ export async function listSales(
       : {}),
     ...(status
       ? {
-          status: status as "COMPLETED" | "CANCELLED" | "REFUNDED"
+          status: status as SaleStatus
         }
       : {}),
     ...(dateFrom || dateTo
@@ -455,7 +629,7 @@ async function createSaleAttempt(
           folio: generateFolio(),
           cashierId: user.id,
           customerId,
-          status: "COMPLETED",
+          status: SaleStatus.COMPLETED,
           subtotal,
           discount,
           tax: 0,
@@ -488,6 +662,15 @@ async function createSaleAttempt(
           reason: `Venta ${createdSale.folio}`,
           createdBy: user.id,
           insufficientStockMessage: `Stock insuficiente para ${item.product.name}.`
+        });
+      }
+
+      if (input.paymentMethod === PaymentMethod.CASH) {
+        await recordSaleCashMovementIfRegisterIsOpen(tx, {
+          cashierId: user.id,
+          saleId: createdSale.id,
+          amount: total,
+          reason: `Venta en efectivo ${createdSale.folio}`
         });
       }
 
@@ -542,4 +725,230 @@ export async function createSale(
   }
 
   throw new AppError(500, "No se pudo generar el folio de venta");
+}
+
+export async function cancelSale(
+  user: CurrentUser,
+  saleId: string,
+  input: CancelSaleInput
+) {
+  assertAdmin(user);
+
+  return prisma.$transaction(
+    async (tx) => {
+      const sale = await tx.sale.findUnique({
+        where: {
+          id: saleId
+        },
+        include: saleMutationInclude
+      });
+
+      if (!sale) {
+        throw new AppError(404, "Venta no encontrada");
+      }
+
+      if (sale.status === SaleStatus.CANCELLED) {
+        throw new AppError(409, "La venta ya está cancelada");
+      }
+
+      if (sale.status !== SaleStatus.COMPLETED) {
+        throw new AppError(409, "Solo se pueden cancelar ventas completadas sin devoluciones");
+      }
+
+      const warehouse = await getOrCreateDefaultWarehouse(tx);
+
+      for (const item of sale.items) {
+        await increaseStock(tx, {
+          productId: item.productId,
+          warehouseId: warehouse.id,
+          quantity: item.quantity,
+          type: "RETURN",
+          reason: `Cancelación de venta ${sale.folio}: ${input.reason}`,
+          createdBy: user.id
+        });
+      }
+
+      const refundMethod = resolveRefundMethod(input.refundMethod, sale.payments);
+
+      const saleReturn = await tx.saleReturn.create({
+        data: {
+          saleId: sale.id,
+          cashierId: user.id,
+          reason: input.reason,
+          refundMethod,
+          refundTotal: Number(sale.total),
+          items: {
+            create: sale.items.map((item) => ({
+              saleItemId: item.id,
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: Number(item.unitPrice),
+              discount: Number(item.discount),
+              total: Number(item.total)
+            }))
+          }
+        }
+      });
+
+      if (hasCashRefund(refundMethod)) {
+        await recordReturnCashMovement(tx, {
+          cashierId: user.id,
+          saleReturnId: saleReturn.id,
+          amount: Number(sale.total),
+          reason: `Devolución por cancelación ${sale.folio}`
+        });
+      }
+
+      const updatedSale = await tx.sale.update({
+        where: {
+          id: sale.id
+        },
+        data: {
+          status: SaleStatus.CANCELLED
+        },
+        include: saleDetailsInclude
+      });
+
+      return mapSaleDetails(updatedSale);
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5_000,
+      timeout: 15_000
+    }
+  );
+}
+
+export async function returnSaleItems(
+  user: CurrentUser,
+  saleId: string,
+  input: ReturnSaleInput
+) {
+  assertAdmin(user);
+
+  return prisma.$transaction(
+    async (tx) => {
+      const sale = await tx.sale.findUnique({
+        where: {
+          id: saleId
+        },
+        include: saleMutationInclude
+      });
+
+      if (!sale) {
+        throw new AppError(404, "Venta no encontrada");
+      }
+
+      if (sale.status === SaleStatus.CANCELLED) {
+        throw new AppError(409, "No se pueden devolver productos de una venta cancelada");
+      }
+
+      if (sale.status === SaleStatus.REFUNDED) {
+        throw new AppError(409, "La venta ya fue devuelta por completo");
+      }
+
+      const itemById = new Map(sale.items.map((item) => [item.id, item]));
+      const previouslyReturned = getReturnedQuantities(sale);
+      const requestedItems = aggregateReturnItems(input.items);
+      const requestedQuantities = new Map<string, number>();
+      const warehouse = await getOrCreateDefaultWarehouse(tx);
+      let refundTotal = 0;
+
+      const returnItems = requestedItems.map((requestedItem) => {
+        const saleItem = itemById.get(requestedItem.saleItemId);
+
+        if (!saleItem) {
+          throw new AppError(400, "La partida no pertenece a la venta");
+        }
+
+        const alreadyReturned = previouslyReturned.get(saleItem.id) ?? 0;
+        const availableToReturn = saleItem.quantity - alreadyReturned;
+
+        if (requestedItem.quantity > availableToReturn) {
+          throw new AppError(
+            409,
+            `Cantidad a devolver inválida. Disponible para devolver: ${availableToReturn}.`
+          );
+        }
+
+        const unitPrice = Number(saleItem.unitPrice);
+        const unitDiscount = roundMoney(Number(saleItem.discount) / saleItem.quantity);
+        const unitTotal = roundMoney(Number(saleItem.total) / saleItem.quantity);
+        const lineDiscount = roundMoney(unitDiscount * requestedItem.quantity);
+        const lineTotal = roundMoney(unitTotal * requestedItem.quantity);
+
+        refundTotal = roundMoney(refundTotal + lineTotal);
+        requestedQuantities.set(saleItem.id, requestedItem.quantity);
+
+        return {
+          saleItem,
+          quantity: requestedItem.quantity,
+          unitPrice,
+          discount: lineDiscount,
+          total: lineTotal
+        };
+      });
+
+      for (const item of returnItems) {
+        await increaseStock(tx, {
+          productId: item.saleItem.productId,
+          warehouseId: warehouse.id,
+          quantity: item.quantity,
+          type: "RETURN",
+          reason: `Devolución de venta ${sale.folio}: ${input.reason}`,
+          createdBy: user.id
+        });
+      }
+
+      const refundMethod = resolveRefundMethod(input.refundMethod, sale.payments);
+
+      const saleReturn = await tx.saleReturn.create({
+        data: {
+          saleId: sale.id,
+          cashierId: user.id,
+          reason: input.reason,
+          refundMethod,
+          refundTotal,
+          items: {
+            create: returnItems.map((item) => ({
+              saleItemId: item.saleItem.id,
+              productId: item.saleItem.productId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              discount: item.discount,
+              total: item.total
+            }))
+          }
+        }
+      });
+
+      if (hasCashRefund(refundMethod)) {
+        await recordReturnCashMovement(tx, {
+          cashierId: user.id,
+          saleReturnId: saleReturn.id,
+          amount: refundTotal,
+          reason: `Devolución parcial ${sale.folio}`
+        });
+      }
+
+      const nextStatus = computeNextReturnStatus(sale, requestedQuantities);
+
+      const updatedSale = await tx.sale.update({
+        where: {
+          id: sale.id
+        },
+        data: {
+          status: nextStatus
+        },
+        include: saleDetailsInclude
+      });
+
+      return mapSaleDetails(updatedSale);
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5_000,
+      timeout: 15_000
+    }
+  );
 }

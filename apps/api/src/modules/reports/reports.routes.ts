@@ -1,6 +1,6 @@
 import { Router } from "express";
 import PDFDocument from "pdfkit";
-import { Role } from "@prisma/client";
+import { Role, SaleStatus } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 
@@ -18,6 +18,11 @@ reportsRouter.use(
   requireAuth,
   requireRole(Role.ADMIN)
 );
+
+
+function roundMoney(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
 
 function parseDateRange(
   from?: unknown,
@@ -182,6 +187,225 @@ reportsRouter.get(
           ...payment,
           amount: Number(payment.amount)
         }))
+      }))
+    });
+  })
+);
+
+
+reportsRouter.get(
+  "/operations",
+  asyncHandler(async (req, res) => {
+    const { start, end } = parseDateRange(
+      req.query.from,
+      req.query.to
+    );
+
+    const [sales, returns, cashSessions, cashMovements, topProducts] =
+      await Promise.all([
+        prisma.sale.findMany({
+          where: {
+            createdAt: {
+              gte: start,
+              lte: end
+            }
+          },
+          include: {
+            payments: true
+          }
+        }),
+        prisma.saleReturn.findMany({
+          where: {
+            createdAt: {
+              gte: start,
+              lte: end
+            }
+          },
+          include: {
+            cashier: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: "desc"
+          }
+        }),
+        prisma.cashRegisterSession.findMany({
+          where: {
+            openedAt: {
+              gte: start,
+              lte: end
+            }
+          },
+          include: {
+            cashier: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          },
+          orderBy: {
+            openedAt: "desc"
+          }
+        }),
+        prisma.cashMovement.findMany({
+          where: {
+            createdAt: {
+              gte: start,
+              lte: end
+            }
+          },
+          include: {
+            cashier: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: "desc"
+          }
+        }),
+        prisma.saleItem.groupBy({
+          by: ["productId"],
+          where: {
+            sale: {
+              status: {
+                in: [
+                  SaleStatus.COMPLETED,
+                  SaleStatus.PARTIALLY_REFUNDED,
+                  SaleStatus.REFUNDED
+                ]
+              },
+              createdAt: {
+                gte: start,
+                lte: end
+              }
+            }
+          },
+          _sum: {
+            quantity: true,
+            total: true
+          },
+          orderBy: {
+            _sum: {
+              quantity: "desc"
+            }
+          },
+          take: 10
+        })
+      ]);
+
+    const productIds = topProducts.map((item) => item.productId);
+    const products = productIds.length
+      ? await prisma.product.findMany({
+          where: {
+            id: {
+              in: productIds
+            }
+          },
+          select: {
+            id: true,
+            sku: true,
+            name: true
+          }
+        })
+      : [];
+    const productById = new Map(products.map((product) => [product.id, product]));
+
+    const salesByStatus = sales.reduce<Record<string, number>>(
+      (summary, sale) => {
+        summary[sale.status] = (summary[sale.status] ?? 0) + 1;
+
+        return summary;
+      },
+      {}
+    );
+
+    const grossSales = roundMoney(
+      sales
+        .filter((sale) => sale.status !== "CANCELLED")
+        .reduce((sum, sale) => sum + Number(sale.total), 0)
+    );
+    const refundedTotal = roundMoney(
+      returns.reduce((sum, saleReturn) => sum + Number(saleReturn.refundTotal), 0)
+    );
+    const netSales = roundMoney(grossSales - refundedTotal);
+
+    const paymentSummary = sales
+      .filter((sale) => sale.status !== "CANCELLED")
+      .flatMap((sale) => sale.payments)
+      .reduce<Record<string, number>>((summary, payment) => {
+        summary[payment.method] = roundMoney(
+          (summary[payment.method] ?? 0) + Number(payment.amount)
+        );
+
+        return summary;
+      }, {});
+
+    const cashMovementSummary = cashMovements.reduce<Record<string, number>>(
+      (summary, movement) => {
+        summary[movement.type] = roundMoney(
+          (summary[movement.type] ?? 0) + Number(movement.amount)
+        );
+
+        return summary;
+      },
+      {}
+    );
+
+    res.json({
+      from: start,
+      to: end,
+      sales: {
+        count: sales.length,
+        byStatus: salesByStatus,
+        gross: grossSales,
+        refunded: refundedTotal,
+        net: netSales,
+        paymentSummary
+      },
+      returns: {
+        count: returns.length,
+        total: refundedTotal,
+        latest: returns.slice(0, 20).map((saleReturn) => ({
+          ...saleReturn,
+          refundTotal: Number(saleReturn.refundTotal)
+        }))
+      },
+      cashRegister: {
+        sessions: cashSessions.map((session) => ({
+          ...session,
+          openingAmount: Number(session.openingAmount),
+          expectedClosingAmount:
+            session.expectedClosingAmount === null
+              ? null
+              : Number(session.expectedClosingAmount),
+          closingAmount:
+            session.closingAmount === null ? null : Number(session.closingAmount),
+          difference: session.difference === null ? null : Number(session.difference)
+        })),
+        movements: {
+          count: cashMovements.length,
+          summary: cashMovementSummary
+        }
+      },
+      topProducts: topProducts.map((item) => ({
+        product: productById.get(item.productId) ?? {
+          id: item.productId,
+          sku: null,
+          name: "Producto no encontrado"
+        },
+        quantity: item._sum.quantity ?? 0,
+        total: Number(item._sum.total ?? 0)
       }))
     });
   })

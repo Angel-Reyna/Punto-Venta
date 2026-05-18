@@ -23,6 +23,7 @@ enum InventoryType {
 enum SaleStatus {
   COMPLETED
   CANCELLED
+  PARTIALLY_REFUNDED
   REFUNDED
 }
 
@@ -31,6 +32,19 @@ enum PaymentMethod {
   CARD
   TRANSFER
   MIXED
+}
+
+enum CashRegisterStatus {
+  OPEN
+  CLOSED
+}
+
+enum CashMovementType {
+  OPENING
+  CASH_IN
+  CASH_OUT
+  SALE_CASH
+  RETURN_CASH
 }
 
 enum SellerAction {
@@ -52,10 +66,13 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  sales      Sale[]
-  audits     AuditLog[]
-  sessions   RefreshSession[]
-  sellerLogs SellerActivityLog[]
+  sales                Sale[]
+  saleReturns          SaleReturn[]
+  cashRegisterSessions CashRegisterSession[]
+  cashMovements        CashMovement[]
+  audits               AuditLog[]
+  sessions             RefreshSession[]
+  sellerLogs           SellerActivityLog[]
 
   @@index([role])
   @@index([isActive])
@@ -130,9 +147,10 @@ model Product {
   updatedAt    DateTime @updatedAt
 
   category       ProductCategory?    @relation(fields: [categoryId], references: [id])
-  saleItems      SaleItem[]
+  saleItems          SaleItem[]
+  saleReturnItems    SaleReturnItem[]
   inventoryMoves     InventoryMovement[]
-  inventoryBalances InventoryBalance[]
+  inventoryBalances  InventoryBalance[]
 
   @@index([categoryId])
   @@index([isActive])
@@ -223,8 +241,10 @@ model Sale {
 
   cashier  User       @relation(fields: [cashierId], references: [id])
   customer Customer?  @relation(fields: [customerId], references: [id])
-  items    SaleItem[]
-  payments Payment[]
+  items         SaleItem[]
+  payments      Payment[]
+  returns       SaleReturn[]
+  cashMovements CashMovement[]
 
   @@index([cashierId])
   @@index([customerId])
@@ -242,7 +262,8 @@ model SaleItem {
   total     Decimal @db.Decimal(12, 2)
 
   sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  product     Product          @relation(fields: [productId], references: [id])
+  returnItems SaleReturnItem[]
 
   @@index([saleId])
   @@index([productId])
@@ -259,6 +280,93 @@ model Payment {
 
   @@index([saleId])
   @@index([method])
+  @@index([createdAt])
+}
+
+model SaleReturn {
+  id           String        @id @default(uuid())
+  saleId       String
+  cashierId    String
+  reason       String
+  refundMethod PaymentMethod
+  refundTotal  Decimal       @db.Decimal(12, 2)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  sale          Sale             @relation(fields: [saleId], references: [id])
+  cashier       User             @relation(fields: [cashierId], references: [id])
+  items         SaleReturnItem[]
+  cashMovements CashMovement[]
+
+  @@index([saleId])
+  @@index([cashierId])
+  @@index([refundMethod])
+  @@index([createdAt])
+}
+
+model SaleReturnItem {
+  id         String  @id @default(uuid())
+  returnId   String
+  saleItemId String
+  productId  String
+  quantity   Int
+  unitPrice  Decimal @db.Decimal(12, 2)
+  discount   Decimal @default(0) @db.Decimal(12, 2)
+  total      Decimal @db.Decimal(12, 2)
+
+  return   SaleReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  saleItem SaleItem   @relation(fields: [saleItemId], references: [id])
+  product  Product    @relation(fields: [productId], references: [id])
+
+  @@index([returnId])
+  @@index([saleItemId])
+  @@index([productId])
+}
+
+model CashRegisterSession {
+  id                    String             @id @default(uuid())
+  cashierId             String
+  status                CashRegisterStatus @default(OPEN)
+  openingAmount         Decimal            @db.Decimal(12, 2)
+  expectedClosingAmount Decimal?           @db.Decimal(12, 2)
+  closingAmount         Decimal?           @db.Decimal(12, 2)
+  difference            Decimal?           @db.Decimal(12, 2)
+  openedAt              DateTime           @default(now())
+  closedAt              DateTime?
+  notes                 String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  cashier   User           @relation(fields: [cashierId], references: [id])
+  movements CashMovement[]
+
+  @@index([cashierId])
+  @@index([status])
+  @@index([openedAt])
+  @@index([closedAt])
+}
+
+model CashMovement {
+  id             String           @id @default(uuid())
+  sessionId      String
+  cashierId      String
+  saleId         String?
+  saleReturnId   String?
+  type           CashMovementType
+  amount         Decimal          @db.Decimal(12, 2)
+  reason         String
+  createdAt      DateTime         @default(now())
+
+  session    CashRegisterSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  cashier    User                @relation(fields: [cashierId], references: [id])
+  sale       Sale?               @relation(fields: [saleId], references: [id])
+  saleReturn SaleReturn?         @relation(fields: [saleReturnId], references: [id])
+
+  @@index([sessionId])
+  @@index([cashierId])
+  @@index([saleId])
+  @@index([saleReturnId])
+  @@index([type])
   @@index([createdAt])
 }
 

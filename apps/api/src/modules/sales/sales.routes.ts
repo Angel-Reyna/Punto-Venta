@@ -9,9 +9,13 @@ import { setPaginationHeaders } from "../../utils/pagination";
 import { auditLog } from "../audit/audit.service";
 
 import {
+  cancelSale,
+  cancelSaleSchema,
   createSale,
   getSaleById,
   listSales,
+  returnSaleItems,
+  returnSaleSchema,
   saleSchema
 } from "./sales.service";
 
@@ -76,5 +80,60 @@ salesRouter.post(
     });
 
     res.status(201).json(sale);
+  })
+);
+
+salesRouter.post(
+  "/:id/cancel",
+  validate(saleIdParamsSchema.merge(cancelSaleSchema)),
+  asyncHandler(async (req, res) => {
+    const sale = await cancelSale(
+      getCurrentUser(req),
+      String(req.params.id),
+      req.body
+    );
+
+    await auditLog({
+      userId: req.user?.id,
+      action: "CANCEL_SALE",
+      tableName: "Sale",
+      recordId: sale.id,
+      newData: {
+        status: sale.status,
+        reason: req.body.reason,
+        refundMethod: req.body.refundMethod ?? null
+      },
+      ipAddress: req.ip
+    });
+
+    res.json(sale);
+  })
+);
+
+salesRouter.post(
+  "/:id/returns",
+  validate(saleIdParamsSchema.merge(returnSaleSchema)),
+  asyncHandler(async (req, res) => {
+    const sale = await returnSaleItems(
+      getCurrentUser(req),
+      String(req.params.id),
+      req.body
+    );
+
+    await auditLog({
+      userId: req.user?.id,
+      action: "RETURN_SALE_ITEMS",
+      tableName: "Sale",
+      recordId: sale.id,
+      newData: {
+        status: sale.status,
+        reason: req.body.reason,
+        refundMethod: req.body.refundMethod ?? null,
+        items: req.body.items
+      },
+      ipAddress: req.ip
+    });
+
+    res.json(sale);
   })
 );
