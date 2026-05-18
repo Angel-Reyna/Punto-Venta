@@ -1,6 +1,6 @@
 import { Router } from "express";
 import bcrypt from "bcrypt";
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "../../config/prisma";
@@ -10,6 +10,13 @@ import { requireAuth, requireRole } from "../../middlewares/auth";
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { AppError } from "../../utils/AppError";
+import {
+  buildPaginationMeta,
+  getOptionalBoolean,
+  getOptionalString,
+  getPagination,
+  setPaginationHeaders
+} from "../../utils/pagination";
 import { auditLog } from "../audit/audit.service";
 
 const passwordSchema = z
@@ -59,20 +66,63 @@ usersRouter.use(requireAuth, requireRole(Role.ADMIN));
 
 usersRouter.get(
   "/",
-  asyncHandler(async (_req, res) => {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true
-      },
-      orderBy: {
-        createdAt: "desc"
-      }
+  asyncHandler(async (req, res) => {
+    const pagination = getPagination(req.query as Record<string, unknown>, {
+      defaultPageSize: 50,
+      maxPageSize: 100
     });
+    const q = getOptionalString(req.query.q, 120);
+    const role = getOptionalString(req.query.role, 30);
+    const active = getOptionalBoolean(req.query.active);
+
+    if (role && !Object.values(Role).includes(role as Role)) {
+      throw new AppError(400, "role inválido");
+    }
+
+    const where: Prisma.UserWhereInput = {
+      ...(role ? { role: role as Role } : {}),
+      ...(active === undefined ? {} : { isActive: active }),
+      ...(q
+        ? {
+            OR: [
+              {
+                name: {
+                  contains: q,
+                  mode: "insensitive"
+                }
+              },
+              {
+                email: {
+                  contains: q,
+                  mode: "insensitive"
+                }
+              }
+            ]
+          }
+        : {})
+    };
+
+    const [total, users] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isActive: true,
+          createdAt: true
+        },
+        orderBy: {
+          createdAt: "desc"
+        },
+        skip: pagination.skip,
+        take: pagination.take
+      })
+    ]);
+
+    setPaginationHeaders(res, buildPaginationMeta(pagination, total));
 
     return res.status(200).json(users);
   })

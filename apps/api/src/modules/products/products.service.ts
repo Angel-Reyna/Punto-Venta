@@ -69,12 +69,35 @@ function cleanString(value: unknown) {
   return text || null;
 }
 
+function readOptionalString(
+  row: Record<string, unknown>,
+  field: string,
+  rowNumber: number,
+  maxLength: number
+) {
+  const value = cleanString(row[field]);
+
+  if (!value) {
+    return null;
+  }
+
+  if (value.length > maxLength) {
+    throw new AppError(
+      400,
+      `Fila ${rowNumber}: ${field} no debe superar ${maxLength} caracteres`
+    );
+  }
+
+  return value;
+}
+
 function readRequiredString(
   row: Record<string, unknown>,
   field: string,
-  rowNumber: number
+  rowNumber: number,
+  maxLength: number
 ) {
-  const value = cleanString(row[field]);
+  const value = readOptionalString(row, field, rowNumber, maxLength);
 
   if (!value) {
     throw new AppError(
@@ -218,6 +241,8 @@ export async function importProducts(
       const warehouse = await getOrCreateDefaultWarehouse(tx);
 
       const imported = [];
+      const seenSkus = new Set<string>();
+      const seenBarcodes = new Set<string>();
 
       for (const [index, row] of rows.entries()) {
         const rowNumber = index + 2;
@@ -225,13 +250,42 @@ export async function importProducts(
         const sku = readRequiredString(
           row,
           "sku",
-          rowNumber
+          rowNumber,
+          80
         );
+
+        if (seenSkus.has(sku)) {
+          throw new AppError(
+            400,
+            `Fila ${rowNumber}: sku duplicado en el archivo (${sku})`
+          );
+        }
+
+        seenSkus.add(sku);
+
+        const barcode = readOptionalString(
+          row,
+          "barcode",
+          rowNumber,
+          80
+        );
+
+        if (barcode) {
+          if (seenBarcodes.has(barcode)) {
+            throw new AppError(
+              400,
+              `Fila ${rowNumber}: barcode duplicado en el archivo (${barcode})`
+            );
+          }
+
+          seenBarcodes.add(barcode);
+        }
 
         const name = readRequiredString(
           row,
           "name",
-          rowNumber
+          rowNumber,
+          160
         );
 
         const category = await getOrCreateCategory(
@@ -272,6 +326,27 @@ export async function importProducts(
           0
         );
 
+        if (barcode) {
+          const productWithBarcode = await tx.product.findFirst({
+            where: {
+              barcode,
+              sku: {
+                not: sku
+              }
+            },
+            select: {
+              sku: true
+            }
+          });
+
+          if (productWithBarcode) {
+            throw new AppError(
+              409,
+              `Fila ${rowNumber}: barcode ya está asignado al SKU ${productWithBarcode.sku}`
+            );
+          }
+        }
+
         const product = await tx.product.upsert({
           where: {
             sku
@@ -279,9 +354,9 @@ export async function importProducts(
 
           update: {
             categoryId: category.id,
-            barcode: cleanString(row.barcode),
+            barcode,
             name,
-            description: cleanString(row.description),
+            description: readOptionalString(row, "description", rowNumber, 500),
             costPrice,
             salePrice,
             promoPercent,
@@ -292,9 +367,9 @@ export async function importProducts(
           create: {
             categoryId: category.id,
             sku,
-            barcode: cleanString(row.barcode),
+            barcode,
             name,
-            description: cleanString(row.description),
+            description: readOptionalString(row, "description", rowNumber, 500),
             costPrice,
             salePrice,
             promoPercent,

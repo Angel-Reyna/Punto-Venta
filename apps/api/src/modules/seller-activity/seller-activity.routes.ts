@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { Role, SellerAction } from "@prisma/client";
+import { Prisma, Role, SellerAction } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "../../config/prisma";
@@ -11,6 +11,11 @@ import {
 
 import { asyncHandler } from "../../utils/asyncHandler";
 import { AppError } from "../../utils/AppError";
+import {
+  buildPaginationMeta,
+  getPagination,
+  setPaginationHeaders
+} from "../../utils/pagination";
 
 export const sellerActivityRouter = Router();
 
@@ -28,7 +33,7 @@ const querySchema = z.object({
 
   to: z.string().optional(),
 
-  limit: z.coerce.number().int().min(1).max(500).default(200)
+  limit: z.coerce.number().int().min(1).max(500).optional()
 });
 
 function parseDateFilter(from?: string, to?: string) {
@@ -92,47 +97,63 @@ sellerActivityRouter.get(
       limit
     } = parsed.data;
 
+    const pagination = getPagination(
+      {
+        ...req.query,
+        ...(limit ? { pageSize: limit } : {})
+      } as Record<string, unknown>,
+      {
+        defaultPageSize: 50,
+        maxPageSize: 100
+      }
+    );
+
     const createdAt = parseDateFilter(from, to);
 
-    const logs = await prisma.sellerActivityLog.findMany({
-      where: {
-        ...(sellerId
-          ? {
-              sellerId
-            }
-          : {}),
-
-        ...(action
-          ? {
-              action
-            }
-          : {}),
-
-        ...(createdAt
-          ? {
-              createdAt
-            }
-          : {})
-      },
-
-      include: {
-        seller: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            isActive: true
+    const where: Prisma.SellerActivityLogWhereInput = {
+      ...(sellerId
+        ? {
+            sellerId
           }
-        }
-      },
+        : {}),
 
-      orderBy: {
-        createdAt: "desc"
-      },
+      ...(action
+        ? {
+            action
+          }
+        : {}),
 
-      take: limit
-    });
+      ...(createdAt
+        ? {
+            createdAt
+          }
+        : {})
+    };
+
+    const [total, logs] = await Promise.all([
+      prisma.sellerActivityLog.count({ where }),
+      prisma.sellerActivityLog.findMany({
+        where,
+        include: {
+          seller: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              isActive: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: "desc"
+        },
+        skip: pagination.skip,
+        take: pagination.take
+      })
+    ]);
+
+    setPaginationHeaders(res, buildPaginationMeta(pagination, total));
 
     res.json(logs);
   })

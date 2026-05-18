@@ -68,7 +68,14 @@ app.use(
     origin: env.CORS_ORIGIN,
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: [
+      "X-Request-Id",
+      "X-Total-Count",
+      "X-Page",
+      "X-Page-Size",
+      "X-Total-Pages"
+    ]
   })
 );
 

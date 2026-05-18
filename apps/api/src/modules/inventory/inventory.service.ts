@@ -105,7 +105,7 @@ export async function getOrCreateDefaultWarehouse(
   });
 }
 
-export async function getProductStocks(productIds?: string[]) {
+export async function getProductStocks(productIds?: string[]): Promise<Map<string, number>> {
   if (productIds && productIds.length === 0) {
     return new Map<string, number>();
   }
@@ -125,7 +125,7 @@ export async function getProductStocks(productIds?: string[]) {
   });
 
   return new Map(
-    balances.map((balance) => [
+    balances.map((balance: { productId: string; _sum: { quantity: number | null } }) => [
       balance.productId,
       balance._sum.quantity ?? 0
     ])

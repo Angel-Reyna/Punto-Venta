@@ -1,6 +1,6 @@
 import { Router } from "express";
+import { InventoryType, Prisma, Role } from "@prisma/client";
 import { z } from "zod";
-import { Role } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 
@@ -12,6 +12,15 @@ import {
 import { validate } from "../../middlewares/validate";
 
 import { asyncHandler } from "../../utils/asyncHandler";
+import { AppError } from "../../utils/AppError";
+import {
+  buildPaginationMeta,
+  getDateRange,
+  getOptionalBoolean,
+  getOptionalString,
+  getPagination,
+  setPaginationHeaders
+} from "../../utils/pagination";
 
 import { auditLog } from "../audit/audit.service";
 
@@ -72,9 +81,77 @@ inventoryRouter.get(
 
 inventoryRouter.get(
   "/movements",
-  asyncHandler(async (_req, res) => {
-    const movements =
-      await prisma.inventoryMovement.findMany({
+  asyncHandler(async (req, res) => {
+    const pagination = getPagination(req.query as Record<string, unknown>, {
+      defaultPageSize: 50,
+      maxPageSize: 100
+    });
+    const q = getOptionalString(req.query.q, 120);
+    const productId = getOptionalString(req.query.productId, 80);
+    const warehouseId = getOptionalString(req.query.warehouseId, 80);
+    const type = getOptionalString(req.query.type, 30);
+    const { dateFrom, dateTo } = getDateRange(
+      req.query as Record<string, unknown>
+    );
+
+    if (type && !Object.values(InventoryType).includes(type as InventoryType)) {
+      throw new AppError(400, "Tipo de movimiento inválido");
+    }
+
+    const where: Prisma.InventoryMovementWhereInput = {
+      ...(productId ? { productId } : {}),
+      ...(warehouseId ? { warehouseId } : {}),
+      ...(type ? { type: type as InventoryType } : {}),
+      ...(dateFrom || dateTo
+        ? {
+            createdAt: {
+              ...(dateFrom ? { gte: dateFrom } : {}),
+              ...(dateTo ? { lte: dateTo } : {})
+            }
+          }
+        : {}),
+      ...(q
+        ? {
+            OR: [
+              {
+                reason: {
+                  contains: q,
+                  mode: "insensitive"
+                }
+              },
+              {
+                product: {
+                  sku: {
+                    contains: q,
+                    mode: "insensitive"
+                  }
+                }
+              },
+              {
+                product: {
+                  name: {
+                    contains: q,
+                    mode: "insensitive"
+                  }
+                }
+              },
+              {
+                warehouse: {
+                  name: {
+                    contains: q,
+                    mode: "insensitive"
+                  }
+                }
+              }
+            ]
+          }
+        : {})
+    };
+
+    const [total, movements] = await Promise.all([
+      prisma.inventoryMovement.count({ where }),
+      prisma.inventoryMovement.findMany({
+        where,
         include: {
           product: {
             select: {
@@ -96,8 +173,12 @@ inventoryRouter.get(
           createdAt: "desc"
         },
 
-        take: 500
-      });
+        skip: pagination.skip,
+        take: pagination.take
+      })
+    ]);
+
+    setPaginationHeaders(res, buildPaginationMeta(pagination, total));
 
     res.json(movements);
   })
@@ -105,33 +186,100 @@ inventoryRouter.get(
 
 inventoryRouter.get(
   "/stock",
-  asyncHandler(async (_req, res) => {
-    const products =
-      await prisma.product.findMany({
-        where: {
-          isActive: true
-        },
+  asyncHandler(async (req, res) => {
+    const pagination = getPagination(req.query as Record<string, unknown>, {
+      defaultPageSize: 50,
+      maxPageSize: 100
+    });
+    const q = getOptionalString(req.query.q, 120);
+    const categoryId = getOptionalString(req.query.categoryId, 80);
+    const lowStock = getOptionalBoolean(req.query.lowStock);
 
-        include: {
-          category: {
-            select: {
-              id: true,
-              name: true
-            }
+    const where: Prisma.ProductWhereInput = {
+      isActive: true,
+      ...(categoryId ? { categoryId } : {}),
+      ...(q
+        ? {
+            OR: [
+              {
+                sku: {
+                  contains: q,
+                  mode: "insensitive"
+                }
+              },
+              {
+                name: {
+                  contains: q,
+                  mode: "insensitive"
+                }
+              }
+            ]
           }
-        },
+        : {})
+    };
 
-        orderBy: {
-          name: "asc"
+    if (lowStock !== true) {
+      const [total, products] = await Promise.all([
+        prisma.product.count({ where }),
+        prisma.product.findMany({
+          where,
+          include: {
+            category: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          },
+          orderBy: {
+            name: "asc"
+          },
+          skip: pagination.skip,
+          take: pagination.take
+        })
+      ]);
+
+      const stocks = await getProductStocks(
+        products.map((product) => product.id)
+      );
+
+      setPaginationHeaders(res, buildPaginationMeta(pagination, total));
+
+      return res.json(
+        products.map((product) => {
+          const quantity = stocks.get(product.id) ?? 0;
+
+          return {
+            id: product.id,
+            sku: product.sku,
+            name: product.name,
+            category: product.category,
+            minStock: product.minStock,
+            stock: quantity,
+            lowStock: quantity <= product.minStock
+          };
+        })
+      );
+    }
+
+    const products = await prisma.product.findMany({
+      where,
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true
+          }
         }
-      });
+      },
+      orderBy: {
+        name: "asc"
+      }
+    });
 
-    const stocks = await getProductStocks(
-      products.map((product) => product.id)
-    );
-
-    res.json(
-      products.map((product) => {
+    const stocks = await getProductStocks(products.map((product) => product.id));
+    const lowStockProducts = products
+      .map((product) => {
         const quantity = stocks.get(product.id) ?? 0;
 
         return {
@@ -144,7 +292,19 @@ inventoryRouter.get(
           lowStock: quantity <= product.minStock
         };
       })
+      .filter((product) => product.lowStock);
+
+    const pageItems = lowStockProducts.slice(
+      pagination.skip,
+      pagination.skip + pagination.take
     );
+
+    setPaginationHeaders(
+      res,
+      buildPaginationMeta(pagination, lowStockProducts.length)
+    );
+
+    return res.json(pageItems);
   })
 );
 

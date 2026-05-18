@@ -1,6 +1,6 @@
 import { Router, type Request } from "express";
 import multer from "multer";
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "../../config/prisma";
@@ -13,6 +13,13 @@ import {
 
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
+import {
+  buildPaginationMeta,
+  getOptionalBoolean,
+  getOptionalString,
+  getPagination,
+  setPaginationHeaders
+} from "../../utils/pagination";
 
 import { auditLog } from "../audit/audit.service";
 import { getProductStocks } from "../inventory/inventory.service";
@@ -23,6 +30,19 @@ import {
   importProducts,
   productTemplateBuffer
 } from "./products.service";
+
+const productWithCategoryInclude = {
+  category: {
+    select: {
+      id: true,
+      name: true
+    }
+  }
+} satisfies Prisma.ProductInclude;
+
+type ProductWithCategory = Prisma.ProductGetPayload<{
+  include: typeof productWithCategoryInclude;
+}>;
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -61,6 +81,23 @@ export const productsRouter = Router();
 
 productsRouter.use(requireAuth);
 
+function assertExcelFile(file: Express.Multer.File) {
+  const fileName = file.originalname.toLowerCase();
+  const allowedExtension = fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
+  const allowedMimeTypes = new Set([
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+    "application/octet-stream"
+  ]);
+
+  if (!allowedExtension || !allowedMimeTypes.has(file.mimetype)) {
+    throw new AppError(
+      400,
+      "El archivo debe ser un Excel válido con extensión .xlsx o .xls"
+    );
+  }
+}
+
 function getRouteId(req: Request) {
   const id = req.params.id;
 
@@ -74,96 +111,137 @@ function getRouteId(req: Request) {
 productsRouter.get(
   "/",
   asyncHandler(async (req, res) => {
-    const q = String(req.query.q ?? "").trim();
+    const pagination = getPagination(req.query as Record<string, unknown>, {
+      defaultPageSize: 50,
+      maxPageSize: 100
+    });
+    const q = getOptionalString(req.query.q, 120);
+    const categoryId = getOptionalString(req.query.categoryId, 80);
+    const active = getOptionalBoolean(req.query.active);
+    const lowStock = getOptionalBoolean(req.query.lowStock);
 
-    const where = {
+    const where: Prisma.ProductWhereInput = {
       ...(q
         ? {
             OR: [
               {
                 sku: {
                   contains: q,
-                  mode: "insensitive" as const
+                  mode: "insensitive"
                 }
               },
               {
                 name: {
                   contains: q,
-                  mode: "insensitive" as const
+                  mode: "insensitive"
+                }
+              },
+              {
+                barcode: {
+                  contains: q,
+                  mode: "insensitive"
                 }
               }
             ]
           }
         : {}),
-
+      ...(categoryId ? { categoryId } : {}),
       ...(req.user?.role === Role.ADMIN
-        ? {}
+        ? active === undefined
+          ? {}
+          : { isActive: active }
         : {
             isActive: true
           })
     };
 
+    const mapProduct = (
+      product: ProductWithCategory,
+      stock: number
+    ) => {
+      const salePrice = Number(product.salePrice);
+      const promoPercent = Number(product.promoPercent);
+      const finalPrice = calculateFinalPrice(salePrice, promoPercent);
+
+      if (req.user?.role !== Role.ADMIN) {
+        return {
+          id: product.id,
+          sku: product.sku,
+          barcode: product.barcode,
+          name: product.name,
+          description: product.description,
+          category: product.category,
+          salePrice,
+          promoPercent,
+          finalPrice,
+          stock
+        };
+      }
+
+      return {
+        ...product,
+        costPrice: Number(product.costPrice),
+        salePrice,
+        promoPercent,
+        marginPercent: calculateMargin(
+          Number(product.costPrice),
+          salePrice
+        ),
+        finalPrice,
+        stock
+      };
+    };
+
+    if (lowStock !== true) {
+      const [total, products] = await Promise.all([
+        prisma.product.count({ where }),
+        prisma.product.findMany({
+          where,
+          include: productWithCategoryInclude,
+          orderBy: {
+            createdAt: "desc"
+          },
+          skip: pagination.skip,
+          take: pagination.take
+        })
+      ]);
+
+      const stocks = await getProductStocks(
+        products.map((product) => product.id)
+      );
+
+      setPaginationHeaders(res, buildPaginationMeta(pagination, total));
+
+      return res.json(
+        products.map((product) => mapProduct(product, stocks.get(product.id) ?? 0))
+      );
+    }
+
     const products = await prisma.product.findMany({
       where,
-      include: {
-        category: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      },
+      include: productWithCategoryInclude,
       orderBy: {
         createdAt: "desc"
       }
     });
 
-    const stocks = await getProductStocks(
-      products.map((product) => product.id)
+    const stocks = await getProductStocks(products.map((product) => product.id));
+    const lowStockProducts = products.filter((product) => {
+      const stock = stocks.get(product.id) ?? 0;
+
+      return stock <= product.minStock;
+    });
+
+    const pageItems = lowStockProducts
+      .slice(pagination.skip, pagination.skip + pagination.take)
+      .map((product) => mapProduct(product, stocks.get(product.id) ?? 0));
+
+    setPaginationHeaders(
+      res,
+      buildPaginationMeta(pagination, lowStockProducts.length)
     );
 
-    const mappedProducts = products.map((product) => {
-        const stock = stocks.get(product.id) ?? 0;
-
-        const salePrice = Number(product.salePrice);
-
-        const promoPercent = Number(product.promoPercent);
-
-        const finalPrice = calculateFinalPrice(
-          salePrice,
-          promoPercent
-        );
-
-        if (req.user?.role !== Role.ADMIN) {
-          return {
-            id: product.id,
-            sku: product.sku,
-            barcode: product.barcode,
-            name: product.name,
-            description: product.description,
-            category: product.category,
-            salePrice,
-            promoPercent,
-            finalPrice,
-            stock
-          };
-        }
-
-        return {
-          ...product,
-          costPrice: Number(product.costPrice),
-          salePrice,
-          promoPercent,
-          marginPercent: calculateMargin(
-            Number(product.costPrice),
-            salePrice
-          ),
-          finalPrice,
-          stock
-        };
-      });
-
-    res.json(mappedProducts);
+    return res.json(pageItems);
   })
 );
 
@@ -292,15 +370,15 @@ productsRouter.post(
   upload.single("file"),
   asyncHandler(async (req, res) => {
     if (!req.file) {
-      return res.status(400).json({
-        message: "Archivo requerido"
-      });
+      throw new AppError(400, "Archivo requerido");
     }
 
-  const imported = await importProducts(
-    req.file.buffer,
-    req.user!.id
-  );
+    assertExcelFile(req.file);
+
+    const imported = await importProducts(
+      req.file.buffer,
+      req.user!.id
+    );
 
     await auditLog({
       userId: req.user?.id,
