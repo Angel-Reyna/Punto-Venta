@@ -1,61 +1,99 @@
-import {
-  NextFunction,
-  Request,
-  Response
-} from "express";
-
+import { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
-
 import { Prisma } from "@prisma/client";
 
 import { AppError } from "../utils/AppError";
+import { env } from "../config/env";
+import { logger } from "../utils/logger";
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
+function logHandledError(req: Request, statusCode: number, error: unknown) {
+  const level = statusCode >= 500 ? "error" : "warn";
+
+  logger[level]("Request failed", {
+    requestId: req.requestId,
+    statusCode,
+    method: req.method,
+    path: req.path,
+    ipAddress: req.ip,
+    userId: req.user?.id,
+    userRole: req.user?.role,
+    error
+  });
+}
+
+function sendErrorResponse(
+  req: Request,
+  res: Response,
+  statusCode: number,
+  message: string,
+  extra?: Record<string, unknown>
+) {
+  return res.status(statusCode).json({
+    message,
+    requestId: req.requestId,
+    ...extra
+  });
+}
 
 export function errorHandler(
   error: unknown,
-  _req: Request,
+  req: Request,
   res: Response,
-  _next: NextFunction
+  next: NextFunction
 ) {
-  console.error(error);
+  if (res.headersSent) {
+    logger.error("Error occurred after headers were sent", {
+      requestId: req.requestId,
+      method: req.method,
+      path: req.path,
+      error
+    });
+
+    return next(error);
+  }
 
   if (error instanceof AppError) {
-    return res.status(error.statusCode).json({
-      message: error.message
-    });
+    logHandledError(req, error.statusCode, error);
+
+    return sendErrorResponse(req, res, error.statusCode, error.message);
   }
 
   if (error instanceof ZodError) {
-    return res.status(400).json({
-      message: "Datos inválidos",
+    logHandledError(req, 400, error);
 
+    return sendErrorResponse(req, res, 400, "Datos inválidos", {
       errors: error.flatten()
     });
   }
 
-  if (
-    error instanceof
-    Prisma.PrismaClientKnownRequestError
-  ) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2002") {
-      return res.status(409).json({
-        message:
-          "El registro ya existe"
-      });
+      logHandledError(req, 409, error);
+
+      return sendErrorResponse(req, res, 409, "El registro ya existe");
     }
 
-    return res.status(400).json({
-      message:
-        "Error de base de datos"
-    });
+    logHandledError(req, 400, error);
+
+    return sendErrorResponse(req, res, 400, "Error de base de datos");
   }
 
-  return res.status(500).json({
-    message:
-      process.env.NODE_ENV ===
-      "production"
-        ? "Error interno del servidor"
-        : error instanceof Error
-        ? error.message
-        : "Error desconocido"
-  });
+  logHandledError(req, 500, error);
+
+  return sendErrorResponse(
+    req,
+    res,
+    500,
+    env.NODE_ENV === "production"
+      ? "Error interno del servidor"
+      : getErrorMessage(error)
+  );
 }

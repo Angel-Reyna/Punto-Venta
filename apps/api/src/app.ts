@@ -8,6 +8,7 @@ import { env } from "./config/env";
 
 import { errorHandler } from "./middlewares/errorHandler";
 import { apiRateLimiter } from "./middlewares/rateLimit";
+import { requestContext, requestLogger } from "./middlewares/requestContext";
 
 import { authRouter } from "./modules/auth/auth.routes";
 import { usersRouter } from "./modules/users/users.routes";
@@ -23,6 +24,9 @@ export const app = express();
 
 app.disable("x-powered-by");
 app.set("trust proxy", env.NODE_ENV === "production" ? 1 : false);
+
+app.use(requestContext);
+app.use(requestLogger);
 
 app.use(
   helmet({
@@ -76,9 +80,10 @@ app.use(
 
 app.use(apiRateLimiter);
 
-app.get("/health", (_req, res) => {
+app.get("/health", (req, res) => {
   res.json({
-    status: "ok"
+    status: "ok",
+    requestId: req.requestId
   });
 });
 
