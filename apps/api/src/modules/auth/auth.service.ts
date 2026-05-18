@@ -9,6 +9,10 @@ import {
   verifyRefreshToken
 } from "./auth.tokens";
 import { hashToken, safeCompareHash } from "./token-hash";
+import {
+  logSellerActivity,
+  shouldLogSellerActivity
+} from "../seller-activity/seller-activity.service";
 
 type ClientMeta = {
   userAgent?: string;
@@ -86,6 +90,21 @@ export async function login(
     }
   });
 
+  if (shouldLogSellerActivity(user)) {
+    await logSellerActivity({
+      sellerId: user.id,
+      action: "SELLER_LOGIN",
+      entityType: "Auth",
+      entityId: user.id,
+      description: "Vendedor inició sesión",
+      metadata: {
+        email: user.email
+      },
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent
+    });
+  }
+
   return {
     user: toPublicUser(user),
     accessToken,
@@ -106,6 +125,10 @@ export async function refreshSession(
   });
 
   if (!currentSession) {
+    throw new AppError(401, "Sesión inválida");
+  }
+
+  if (currentSession.userId !== payload.sub) {
     throw new AppError(401, "Sesión inválida");
   }
 
@@ -193,7 +216,10 @@ export async function refreshSession(
   };
 }
 
-export async function logout(refreshToken?: string): Promise<void> {
+export async function logout(
+  refreshToken?: string,
+  meta: ClientMeta = {}
+): Promise<void> {
   if (!refreshToken) return;
 
   try {
@@ -201,12 +227,37 @@ export async function logout(refreshToken?: string): Promise<void> {
     const incomingHash = hashToken(refreshToken);
 
     const session = await prisma.refreshSession.findUnique({
-      where: { id: payload.sessionId }
+      where: { id: payload.sessionId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true
+          }
+        }
+      }
     });
 
     if (!session) return;
+    if (session.userId !== payload.sub) return;
     if (!safeCompareHash(session.tokenHash, incomingHash)) return;
     if (session.revokedAt) return;
+
+    if (shouldLogSellerActivity(session.user)) {
+      await logSellerActivity({
+        sellerId: session.userId,
+        action: "SELLER_LOGOUT",
+        entityType: "Auth",
+        entityId: session.userId,
+        description: "Vendedor cerró sesión",
+        metadata: {
+          email: session.user.email
+        },
+        ipAddress: meta.ipAddress,
+        userAgent: meta.userAgent
+      });
+    }
 
     await prisma.refreshSession.update({
       where: { id: session.id },

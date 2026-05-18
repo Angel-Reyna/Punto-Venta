@@ -13,6 +13,9 @@ const prismaMock = {
     update: jest.fn(),
     updateMany: jest.fn()
   },
+  sellerActivityLog: {
+    create: jest.fn()
+  },
   $transaction: jest.fn()
 };
 
@@ -37,6 +40,7 @@ jest.mock("../src/modules/auth/token-hash", () => tokenHashMock);
 
 import {
   login,
+  logout,
   refreshSession,
   registerCashier
 } from "../src/modules/auth/auth.service";
@@ -56,6 +60,12 @@ describe("auth.service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prismaMock.$transaction.mockImplementation(async (operations: unknown[]) => operations);
+    authTokensMock.signAccessToken.mockReturnValue("access-token");
+    authTokensMock.signRefreshToken.mockReturnValue("refresh-token");
+    tokenHashMock.hashToken.mockImplementation((token: string) => `hash:${token}`);
+    tokenHashMock.safeCompareHash.mockImplementation(
+      (left: string, right: string) => left === right
+    );
   });
 
   describe("login", () => {
@@ -144,6 +154,40 @@ describe("auth.service", () => {
 
       expect(prismaMock.refreshSession.create).not.toHaveBeenCalled();
     });
+
+
+    it("logs seller logins without blocking auth success", async () => {
+      const cashier = {
+        ...activeAdmin,
+        id: "seller-1",
+        role: "CASHIER"
+      };
+
+      prismaMock.user.findUnique.mockResolvedValue(cashier);
+      bcryptMock.compare.mockResolvedValue(true as never);
+
+      await login(
+        {
+          email: "seller@pos.local",
+          password: "Seller123"
+        },
+        {
+          ipAddress: "127.0.0.1",
+          userAgent: "jest"
+        }
+      );
+
+      expect(prismaMock.sellerActivityLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          sellerId: "seller-1",
+          action: "SELLER_LOGIN",
+          entityType: "Auth",
+          entityId: "seller-1",
+          ipAddress: "127.0.0.1",
+          userAgent: "jest"
+        })
+      });
+    });
   });
 
   describe("refreshSession", () => {
@@ -228,6 +272,103 @@ describe("auth.service", () => {
         }
       });
       expect(prismaMock.refreshSession.create).not.toHaveBeenCalled();
+    });
+
+
+    it("rejects refresh sessions whose stored owner does not match the token subject", async () => {
+      authTokensMock.verifyRefreshToken.mockReturnValue({
+        sub: "attacker-user",
+        sessionId: "session-1",
+        type: "refresh"
+      });
+      prismaMock.refreshSession.findUnique.mockResolvedValue({
+        id: "session-1",
+        userId: "user-1",
+        tokenHash: "stored-hash",
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 60_000),
+        user: activeAdmin
+      });
+
+      await expect(refreshSession("forged-refresh-token", {})).rejects.toMatchObject({
+        statusCode: 401,
+        message: "Sesión inválida"
+      } satisfies Partial<AppError>);
+
+      expect(tokenHashMock.safeCompareHash).not.toHaveBeenCalled();
+      expect(prismaMock.refreshSession.updateMany).not.toHaveBeenCalled();
+      expect(prismaMock.refreshSession.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("logout", () => {
+    it("logs seller logout before revoking a valid session", async () => {
+      authTokensMock.verifyRefreshToken.mockReturnValue({
+        sub: "seller-1",
+        sessionId: "session-1",
+        type: "refresh"
+      });
+      tokenHashMock.safeCompareHash.mockReturnValue(true);
+      prismaMock.refreshSession.findUnique.mockResolvedValue({
+        id: "session-1",
+        userId: "seller-1",
+        tokenHash: "stored-hash",
+        revokedAt: null,
+        user: {
+          id: "seller-1",
+          email: "seller@pos.local",
+          role: "CASHIER"
+        }
+      });
+
+      await logout("current-refresh-token", {
+        ipAddress: "127.0.0.1",
+        userAgent: "jest"
+      });
+
+      expect(prismaMock.sellerActivityLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          sellerId: "seller-1",
+          action: "SELLER_LOGOUT",
+          entityType: "Auth",
+          entityId: "seller-1",
+          ipAddress: "127.0.0.1",
+          userAgent: "jest"
+        })
+      });
+      expect(prismaMock.refreshSession.update).toHaveBeenCalledWith({
+        where: {
+          id: "session-1"
+        },
+        data: {
+          revokedAt: expect.any(Date)
+        }
+      });
+    });
+
+    it("ignores logout when the token subject does not own the stored session", async () => {
+      authTokensMock.verifyRefreshToken.mockReturnValue({
+        sub: "attacker-user",
+        sessionId: "session-1",
+        type: "refresh"
+      });
+      prismaMock.refreshSession.findUnique.mockResolvedValue({
+        id: "session-1",
+        userId: "seller-1",
+        tokenHash: "stored-hash",
+        revokedAt: null,
+        user: {
+          id: "seller-1",
+          email: "seller@pos.local",
+          role: "CASHIER"
+        }
+      });
+
+      await logout("forged-refresh-token", {});
+
+      expect(tokenHashMock.safeCompareHash).not.toHaveBeenCalled();
+      expect(prismaMock.sellerActivityLog.create).not.toHaveBeenCalled();
+      expect(prismaMock.refreshSession.update).not.toHaveBeenCalled();
     });
   });
 

@@ -96,7 +96,10 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
 
-    await service.logout(typeof refreshToken === "string" ? refreshToken : undefined);
+    await service.logout(
+      typeof refreshToken === "string" ? refreshToken : undefined,
+      getClientMeta(req)
+    );
 
     res.clearCookie(REFRESH_COOKIE_NAME, clearRefreshCookieOptions);
 

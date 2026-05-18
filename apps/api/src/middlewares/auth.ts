@@ -3,6 +3,10 @@ import { Role } from "@prisma/client";
 
 import { AppError } from "../utils/AppError";
 import { verifyAccessToken } from "../modules/auth/auth.tokens";
+import {
+  logSellerActivity,
+  shouldLogSellerActivity
+} from "../modules/seller-activity/seller-activity.service";
 
 export type AuthUser = {
   id: string;
@@ -41,6 +45,23 @@ export function requireRole(...roles: Role[]) {
     }
 
     if (!roles.includes(req.user.role)) {
+      if (shouldLogSellerActivity(req.user)) {
+        void logSellerActivity({
+          sellerId: req.user.id,
+          action: "FAILED_ACCESS_ATTEMPT",
+          entityType: "Route",
+          entityId: req.originalUrl,
+          description: `Intento no autorizado a ${req.method} ${req.originalUrl}`,
+          metadata: {
+            method: req.method,
+            path: req.originalUrl,
+            requiredRoles: roles
+          },
+          ipAddress: req.ip,
+          userAgent: req.headers["user-agent"]
+        });
+      }
+
       throw new AppError(403, "No autorizado");
     }
 
