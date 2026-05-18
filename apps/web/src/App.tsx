@@ -1,4 +1,8 @@
-import { ReactNode } from "react";
+import {
+  lazy,
+  ReactNode,
+  Suspense
+} from "react";
 
 import {
   BrowserRouter,
@@ -9,21 +13,40 @@ import {
 
 import {
   Box,
-  CircularProgress
+  CircularProgress,
+  Typography
 } from "@mui/material";
 
 import { AppLayout } from "./layout/AppLayout";
 import { useAuth } from "./auth/AuthContext";
 
-import { LoginPage } from "./pages/LoginPage";
-import { DashboardPage } from "./pages/DashboardPage";
-import { ProductsPage } from "./pages/ProductsPage";
-import { InventoryPage } from "./pages/InventoryPage";
-import { SalesPage } from "./pages/SalesPage";
-import { ReportsPage } from "./pages/ReportsPage";
-import { UsersPage } from "./pages/UsersPage";
-import { AuditPage } from "./pages/AuditPage";
-import { SellerActivityPage } from "./pages/SellerActivityPage";
+const LoginPage = lazy(() =>
+  import("./pages/LoginPage").then((module) => ({ default: module.LoginPage }))
+);
+const DashboardPage = lazy(() =>
+  import("./pages/DashboardPage").then((module) => ({ default: module.DashboardPage }))
+);
+const ProductsPage = lazy(() =>
+  import("./pages/ProductsPage").then((module) => ({ default: module.ProductsPage }))
+);
+const InventoryPage = lazy(() =>
+  import("./pages/InventoryPage").then((module) => ({ default: module.InventoryPage }))
+);
+const SalesPage = lazy(() =>
+  import("./pages/SalesPage").then((module) => ({ default: module.SalesPage }))
+);
+const ReportsPage = lazy(() =>
+  import("./pages/ReportsPage").then((module) => ({ default: module.ReportsPage }))
+);
+const UsersPage = lazy(() =>
+  import("./pages/UsersPage").then((module) => ({ default: module.UsersPage }))
+);
+const AuditPage = lazy(() =>
+  import("./pages/AuditPage").then((module) => ({ default: module.AuditPage }))
+);
+const SellerActivityPage = lazy(() =>
+  import("./pages/SellerActivityPage").then((module) => ({ default: module.SellerActivityPage }))
+);
 
 function FullPageLoader() {
   return (
@@ -31,10 +54,16 @@ function FullPageLoader() {
       sx={{
         minHeight: "100vh",
         display: "grid",
-        placeItems: "center"
+        placeItems: "center",
+        gap: 2
       }}
     >
-      <CircularProgress />
+      <Box sx={{ textAlign: "center" }}>
+        <CircularProgress />
+        <Typography color="text.secondary" sx={{ mt: 2 }} variant="body2">
+          Cargando Punta Venta...
+        </Typography>
+      </Box>
     </Box>
   );
 }
@@ -71,92 +100,96 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
   );
 }
 
+function withSuspense(children: ReactNode) {
+  return <Suspense fallback={<FullPageLoader />}>{children}</Suspense>;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={withSuspense(<LoginPage />)} />
 
         <Route
           path="/"
-          element={
+          element={withSuspense(
             <ProtectedLayout>
               <DashboardPage />
             </ProtectedLayout>
-          }
+          )}
         />
 
         <Route
           path="/products"
-          element={
+          element={withSuspense(
             <ProtectedLayout>
               <ProductsPage />
             </ProtectedLayout>
-          }
+          )}
         />
 
         <Route
           path="/sales"
-          element={
+          element={withSuspense(
             <ProtectedLayout>
               <SalesPage />
             </ProtectedLayout>
-          }
+          )}
         />
 
         <Route
           path="/inventory"
-          element={
+          element={withSuspense(
             <ProtectedLayout>
               <AdminRoute>
                 <InventoryPage />
               </AdminRoute>
             </ProtectedLayout>
-          }
+          )}
         />
 
         <Route
           path="/reports"
-          element={
+          element={withSuspense(
             <ProtectedLayout>
               <AdminRoute>
                 <ReportsPage />
               </AdminRoute>
             </ProtectedLayout>
-          }
+          )}
         />
 
         <Route
           path="/users"
-          element={
+          element={withSuspense(
             <ProtectedLayout>
               <AdminRoute>
                 <UsersPage />
               </AdminRoute>
             </ProtectedLayout>
-          }
+          )}
         />
 
         <Route
           path="/audit"
-          element={
+          element={withSuspense(
             <ProtectedLayout>
               <AdminRoute>
                 <AuditPage />
               </AdminRoute>
             </ProtectedLayout>
-          }
+          )}
         />
 
         <Route
           path="/seller-activity"
-          element={
+          element={withSuspense(
             <ProtectedLayout>
               <AdminRoute>
                 <SellerActivityPage />
               </AdminRoute>
             </ProtectedLayout>
-          }
+          )}
         />
 
         <Route path="*" element={<Navigate to="/" replace />} />
