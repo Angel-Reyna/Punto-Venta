@@ -29,9 +29,27 @@ const createUserSchema = z.object({
   })
 });
 
-const toggleUserSchema = z.object({
+const userIdParamsSchema = z.object({
   params: z.object({
     id: z.string().uuid()
+  })
+});
+
+const updateUserRoleSchema = z.object({
+  params: z.object({
+    id: z.string().uuid()
+  }),
+  body: z.object({
+    role: z.nativeEnum(Role)
+  })
+});
+
+const resetUserPasswordSchema = z.object({
+  params: z.object({
+    id: z.string().uuid()
+  }),
+  body: z.object({
+    password: passwordSchema
   })
 });
 
@@ -108,7 +126,7 @@ usersRouter.post(
 
 usersRouter.patch(
   "/:id/toggle",
-  validate(toggleUserSchema),
+  validate(userIdParamsSchema),
   asyncHandler(async (req, res) => {
     const targetUserId = String(req.params.id);
 
@@ -158,6 +176,125 @@ usersRouter.patch(
     await auditLog({
       userId: req.user?.id,
       action: "TOGGLE_ACTIVE",
+      tableName: "User",
+      recordId: user.id,
+      oldData,
+      newData: user,
+      ipAddress: req.ip
+    });
+
+    return res.status(200).json(user);
+  })
+);
+
+usersRouter.patch(
+  "/:id/role",
+  validate(updateUserRoleSchema),
+  asyncHandler(async (req, res) => {
+    const targetUserId = String(req.params.id);
+    const nextRole = req.body.role as Role;
+
+    const oldData = await prisma.user.findUnique({
+      where: {
+        id: targetUserId
+      }
+    });
+
+    if (!oldData) {
+      throw new AppError(404, "Usuario no encontrado");
+    }
+
+    if (targetUserId === req.user?.id && nextRole !== Role.ADMIN) {
+      throw new AppError(400, "No puedes quitarte tu propio rol de administrador");
+    }
+
+    const user = await prisma.user.update({
+      where: {
+        id: targetUserId
+      },
+      data: {
+        role: nextRole
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true
+      }
+    });
+
+    await auditLog({
+      userId: req.user?.id,
+      action: "UPDATE_USER_ROLE",
+      tableName: "User",
+      recordId: user.id,
+      oldData,
+      newData: user,
+      ipAddress: req.ip
+    });
+
+    return res.status(200).json(user);
+  })
+);
+
+usersRouter.patch(
+  "/:id/password",
+  validate(resetUserPasswordSchema),
+  asyncHandler(async (req, res) => {
+    const targetUserId = String(req.params.id);
+
+    const oldData = await prisma.user.findUnique({
+      where: {
+        id: targetUserId
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true
+      }
+    });
+
+    if (!oldData) {
+      throw new AppError(404, "Usuario no encontrado");
+    }
+
+    const passwordHash = await bcrypt.hash(req.body.password, env.BCRYPT_ROUNDS);
+
+    const user = await prisma.user.update({
+      where: {
+        id: targetUserId
+      },
+      data: {
+        passwordHash
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true
+      }
+    });
+
+    await prisma.refreshSession.updateMany({
+      where: {
+        userId: user.id,
+        revokedAt: null
+      },
+      data: {
+        revokedAt: new Date()
+      }
+    });
+
+    await auditLog({
+      userId: req.user?.id,
+      action: "RESET_USER_PASSWORD",
       tableName: "User",
       recordId: user.id,
       oldData,
