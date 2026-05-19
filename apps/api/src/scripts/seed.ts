@@ -2,32 +2,55 @@ import bcrypt from "bcrypt";
 
 import { prisma } from "../config/prisma";
 import { env } from "../config/env";
+import { logger } from "../utils/logger";
 
-async function main() {
-  const passwordHash = await bcrypt.hash(
-    "Admin12345",
-    env.BCRYPT_ROUNDS
-  );
+const DEVELOPMENT_ADMIN_PASSWORD = "Admin12345";
 
-const admin = await prisma.user.upsert({
-  where: {
-    email: "admin@pos.local"
-  },
-  update: {
-    name: "Administrador",
-    passwordHash,
-    role: "ADMIN",
-    isActive: true
-  },
-  create: {
-    name: "Administrador",
-    email: "admin@pos.local",
-    passwordHash,
-    role: "ADMIN",
-    isActive: true
+function resolveAdminPassword() {
+  if (env.SEED_ADMIN_PASSWORD) {
+    return env.SEED_ADMIN_PASSWORD;
   }
-});
 
+  if (env.NODE_ENV === "production") {
+    throw new Error(
+      "SEED_ADMIN_PASSWORD is required when running the seed in production"
+    );
+  }
+
+  return DEVELOPMENT_ADMIN_PASSWORD;
+}
+
+async function seedAdmin() {
+  const password = resolveAdminPassword();
+  const passwordHash = await bcrypt.hash(password, env.BCRYPT_ROUNDS);
+
+  return prisma.user.upsert({
+    where: {
+      email: env.SEED_ADMIN_EMAIL
+    },
+    update: {
+      name: env.SEED_ADMIN_NAME,
+      passwordHash,
+      role: "ADMIN",
+      isActive: true
+    },
+    create: {
+      name: env.SEED_ADMIN_NAME,
+      email: env.SEED_ADMIN_EMAIL,
+      passwordHash,
+      role: "ADMIN",
+      isActive: true
+    },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      isActive: true
+    }
+  });
+}
+
+async function seedDemoData(adminId: string) {
   const category = await prisma.productCategory.upsert({
     where: {
       name: "General"
@@ -80,35 +103,49 @@ const admin = await prisma.user.upsert({
     }
   });
 
-  if (!existingBalance) {
-    await prisma.$transaction(async (tx) => {
-      await tx.inventoryBalance.create({
-        data: {
-          productId: product.id,
-          warehouseId: warehouse.id,
-          quantity: 30
-        }
-      });
-
-      await tx.inventoryMovement.create({
-        data: {
-          productId: product.id,
-          warehouseId: warehouse.id,
-          type: "IN",
-          quantity: 30,
-          reason: "Stock inicial",
-          createdBy: admin.id
-        }
-      });
-    });
+  if (existingBalance) {
+    return;
   }
 
-  console.log("Seed completado");
+  await prisma.$transaction(async (tx) => {
+    await tx.inventoryBalance.create({
+      data: {
+        productId: product.id,
+        warehouseId: warehouse.id,
+        quantity: 30
+      }
+    });
+
+    await tx.inventoryMovement.create({
+      data: {
+        productId: product.id,
+        warehouseId: warehouse.id,
+        type: "IN",
+        quantity: 30,
+        reason: "Stock inicial de datos demo",
+        createdBy: adminId
+      }
+    });
+  });
+}
+
+async function main() {
+  const admin = await seedAdmin();
+
+  if (env.SEED_DEMO_DATA) {
+    await seedDemoData(admin.id);
+  }
+
+  logger.info("Seed completed", {
+    adminEmail: admin.email,
+    adminRole: admin.role,
+    seededDemoData: env.SEED_DEMO_DATA
+  });
 }
 
 main()
   .catch((error) => {
-    console.error(error);
+    logger.error("Seed failed", { error });
     process.exit(1);
   })
   .finally(async () => {

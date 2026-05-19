@@ -3,6 +3,7 @@ services:
     image: postgres:16
     container_name: punta_venta_postgres
     restart: unless-stopped
+    init: true
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -23,6 +24,7 @@ services:
       dockerfile: Dockerfile
     container_name: punta_venta_api
     restart: unless-stopped
+    init: true
     environment:
       NODE_ENV: ${API_NODE_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -35,6 +37,10 @@ services:
       JWT_ACCESS_EXPIRES_IN_SECONDS: ${JWT_ACCESS_EXPIRES_IN_SECONDS:-900}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@pos.local}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-Administrador}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
     ports:
       - "${API_PORT:-4000}:4000"
     depends_on:
@@ -55,6 +61,7 @@ services:
         VITE_API_URL: ${VITE_API_URL:-/api}
     container_name: punta_venta_web
     restart: unless-stopped
+    init: true
     ports:
       - "${WEB_PORT:-8080}:80"
     depends_on:

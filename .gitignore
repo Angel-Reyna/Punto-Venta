@@ -122,3 +122,6 @@ Notas/
 .env
 .env.*
 !.env.example
+# Database backups
+backups/*
+!backups/.gitkeep
