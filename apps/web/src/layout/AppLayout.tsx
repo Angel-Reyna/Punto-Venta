@@ -21,6 +21,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import InventoryIcon from "@mui/icons-material/Inventory2";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
+import PointOfSaleOutlinedIcon from "@mui/icons-material/PointOfSaleOutlined";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import PeopleIcon from "@mui/icons-material/People";
 import HistoryIcon from "@mui/icons-material/History";
@@ -80,6 +81,13 @@ export function AppLayout({
       to: "/inventory",
       icon: <InventoryIcon />,
       visible: isAdmin
+    },
+
+    {
+      label: "Caja",
+      to: "/cash-register",
+      icon: <PointOfSaleOutlinedIcon />,
+      visible: true
     },
 
     {

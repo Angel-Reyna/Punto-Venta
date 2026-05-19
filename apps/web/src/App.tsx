@@ -38,6 +38,9 @@ const SalesPage = lazy(() =>
 const ReportsPage = lazy(() =>
   import("./pages/ReportsPage").then((module) => ({ default: module.ReportsPage }))
 );
+const CashRegisterPage = lazy(() =>
+  import("./pages/CashRegisterPage").then((module) => ({ default: module.CashRegisterPage }))
+);
 const UsersPage = lazy(() =>
   import("./pages/UsersPage").then((module) => ({ default: module.UsersPage }))
 );
@@ -144,6 +147,15 @@ export default function App() {
               <AdminRoute>
                 <InventoryPage />
               </AdminRoute>
+            </ProtectedLayout>
+          )}
+        />
+
+        <Route
+          path="/cash-register"
+          element={withSuspense(
+            <ProtectedLayout>
+              <CashRegisterPage />
             </ProtectedLayout>
           )}
         />
