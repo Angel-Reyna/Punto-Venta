@@ -17,7 +17,7 @@ Monorepo con `apps/api` y `apps/web`. La API concentra reglas de negocio, seguri
 - Auditoría para operaciones críticas.
 - Frontend React + Vite + TypeScript con rutas protegidas, interceptor HTTP y refresh automático.
 - Docker Compose para PostgreSQL, API, frontend con Nginx y PgAdmin opcional.
-- CI con GitHub Actions para build/test de API, build de frontend y build de imágenes Docker.
+- CI con GitHub Actions para validación Prisma, migraciones contra PostgreSQL real, build/test de API, build de frontend y build de imágenes Docker.
 - Scripts de backup y restauración de PostgreSQL.
 
 ## Fortalezas actuales
@@ -33,7 +33,6 @@ Monorepo con `apps/api` y `apps/web`. La API concentra reglas de negocio, seguri
 
 - La autorización todavía es coarse-grained: solo existen roles `ADMIN` y `CASHIER`, sin permisos granulares por acción.
 - Los endpoints que dependen de cookie `httpOnly` deben revisarse con especial cuidado si producción usa `SameSite=None`; en ese escenario conviene añadir protección CSRF explícita.
-- El CI define `DATABASE_URL`, pero no declara un servicio PostgreSQL. Si los tests pasan a usar base real, el workflow debe levantar PostgreSQL o usar Testcontainers.
 - El frontend tiene infraestructura de test, pero faltan pruebas de componentes y flujos críticos.
 - La importación de Excel debe mantenerse estrictamente limitada y validada por tratarse de parsing de archivos externos.
 - La documentación de producción todavía debe completarse con estrategia final de secretos, dominios, TLS, backups gestionados y observabilidad.
@@ -41,12 +40,11 @@ Monorepo con `apps/api` y `apps/web`. La API concentra reglas de negocio, seguri
 ## Siguiente nivel producción
 
 1. Confirmar el baseline local con scripts del monorepo: `npm run api:prisma:generate`, `npm run api:build`, `npm run api:test` y `npm run web:build`.
-2. Agregar PostgreSQL real al CI para tests de integración cuando aplique.
-3. Hacer configurable la política de cookie (`secure`, `sameSite`, dominio) según el modelo final de despliegue.
-4. Añadir protección CSRF para endpoints que aceptan cookies si el despliegue requiere cookies cross-site.
-5. Introducir autorización granular por permisos sin romper los roles actuales.
-6. Endurecer importación de Excel y revisar dependencias vulnerables.
-7. Añadir pruebas frontend para auth, rutas protegidas y formularios críticos.
-8. Evolucionar logging hacia una solución estructurada de producción y agregar métricas/tracing.
-9. Mover secretos productivos a un gestor dedicado como AWS Secrets Manager o equivalente.
-10. Separar migraciones de base de datos como job explícito en despliegues productivos críticos.
+2. Hacer configurable la política de cookie (`secure`, `sameSite`, dominio) según el modelo final de despliegue.
+3. Añadir protección CSRF para endpoints que aceptan cookies si el despliegue requiere cookies cross-site.
+4. Introducir autorización granular por permisos sin romper los roles actuales.
+5. Endurecer importación de Excel y revisar dependencias vulnerables.
+6. Añadir pruebas frontend para auth, rutas protegidas y formularios críticos.
+7. Evolucionar logging hacia una solución estructurada de producción y agregar métricas/tracing.
+8. Mover secretos productivos a un gestor dedicado como AWS Secrets Manager o equivalente.
+9. Separar migraciones de base de datos como job explícito en despliegues productivos críticos.
