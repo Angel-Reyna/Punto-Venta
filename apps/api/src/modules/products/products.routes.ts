@@ -28,6 +28,7 @@ import { getProductStocks } from "../inventory/inventory.service";
 import {
   calculateFinalPrice,
   calculateMargin,
+  createProduct,
   importProducts,
   productTemplateBuffer
 } from "./products.service";
@@ -70,12 +71,14 @@ const createSchema = z.object({
 
     promoPercent: z.coerce.number().min(0).max(100).default(0),
 
-    minStock: z.coerce.number().int().min(0).default(0)
+    minStock: z.coerce.number().int().min(0).default(0),
+
+    initialStock: z.coerce.number().int().min(0).max(1_000_000).default(0)
   })
 });
 
 const updateSchema = z.object({
-  body: createSchema.shape.body.partial()
+  body: createSchema.shape.body.omit({ initialStock: true }).partial()
 });
 
 export const productsRouter = Router();
@@ -246,31 +249,43 @@ productsRouter.get(
   })
 );
 
+productsRouter.get(
+  "/categories",
+  requirePermission(PERMISSIONS.ProductsRead),
+  asyncHandler(async (_req, res) => {
+    const categories = await prisma.productCategory.findMany({
+      where: {
+        isActive: true
+      },
+      orderBy: {
+        name: "asc"
+      },
+      select: {
+        id: true,
+        name: true
+      }
+    });
+
+    res.json(categories);
+  })
+);
+
 productsRouter.post(
   "/",
   requirePermission(PERMISSIONS.ProductsCreate),
   validate(createSchema),
   asyncHandler(async (req, res) => {
-    const product = await prisma.product.create({
-      data: {
-        categoryId: req.body.categoryId,
-        sku: req.body.sku,
-        barcode: req.body.barcode,
-        name: req.body.name,
-        description: req.body.description,
-        costPrice: req.body.costPrice,
-        salePrice: req.body.salePrice,
-        promoPercent: req.body.promoPercent,
-        minStock: req.body.minStock
-      }
-    });
+    const product = await createProduct(req.body, req.user!.id);
 
     await auditLog({
       userId: req.user?.id,
       action: "CREATE_PRODUCT",
       tableName: "Product",
       recordId: product.id,
-      newData: product,
+      newData: {
+        ...product,
+        initialStock: req.body.initialStock
+      },
       ipAddress: req.ip
     });
 

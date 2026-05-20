@@ -24,6 +24,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import SearchIcon from "@mui/icons-material/Search";
 import UndoIcon from "@mui/icons-material/Undo";
 import CancelIcon from "@mui/icons-material/Cancel";
+import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 
@@ -39,6 +40,7 @@ type SaleStatus = "COMPLETED" | "CANCELLED" | "PARTIALLY_REFUNDED" | "REFUNDED";
 type Product = {
   id: string;
   sku: string;
+  barcode?: string | null;
   name: string;
   salePrice: number;
   stock: number;
@@ -207,16 +209,18 @@ export function SalesPage() {
   const [returnQuantity, setReturnQuantity] = useState("1");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   async function load() {
     try {
       setError("");
+      setIsLoadingCatalog(true);
 
       const [productsResponse, salesResponse] = await Promise.all([
-        api.get("/products?page=1&pageSize=100"),
-        api.get("/sales?page=1&pageSize=100")
+        api.get<Product[]>("/products?page=1&pageSize=100"),
+        api.get<Sale[]>("/sales?page=1&pageSize=100")
       ]);
 
       setProducts(productsResponse.data);
@@ -228,11 +232,13 @@ export function SalesPage() {
           "No se pudo cargar la venta ni el catálogo de productos."
         )
       );
+    } finally {
+      setIsLoadingCatalog(false);
     }
   }
 
   useEffect(() => {
-    load();
+    void load();
   }, []);
 
   function getProduct(productId: string) {
@@ -284,7 +290,7 @@ export function SalesPage() {
 
     return activeProducts
       .filter((product) => {
-        return [product.sku, product.name, product.id]
+        return [product.sku, product.barcode ?? "", product.name, product.id]
           .some((value) => value.toLowerCase().includes(query));
       })
       .slice(0, 8);
@@ -339,6 +345,10 @@ export function SalesPage() {
   }
 
   function addFirstSearchResult() {
+    if (!canCreateSales || saleDialogIsOpen || isSubmitting) {
+      return;
+    }
+
     const firstProduct = filteredProducts[0];
 
     if (!firstProduct) {
@@ -374,7 +384,10 @@ export function SalesPage() {
   function handleProductSearchKeyDown(event: KeyboardEvent) {
     if (event.key === "Enter") {
       event.preventDefault();
-      addFirstSearchResult();
+
+      if (!saleDialogIsOpen && !isSubmitting) {
+        addFirstSearchResult();
+      }
     }
   }
 
@@ -424,7 +437,10 @@ export function SalesPage() {
     function handleGlobalShortcuts(event: globalThis.KeyboardEvent) {
       if (event.key === "F3") {
         event.preventDefault();
-        searchInputRef.current?.focus();
+
+        if (canCreateSales && !saleDialogIsOpen && !isSubmitting) {
+          searchInputRef.current?.focus();
+        }
       }
 
       if (
@@ -445,6 +461,22 @@ export function SalesPage() {
       window.removeEventListener("keydown", handleGlobalShortcuts);
     };
   }, [canCreateSales, saleDialogIsOpen, cartIsInvalid, isSubmitting, cart, customerName, paymentMethod]);
+
+  useEffect(() => {
+    function refreshCatalogWhenVisible() {
+      if (document.visibilityState === "visible" && !saleDialogIsOpen && !isSubmitting) {
+        void load();
+      }
+    }
+
+    window.addEventListener("focus", refreshCatalogWhenVisible);
+    document.addEventListener("visibilitychange", refreshCatalogWhenVisible);
+
+    return () => {
+      window.removeEventListener("focus", refreshCatalogWhenVisible);
+      document.removeEventListener("visibilitychange", refreshCatalogWhenVisible);
+    };
+  }, [saleDialogIsOpen, isSubmitting]);
 
   function openCancelDialog(sale: Sale) {
     setSelectedSale(sale);
@@ -689,6 +721,17 @@ export function SalesPage() {
             ? "Registra ventas, revisa tickets recientes y administra cancelaciones o devoluciones."
             : "Registra ventas y consulta únicamente tus tickets recientes."
         }
+        action={
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={() => void load()}
+            disabled={isSubmitting || isLoadingCatalog}
+          >
+            {isLoadingCatalog ? "Actualizando..." : "Actualizar catálogo"}
+          </Button>
+        }
       />
 
       <Box sx={{ mb: 2 }}>
@@ -743,6 +786,7 @@ export function SalesPage() {
                   placeholder="Escanea código de barras o escribe para buscar"
                   onKeyDown={handleProductSearchKeyDown}
                   onChange={(event) => setProductSearch(event.target.value)}
+                  disabled={isSubmitting || saleDialogIsOpen}
                   InputProps={{
                     startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />
                   }}
@@ -751,7 +795,7 @@ export function SalesPage() {
                 <Button
                   startIcon={<AddShoppingCartIcon />}
                   onClick={addFirstSearchResult}
-                  disabled={filteredProducts.length === 0 || isSubmitting}
+                  disabled={filteredProducts.length === 0 || isSubmitting || saleDialogIsOpen}
                 >
                   Enter · Agregar
                 </Button>
@@ -776,7 +820,7 @@ export function SalesPage() {
                       variant="outlined"
                       color="inherit"
                       onClick={() => addProductToCart(product.id)}
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || saleDialogIsOpen}
                       sx={{
                         justifyContent: "space-between",
                         minHeight: 78,
@@ -872,7 +916,7 @@ export function SalesPage() {
                               max: item.product?.stock ?? undefined,
                               step: 1
                             }}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || saleDialogIsOpen}
                             onChange={(event) =>
                               updateCartQuantity(item.productId, Number(event.target.value))
                             }
@@ -882,7 +926,7 @@ export function SalesPage() {
 
                           <IconButton
                             onClick={() => removeCartItem(item.productId)}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || saleDialogIsOpen}
                             aria-label="Quitar producto"
                           >
                             <DeleteIcon />
@@ -997,7 +1041,7 @@ export function SalesPage() {
               rows={sales}
               columns={columns}
               disableRowSelectionOnClick
-              loading={isSubmitting}
+              loading={isSubmitting || isLoadingCatalog}
             />
           </Box>
         </CardContent>

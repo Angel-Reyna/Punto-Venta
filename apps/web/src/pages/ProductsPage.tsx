@@ -12,6 +12,7 @@ import {
   DialogTitle,
   Grid,
   IconButton,
+  MenuItem,
   TextField
 } from "@mui/material";
 
@@ -54,20 +55,61 @@ type Product = {
   isActive?: boolean;
 };
 
+type ProductCategory = {
+  id: string;
+  name: string;
+};
+
 const initialForm = {
   categoryId: "",
   sku: "",
   barcode: "",
   name: "",
   description: "",
-  costPrice: 0,
-  salePrice: 0,
-  promoPercent: 0,
-  minStock: 0
+  costPrice: "",
+  salePrice: "",
+  promoPercent: "",
+  initialStock: "",
+  minStock: ""
 };
 
 function safeTrim(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function toNonNegativeNumber(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) return 0;
+
+  return Number(trimmed);
+}
+
+function isInvalidNonNegativeNumber(value: string) {
+  const numberValue = toNonNegativeNumber(value);
+
+  return !Number.isFinite(numberValue) || numberValue < 0;
+}
+
+function isInvalidNonNegativeInteger(value: string) {
+  const numberValue = toNonNegativeNumber(value);
+
+  return !Number.isInteger(numberValue) || numberValue < 0;
+}
+
+function generateLocalProductCode() {
+  const bytes = new Uint32Array(1);
+
+  globalThis.crypto?.getRandomValues(bytes);
+
+  const randomPart = (bytes[0] || Math.floor(Math.random() * 1_000_000))
+    .toString(36)
+    .toUpperCase()
+    .padStart(6, "0")
+    .slice(0, 6);
+  const timePart = Date.now().toString(36).toUpperCase().slice(-6);
+
+  return `PV-${timePart}-${randomPart}`;
 }
 
 export function ProductsPage() {
@@ -78,6 +120,7 @@ export function ProductsPage() {
   const canViewAdminColumns = canCreateProduct || canImportProducts || canToggleProducts;
 
   const [rows, setRows] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [open, setOpen] = useState(false);
 
   const [form, setForm] = useState(initialForm);
@@ -92,17 +135,23 @@ export function ProductsPage() {
     try {
       setError("");
 
-      const response = await api.get("/products");
+      const [productsResponse, categoriesResponse] = await Promise.all([
+        api.get<Product[]>("/products"),
+        canCreateProduct
+          ? api.get<ProductCategory[]>("/products/categories")
+          : Promise.resolve({ data: [] as ProductCategory[] })
+      ]);
 
-      setRows(response.data);
+      setRows(productsResponse.data);
+      setCategories(categoriesResponse.data);
     } catch {
       setError("No se pudo cargar el catálogo de productos.");
     }
   }
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [canCreateProduct]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -117,10 +166,11 @@ export function ProductsPage() {
         barcode: safeTrim(form.barcode) || undefined,
         name: safeTrim(form.name),
         description: safeTrim(form.description) || undefined,
-        costPrice: Number(form.costPrice ?? 0),
-        salePrice: Number(form.salePrice ?? 0),
-        promoPercent: Number(form.promoPercent ?? 0),
-        minStock: Number(form.minStock ?? 0)
+        costPrice: toNonNegativeNumber(form.costPrice),
+        salePrice: toNonNegativeNumber(form.salePrice),
+        promoPercent: toNonNegativeNumber(form.promoPercent),
+        initialStock: toNonNegativeNumber(form.initialStock),
+        minStock: toNonNegativeNumber(form.minStock)
       });
 
       setMessage("Producto creado correctamente.");
@@ -228,12 +278,12 @@ export function ProductsPage() {
     const baseColumns: GridColDef[] = [
       {
         field: "sku",
-        headerName: "SKU",
+        headerName: "Clave/SKU",
         width: 140
       },
       {
         field: "barcode",
-        headerName: "Código",
+        headerName: "Código del producto",
         width: 150,
         valueGetter: (_value, row) => row.barcode || "N/A"
       },
@@ -289,12 +339,12 @@ export function ProductsPage() {
     return [
       {
         field: "sku",
-        headerName: "SKU",
+        headerName: "Clave/SKU",
         width: 140
       },
       {
         field: "barcode",
-        headerName: "Código",
+        headerName: "Código del producto",
         width: 150,
         valueGetter: (_value, row) => row.barcode || "N/A"
       },
@@ -336,7 +386,7 @@ export function ProductsPage() {
       },
       {
         field: "marginPercent",
-        headerName: "Margen %",
+        headerName: "Margen de ganancia %",
         width: 130,
         valueFormatter: (value) => `${Number(value ?? 0).toFixed(2)}%`
       },
@@ -389,14 +439,17 @@ export function ProductsPage() {
     ];
   }, [canViewAdminColumns, canToggleProducts, togglingProductId]);
 
-const formIsInvalid =
-  !safeTrim(form.sku) ||
-  !safeTrim(form.name) ||
-  Number(form.costPrice ?? 0) < 0 ||
-  Number(form.salePrice ?? 0) < 0 ||
-  Number(form.promoPercent ?? 0) < 0 ||
-  Number(form.promoPercent ?? 0) > 100 ||
-  Number(form.minStock ?? 0) < 0;
+  const promoPercent = toNonNegativeNumber(form.promoPercent);
+
+  const formIsInvalid =
+    !safeTrim(form.sku) ||
+    !safeTrim(form.name) ||
+    isInvalidNonNegativeNumber(form.costPrice) ||
+    isInvalidNonNegativeNumber(form.salePrice) ||
+    isInvalidNonNegativeNumber(form.promoPercent) ||
+    promoPercent > 100 ||
+    isInvalidNonNegativeInteger(form.initialStock) ||
+    isInvalidNonNegativeInteger(form.minStock);
 
   return (
     <>
@@ -487,12 +540,14 @@ const formIsInvalid =
 
       <Card>
         <CardContent sx={{ overflowX: "auto" }}>
-          <Box sx={{ minWidth: canViewAdminColumns ? 1420 : 980 }}>
+          <Box sx={{ minWidth: canViewAdminColumns ? 1180 : 860 }}>
             <DataGrid
               autoHeight
               rows={rows}
               columns={columns}
               disableRowSelectionOnClick
+              hideFooter={rows.length <= 25}
+              pageSizeOptions={[25, 50, 100]}
             />
           </Box>
         </CardContent>
@@ -516,11 +571,12 @@ const formIsInvalid =
               }}
             >
               <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} md={8}>
                   <TextField
                     fullWidth
-                    label="SKU"
+                    label="Clave interna/SKU"
                     value={form.sku}
+                    helperText="SKU identifica internamente el producto. Debe ser único."
                     onChange={(event) =>
                       setForm({
                         ...form,
@@ -530,11 +586,31 @@ const formIsInvalid =
                   />
                 </Grid>
 
+                <Grid item xs={12} md={4}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    sx={{ minHeight: 56 }}
+                    onClick={() => {
+                      const code = generateLocalProductCode();
+
+                      setForm((currentForm) => ({
+                        ...currentForm,
+                        sku: currentForm.sku || code,
+                        barcode: code
+                      }));
+                    }}
+                  >
+                    Generar código
+                  </Button>
+                </Grid>
+
                 <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
-                    label="Código de barras opcional"
+                    label="Código del producto"
                     value={form.barcode}
+                    helperText="Puede ser código de barras, código interno o código generado."
                     onChange={(event) =>
                       setForm({
                         ...form,
@@ -542,6 +618,29 @@ const formIsInvalid =
                       })
                     }
                   />
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    select
+                    label="Categoría"
+                    value={form.categoryId}
+                    helperText="Selecciona una categoría activa."
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        categoryId: event.target.value
+                      })
+                    }
+                  >
+                    <MenuItem value="">Sin categoría</MenuItem>
+                    {categories.map((category) => (
+                      <MenuItem key={category.id} value={category.id}>
+                        {category.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 </Grid>
 
                 <Grid item xs={12}>
@@ -561,6 +660,8 @@ const formIsInvalid =
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
+                    multiline
+                    minRows={3}
                     label="Descripción opcional"
                     value={form.description}
                     onChange={(event) =>
@@ -585,7 +686,7 @@ const formIsInvalid =
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        costPrice: Number(event.target.value)
+                        costPrice: event.target.value
                       })
                     }
                   />
@@ -604,13 +705,13 @@ const formIsInvalid =
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        salePrice: Number(event.target.value)
+                        salePrice: event.target.value
                       })
                     }
                   />
                 </Grid>
 
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} md={4}>
                   <TextField
                     fullWidth
                     label="Promoción (%)"
@@ -624,13 +725,33 @@ const formIsInvalid =
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        promoPercent: Number(event.target.value)
+                        promoPercent: event.target.value
                       })
                     }
                   />
                 </Grid>
 
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Stock inicial"
+                    type="number"
+                    value={form.initialStock}
+                    helperText="Crea inventario real en el almacén principal."
+                    inputProps={{
+                      min: 0,
+                      step: 1
+                    }}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        initialStock: event.target.value
+                      })
+                    }
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={4}>
                   <TextField
                     fullWidth
                     label="Stock mínimo"
@@ -643,7 +764,7 @@ const formIsInvalid =
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        minStock: Number(event.target.value)
+                        minStock: event.target.value
                       })
                     }
                   />
@@ -659,6 +780,7 @@ const formIsInvalid =
                   </Button>
                 </Grid>
               </Grid>
+
             </Box>
           </DialogContent>
         </Dialog>

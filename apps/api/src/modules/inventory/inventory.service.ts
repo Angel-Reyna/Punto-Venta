@@ -3,7 +3,7 @@ import { Prisma, type InventoryType } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
 
-const DEFAULT_WAREHOUSE_NAME = "Principal";
+export const DEFAULT_WAREHOUSE_NAME = "Principal";
 
 type StockMovementInput = {
   productId: string;

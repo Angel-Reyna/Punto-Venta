@@ -3,8 +3,10 @@ import bcrypt from "bcrypt";
 import { prisma } from "../config/prisma";
 import { env } from "../config/env";
 import { logger } from "../utils/logger";
+import { DEFAULT_WAREHOUSE_NAME } from "../modules/inventory/inventory.service";
 
 const DEVELOPMENT_ADMIN_PASSWORD = "Admin12345DevOnly";
+const LEGACY_DEFAULT_WAREHOUSE_NAME = "Almacén principal";
 
 function resolveAdminPassword() {
   if (env.SEED_ADMIN_PASSWORD) {
@@ -63,17 +65,38 @@ async function seedDemoData(adminId: string) {
     }
   });
 
-  const warehouse = await prisma.warehouse.upsert({
+  const legacyWarehouse = await prisma.warehouse.findUnique({
     where: {
-      name: "Almacén principal"
-    },
-    update: {},
-    create: {
-      name: "Almacén principal",
-      description: "Almacén principal del negocio",
-      isActive: true
+      name: LEGACY_DEFAULT_WAREHOUSE_NAME
     }
   });
+
+  const defaultWarehouse = await prisma.warehouse.findUnique({
+    where: {
+      name: DEFAULT_WAREHOUSE_NAME
+    }
+  });
+
+  const warehouse =
+    defaultWarehouse ??
+    (legacyWarehouse
+      ? await prisma.warehouse.update({
+          where: {
+            id: legacyWarehouse.id
+          },
+          data: {
+            name: DEFAULT_WAREHOUSE_NAME,
+            description: "Almacén principal del negocio",
+            isActive: true
+          }
+        })
+      : await prisma.warehouse.create({
+          data: {
+            name: DEFAULT_WAREHOUSE_NAME,
+            description: "Almacén principal del negocio",
+            isActive: true
+          }
+        }));
 
   const product = await prisma.product.upsert({
     where: {

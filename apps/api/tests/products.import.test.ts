@@ -17,7 +17,10 @@ const inventoryServiceMock = {
 
 jest.mock("../src/modules/inventory/inventory.service", () => inventoryServiceMock);
 
-import { importProducts } from "../src/modules/products/products.service";
+import {
+  createProduct,
+  importProducts
+} from "../src/modules/products/products.service";
 
 async function workbookBuffer(rows: Record<string, unknown>[]) {
   const workbook = new ExcelJS.Workbook();
@@ -46,11 +49,17 @@ async function workbookBuffer(rows: Record<string, unknown>[]) {
 function createTxMock() {
   return {
     productCategory: {
+      findUnique: jest.fn().mockResolvedValue({
+        id: "category-1",
+        name: "General",
+        isActive: true
+      }),
       upsert: jest.fn().mockResolvedValue({
         id: "category-1"
       })
     },
     product: {
+      create: jest.fn(),
       findFirst: jest.fn(),
       upsert: jest.fn()
     }
@@ -150,6 +159,68 @@ describe("products import", () => {
       statusCode: 409,
       message: "Fila 2: barcode ya está asignado al SKU OTHER-SKU"
     } satisfies Partial<AppError>);
+  });
+
+
+  it("creates a manual product with real initial stock", async () => {
+    const tx = createTxMock();
+
+    tx.product.create.mockResolvedValue({
+      id: "product-2",
+      sku: "SKU-2"
+    });
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback(tx)
+    );
+
+    const result = await createProduct(
+      {
+        categoryId: "category-1",
+        sku: "SKU-2",
+        barcode: "750000000002",
+        name: "Producto manual",
+        description: null,
+        costPrice: 10,
+        salePrice: 20,
+        promoPercent: 0,
+        minStock: 2,
+        initialStock: 7
+      },
+      "admin-1"
+    );
+
+    expect(tx.productCategory.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "category-1"
+        }
+      })
+    );
+    expect(tx.product.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          categoryId: "category-1",
+          sku: "SKU-2",
+          barcode: "750000000002",
+          name: "Producto manual"
+        })
+      })
+    );
+    expect(inventoryServiceMock.getOrCreateDefaultWarehouse).toHaveBeenCalledWith(tx);
+    expect(inventoryServiceMock.increaseStock).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        productId: "product-2",
+        warehouseId: "warehouse-1",
+        quantity: 7,
+        type: "IN",
+        createdBy: "admin-1"
+      })
+    );
+    expect(result).toEqual({
+      id: "product-2",
+      sku: "SKU-2"
+    });
   });
 
   it("imports valid products and creates initial stock movement", async () => {
