@@ -4,7 +4,7 @@ import { prisma } from "../config/prisma";
 import { env } from "../config/env";
 import { logger } from "../utils/logger";
 
-const DEVELOPMENT_ADMIN_PASSWORD = "Admin12345";
+const DEVELOPMENT_ADMIN_PASSWORD = "Admin12345DevOnly";
 
 function resolveAdminPassword() {
   if (env.SEED_ADMIN_PASSWORD) {

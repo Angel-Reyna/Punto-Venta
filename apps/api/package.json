@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/preflight-dev.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "dev:doctor": "node scripts/dev-doctor.js",
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest",

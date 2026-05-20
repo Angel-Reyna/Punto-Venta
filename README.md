@@ -52,6 +52,31 @@ Backend:  http://localhost:4000
 Health:   http://localhost:4000/health
 ```
 
+### Modo local recomendado con guardrails
+
+Para evitar conflictos entre Docker y procesos locales, usa este flujo durante desarrollo:
+
+```bash
+npm run dev:bootstrap
+npm run dev:doctor
+```
+
+`dev:bootstrap` deja solo PostgreSQL en Docker, aplica migraciones y ejecuta el seed contra la base local. `dev:doctor` valida que `apps/api/.env`, `apps/web/.env`, CORS, cookies, Prisma, usuario admin y contenedores Docker estén consistentes.
+
+Después inicia los procesos locales:
+
+```bash
+npm run api:dev
+npm run web:dev
+```
+
+No ejecutes `docker compose up api web` y `npm run api:dev` al mismo tiempo, porque ambos intentan usar el puerto `4000`. Si aparece `EADDRINUSE`, ejecuta:
+
+```bash
+docker compose stop api web
+docker compose up -d postgres
+```
+
 ## Ejecutar todo con Docker Compose
 
 Para levantar PostgreSQL, API y frontend servido por Nginx:

@@ -18,6 +18,7 @@ Monorepo con `apps/api` y `apps/web`. La API concentra reglas de negocio, seguri
 - Frontend React + Vite + TypeScript con rutas protegidas, interceptor HTTP y refresh automático.
 - Docker Compose para PostgreSQL, API, frontend con Nginx y PgAdmin opcional.
 - CI con GitHub Actions para validación Prisma, migraciones contra PostgreSQL real, build/test de API, build de frontend y build de imágenes Docker.
+- Guardrails de desarrollo local para detectar conflictos Docker/API local, configuración CORS/cookies, Prisma, seed y usuario administrador.
 - Scripts de backup y restauración de PostgreSQL.
 
 ## Fortalezas actuales
@@ -36,6 +37,7 @@ Monorepo con `apps/api` y `apps/web`. La API concentra reglas de negocio, seguri
 - El frontend tiene infraestructura de test, pero faltan pruebas de componentes y flujos críticos.
 - La importación de Excel usa `exceljs` para archivos `.xlsx` y aplica límites de tamaño, filas, columnas y encabezados. Se eliminó la dependencia runtime vulnerable `xlsx`.
 - La documentación de producción todavía debe completarse con estrategia final de secretos, dominios, TLS, backups gestionados y observabilidad.
+- El entorno local ahora tiene doctor/preflight, pero esos guardrails no reemplazan monitoreo, health checks externos ni gestión real de secretos en producción.
 
 ## Siguiente nivel producción
 
