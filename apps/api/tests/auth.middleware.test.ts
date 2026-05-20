@@ -12,7 +12,8 @@ jest.mock("../src/modules/auth/auth.tokens", () => ({
   verifyAccessToken: jest.fn()
 }));
 
-import { requireRole } from "../src/middlewares/auth";
+import { requirePermission, requireRole } from "../src/middlewares/auth";
+import { PERMISSIONS } from "../src/modules/auth/permissions";
 
 function createRequest(userRole: Role) {
   return {
@@ -69,4 +70,40 @@ describe("auth middleware", () => {
     expect(next).toHaveBeenCalledTimes(1);
     expect(sellerActivityMock.logSellerActivity).not.toHaveBeenCalled();
   });
+
+  it("allows admins when the required permission is granted", () => {
+    const req = createRequest(Role.ADMIN);
+    const next = jest.fn() as NextFunction;
+    const middleware = requirePermission(PERMISSIONS.UsersRead);
+
+    middleware(req, {} as Response, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(sellerActivityMock.logSellerActivity).not.toHaveBeenCalled();
+  });
+
+  it("logs failed authorization attempts when a permission is missing", () => {
+    const req = createRequest(Role.CASHIER);
+    const next = jest.fn() as NextFunction;
+    const middleware = requirePermission(PERMISSIONS.UsersRead);
+
+    expect(() => middleware(req, {} as Response, next)).toThrow("No autorizado");
+
+    expect(next).not.toHaveBeenCalled();
+    expect(sellerActivityMock.logSellerActivity).toHaveBeenCalledWith({
+      sellerId: "seller-1",
+      action: "FAILED_ACCESS_ATTEMPT",
+      entityType: "Route",
+      entityId: "/api/users",
+      description: "Intento no autorizado a POST /api/users",
+      metadata: {
+        method: "POST",
+        path: "/api/users",
+        requiredPermissions: [PERMISSIONS.UsersRead]
+      },
+      ipAddress: "127.0.0.1",
+      userAgent: "jest"
+    });
+  });
+
 });

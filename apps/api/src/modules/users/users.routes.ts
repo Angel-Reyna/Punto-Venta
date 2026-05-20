@@ -6,7 +6,7 @@ import { z } from "zod";
 import { prisma } from "../../config/prisma";
 import { env } from "../../config/env";
 
-import { requireAuth, requireRole } from "../../middlewares/auth";
+import { requireAuth, requirePermission } from "../../middlewares/auth";
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { AppError } from "../../utils/AppError";
@@ -18,6 +18,7 @@ import {
   setPaginationHeaders
 } from "../../utils/pagination";
 import { auditLog } from "../audit/audit.service";
+import { PERMISSIONS } from "../auth/permissions";
 
 const passwordSchema = z
   .string()
@@ -62,10 +63,11 @@ const resetUserPasswordSchema = z.object({
 
 export const usersRouter = Router();
 
-usersRouter.use(requireAuth, requireRole(Role.ADMIN));
+usersRouter.use(requireAuth);
 
 usersRouter.get(
   "/",
+  requirePermission(PERMISSIONS.UsersRead),
   asyncHandler(async (req, res) => {
     const pagination = getPagination(req.query as Record<string, unknown>, {
       defaultPageSize: 50,
@@ -130,6 +132,7 @@ usersRouter.get(
 
 usersRouter.post(
   "/",
+  requirePermission(PERMISSIONS.UsersCreate),
   validate(createUserSchema),
   asyncHandler(async (req, res) => {
     const existingUser = await prisma.user.findUnique({
@@ -176,6 +179,7 @@ usersRouter.post(
 
 usersRouter.patch(
   "/:id/toggle",
+  requirePermission(PERMISSIONS.UsersToggleActive),
   validate(userIdParamsSchema),
   asyncHandler(async (req, res) => {
     const targetUserId = String(req.params.id);
@@ -239,6 +243,7 @@ usersRouter.patch(
 
 usersRouter.patch(
   "/:id/role",
+  requirePermission(PERMISSIONS.UsersUpdateRole),
   validate(updateUserRoleSchema),
   asyncHandler(async (req, res) => {
     const targetUserId = String(req.params.id);
@@ -291,6 +296,7 @@ usersRouter.patch(
 
 usersRouter.patch(
   "/:id/password",
+  requirePermission(PERMISSIONS.UsersResetPassword),
   validate(resetUserPasswordSchema),
   asyncHandler(async (req, res) => {
     const targetUserId = String(req.params.id);
