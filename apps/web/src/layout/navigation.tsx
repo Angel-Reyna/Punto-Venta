@@ -1,0 +1,135 @@
+import { type ReactElement } from "react";
+
+import AssessmentIcon from "@mui/icons-material/Assessment";
+import CategoryIcon from "@mui/icons-material/Category";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import HistoryIcon from "@mui/icons-material/History";
+import ManageSearchIcon from "@mui/icons-material/ManageSearch";
+import PeopleIcon from "@mui/icons-material/People";
+import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
+import PointOfSaleOutlinedIcon from "@mui/icons-material/PointOfSaleOutlined";
+import WarehouseIcon from "@mui/icons-material/Warehouse";
+
+import { PERMISSIONS, type Permission } from "../auth/permissions";
+
+type CanAccess = (permission: Permission) => boolean;
+
+export type NavigationItem = {
+  label: string;
+  to: string;
+  icon: ReactElement;
+  visible: boolean;
+};
+
+export type NavigationSection = {
+  label: string;
+  items: NavigationItem[];
+};
+
+export function buildPrimaryNavigationAction(can: CanAccess): NavigationItem | null {
+  if (!can(PERMISSIONS.SalesCreate) || !can(PERMISSIONS.SalesRead)) {
+    return null;
+  }
+
+  return {
+    label: "Nueva venta",
+    to: "/sales",
+    icon: <PointOfSaleIcon />,
+    visible: true
+  };
+}
+
+export function buildNavigationSections(can: CanAccess): NavigationSection[] {
+  return [
+    {
+      label: "Operación",
+      items: [
+        {
+          label: "Inicio",
+          to: "/",
+          icon: <DashboardIcon />,
+          visible: can(PERMISSIONS.DashboardRead)
+        },
+        {
+          label: "Productos",
+          to: "/products",
+          icon: <CategoryIcon />,
+          visible: can(PERMISSIONS.ProductsRead)
+        },
+        {
+          label: "Inventario",
+          to: "/inventory",
+          icon: <WarehouseIcon />,
+          visible: can(PERMISSIONS.InventoryRead)
+        },
+        {
+          label: "Caja",
+          to: "/cash-register",
+          icon: <PointOfSaleOutlinedIcon />,
+          visible:
+            can(PERMISSIONS.CashRegisterOperate) ||
+            can(PERMISSIONS.CashRegisterRead)
+        }
+      ]
+    },
+    {
+      label: "Administración",
+      items: [
+        {
+          label: "Usuarios",
+          to: "/users",
+          icon: <PeopleIcon />,
+          visible: can(PERMISSIONS.UsersRead)
+        },
+        {
+          label: "Actividad vendedores",
+          to: "/seller-activity",
+          icon: <ManageSearchIcon />,
+          visible: can(PERMISSIONS.SellerActivityRead)
+        }
+      ]
+    },
+    {
+      label: "Control",
+      items: [
+        {
+          label: "Reportes",
+          to: "/reports",
+          icon: <AssessmentIcon />,
+          visible: can(PERMISSIONS.ReportsRead)
+        },
+        {
+          label: "Auditoría",
+          to: "/audit",
+          icon: <HistoryIcon />,
+          visible: can(PERMISSIONS.AuditRead)
+        }
+      ]
+    }
+  ];
+}
+
+export function getVisibleNavigationSections(
+  sections: NavigationSection[]
+): NavigationSection[] {
+  return sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => item.visible)
+    }))
+    .filter((section) => section.items.length > 0);
+}
+
+export function flattenNavigationSections(
+  sections: NavigationSection[]
+): NavigationItem[] {
+  return sections.flatMap((section) => section.items);
+}
+
+export function isNavigationRouteActive(pathname: string, itemPath: string) {
+  if (itemPath === "/") {
+    return pathname === "/";
+  }
+
+  return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+}

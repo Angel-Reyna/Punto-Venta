@@ -1,211 +1,286 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 
 import {
   AppBar,
+  Avatar,
   Box,
   Button,
+  Divider,
   Drawer,
   IconButton,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Stack,
   Toolbar,
+  Tooltip,
   Typography,
+  alpha,
   useMediaQuery,
   useTheme
 } from "@mui/material";
 
-import MenuIcon from "@mui/icons-material/Menu";
-
-import DashboardIcon from "@mui/icons-material/Dashboard";
-import InventoryIcon from "@mui/icons-material/Inventory2";
-import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
-import PointOfSaleOutlinedIcon from "@mui/icons-material/PointOfSaleOutlined";
-import AssessmentIcon from "@mui/icons-material/Assessment";
-import PeopleIcon from "@mui/icons-material/People";
-import HistoryIcon from "@mui/icons-material/History";
 import LogoutIcon from "@mui/icons-material/Logout";
-import ManageSearchIcon from "@mui/icons-material/ManageSearch";
+import MenuIcon from "@mui/icons-material/Menu";
+import StorefrontIcon from "@mui/icons-material/Storefront";
 
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
-import { PERMISSIONS } from "../auth/permissions";
+import {
+  buildNavigationSections,
+  buildPrimaryNavigationAction,
+  flattenNavigationSections,
+  getVisibleNavigationSections,
+  isNavigationRouteActive,
+  type NavigationItem
+} from "./navigation";
 
-const drawerWidth = 250;
+const drawerWidth = 272;
 
-export function AppLayout({
-  children
+const ROLE_LABELS = {
+  ADMIN: "Administrador",
+  CASHIER: "Cajero"
+} as const;
+
+function getDisplayName(name?: string | null) {
+  return name?.trim() || "Usuario";
+}
+
+function getUserInitials(name?: string | null) {
+  const parts = getDisplayName(name)
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  return parts.map((part) => part[0]?.toUpperCase()).join("") || "U";
+}
+
+function getRoleLabel(role?: keyof typeof ROLE_LABELS | null) {
+  return role ? ROLE_LABELS[role] ?? role : "Sin rol";
+}
+
+function SidebarLink({
+  item,
+  onNavigate
 }: {
-  children: ReactNode;
+  item: NavigationItem;
+  onNavigate: () => void;
 }) {
-  const {
-    user,
-    logout,
-    can
-  } = useAuth();
+  return (
+    <ListItemButton
+      component={NavLink}
+      to={item.to}
+      end={item.to === "/"}
+      onClick={onNavigate}
+      sx={{
+        mx: 1.25,
+        mb: 0.5,
+        minHeight: 44,
+        borderRadius: 2.5,
+        color: "text.secondary",
+        "& .MuiListItemIcon-root": {
+          color: "text.secondary",
+          minWidth: 40
+        },
+        "&:hover": {
+          backgroundColor: "action.hover",
+          color: "text.primary",
+          "& .MuiListItemIcon-root": {
+            color: "primary.main"
+          }
+        },
+        "&.active": {
+          backgroundColor: "primary.main",
+          color: "primary.contrastText",
+          boxShadow: "0 12px 24px rgba(37, 99, 235, 0.22)",
+          "& .MuiListItemIcon-root": {
+            color: "primary.contrastText"
+          },
+          "&:hover": {
+            backgroundColor: "primary.dark"
+          }
+        }
+      }}
+    >
+      <ListItemIcon>{item.icon}</ListItemIcon>
+      <ListItemText
+        primary={item.label}
+        primaryTypographyProps={{
+          fontWeight: 750,
+          fontSize: 14
+        }}
+      />
+    </ListItemButton>
+  );
+}
 
+export function AppLayout({ children }: { children: ReactNode }) {
+  const { user, logout, can } = useAuth();
   const theme = useTheme();
+  const location = useLocation();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  const isMobile = useMediaQuery(
-    theme.breakpoints.down("md")
+  const [open, setOpen] = useState(false);
+
+  const primaryAction = useMemo(() => buildPrimaryNavigationAction(can), [can]);
+
+  const visibleSections = useMemo(
+    () => getVisibleNavigationSections(buildNavigationSections(can)),
+    [can]
   );
 
-  const [open, setOpen] =
-    useState(false);
+  const visibleItems = useMemo(
+    () => [
+      ...(primaryAction ? [primaryAction] : []),
+      ...flattenNavigationSections(visibleSections)
+    ],
+    [primaryAction, visibleSections]
+  );
 
-  const menuItems = [
-    {
-      label: "Inicio",
-      to: "/",
-      icon: <DashboardIcon />,
-      visible: can(PERMISSIONS.DashboardRead)
-    },
+  const currentItem = visibleItems.find((item) =>
+    isNavigationRouteActive(location.pathname, item.to)
+  );
 
-    {
-      label: "Productos",
-      to: "/products",
-      icon: <InventoryIcon />,
-      visible: can(PERMISSIONS.ProductsRead)
-    },
+  const displayName = getDisplayName(user?.name);
+  const roleLabel = getRoleLabel(user?.role);
 
-    {
-      label: "Nueva venta",
-      to: "/sales",
-      icon: <PointOfSaleIcon />,
-      visible: can(PERMISSIONS.SalesCreate)
-    },
-
-    {
-      label: "Inventario",
-      to: "/inventory",
-      icon: <InventoryIcon />,
-      visible: can(PERMISSIONS.InventoryRead)
-    },
-
-    {
-      label: "Caja",
-      to: "/cash-register",
-      icon: <PointOfSaleOutlinedIcon />,
-      visible: can(PERMISSIONS.CashRegisterOperate) || can(PERMISSIONS.CashRegisterRead)
-    },
-
-    {
-      label: "Reportes",
-      to: "/reports",
-      icon: <AssessmentIcon />,
-      visible: can(PERMISSIONS.ReportsRead)
-    },
-
-    {
-      label: "Usuarios",
-      to: "/users",
-      icon: <PeopleIcon />,
-      visible: can(PERMISSIONS.UsersRead)
-    },
-
-    {
-      label: "Actividad vendedores",
-      to: "/seller-activity",
-      icon: <ManageSearchIcon />,
-      visible: can(PERMISSIONS.SellerActivityRead)
-    },
-
-    {
-      label: "Auditoría",
-      to: "/audit",
-      icon: <HistoryIcon />,
-      visible: can(PERMISSIONS.AuditRead)
+  const closeMobileDrawer = () => {
+    if (isMobile) {
+      setOpen(false);
     }
-  ];
+  };
 
   const drawerContent = (
-    <Box>
-      <Box
-        sx={{
-          px: 2,
-          py: 3,
-          borderBottom:
-            "1px solid #e2e8f0"
-        }}
-      >
-        <Typography
-          variant="h6"
-          fontWeight={800}
-        >
-          Punta Venta
-        </Typography>
+    <Box
+      sx={{
+        minHeight: "100%",
+        display: "flex",
+        flexDirection: "column"
+      }}
+    >
+      <Box sx={{ px: 2.25, pt: 2.5, pb: 2 }}>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Box
+            sx={{
+              width: 42,
+              height: 42,
+              borderRadius: 2.5,
+              display: "grid",
+              placeItems: "center",
+              color: "primary.contrastText",
+              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+              boxShadow: "0 14px 28px rgba(37, 99, 235, 0.22)"
+            }}
+          >
+            <StorefrontIcon />
+          </Box>
 
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: "block", mb: 1 }}
-        >
-          Sistema POS
-        </Typography>
-
-        <Typography
-          variant="body2"
-          color="text.secondary"
-        >
-          {user?.name}
-        </Typography>
-
-        <Typography
-          variant="caption"
-          color="primary"
-          fontWeight={700}
-        >
-          {user?.role}
-        </Typography>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="h6" fontWeight={850} lineHeight={1.1}>
+              Punta Venta
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Panel operativo POS
+            </Typography>
+          </Box>
+        </Stack>
       </Box>
 
-      <List>
-        {menuItems
-          .filter(
-            (item) => item.visible
-          )
-          .map((item) => (
-            <ListItemButton
-              key={item.to}
+      <Box sx={{ px: 2, pb: 2 }}>
+        <Stack
+          direction="row"
+          spacing={1.25}
+          alignItems="center"
+          sx={{
+            p: 1.25,
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+            backgroundColor: alpha(theme.palette.primary.main, 0.04)
+          }}
+        >
+          <Avatar
+            sx={{
+              width: 38,
+              height: 38,
+              fontWeight: 800,
+              bgcolor: "primary.main"
+            }}
+          >
+            {getUserInitials(user?.name)}
+          </Avatar>
 
-              component={NavLink}
+          <Box sx={{ minWidth: 0 }}>
+            <Tooltip title={displayName} disableInteractive>
+              <Typography noWrap variant="body2" fontWeight={750}>
+                {displayName}
+              </Typography>
+            </Tooltip>
+            <Typography variant="caption" color="text.secondary">
+              {roleLabel}
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
 
-              to={item.to}
-
-              onClick={() =>
-                setOpen(false)
+      {primaryAction && (
+        <Box sx={{ px: 2, pb: 2 }}>
+          <Button
+            component={NavLink}
+            to={primaryAction.to}
+            fullWidth
+            startIcon={primaryAction.icon}
+            onClick={closeMobileDrawer}
+            sx={{
+              justifyContent: "flex-start",
+              minHeight: 48,
+              px: 1.75,
+              borderRadius: 3,
+              boxShadow: "0 14px 28px rgba(37, 99, 235, 0.24)",
+              "&.active": {
+                bgcolor: "primary.dark"
               }
+            }}
+          >
+            {primaryAction.label}
+          </Button>
+        </Box>
+      )}
 
+      <Divider />
+
+      <Box sx={{ flex: 1, overflowY: "auto", py: 1.5 }}>
+        {visibleSections.map((section) => (
+          <Box key={section.label} sx={{ mb: 1.25 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              fontWeight={850}
               sx={{
-                "&.active": {
-                  background:
-                    "#dbeafe",
-
-                  color:
-                    "#1d4ed8",
-
-                  "& .MuiListItemIcon-root":
-                    {
-                      color:
-                        "#1d4ed8"
-                    }
-                }
+                display: "block",
+                px: 2.5,
+                py: 1,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase"
               }}
             >
-              <ListItemIcon>
-                {item.icon}
-              </ListItemIcon>
+              {section.label}
+            </Typography>
 
-              <ListItemText
-                primary={
-                  item.label
-                }
-              />
-            </ListItemButton>
-          ))}
-      </List>
+            <List disablePadding>
+              {section.items.map((item) => (
+                <SidebarLink
+                  key={item.to}
+                  item={item}
+                  onNavigate={closeMobileDrawer}
+                />
+              ))}
+            </List>
+          </Box>
+        ))}
+      </Box>
     </Box>
   );
 
@@ -213,106 +288,113 @@ export function AppLayout({
     <Box
       sx={{
         display: "flex",
-        minHeight: "100vh"
+        minHeight: "100vh",
+        bgcolor: "background.default"
       }}
     >
       <AppBar
         position="fixed"
+        color="inherit"
+        elevation={0}
         sx={{
-          zIndex: 1300
+          zIndex: (muiTheme) => muiTheme.zIndex.drawer + 1,
+          width: {
+            xs: "100%",
+            md: `calc(100% - ${drawerWidth}px)`
+          },
+          ml: {
+            md: `${drawerWidth}px`
+          },
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          backdropFilter: "blur(10px)",
+          backgroundColor: alpha(theme.palette.background.paper, 0.92)
         }}
       >
-        <Toolbar>
+        <Toolbar
+          sx={{
+            minHeight: {
+              xs: 64,
+              sm: 72
+            },
+            px: {
+              xs: 2,
+              sm: 3
+            }
+          }}
+        >
           {isMobile && (
             <IconButton
               color="inherit"
               edge="start"
-              onClick={() =>
-                setOpen(true)
-              }
-              sx={{
-                mr: 1
-              }}
+              onClick={() => setOpen(true)}
+              sx={{ mr: 1 }}
+              aria-label="Abrir navegación"
             >
               <MenuIcon />
             </IconButton>
           )}
 
-          <Typography
-            variant="h6"
-            sx={{
-              flexGrow: 1,
-              fontWeight: 800
-            }}
-          >
-            Punta Venta
-          </Typography>
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              fontWeight={750}
+              sx={{ display: "block", lineHeight: 1.2 }}
+            >
+              Módulo actual
+            </Typography>
+            <Typography variant="h6" fontWeight={850} noWrap>
+              {currentItem?.label ?? "Punta Venta"}
+            </Typography>
+          </Box>
 
           {!isMobile && (
-            <Box
-              sx={{
-                textAlign: "right",
-                mr: 2
-              }}
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              noWrap
+              sx={{ mr: 2, maxWidth: 220 }}
             >
-              <Typography
-                variant="body2"
-              >
-                {user?.name}
-              </Typography>
-
-              <Typography
-                variant="caption"
-              >
-                {user?.role}
-              </Typography>
-            </Box>
+              {displayName}
+            </Typography>
           )}
 
           <Button
-            variant="text"
+            variant="outlined"
             color="inherit"
-            startIcon={
-              <LogoutIcon />
-            }
+            startIcon={<LogoutIcon />}
             onClick={logout}
             aria-label="Cerrar sesión"
+            sx={{
+              minHeight: 40,
+              px: {
+                xs: 1.25,
+                sm: 2
+              }
+            }}
           >
-            Cerrar sesión
+            {isMobile ? "Salir" : "Cerrar sesión"}
           </Button>
         </Toolbar>
       </AppBar>
 
       <Drawer
-        variant={
-          isMobile
-            ? "temporary"
-            : "permanent"
-        }
-        open={
-          isMobile
-            ? open
-            : true
-        }
-        onClose={() =>
-          setOpen(false)
-        }
+        variant={isMobile ? "temporary" : "permanent"}
+        open={isMobile ? open : true}
+        onClose={() => setOpen(false)}
         ModalProps={{
           keepMounted: true
         }}
         sx={{
-          width: isMobile
-            ? undefined
-            : drawerWidth,
-
+          width: isMobile ? undefined : drawerWidth,
+          flexShrink: 0,
           "& .MuiDrawer-paper": {
             width: drawerWidth,
-            pt: isMobile
-              ? 0
-              : 8,
-
-            borderRight:
-              "1px solid #e2e8f0"
+            borderRight: "1px solid",
+            borderColor: "divider",
+            backgroundColor: "background.paper",
+            boxSizing: "border-box"
           }
         }}
       >
@@ -323,22 +405,19 @@ export function AppLayout({
         component="main"
         sx={{
           flexGrow: 1,
-
           width: {
             xs: "100%",
             md: `calc(100% - ${drawerWidth}px)`
           },
-
+          minHeight: "100vh",
           p: {
             xs: 2,
             sm: 3
           },
-
           pt: {
             xs: 10,
-            sm: 11
+            sm: 12
           },
-
           overflowX: "hidden"
         }}
       >
