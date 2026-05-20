@@ -1,12 +1,25 @@
 {
-  "name": "pos-senior-app",
+  "name": "punta-venta",
   "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
+  "description": "Monorepo de Punta Venta: POS web con API Express, Prisma, PostgreSQL y frontend React/Vite.",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "api:dev": "npm --prefix apps/api run dev",
+    "api:build": "npm --prefix apps/api run build",
+    "api:test": "npm --prefix apps/api test -- --runInBand",
+    "api:prisma:generate": "npm --prefix apps/api run prisma:generate",
+    "api:prisma:validate": "npm --prefix apps/api run prisma:validate",
+    "web:dev": "npm --prefix apps/web run dev",
+    "web:build": "npm --prefix apps/web run build",
+    "web:test": "npm --prefix apps/web test -- --run --passWithNoTests",
+    "build": "npm run api:prisma:generate && npm run api:build && npm run web:build",
+    "test": "npm run api:test && npm run web:test",
+    "docker:build": "docker compose build api web",
+    "docker:up": "docker compose up -d postgres api web",
+    "docker:logs:api": "docker compose logs -f api"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": ""
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "UNLICENSED"
 }

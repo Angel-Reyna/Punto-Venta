@@ -2,32 +2,51 @@
 
 ## Decisión
 
-Monorepo con `apps/api` y `apps/web`. La API concentra reglas de negocio, seguridad, transacciones y auditoría. El frontend no calcula estados críticos de inventario ni ventas; solo presenta información y envía comandos.
+Monorepo con `apps/api` y `apps/web`. La API concentra reglas de negocio, seguridad, transacciones, auditoría y persistencia. El frontend no calcula estados críticos de inventario, caja ni ventas; solo presenta información y envía comandos a la API.
 
-## Pros
+## Estado implementado
 
-- Separación clara de responsabilidades.
-- PostgreSQL con Prisma permite migraciones controladas y consultas tipadas.
-- JWT permite integración sencilla con frontend y despliegue desacoplado.
-- Auditoría explícita por operación crítica.
-- Transacciones para venta e inventario, evitando inconsistencias.
-- Desactivación lógica de productos y usuarios, preservando historial.
+- Backend Node.js + Express + TypeScript con módulos por dominio.
+- PostgreSQL con Prisma, schema versionado y migraciones.
+- Autenticación con JWT access token y refresh token en cookie `httpOnly`.
+- Refresh sessions persistidas en base de datos mediante hashes, expiración, revocación y reemplazo de sesión.
+- Middleware de autenticación y autorización por rol (`ADMIN`, `CASHIER`).
+- Validación de entrada con Zod en rutas críticas.
+- Manejo centralizado de errores y logging con request id.
+- Transacciones para operaciones sensibles de ventas, inventario y caja.
+- Auditoría para operaciones críticas.
+- Frontend React + Vite + TypeScript con rutas protegidas, interceptor HTTP y refresh automático.
+- Docker Compose para PostgreSQL, API, frontend con Nginx y PgAdmin opcional.
+- CI con GitHub Actions para build/test de API, build de frontend y build de imágenes Docker.
+- Scripts de backup y restauración de PostgreSQL.
 
-## Contras
+## Fortalezas actuales
 
-- JWT sin tabla de refresh tokens no permite revocación granular por dispositivo.
-- El PDF es básico; para formatos complejos conviene usar HTML + Puppeteer.
-- No incluye pagos, impuestos ni facturación electrónica.
-- No incluye multi-sucursal ni multi-almacén.
-- No incluye CI/CD ni infraestructura AWS como código.
+- Separación base entre API, frontend e infraestructura local.
+- Refresh tokens no se guardan en claro.
+- El access token se mantiene en memoria en el frontend, reduciendo exposición frente a XSS persistente.
+- Hay revocación de sesiones y rotación de refresh token.
+- Las operaciones de inventario y venta están modeladas como operaciones de negocio, no como simples CRUD.
+- Docker y CI ya existen, por lo que el proyecto puede evolucionar con validación automatizada.
+
+## Limitaciones actuales
+
+- La autorización todavía es coarse-grained: solo existen roles `ADMIN` y `CASHIER`, sin permisos granulares por acción.
+- Los endpoints que dependen de cookie `httpOnly` deben revisarse con especial cuidado si producción usa `SameSite=None`; en ese escenario conviene añadir protección CSRF explícita.
+- El CI define `DATABASE_URL`, pero no declara un servicio PostgreSQL. Si los tests pasan a usar base real, el workflow debe levantar PostgreSQL o usar Testcontainers.
+- El frontend tiene infraestructura de test, pero faltan pruebas de componentes y flujos críticos.
+- La importación de Excel debe mantenerse estrictamente limitada y validada por tratarse de parsing de archivos externos.
+- La documentación de producción todavía debe completarse con estrategia final de secretos, dominios, TLS, backups gestionados y observabilidad.
 
 ## Siguiente nivel producción
 
-1. Guardar refresh tokens hasheados en base de datos.
-2. Usar AWS Secrets Manager para secretos.
-3. Agregar logs estructurados con pino.
-4. Agregar observabilidad con CloudWatch.
-5. Agregar tests de integración con base de datos temporal.
-6. Agregar backups automáticos en RDS.
-7. Agregar pipeline GitHub Actions.
-8. Separar permisos finos por acción, no solo por rol.
+1. Confirmar el baseline local con scripts del monorepo: `npm run api:prisma:generate`, `npm run api:build`, `npm run api:test` y `npm run web:build`.
+2. Agregar PostgreSQL real al CI para tests de integración cuando aplique.
+3. Hacer configurable la política de cookie (`secure`, `sameSite`, dominio) según el modelo final de despliegue.
+4. Añadir protección CSRF para endpoints que aceptan cookies si el despliegue requiere cookies cross-site.
+5. Introducir autorización granular por permisos sin romper los roles actuales.
+6. Endurecer importación de Excel y revisar dependencias vulnerables.
+7. Añadir pruebas frontend para auth, rutas protegidas y formularios críticos.
+8. Evolucionar logging hacia una solución estructurada de producción y agregar métricas/tracing.
+9. Mover secretos productivos a un gestor dedicado como AWS Secrets Manager o equivalente.
+10. Separar migraciones de base de datos como job explícito en despliegues productivos críticos.
