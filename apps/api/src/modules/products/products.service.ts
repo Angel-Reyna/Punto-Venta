@@ -10,6 +10,22 @@ import {
 } from "../inventory/inventory.service";
 
 const MAX_IMPORT_ROWS = 1_000;
+const PRODUCT_IMPORT_HEADERS = [
+  "categoryName",
+  "sku",
+  "barcode",
+  "name",
+  "description",
+  "costPrice",
+  "salePrice",
+  "promoPercent",
+  "initialStock",
+  "minStock"
+] as const;
+const PRODUCT_IMPORT_HEADER_SET = new Set<string>(PRODUCT_IMPORT_HEADERS);
+const MAX_IMPORT_COLUMNS = PRODUCT_IMPORT_HEADERS.length;
+const REQUIRED_PRODUCT_IMPORT_HEADERS = ["sku", "name"];
+
 
 export function calculateMargin(
   costPrice: number,
@@ -200,14 +216,21 @@ async function getOrCreateCategory(
   });
 }
 
-export async function importProducts(
-  buffer: Buffer,
-  userId: string
-) {
-  const workbook = XLSX.read(buffer, {
-    type: "buffer"
-  });
+function readWorkbook(buffer: Buffer) {
+  try {
+    return XLSX.read(buffer, {
+      type: "buffer",
+      sheetRows: MAX_IMPORT_ROWS + 2
+    });
+  } catch {
+    throw new AppError(
+      400,
+      "No se pudo leer el archivo Excel. Verifica que no esté dañado y que use formato .xlsx o .xls válido"
+    );
+  }
+}
 
+function getFirstWorksheet(workbook: XLSX.WorkBook) {
   const sheetName = workbook.SheetNames[0];
 
   if (!sheetName) {
@@ -219,8 +242,86 @@ export async function importProducts(
 
   const sheet = workbook.Sheets[sheetName];
 
-  const rows =
-    XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+  if (!sheet || !sheet["!ref"]) {
+    throw new AppError(
+      400,
+      "La primera hoja del archivo está vacía"
+    );
+  }
+
+  return sheet;
+}
+
+function readHeaderNames(sheet: XLSX.WorkSheet) {
+  const range = XLSX.utils.decode_range(sheet["!ref"] as string);
+  const columnCount = range.e.c - range.s.c + 1;
+
+  if (columnCount > MAX_IMPORT_COLUMNS) {
+    throw new AppError(
+      400,
+      `El archivo excede el límite de ${MAX_IMPORT_COLUMNS} columnas permitidas para importación de productos`
+    );
+  }
+
+  const headers: string[] = [];
+
+  for (let columnIndex = range.s.c; columnIndex <= range.e.c; columnIndex += 1) {
+    const cellAddress = XLSX.utils.encode_cell({
+      r: range.s.r,
+      c: columnIndex
+    });
+    const header = cleanString(sheet[cellAddress]?.v);
+
+    if (header) {
+      if (headers.includes(header)) {
+        throw new AppError(
+          400,
+          `El archivo contiene una columna duplicada: ${header}`
+        );
+      }
+
+      headers.push(header);
+    }
+  }
+
+  if (headers.length === 0) {
+    throw new AppError(
+      400,
+      "El archivo debe incluir encabezados en la primera fila"
+    );
+  }
+
+  for (const requiredHeader of REQUIRED_PRODUCT_IMPORT_HEADERS) {
+    if (!headers.includes(requiredHeader)) {
+      throw new AppError(
+        400,
+        `El archivo debe incluir la columna requerida ${requiredHeader}`
+      );
+    }
+  }
+
+  const unknownHeader = headers.find(
+    (header) => !PRODUCT_IMPORT_HEADER_SET.has(header)
+  );
+
+  if (unknownHeader) {
+    throw new AppError(
+      400,
+      `El archivo contiene una columna no permitida: ${unknownHeader}`
+    );
+  }
+}
+
+function readProductRows(buffer: Buffer) {
+  const workbook = readWorkbook(buffer);
+  const sheet = getFirstWorksheet(workbook);
+
+  readHeaderNames(sheet);
+
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+    blankrows: false,
+    defval: ""
+  });
 
   if (rows.length === 0) {
     throw new AppError(
@@ -235,6 +336,15 @@ export async function importProducts(
       `El archivo excede el límite de ${MAX_IMPORT_ROWS} productos por importación`
     );
   }
+
+  return rows;
+}
+
+export async function importProducts(
+  buffer: Buffer,
+  userId: string
+) {
+  const rows = readProductRows(buffer);
 
   return prisma.$transaction(
     async (tx) => {

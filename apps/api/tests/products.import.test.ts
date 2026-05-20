@@ -55,6 +55,43 @@ describe("products import", () => {
     );
   });
 
+
+  it("rejects unsupported Excel columns before committing", async () => {
+    await expect(
+      importProducts(
+        workbookBuffer([
+          {
+            sku: "SKU-1",
+            name: "Producto 1",
+            unexpectedColumn: "no permitido"
+          }
+        ]),
+        "admin-1"
+      )
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "El archivo contiene una columna no permitida: unexpectedColumn"
+    } satisfies Partial<AppError>);
+
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects imports over the maximum row limit before committing", async () => {
+    const rows = Array.from({ length: 1001 }, (_, index) => ({
+      sku: `SKU-${index + 1}`,
+      name: `Producto ${index + 1}`
+    }));
+
+    await expect(
+      importProducts(workbookBuffer(rows), "admin-1")
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "El archivo excede el límite de 1000 productos por importación"
+    } satisfies Partial<AppError>);
+
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
   it("rejects duplicated SKUs in the same Excel file before committing", async () => {
     await expect(
       importProducts(
