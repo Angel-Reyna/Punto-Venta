@@ -33,6 +33,14 @@ describe("permissions", () => {
     expect(hasPermission(Role.CASHIER, PERMISSIONS.ProductsImport)).toBe(false);
   });
 
+  it("keeps inventory adjustments restricted to admins while allowing stock reads to cashiers", () => {
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.InventoryRead)).toBe(true);
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.InventoryAdjust)).toBe(true);
+
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.InventoryRead)).toBe(true);
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.InventoryAdjust)).toBe(false);
+  });
+
   it("grants operational POS permissions to cashiers", () => {
     expect(hasAllPermissions(Role.CASHIER, [
       PERMISSIONS.ProductsRead,

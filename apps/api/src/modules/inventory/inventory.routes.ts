@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { InventoryType, Prisma, Role } from "@prisma/client";
+import { InventoryType, Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "../../config/prisma";
 
 import {
   requireAuth,
-  requireRole
+  requirePermission
 } from "../../middlewares/auth";
 
 import { validate } from "../../middlewares/validate";
@@ -23,6 +23,7 @@ import {
 } from "../../utils/pagination";
 
 import { auditLog } from "../audit/audit.service";
+import { PERMISSIONS } from "../auth/permissions";
 
 import {
   decreaseStock,
@@ -56,13 +57,11 @@ const movementSchema = z.object({
 
 export const inventoryRouter = Router();
 
-inventoryRouter.use(
-  requireAuth,
-  requireRole(Role.ADMIN)
-);
+inventoryRouter.use(requireAuth);
 
 inventoryRouter.get(
   "/warehouses",
+  requirePermission(PERMISSIONS.InventoryRead),
   asyncHandler(async (_req, res) => {
     const warehouses =
       await prisma.warehouse.findMany({
@@ -81,6 +80,7 @@ inventoryRouter.get(
 
 inventoryRouter.get(
   "/movements",
+  requirePermission(PERMISSIONS.InventoryRead),
   asyncHandler(async (req, res) => {
     const pagination = getPagination(req.query as Record<string, unknown>, {
       defaultPageSize: 50,
@@ -186,6 +186,7 @@ inventoryRouter.get(
 
 inventoryRouter.get(
   "/stock",
+  requirePermission(PERMISSIONS.InventoryRead),
   asyncHandler(async (req, res) => {
     const pagination = getPagination(req.query as Record<string, unknown>, {
       defaultPageSize: 50,
@@ -310,6 +311,7 @@ inventoryRouter.get(
 
 inventoryRouter.post(
   "/in",
+  requirePermission(PERMISSIONS.InventoryAdjust),
   validate(movementSchema),
   asyncHandler(async (req, res) => {
     const movement = await prisma.$transaction((tx) =>
@@ -344,6 +346,7 @@ inventoryRouter.post(
 
 inventoryRouter.post(
   "/out",
+  requirePermission(PERMISSIONS.InventoryAdjust),
   validate(movementSchema),
   asyncHandler(async (req, res) => {
     const movement = await prisma.$transaction((tx) =>

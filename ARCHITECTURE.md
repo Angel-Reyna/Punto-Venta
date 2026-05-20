@@ -31,7 +31,7 @@ Monorepo con `apps/api` y `apps/web`. La API concentra reglas de negocio, seguri
 
 ## Limitaciones actuales
 
-- La autorización ya tiene una base de permisos derivados del rol actual y los módulos de usuarios y productos usan permisos por acción. Aún faltan migrar inventario, ventas, caja, reportes, auditoría y dashboard de `requireRole` a `requirePermission`.
+- La autorización ya tiene una base de permisos derivados del rol actual y los módulos de usuarios, productos e inventario usan permisos por acción. Aún faltan migrar ventas, caja, reportes, auditoría y dashboard de `requireRole` a `requirePermission`.
 - La política de cookie de refresh (`secure`, `sameSite`, `domain`) ya es configurable por entorno. Si producción usa subdominios separados, `COOKIE_DOMAIN` debe configurarse para que el frontend pueda leer la cookie CSRF no sensible.
 - El frontend tiene infraestructura de test, pero faltan pruebas de componentes y flujos críticos.
 - La importación de Excel usa `exceljs` para archivos `.xlsx` y aplica límites de tamaño, filas, columnas y encabezados. Se eliminó la dependencia runtime vulnerable `xlsx`.
