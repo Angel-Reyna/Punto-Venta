@@ -19,6 +19,7 @@ import {
 
 import { AppLayout } from "./layout/AppLayout";
 import { useAuth } from "./auth/AuthContext";
+import { PERMISSIONS, type Permission } from "./auth/permissions";
 
 const LoginPage = lazy(() =>
   import("./pages/LoginPage").then((module) => ({ default: module.LoginPage }))
@@ -85,10 +86,16 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   return children;
 }
 
-function AdminRoute({ children }: { children: ReactNode }) {
-  const { isAdmin } = useAuth();
+function PermissionRoute({
+  permission,
+  children
+}: {
+  permission: Permission;
+  children: ReactNode;
+}) {
+  const { can } = useAuth();
 
-  if (!isAdmin) {
+  if (!can(permission)) {
     return <Navigate to="/" replace />;
   }
 
@@ -144,9 +151,9 @@ export default function App() {
           path="/inventory"
           element={withSuspense(
             <ProtectedLayout>
-              <AdminRoute>
+              <PermissionRoute permission={PERMISSIONS.InventoryRead}>
                 <InventoryPage />
-              </AdminRoute>
+              </PermissionRoute>
             </ProtectedLayout>
           )}
         />
@@ -164,9 +171,9 @@ export default function App() {
           path="/reports"
           element={withSuspense(
             <ProtectedLayout>
-              <AdminRoute>
+              <PermissionRoute permission={PERMISSIONS.ReportsRead}>
                 <ReportsPage />
-              </AdminRoute>
+              </PermissionRoute>
             </ProtectedLayout>
           )}
         />
@@ -175,9 +182,9 @@ export default function App() {
           path="/users"
           element={withSuspense(
             <ProtectedLayout>
-              <AdminRoute>
+              <PermissionRoute permission={PERMISSIONS.UsersRead}>
                 <UsersPage />
-              </AdminRoute>
+              </PermissionRoute>
             </ProtectedLayout>
           )}
         />
@@ -186,9 +193,9 @@ export default function App() {
           path="/audit"
           element={withSuspense(
             <ProtectedLayout>
-              <AdminRoute>
+              <PermissionRoute permission={PERMISSIONS.AuditRead}>
                 <AuditPage />
-              </AdminRoute>
+              </PermissionRoute>
             </ProtectedLayout>
           )}
         />
@@ -197,9 +204,9 @@ export default function App() {
           path="/seller-activity"
           element={withSuspense(
             <ProtectedLayout>
-              <AdminRoute>
+              <PermissionRoute permission={PERMISSIONS.SellerActivityRead}>
                 <SellerActivityPage />
-              </AdminRoute>
+              </PermissionRoute>
             </ProtectedLayout>
           )}
         />

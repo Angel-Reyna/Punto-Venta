@@ -18,6 +18,8 @@ import {
 
 import { api } from "../api/client";
 import { PageHeader } from "../components/PageHeader";
+import { useAuth } from "../auth/AuthContext";
+import { PERMISSIONS } from "../auth/permissions";
 import { getApiErrorMessage } from "../utils/apiError";
 
 type Product = {
@@ -54,6 +56,9 @@ type Movement = {
 };
 
 export function InventoryPage() {
+  const { can } = useAuth();
+  const canAdjustInventory = can(PERMISSIONS.InventoryAdjust);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
@@ -201,11 +206,22 @@ export function InventoryPage() {
     <>
       <PageHeader
         title="Inventario"
-        subtitle="Registra entradas y salidas manuales. El sistema valida stock disponible antes de descontar."
+        subtitle={
+          canAdjustInventory
+            ? "Consulta movimientos y registra entradas o salidas manuales con validación de stock."
+            : "Consulta movimientos, almacenes y stock disponible. Los ajustes manuales requieren permiso administrativo."
+        }
       />
 
       <Box sx={{ mb: 2 }}>
-        <Chip color="primary" label="Acceso exclusivo ADMIN" />
+        <Chip
+          color={canAdjustInventory ? "primary" : "success"}
+          label={
+            canAdjustInventory
+              ? "Permiso: lectura y ajuste de inventario"
+              : "Permiso: consulta de inventario"
+          }
+        />
       </Box>
 
       {message && (
@@ -220,115 +236,117 @@ export function InventoryPage() {
         </Alert>
       )}
 
-      <Card sx={{ mb: 2 }}>
-        <CardContent>
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: {
-                xs: "column",
-                md: "row"
-              },
-              gap: 2
-            }}
-          >
-            <TextField
-              select
-              fullWidth
-              label="Producto"
-              value={form.productId}
-              onChange={(event) =>
-                setForm({
-                  ...form,
-                  productId: event.target.value
-                })
-              }
+      {canAdjustInventory && (
+        <Card sx={{ mb: 2 }}>
+          <CardContent>
+            <Box
               sx={{
-                minWidth: {
-                  xs: "100%",
-                  md: 320
+                display: "flex",
+                flexDirection: {
+                  xs: "column",
+                  md: "row"
+                },
+                gap: 2
+              }}
+            >
+              <TextField
+                select
+                fullWidth
+                label="Producto"
+                value={form.productId}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    productId: event.target.value
+                  })
                 }
-              }}
-            >
-              {products.map((product) => (
-                <MenuItem key={product.id} value={product.id}>
-                  {product.sku} · {product.name} · stock {product.stock}
+                sx={{
+                  minWidth: {
+                    xs: "100%",
+                    md: 320
+                  }
+                }}
+              >
+                {products.map((product) => (
+                  <MenuItem key={product.id} value={product.id}>
+                    {product.sku} · {product.name} · stock {product.stock}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                select
+                fullWidth
+                label="Almacén"
+                value={form.warehouseId}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    warehouseId: event.target.value
+                  })
+                }
+                helperText="Si no eliges almacén, se usará el principal"
+              >
+                <MenuItem value="">
+                  Almacén principal automático
                 </MenuItem>
-              ))}
-            </TextField>
 
-            <TextField
-              select
-              fullWidth
-              label="Almacén"
-              value={form.warehouseId}
-              onChange={(event) =>
-                setForm({
-                  ...form,
-                  warehouseId: event.target.value
-                })
-              }
-              helperText="Si no eliges almacén, se usará el principal"
-            >
-              <MenuItem value="">
-                Almacén principal automático
-              </MenuItem>
+                {warehouses.map((warehouse) => (
+                  <MenuItem key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name}
+                  </MenuItem>
+                ))}
+              </TextField>
 
-              {warehouses.map((warehouse) => (
-                <MenuItem key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </MenuItem>
-              ))}
-            </TextField>
+              <TextField
+                fullWidth
+                label="Cantidad"
+                type="number"
+                value={form.quantity}
+                inputProps={{
+                  min: 1
+                }}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    quantity: Number(event.target.value)
+                  })
+                }
+              />
 
-            <TextField
-              fullWidth
-              label="Cantidad"
-              type="number"
-              value={form.quantity}
-              inputProps={{
-                min: 1
-              }}
-              onChange={(event) =>
-                setForm({
-                  ...form,
-                  quantity: Number(event.target.value)
-                })
-              }
-            />
+              <TextField
+                fullWidth
+                label="Motivo del movimiento"
+                value={form.reason}
+                helperText="Mínimo 3 caracteres"
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    reason: event.target.value
+                  })
+                }
+              />
 
-            <TextField
-              fullWidth
-              label="Motivo del movimiento"
-              value={form.reason}
-              helperText="Mínimo 3 caracteres"
-              onChange={(event) =>
-                setForm({
-                  ...form,
-                  reason: event.target.value
-                })
-              }
-            />
+              <Button
+                fullWidth
+                onClick={() => submit("in")}
+                disabled={formIsInvalid}
+              >
+                Registrar entrada
+              </Button>
 
-            <Button
-              fullWidth
-              onClick={() => submit("in")}
-              disabled={formIsInvalid}
-            >
-              Registrar entrada
-            </Button>
-
-            <Button
-              fullWidth
-              color="warning"
-              onClick={() => submit("out")}
-              disabled={formIsInvalid}
-            >
-              Registrar salida
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
+              <Button
+                fullWidth
+                color="warning"
+                onClick={() => submit("out")}
+                disabled={formIsInvalid}
+              >
+                Registrar salida
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent sx={{ overflowX: "auto" }}>

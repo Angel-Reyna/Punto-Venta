@@ -31,6 +31,7 @@ import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 import { NavLink } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
+import { PERMISSIONS } from "../auth/permissions";
 
 const drawerWidth = 250;
 
@@ -42,7 +43,7 @@ export function AppLayout({
   const {
     user,
     logout,
-    isAdmin
+    can
   } = useAuth();
 
   const theme = useTheme();
@@ -59,63 +60,63 @@ export function AppLayout({
       label: "Inicio",
       to: "/",
       icon: <DashboardIcon />,
-      visible: true
+      visible: can(PERMISSIONS.DashboardRead)
     },
 
     {
       label: "Productos",
       to: "/products",
       icon: <InventoryIcon />,
-      visible: true
+      visible: can(PERMISSIONS.ProductsRead)
     },
 
     {
       label: "Nueva venta",
       to: "/sales",
       icon: <PointOfSaleIcon />,
-      visible: true
+      visible: can(PERMISSIONS.SalesCreate)
     },
 
     {
       label: "Inventario",
       to: "/inventory",
       icon: <InventoryIcon />,
-      visible: isAdmin
+      visible: can(PERMISSIONS.InventoryRead)
     },
 
     {
       label: "Caja",
       to: "/cash-register",
       icon: <PointOfSaleOutlinedIcon />,
-      visible: true
+      visible: can(PERMISSIONS.CashRegisterOperate) || can(PERMISSIONS.CashRegisterRead)
     },
 
     {
       label: "Reportes",
       to: "/reports",
       icon: <AssessmentIcon />,
-      visible: isAdmin
+      visible: can(PERMISSIONS.ReportsRead)
     },
 
     {
       label: "Usuarios",
       to: "/users",
       icon: <PeopleIcon />,
-      visible: isAdmin
+      visible: can(PERMISSIONS.UsersRead)
     },
 
     {
       label: "Actividad vendedores",
       to: "/seller-activity",
       icon: <ManageSearchIcon />,
-      visible: isAdmin
+      visible: can(PERMISSIONS.SellerActivityRead)
     },
 
     {
       label: "Auditoría",
       to: "/audit",
       icon: <HistoryIcon />,
-      visible: isAdmin
+      visible: can(PERMISSIONS.AuditRead)
     }
   ];
 

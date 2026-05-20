@@ -14,12 +14,17 @@ import {
   refreshSession,
   setClientAuthSession
 } from "../api/client";
+import {
+  hasPermission,
+  type Permission,
+  type Role
+} from "./permissions";
 
 type User = {
   id: string;
   name: string;
   email: string;
-  role: "ADMIN" | "CASHIER";
+  role: Role;
 };
 
 type AuthResponse = {
@@ -35,6 +40,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isAdmin: boolean;
+  can: (permission: Permission) => boolean;
   isAuthenticated: boolean;
   isLoading: boolean;
 };
@@ -117,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       isAdmin: user?.role === "ADMIN",
+      can: (permission: Permission) => hasPermission(user?.role, permission),
       isAuthenticated: status === "authenticated" && Boolean(user),
       isLoading: status === "loading"
     }),

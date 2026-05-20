@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Alert,
@@ -11,6 +11,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   IconButton,
   MenuItem,
   Stack,
@@ -18,7 +19,9 @@ import {
   Typography
 } from "@mui/material";
 
+import AddShoppingCartIcon from "@mui/icons-material/AddShoppingCart";
 import DeleteIcon from "@mui/icons-material/Delete";
+import SearchIcon from "@mui/icons-material/Search";
 import UndoIcon from "@mui/icons-material/Undo";
 import CancelIcon from "@mui/icons-material/Cancel";
 
@@ -183,6 +186,9 @@ export function SalesPage() {
 
   const [customerName, setCustomerName] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
+  const [productSearch, setProductSearch] = useState("");
+  const [paidAmount, setPaidAmount] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -253,6 +259,118 @@ export function SalesPage() {
       );
     });
 
+  const paid = Number(paidAmount || 0);
+  const change = Math.max((Number.isFinite(paid) ? paid : 0) - total, 0);
+  const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  function normalizeSearch(value: string) {
+    return value.trim().toLowerCase();
+  }
+
+  const filteredProducts = useMemo(() => {
+    const query = normalizeSearch(productSearch);
+    const activeProducts = products.filter((product) => product.stock > 0);
+
+    if (!query) {
+      return activeProducts.slice(0, 8);
+    }
+
+    return activeProducts
+      .filter((product) => {
+        return [product.sku, product.name, product.id]
+          .some((value) => value.toLowerCase().includes(query));
+      })
+      .slice(0, 8);
+  }, [productSearch, products]);
+
+  const cartRows = useMemo(() => {
+    return cart.map((item) => {
+      const product = getProduct(item.productId);
+      const unitPrice = product
+        ? product.finalPrice ?? product.salePrice * (1 - product.promoPercent / 100)
+        : 0;
+
+      return {
+        ...item,
+        product,
+        unitPrice,
+        total: unitPrice * item.quantity
+      };
+    });
+  }, [cart, products]);
+
+  function addProductToCart(productId: string) {
+    const product = getProduct(productId);
+
+    if (!product || product.stock <= 0) {
+      setError("Producto sin stock disponible para vender.");
+      return;
+    }
+
+    setError("");
+    setCart((currentCart) => {
+      const existingItem = currentCart.find((item) => item.productId === productId);
+
+      if (!existingItem) {
+        return [...currentCart, { productId, quantity: 1 }];
+      }
+
+      if (existingItem.quantity >= product.stock) {
+        setError("La cantidad no puede superar el stock disponible.");
+        return currentCart;
+      }
+
+      return currentCart.map((item) =>
+        item.productId === productId
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
+      );
+    });
+
+    setProductSearch("");
+    searchInputRef.current?.focus();
+  }
+
+  function addFirstSearchResult() {
+    const firstProduct = filteredProducts[0];
+
+    if (!firstProduct) {
+      setError("No hay coincidencias con stock disponible.");
+      return;
+    }
+
+    addProductToCart(firstProduct.id);
+  }
+
+  function updateCartQuantity(productId: string, quantity: number) {
+    const product = getProduct(productId);
+
+    if (!product) return;
+
+    const nextQuantity = Math.max(1, Math.min(quantity || 1, product.stock));
+
+    setCart((currentCart) =>
+      currentCart.map((item) =>
+        item.productId === productId
+          ? { ...item, quantity: nextQuantity }
+          : item
+      )
+    );
+  }
+
+  function removeCartItem(productId: string) {
+    setCart((currentCart) =>
+      currentCart.filter((item) => item.productId !== productId)
+    );
+  }
+
+  function handleProductSearchKeyDown(event: KeyboardEvent) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addFirstSearchResult();
+    }
+  }
+
   async function createSale() {
     setMessage("");
     setError("");
@@ -279,6 +397,8 @@ export function SalesPage() {
       setCart([]);
       setCustomerName("");
       setPaymentMethod("CASH");
+      setPaidAmount("");
+      searchInputRef.current?.focus();
 
       await load();
     } catch (err: unknown) {
@@ -293,22 +413,25 @@ export function SalesPage() {
     }
   }
 
-  function addProductToCart() {
-    const firstAvailableProduct = products.find((product) => product.stock > 0);
+  useEffect(() => {
+    function handleGlobalShortcuts(event: globalThis.KeyboardEvent) {
+      if (event.key === "F3") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
 
-    if (!firstAvailableProduct) {
-      setError("No hay productos con stock disponible para vender.");
-      return;
+      if (event.key === "F12" && !cartIsInvalid && !isSubmitting) {
+        event.preventDefault();
+        void createSale();
+      }
     }
 
-    setCart([
-      ...cart,
-      {
-        productId: firstAvailableProduct.id,
-        quantity: 1
-      }
-    ]);
-  }
+    window.addEventListener("keydown", handleGlobalShortcuts);
+
+    return () => {
+      window.removeEventListener("keydown", handleGlobalShortcuts);
+    };
+  }, [cartIsInvalid, isSubmitting, cart, customerName, paymentMethod]);
 
   function openCancelDialog(sale: Sale) {
     setSelectedSale(sale);
@@ -563,171 +686,273 @@ export function SalesPage() {
 
       <Card sx={{ mb: 2 }}>
         <CardContent>
-          <Box sx={{ display: "grid", gap: 2 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                lg: "minmax(0, 1fr) 360px"
+              },
+              gap: 2,
+              alignItems: "start"
+            }}
+          >
+            <Box sx={{ display: "grid", gap: 2 }}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "minmax(0, 1fr) 220px"
+                  },
+                  gap: 2
+                }}
+              >
+                <TextField
+                  inputRef={searchInputRef}
+                  label="F3 · Buscar por código, SKU o nombre"
+                  value={productSearch}
+                  autoFocus
+                  placeholder="Escanea código de barras o escribe para buscar"
+                  onKeyDown={handleProductSearchKeyDown}
+                  onChange={(event) => setProductSearch(event.target.value)}
+                  InputProps={{
+                    startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />
+                  }}
+                />
+
+                <Button
+                  startIcon={<AddShoppingCartIcon />}
+                  onClick={addFirstSearchResult}
+                  disabled={filteredProducts.length === 0 || isSubmitting}
+                >
+                  Enter · Agregar
+                </Button>
+              </Box>
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "repeat(4, minmax(0, 1fr))"
+                  },
+                  gap: 1
+                }}
+              >
+                {filteredProducts.map((product) => {
+                  const finalPrice = product.finalPrice ?? product.salePrice;
+
+                  return (
+                    <Button
+                      key={product.id}
+                      variant="outlined"
+                      color="inherit"
+                      onClick={() => addProductToCart(product.id)}
+                      sx={{
+                        justifyContent: "space-between",
+                        minHeight: 78,
+                        textAlign: "left",
+                        alignItems: "stretch",
+                        display: "grid",
+                        gap: 0.5,
+                        p: 1.25
+                      }}
+                    >
+                      <Typography fontWeight={800} noWrap>
+                        {product.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap>
+                        {product.sku} · stock {product.stock}
+                      </Typography>
+                      <Typography fontWeight={800}>{formatMoney(finalPrice)}</Typography>
+                    </Button>
+                  );
+                })}
+              </Box>
+
+              <Box sx={{ overflowX: "auto" }}>
+                <Box sx={{ minWidth: 780 }}>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: "1.1fr 0.9fr 130px 120px 130px 56px",
+                      gap: 1,
+                      px: 1.5,
+                      py: 1,
+                      bgcolor: "#f1f5f9",
+                      borderRadius: 2,
+                      fontWeight: 800,
+                      color: "text.secondary"
+                    }}
+                  >
+                    <Typography variant="caption">Código</Typography>
+                    <Typography variant="caption">Producto</Typography>
+                    <Typography variant="caption">Precio</Typography>
+                    <Typography variant="caption">Cant.</Typography>
+                    <Typography variant="caption">Importe</Typography>
+                    <Typography variant="caption" />
+                  </Box>
+
+                  {cartRows.length === 0 ? (
+                    <Box
+                      sx={{
+                        py: 6,
+                        textAlign: "center",
+                        color: "text.secondary",
+                        border: "1px dashed #cbd5e1",
+                        borderRadius: 2,
+                        mt: 1
+                      }}
+                    >
+                      Escanea o busca un producto para iniciar la venta.
+                    </Box>
+                  ) : (
+                    <Box sx={{ display: "grid", gap: 1, mt: 1 }}>
+                      {cartRows.map((item) => (
+                        <Box
+                          key={item.productId}
+                          sx={{
+                            display: "grid",
+                            gridTemplateColumns: "1.1fr 0.9fr 130px 120px 130px 56px",
+                            gap: 1,
+                            alignItems: "center",
+                            px: 1.5,
+                            py: 1,
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 2,
+                            bgcolor: "background.paper"
+                          }}
+                        >
+                          <Box>
+                            <Typography fontWeight={800} noWrap>
+                              {item.product?.sku ?? item.productId}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Stock {item.product?.stock ?? 0}
+                            </Typography>
+                          </Box>
+
+                          <Typography noWrap>{item.product?.name ?? "Producto"}</Typography>
+                          <Typography fontWeight={700}>{formatMoney(item.unitPrice)}</Typography>
+
+                          <TextField
+                            type="number"
+                            value={item.quantity}
+                            inputProps={{
+                              min: 1,
+                              max: item.product?.stock ?? undefined,
+                              step: 1
+                            }}
+                            onChange={(event) =>
+                              updateCartQuantity(item.productId, Number(event.target.value))
+                            }
+                          />
+
+                          <Typography fontWeight={800}>{formatMoney(item.total)}</Typography>
+
+                          <IconButton
+                            onClick={() => removeCartItem(item.productId)}
+                            aria-label="Quitar producto"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+
             <Box
               sx={{
-                display: "flex",
-                flexDirection: {
-                  xs: "column",
-                  md: "row"
+                position: {
+                  xs: "static",
+                  lg: "sticky"
                 },
+                top: 96,
+                display: "grid",
                 gap: 2
               }}
             >
-              <TextField
-                fullWidth
-                label="Cliente opcional"
-                value={customerName}
-                helperText="Déjalo vacío para venta sin cliente."
-                onChange={(event) => setCustomerName(event.target.value)}
-              />
+              <Card variant="outlined" sx={{ boxShadow: "none" }}>
+                <CardContent sx={{ display: "grid", gap: 2 }}>
+                  <Typography variant="h6" fontWeight={900}>
+                    Orden de venta
+                  </Typography>
 
-              <TextField
-                select
-                fullWidth
-                label="Método de pago"
-                value={paymentMethod}
-                onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
-              >
-                <MenuItem value="CASH">Efectivo</MenuItem>
-                <MenuItem value="CARD">Tarjeta</MenuItem>
-                <MenuItem value="TRANSFER">Transferencia</MenuItem>
-                <MenuItem value="MIXED">Mixto</MenuItem>
-              </TextField>
-            </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Total vendido
+                    </Typography>
+                    <Typography
+                      variant="h3"
+                      fontWeight={900}
+                      color="primary"
+                      aria-live="polite"
+                      sx={{ letterSpacing: "-0.04em" }}
+                    >
+                      {formatMoney(total)}
+                    </Typography>
+                  </Box>
 
-            {cart.map((item, index) => {
-              const selectedProduct = getProduct(item.productId);
+                  <Divider />
 
-              return (
-                <Box
-                  key={`${item.productId}-${index}`}
-                  sx={{
-                    display: "flex",
-                    flexDirection: {
-                      xs: "column",
-                      md: "row"
-                    },
-                    gap: 1
-                  }}
-                >
-                  <TextField
-                    select
-                    fullWidth
-                    label="Producto"
-                    value={item.productId}
-                    onChange={(event) =>
-                      setCart(
-                        cart.map((current, currentIndex) =>
-                          currentIndex === index
-                            ? {
-                                ...current,
-                                productId: event.target.value
-                              }
-                            : current
-                        )
-                      )
-                    }
+                  <Box
                     sx={{
-                      minWidth: {
-                        xs: "100%",
-                        md: 380
-                      }
+                      display: "grid",
+                      gridTemplateColumns: "1fr auto",
+                      gap: 1
                     }}
                   >
-                    {products.map((product) => (
-                      <MenuItem
-                        key={product.id}
-                        value={product.id}
-                        disabled={product.stock <= 0}
-                      >
-                        {product.sku} · {product.name} · stock {product.stock}
-                      </MenuItem>
-                    ))}
+                    <Typography color="text.secondary">Artículos</Typography>
+                    <Typography fontWeight={800}>{cartItemsCount}</Typography>
+                    <Typography color="text.secondary">Partidas</Typography>
+                    <Typography fontWeight={800}>{cart.length}</Typography>
+                    <Typography color="text.secondary">Cambio estimado</Typography>
+                    <Typography fontWeight={800}>{formatMoney(change)}</Typography>
+                  </Box>
+
+                  <TextField
+                    label="Cliente opcional"
+                    value={customerName}
+                    helperText="Déjalo vacío para público general."
+                    onChange={(event) => setCustomerName(event.target.value)}
+                  />
+
+                  <TextField
+                    select
+                    label="Método de pago"
+                    value={paymentMethod}
+                    onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
+                  >
+                    <MenuItem value="CASH">Efectivo</MenuItem>
+                    <MenuItem value="CARD">Tarjeta</MenuItem>
+                    <MenuItem value="TRANSFER">Transferencia</MenuItem>
+                    <MenuItem value="MIXED">Mixto</MenuItem>
                   </TextField>
 
                   <TextField
-                    fullWidth
-                    label="Cantidad"
+                    label="Pago con"
                     type="number"
-                    value={item.quantity}
-                    inputProps={{
-                      min: 1,
-                      max: selectedProduct?.stock ?? undefined
-                    }}
-                    helperText={
-                      selectedProduct ? `Disponible: ${selectedProduct.stock}` : "Selecciona producto"
-                    }
-                    onChange={(event) =>
-                      setCart(
-                        cart.map((current, currentIndex) =>
-                          currentIndex === index
-                            ? {
-                                ...current,
-                                quantity: Number(event.target.value)
-                              }
-                            : current
-                        )
-                      )
-                    }
+                    value={paidAmount}
+                    inputProps={{ min: 0, step: 0.01 }}
+                    helperText="Solo cálculo visual de cambio; backend registra el método de pago."
+                    onChange={(event) => setPaidAmount(event.target.value)}
                   />
 
-                  <IconButton
-                    onClick={() =>
-                      setCart(cart.filter((_, currentIndex) => currentIndex !== index))
-                    }
-                    aria-label="Quitar producto"
+                  <Button
+                    color="success"
+                    size="large"
+                    onClick={createSale}
+                    disabled={cartIsInvalid || isSubmitting}
+                    sx={{ minHeight: 58, fontSize: "1rem" }}
                   >
-                    <DeleteIcon />
-                  </IconButton>
-                </Box>
-              );
-            })}
-
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: {
-                  xs: "column",
-                  md: "row"
-                },
-                gap: 1,
-                alignItems: {
-                  xs: "stretch",
-                  md: "center"
-                }
-              }}
-            >
-              <Button
-                fullWidth
-                onClick={addProductToCart}
-                disabled={!products.some((product) => product.stock > 0) || isSubmitting}
-              >
-                Agregar producto
-              </Button>
-
-              <Button
-                fullWidth
-                color="success"
-                onClick={createSale}
-                disabled={cartIsInvalid || isSubmitting}
-              >
-                Registrar venta
-              </Button>
-
-              <Typography
-                variant="h6"
-                fontWeight={800}
-                aria-live="polite"
-                sx={{
-                  minWidth: {
-                    xs: "100%",
-                    md: 190
-                  }
-                }}
-              >
-                Total: {formatMoney(total)}
-              </Typography>
+                    F12 · Cobrar venta
+                  </Button>
+                </CardContent>
+              </Card>
             </Box>
           </Box>
         </CardContent>
