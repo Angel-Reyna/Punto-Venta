@@ -75,6 +75,7 @@ export function UsersPage() {
   const [form, setForm] = useState(initialForm);
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -155,6 +156,8 @@ export function UsersPage() {
     }
 
     try {
+      setTogglingUserId(targetUser.id);
+
       await api.patch(`/users/${targetUser.id}/toggle`);
 
       setMessage(
@@ -166,6 +169,8 @@ export function UsersPage() {
       await load();
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, "No se pudo actualizar el usuario."));
+    } finally {
+      setTogglingUserId(null);
     }
   }
 
@@ -329,15 +334,16 @@ export function UsersPage() {
             <Button
               size="small"
               variant="outlined"
-              disabled={isSelf}
+              disabled={isSelf || Boolean(togglingUserId) || isUpdatingRole || isResettingPassword}
               onClick={() => toggleUser(targetUser)}
             >
-              {targetUser.isActive ? "Desactivar" : "Activar"}
+              {togglingUserId === targetUser.id ? "Guardando..." : targetUser.isActive ? "Desactivar" : "Activar"}
             </Button>
 
             <Button
               size="small"
               variant="outlined"
+              disabled={Boolean(togglingUserId) || isUpdatingRole || isResettingPassword}
               onClick={() => openRoleDialog(targetUser)}
             >
               Cambiar rol
@@ -346,6 +352,7 @@ export function UsersPage() {
             <Button
               size="small"
               variant="outlined"
+              disabled={Boolean(togglingUserId) || isUpdatingRole || isResettingPassword}
               onClick={() => openResetPasswordDialog(targetUser)}
             >
               Nueva contraseña

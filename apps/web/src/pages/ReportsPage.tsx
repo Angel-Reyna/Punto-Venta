@@ -143,6 +143,7 @@ export function ReportsPage() {
   const [to, setTo] = useState(today);
   const [data, setData] = useState<OperationsReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [error, setError] = useState("");
 
   function datesAreInvalid() {
@@ -183,6 +184,8 @@ export function ReportsPage() {
     }
 
     try {
+      setIsDownloadingPdf(true);
+
       const response = await api.get(
         `/reports/sales/pdf?from=${from}&to=${to}`,
         {
@@ -200,6 +203,8 @@ export function ReportsPage() {
       URL.revokeObjectURL(url);
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, "No se pudo descargar el PDF."));
+    } finally {
+      setIsDownloadingPdf(false);
     }
   }
 
@@ -384,12 +389,12 @@ export function ReportsPage() {
               InputLabelProps={{ shrink: true }}
             />
 
-            <Button fullWidth onClick={consult} disabled={datesAreInvalid() || isLoading}>
-              Consultar reporte
+            <Button fullWidth onClick={consult} disabled={datesAreInvalid() || isLoading || isDownloadingPdf}>
+              {isLoading ? "Consultando..." : "Consultar reporte"}
             </Button>
 
-            <Button fullWidth onClick={downloadPdf} disabled={datesAreInvalid()}>
-              Descargar PDF ventas
+            <Button fullWidth onClick={downloadPdf} disabled={datesAreInvalid() || isLoading || isDownloadingPdf}>
+              {isDownloadingPdf ? "Descargando..." : "Descargar PDF ventas"}
             </Button>
           </Box>
         </CardContent>

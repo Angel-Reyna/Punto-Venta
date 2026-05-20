@@ -182,4 +182,23 @@ describe("auth middleware", () => {
     );
   });
 
+  it("denies cashier manual cash movement permissions but keeps failed attempt auditable", () => {
+    const req = createRequest(Role.CASHIER, "/api/cash-register/movements");
+    const next = jest.fn() as NextFunction;
+    const middleware = requirePermission(PERMISSIONS.CashRegisterManage);
+
+    expect(() => middleware(req, {} as Response, next)).toThrow("No autorizado");
+
+    expect(next).not.toHaveBeenCalled();
+    expect(sellerActivityMock.logSellerActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: {
+          method: "POST",
+          path: "/api/cash-register/movements",
+          requiredPermissions: [PERMISSIONS.CashRegisterManage]
+        }
+      })
+    );
+  });
+
 });

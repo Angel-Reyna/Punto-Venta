@@ -102,6 +102,22 @@ function PermissionRoute({
   return children;
 }
 
+function AnyPermissionRoute({
+  permissions,
+  children
+}: {
+  permissions: Permission[];
+  children: ReactNode;
+}) {
+  const { can } = useAuth();
+
+  if (!permissions.some((permission) => can(permission))) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
+
 function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute>
@@ -124,7 +140,9 @@ export default function App() {
           path="/"
           element={withSuspense(
             <ProtectedLayout>
-              <DashboardPage />
+              <PermissionRoute permission={PERMISSIONS.DashboardRead}>
+                <DashboardPage />
+              </PermissionRoute>
             </ProtectedLayout>
           )}
         />
@@ -133,7 +151,9 @@ export default function App() {
           path="/products"
           element={withSuspense(
             <ProtectedLayout>
-              <ProductsPage />
+              <PermissionRoute permission={PERMISSIONS.ProductsRead}>
+                <ProductsPage />
+              </PermissionRoute>
             </ProtectedLayout>
           )}
         />
@@ -142,7 +162,9 @@ export default function App() {
           path="/sales"
           element={withSuspense(
             <ProtectedLayout>
-              <SalesPage />
+              <PermissionRoute permission={PERMISSIONS.SalesRead}>
+                <SalesPage />
+              </PermissionRoute>
             </ProtectedLayout>
           )}
         />
@@ -162,7 +184,14 @@ export default function App() {
           path="/cash-register"
           element={withSuspense(
             <ProtectedLayout>
-              <CashRegisterPage />
+              <AnyPermissionRoute
+                permissions={[
+                  PERMISSIONS.CashRegisterOperate,
+                  PERMISSIONS.CashRegisterRead
+                ]}
+              >
+                <CashRegisterPage />
+              </AnyPermissionRoute>
             </ProtectedLayout>
           )}
         />

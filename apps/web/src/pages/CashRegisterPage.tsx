@@ -18,6 +18,7 @@ import { DataGrid, GridColDef } from "@mui/x-data-grid";
 
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { PERMISSIONS } from "../auth/permissions";
 import { PageHeader } from "../components/PageHeader";
 import { getApiErrorMessage } from "../utils/apiError";
 
@@ -85,7 +86,11 @@ function movementLabel(type: CashMovementType) {
 }
 
 export function CashRegisterPage() {
-  const { isAdmin } = useAuth();
+  const { can } = useAuth();
+
+  const canOperateCashRegister = can(PERMISSIONS.CashRegisterOperate);
+  const canManageCashRegister = can(PERMISSIONS.CashRegisterManage);
+  const canReadCashRegisterSessions = can(PERMISSIONS.CashRegisterRead);
 
   const [currentSession, setCurrentSession] =
     useState<CashRegisterSession | null>(null);
@@ -111,10 +116,12 @@ export function CashRegisterPage() {
       setIsLoading(true);
 
       const [currentResponse, sessionsResponse] = await Promise.all([
-        api.get<{ session: CashRegisterSession | null }>(
-          "/cash-register/current"
-        ),
-        isAdmin
+        canOperateCashRegister
+          ? api.get<{ session: CashRegisterSession | null }>(
+              "/cash-register/current"
+            )
+          : Promise.resolve({ data: { session: null } }),
+        canReadCashRegisterSessions
           ? api.get<CashRegisterSession[]>(
               "/cash-register/sessions?page=1&pageSize=50"
             )
@@ -143,13 +150,18 @@ export function CashRegisterPage() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [canOperateCashRegister, canReadCashRegisterSessions]);
 
   async function openRegister() {
     setMessage("");
     setError("");
 
     const amount = Number(openingAmount);
+
+    if (!canOperateCashRegister) {
+      setError("No tienes permiso para operar caja.");
+      return;
+    }
 
     if (!Number.isFinite(amount) || amount < 0) {
       setError("El monto inicial debe ser un número válido mayor o igual a cero.");
@@ -179,6 +191,11 @@ export function CashRegisterPage() {
 
     const amount = Number(closingAmount);
 
+    if (!canOperateCashRegister) {
+      setError("No tienes permiso para operar caja.");
+      return;
+    }
+
     if (!Number.isFinite(amount) || amount < 0) {
       setError("El monto contado debe ser un número válido mayor o igual a cero.");
       return;
@@ -205,6 +222,11 @@ export function CashRegisterPage() {
     setError("");
 
     const amount = Number(movementAmount);
+
+    if (!canManageCashRegister) {
+      setError("No tienes permiso para registrar movimientos manuales de efectivo.");
+      return;
+    }
 
     if (!Number.isFinite(amount) || amount <= 0) {
       setError("El monto del movimiento debe ser mayor a cero.");
@@ -339,6 +361,9 @@ export function CashRegisterPage() {
           color={currentSession ? "success" : "default"}
           label={currentSession ? "Caja abierta" : "Sin caja abierta"}
         />
+        {canReadCashRegisterSessions && (
+          <Chip sx={{ ml: 1 }} color="primary" label="Permiso: consulta de cortes" />
+        )}
       </Box>
 
       {message && (
@@ -402,7 +427,7 @@ export function CashRegisterPage() {
                   label="Monto inicial"
                   type="number"
                   value={openingAmount}
-                  disabled={Boolean(currentSession)}
+                  disabled={!canOperateCashRegister || Boolean(currentSession)}
                   inputProps={{ min: 0, step: "0.01" }}
                   onChange={(event) => setOpeningAmount(event.target.value)}
                 />
@@ -410,7 +435,7 @@ export function CashRegisterPage() {
                 <TextField
                   label="Notas de apertura"
                   value={openingNotes}
-                  disabled={Boolean(currentSession)}
+                  disabled={!canOperateCashRegister || Boolean(currentSession)}
                   multiline
                   minRows={2}
                   onChange={(event) => setOpeningNotes(event.target.value)}
@@ -418,7 +443,7 @@ export function CashRegisterPage() {
 
                 <Button
                   onClick={openRegister}
-                  disabled={Boolean(currentSession) || isLoading}
+                  disabled={!canOperateCashRegister || Boolean(currentSession) || isLoading}
                 >
                   Abrir caja
                 </Button>
@@ -441,7 +466,7 @@ export function CashRegisterPage() {
                   label="Monto contado"
                   type="number"
                   value={closingAmount}
-                  disabled={!currentSession}
+                  disabled={!canOperateCashRegister || !currentSession}
                   inputProps={{ min: 0, step: "0.01" }}
                   helperText={
                     currentSession
@@ -454,7 +479,7 @@ export function CashRegisterPage() {
                 <TextField
                   label="Notas de cierre"
                   value={closingNotes}
-                  disabled={!currentSession}
+                  disabled={!canOperateCashRegister || !currentSession}
                   multiline
                   minRows={2}
                   onChange={(event) => setClosingNotes(event.target.value)}
@@ -463,7 +488,7 @@ export function CashRegisterPage() {
                 <Button
                   color="warning"
                   onClick={closeRegister}
-                  disabled={!currentSession || isLoading}
+                  disabled={!canOperateCashRegister || !currentSession || isLoading}
                 >
                   Cerrar caja
                 </Button>
@@ -473,7 +498,7 @@ export function CashRegisterPage() {
         </Grid>
       </Grid>
 
-      {isAdmin && (
+      {canManageCashRegister && (
         <Card sx={{ mb: 2 }}>
           <CardContent>
             <Typography variant="h6" fontWeight={800} mb={1}>
@@ -499,7 +524,7 @@ export function CashRegisterPage() {
                 select
                 label="Tipo"
                 value={movementType}
-                disabled={!currentSession}
+                disabled={!canOperateCashRegister || !currentSession}
                 onChange={(event) =>
                   setMovementType(event.target.value as "CASH_IN" | "CASH_OUT")
                 }
@@ -512,7 +537,7 @@ export function CashRegisterPage() {
                 label="Monto"
                 type="number"
                 value={movementAmount}
-                disabled={!currentSession}
+                disabled={!canOperateCashRegister || !currentSession}
                 inputProps={{ min: 0.01, step: "0.01" }}
                 onChange={(event) => setMovementAmount(event.target.value)}
               />
@@ -520,13 +545,13 @@ export function CashRegisterPage() {
               <TextField
                 label="Motivo"
                 value={movementReason}
-                disabled={!currentSession}
+                disabled={!canOperateCashRegister || !currentSession}
                 onChange={(event) => setMovementReason(event.target.value)}
               />
 
               <Button
                 onClick={addManualMovement}
-                disabled={!currentSession || isLoading}
+                disabled={!canOperateCashRegister || !currentSession || isLoading}
               >
                 Registrar
               </Button>
@@ -553,7 +578,7 @@ export function CashRegisterPage() {
         </CardContent>
       </Card>
 
-      {isAdmin && (
+      {canReadCashRegisterSessions && (
         <Card>
           <CardContent sx={{ overflowX: "auto" }}>
             <Typography variant="h6" fontWeight={800} mb={2}>

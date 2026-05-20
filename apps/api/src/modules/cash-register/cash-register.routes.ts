@@ -1,13 +1,13 @@
 import { Router, type Request } from "express";
 import { z } from "zod";
 
-import { requireAuth, requireRole } from "../../middlewares/auth";
+import { requireAuth, requirePermission } from "../../middlewares/auth";
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { AppError } from "../../utils/AppError";
 import { setPaginationHeaders } from "../../utils/pagination";
 import { auditLog } from "../audit/audit.service";
-import { Role } from "@prisma/client";
+import { PERMISSIONS } from "../auth/permissions";
 
 import {
   addManualCashMovement,
@@ -41,6 +41,7 @@ function getCurrentUser(req: Request) {
 
 cashRegisterRouter.get(
   "/current",
+  requirePermission(PERMISSIONS.CashRegisterOperate),
   asyncHandler(async (req, res) => {
     const session = await getCurrentCashRegister(getCurrentUser(req));
 
@@ -50,6 +51,7 @@ cashRegisterRouter.get(
 
 cashRegisterRouter.post(
   "/open",
+  requirePermission(PERMISSIONS.CashRegisterOperate),
   validate(openCashRegisterSchema),
   asyncHandler(async (req, res) => {
     const session = await openCashRegister(getCurrentUser(req), req.body);
@@ -72,7 +74,7 @@ cashRegisterRouter.post(
 
 cashRegisterRouter.post(
   "/movements",
-  requireRole(Role.ADMIN),
+  requirePermission(PERMISSIONS.CashRegisterManage),
   validate(manualCashMovementSchema),
   asyncHandler(async (req, res) => {
     const movement = await addManualCashMovement(getCurrentUser(req), req.body);
@@ -97,6 +99,7 @@ cashRegisterRouter.post(
 
 cashRegisterRouter.post(
   "/close",
+  requirePermission(PERMISSIONS.CashRegisterOperate),
   validate(closeCashRegisterSchema),
   asyncHandler(async (req, res) => {
     const session = await closeCashRegister(getCurrentUser(req), req.body);
@@ -121,7 +124,7 @@ cashRegisterRouter.post(
 
 cashRegisterRouter.get(
   "/sessions",
-  requireRole(Role.ADMIN),
+  requirePermission(PERMISSIONS.CashRegisterRead),
   asyncHandler(async (req, res) => {
     const result = await listCashRegisterSessions(
       req.query as Record<string, unknown>
@@ -135,7 +138,7 @@ cashRegisterRouter.get(
 
 cashRegisterRouter.get(
   "/sessions/:id",
-  requireRole(Role.ADMIN),
+  requirePermission(PERMISSIONS.CashRegisterRead),
   validate(sessionIdParamsSchema),
   asyncHandler(async (req, res) => {
     const session = await getCashRegisterSessionById(String(req.params.id));

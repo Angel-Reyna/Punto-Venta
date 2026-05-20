@@ -28,6 +28,7 @@ import ToggleOffIcon from "@mui/icons-material/ToggleOff";
 import { api } from "../api/client";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../auth/AuthContext";
+import { PERMISSIONS } from "../auth/permissions";
 import { getApiErrorMessage } from "../utils/apiError";
 
 type Product = {
@@ -70,7 +71,11 @@ function safeTrim(value: unknown) {
 }
 
 export function ProductsPage() {
-  const { isAdmin } = useAuth();
+  const { can } = useAuth();
+  const canCreateProduct = can(PERMISSIONS.ProductsCreate);
+  const canImportProducts = can(PERMISSIONS.ProductsImport);
+  const canToggleProducts = can(PERMISSIONS.ProductsToggleActive);
+  const canViewAdminColumns = canCreateProduct || canImportProducts || canToggleProducts;
 
   const [rows, setRows] = useState<Product[]>([]);
   const [open, setOpen] = useState(false);
@@ -79,6 +84,9 @@ export function ProductsPage() {
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
+  const [isImportingExcel, setIsImportingExcel] = useState(false);
+  const [togglingProductId, setTogglingProductId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -132,6 +140,7 @@ export function ProductsPage() {
 
   async function downloadTemplate() {
     setError("");
+    setIsDownloadingTemplate(true);
 
     try {
       const response = await api.get("/products/template/excel", {
@@ -148,14 +157,17 @@ export function ProductsPage() {
       URL.revokeObjectURL(url);
     } catch {
       setError("No se pudo descargar el formato Excel.");
+    } finally {
+      setIsDownloadingTemplate(false);
     }
   }
 
   async function importExcel(file?: File) {
-    if (!file) return;
+    if (!file || isImportingExcel) return;
 
     setMessage("");
     setError("");
+    setIsImportingExcel(true);
 
     try {
       const formData = new FormData();
@@ -182,12 +194,17 @@ export function ProductsPage() {
           "No se pudo importar el archivo Excel. Verifica que uses el formato correcto."
         )
       );
+    } finally {
+      setIsImportingExcel(false);
     }
   }
 
   async function toggleProduct(productId: string) {
+    if (togglingProductId) return;
+
     setMessage("");
     setError("");
+    setTogglingProductId(productId);
 
     try {
       await api.patch(`/products/${productId}/toggle`);
@@ -202,6 +219,8 @@ export function ProductsPage() {
           "No se pudo actualizar el producto."
         )
       );
+    } finally {
+      setTogglingProductId(null);
     }
   }
 
@@ -263,7 +282,7 @@ export function ProductsPage() {
       }
     ];
 
-    if (!isAdmin) {
+    if (!canViewAdminColumns) {
       return baseColumns;
     }
 
@@ -351,7 +370,7 @@ export function ProductsPage() {
           />
         )
       },
-      {
+      ...(canToggleProducts ? [{
         field: "actions",
         headerName: "",
         width: 90,
@@ -360,14 +379,15 @@ export function ProductsPage() {
         renderCell: (params) => (
           <IconButton
             onClick={() => toggleProduct(params.row.id)}
+            disabled={Boolean(togglingProductId)}
             title="Activar/desactivar"
           >
             <ToggleOffIcon />
           </IconButton>
         )
-      }
+      } satisfies GridColDef] : [])
     ];
-  }, [isAdmin]);
+  }, [canViewAdminColumns, canToggleProducts, togglingProductId]);
 
 const formIsInvalid =
   !safeTrim(form.sku) ||
@@ -383,12 +403,12 @@ const formIsInvalid =
       <PageHeader
         title="Productos"
         subtitle={
-          isAdmin
+          canViewAdminColumns
             ? "Gestiona catálogo, precios, promociones, stock mínimo e importación por Excel."
             : "Consulta productos activos, precios y stock disponible."
         }
         action={
-          isAdmin && (
+          canCreateProduct && (
             <Button
               fullWidth
               startIcon={<AddIcon />}
@@ -402,11 +422,11 @@ const formIsInvalid =
 
       <Box sx={{ mb: 2 }}>
         <Chip
-          color={isAdmin ? "primary" : "success"}
+          color={canViewAdminColumns ? "primary" : "success"}
           label={
-            isAdmin
-              ? "Vista ADMIN: productos completos"
-              : "Vista VENDEDOR: catálogo activo"
+            canViewAdminColumns
+              ? "Vista con permisos de gestión: productos completos"
+              : "Vista de consulta: catálogo activo"
           }
         />
       </Box>
@@ -423,7 +443,7 @@ const formIsInvalid =
         </Alert>
       )}
 
-      {isAdmin && (
+      {canImportProducts && (
         <Box
           sx={{
             display: "flex",
@@ -439,21 +459,27 @@ const formIsInvalid =
             fullWidth
             startIcon={<DownloadIcon />}
             onClick={downloadTemplate}
+            disabled={isDownloadingTemplate || isImportingExcel}
           >
-            Descargar formato
+            {isDownloadingTemplate ? "Descargando..." : "Descargar formato"}
           </Button>
 
           <Button
             fullWidth
             component="label"
             startIcon={<UploadIcon />}
+            disabled={isImportingExcel || isDownloadingTemplate}
           >
-            Importar productos
+            {isImportingExcel ? "Importando..." : "Importar productos"}
             <input
               hidden
               type="file"
               accept=".xlsx"
-              onChange={(event) => importExcel(event.target.files?.[0])}
+              disabled={isImportingExcel}
+              onChange={(event) => {
+                void importExcel(event.target.files?.[0]);
+                event.target.value = "";
+              }}
             />
           </Button>
         </Box>
@@ -461,7 +487,7 @@ const formIsInvalid =
 
       <Card>
         <CardContent sx={{ overflowX: "auto" }}>
-          <Box sx={{ minWidth: isAdmin ? 1420 : 980 }}>
+          <Box sx={{ minWidth: canViewAdminColumns ? 1420 : 980 }}>
             <DataGrid
               autoHeight
               rows={rows}
@@ -472,7 +498,7 @@ const formIsInvalid =
         </CardContent>
       </Card>
 
-      {isAdmin && (
+      {canCreateProduct && (
         <Dialog
           open={open}
           onClose={() => setOpen(false)}

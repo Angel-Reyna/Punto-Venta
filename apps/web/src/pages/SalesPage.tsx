@@ -30,6 +30,7 @@ import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { api } from "../api/client";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../auth/AuthContext";
+import { PERMISSIONS } from "../auth/permissions";
 import { getApiErrorMessage } from "../utils/apiError";
 
 type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "MIXED";
@@ -178,7 +179,12 @@ function getReturnableQuantity(sale: Sale, saleItem: SaleItem) {
 }
 
 export function SalesPage() {
-  const { isAdmin } = useAuth();
+  const { can } = useAuth();
+
+  const canCreateSales = can(PERMISSIONS.SalesCreate);
+  const canCancelSales = can(PERMISSIONS.SalesCancel);
+  const canReturnSales = can(PERMISSIONS.SalesReturn);
+  const canManageSales = canCancelSales || canReturnSales;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -262,6 +268,7 @@ export function SalesPage() {
   const paid = Number(paidAmount || 0);
   const change = Math.max((Number.isFinite(paid) ? paid : 0) - total, 0);
   const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const saleDialogIsOpen = cancelDialogOpen || returnDialogOpen;
 
   function normalizeSearch(value: string) {
     return value.trim().toLowerCase();
@@ -420,7 +427,13 @@ export function SalesPage() {
         searchInputRef.current?.focus();
       }
 
-      if (event.key === "F12" && !cartIsInvalid && !isSubmitting) {
+      if (
+        event.key === "F12" &&
+        canCreateSales &&
+        !saleDialogIsOpen &&
+        !cartIsInvalid &&
+        !isSubmitting
+      ) {
         event.preventDefault();
         void createSale();
       }
@@ -431,7 +444,7 @@ export function SalesPage() {
     return () => {
       window.removeEventListener("keydown", handleGlobalShortcuts);
     };
-  }, [cartIsInvalid, isSubmitting, cart, customerName, paymentMethod]);
+  }, [canCreateSales, saleDialogIsOpen, cartIsInvalid, isSubmitting, cart, customerName, paymentMethod]);
 
   function openCancelDialog(sale: Sale) {
     setSelectedSale(sale);
@@ -549,6 +562,15 @@ export function SalesPage() {
       ? getReturnableQuantity(selectedSale, selectedReturnItem)
       : 0;
 
+  const cancelReasonIsInvalid = cancelReason.trim().length < 5;
+  const returnQuantityNumber = Number(returnQuantity);
+  const returnFormIsInvalid =
+    !returnSaleItemId ||
+    !Number.isInteger(returnQuantityNumber) ||
+    returnQuantityNumber <= 0 ||
+    returnQuantityNumber > selectedReturnItemAvailable ||
+    returnReason.trim().length < 5;
+
   const columns = useMemo<GridColDef[]>(() => {
     const baseColumns: GridColDef[] = [
       {
@@ -598,7 +620,7 @@ export function SalesPage() {
       }
     ];
 
-    if (!isAdmin) {
+    if (!canManageSales) {
       return baseColumns;
     }
 
@@ -626,40 +648,44 @@ export function SalesPage() {
 
           return (
             <Stack direction="row" spacing={1}>
-              <Button
-                size="small"
-                color="warning"
-                startIcon={<UndoIcon />}
-                disabled={
-                  isSubmitting || sale.status === "CANCELLED" || !hasReturnableItems
-                }
-                onClick={() => openReturnDialog(sale)}
-              >
-                Devolver
-              </Button>
+              {canReturnSales && (
+                <Button
+                  size="small"
+                  color="warning"
+                  startIcon={<UndoIcon />}
+                  disabled={
+                    isSubmitting || sale.status === "CANCELLED" || !hasReturnableItems
+                  }
+                  onClick={() => openReturnDialog(sale)}
+                >
+                  Devolver
+                </Button>
+              )}
 
-              <Button
-                size="small"
-                color="error"
-                startIcon={<CancelIcon />}
-                disabled={isSubmitting || sale.status !== "COMPLETED"}
-                onClick={() => openCancelDialog(sale)}
-              >
-                Cancelar
-              </Button>
+              {canCancelSales && (
+                <Button
+                  size="small"
+                  color="error"
+                  startIcon={<CancelIcon />}
+                  disabled={isSubmitting || sale.status !== "COMPLETED"}
+                  onClick={() => openCancelDialog(sale)}
+                >
+                  Cancelar
+                </Button>
+              )}
             </Stack>
           );
         }
       }
     ];
-  }, [isAdmin, isSubmitting]);
+  }, [canManageSales, canReturnSales, canCancelSales, isSubmitting]);
 
   return (
     <>
       <PageHeader
         title="Ventas"
         subtitle={
-          isAdmin
+          canManageSales
             ? "Registra ventas, revisa tickets recientes y administra cancelaciones o devoluciones."
             : "Registra ventas y consulta únicamente tus tickets recientes."
         }
@@ -667,8 +693,8 @@ export function SalesPage() {
 
       <Box sx={{ mb: 2 }}>
         <Chip
-          color={isAdmin ? "primary" : "success"}
-          label={isAdmin ? "Vista administrador: todas las ventas" : "Vista vendedor: solo tus ventas"}
+          color={canManageSales ? "primary" : "success"}
+          label={canManageSales ? "Vista con gestión de ventas" : "Vista vendedor: solo tus ventas"}
         />
       </Box>
 
@@ -684,8 +710,9 @@ export function SalesPage() {
         </Alert>
       )}
 
-      <Card sx={{ mb: 2 }}>
-        <CardContent>
+      {canCreateSales && (
+        <Card sx={{ mb: 2 }}>
+          <CardContent>
           <Box
             sx={{
               display: "grid",
@@ -749,6 +776,7 @@ export function SalesPage() {
                       variant="outlined"
                       color="inherit"
                       onClick={() => addProductToCart(product.id)}
+                      disabled={isSubmitting}
                       sx={{
                         justifyContent: "space-between",
                         minHeight: 78,
@@ -844,6 +872,7 @@ export function SalesPage() {
                               max: item.product?.stock ?? undefined,
                               step: 1
                             }}
+                            disabled={isSubmitting}
                             onChange={(event) =>
                               updateCartQuantity(item.productId, Number(event.target.value))
                             }
@@ -853,6 +882,7 @@ export function SalesPage() {
 
                           <IconButton
                             onClick={() => removeCartItem(item.productId)}
+                            disabled={isSubmitting}
                             aria-label="Quitar producto"
                           >
                             <DeleteIcon />
@@ -946,7 +976,7 @@ export function SalesPage() {
                     color="success"
                     size="large"
                     onClick={createSale}
-                    disabled={cartIsInvalid || isSubmitting}
+                    disabled={!canCreateSales || cartIsInvalid || isSubmitting}
                     sx={{ minHeight: 58, fontSize: "1rem" }}
                   >
                     F12 · Cobrar venta
@@ -955,12 +985,13 @@ export function SalesPage() {
               </Card>
             </Box>
           </Box>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent sx={{ overflowX: "auto" }}>
-          <Box sx={{ minWidth: isAdmin ? 1380 : 900 }}>
+          <Box sx={{ minWidth: canManageSales ? 1380 : 900 }}>
             <DataGrid
               autoHeight
               rows={sales}
@@ -1005,8 +1036,8 @@ export function SalesPage() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCancelDialogOpen(false)}>Cerrar</Button>
-          <Button color="error" onClick={cancelSale} disabled={isSubmitting}>
+          <Button onClick={() => setCancelDialogOpen(false)} disabled={isSubmitting}>Cerrar</Button>
+          <Button color="error" onClick={cancelSale} disabled={isSubmitting || cancelReasonIsInvalid}>
             Confirmar cancelación
           </Button>
         </DialogActions>
@@ -1074,8 +1105,8 @@ export function SalesPage() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setReturnDialogOpen(false)}>Cerrar</Button>
-          <Button color="warning" onClick={returnSaleItem} disabled={isSubmitting}>
+          <Button onClick={() => setReturnDialogOpen(false)} disabled={isSubmitting}>Cerrar</Button>
+          <Button color="warning" onClick={returnSaleItem} disabled={isSubmitting || returnFormIsInvalid}>
             Registrar devolución
           </Button>
         </DialogActions>

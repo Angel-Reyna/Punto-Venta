@@ -85,6 +85,7 @@ export function SellerActivityPage() {
   const [to, setTo] = useState(today);
   const [limit, setLimit] = useState(200);
 
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
   function buildQuery() {
@@ -111,18 +112,32 @@ export function SellerActivityPage() {
     return params.toString();
   }
 
-  async function loadSellers() {
-    const response = await api.get<Seller[]>("/users");
+  function filtersAreInvalid() {
+    return !from || !to || new Date(from) > new Date(to) || limit < 1 || limit > 500;
+  }
 
-    setSellers(
-      response.data.filter((user) => user.role === "CASHIER")
-    );
+  async function loadSellers() {
+    try {
+      const response = await api.get<Seller[]>("/users");
+
+      setSellers(
+        response.data.filter((user) => user.role === "CASHIER")
+      );
+    } catch {
+      setError("No se pudo cargar la lista de vendedores.");
+    }
   }
 
   async function loadActivity() {
     setError("");
 
+    if (filtersAreInvalid()) {
+      setError("Revisa el rango de fechas y usa un límite entre 1 y 500.");
+      return;
+    }
+
     try {
+      setIsLoading(true);
       const query = buildQuery();
 
       const [activityResponse, summaryResponse] = await Promise.all([
@@ -137,6 +152,8 @@ export function SellerActivityPage() {
         err?.response?.data?.message ??
           "No se pudo cargar el historial de vendedores"
       );
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -310,11 +327,13 @@ export function SellerActivityPage() {
                 min: 1,
                 max: 500
               }}
+              error={limit < 1 || limit > 500}
+              helperText="1 a 500 registros"
               onChange={(event) => setLimit(Number(event.target.value))}
             />
 
-            <Button fullWidth onClick={loadActivity}>
-              Consultar
+            <Button fullWidth onClick={loadActivity} disabled={filtersAreInvalid() || isLoading}>
+              {isLoading ? "Consultando..." : "Consultar"}
             </Button>
           </Box>
         </CardContent>
@@ -358,6 +377,7 @@ export function SellerActivityPage() {
               rows={rows}
               columns={columns}
               disableRowSelectionOnClick
+              loading={isLoading}
             />
           </Box>
         </CardContent>

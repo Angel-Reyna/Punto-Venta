@@ -62,4 +62,14 @@ describe("permissions", () => {
       PERMISSIONS.CashRegisterOperate
     ])).toBe(true);
   });
+
+  it("keeps cash-register reports and manual cash movements restricted to admins", () => {
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.CashRegisterRead)).toBe(true);
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.CashRegisterOperate)).toBe(true);
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.CashRegisterManage)).toBe(true);
+
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.CashRegisterOperate)).toBe(true);
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.CashRegisterRead)).toBe(false);
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.CashRegisterManage)).toBe(false);
+  });
 });
