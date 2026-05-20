@@ -10,6 +10,7 @@ export const PERMISSIONS = {
   ProductsRead: "products:read",
   ProductsCreate: "products:create",
   ProductsUpdate: "products:update",
+  ProductsToggleActive: "products:toggle-active",
   ProductsDelete: "products:delete",
   ProductsImport: "products:import",
 

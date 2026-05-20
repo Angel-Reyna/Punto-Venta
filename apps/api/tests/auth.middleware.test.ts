@@ -15,7 +15,7 @@ jest.mock("../src/modules/auth/auth.tokens", () => ({
 import { requirePermission, requireRole } from "../src/middlewares/auth";
 import { PERMISSIONS } from "../src/modules/auth/permissions";
 
-function createRequest(userRole: Role) {
+function createRequest(userRole: Role, originalUrl = "/api/users") {
   return {
     user: {
       id: "seller-1",
@@ -23,7 +23,7 @@ function createRequest(userRole: Role) {
       role: userRole
     },
     method: "POST",
-    originalUrl: "/api/users",
+    originalUrl,
     ip: "127.0.0.1",
     headers: {
       "user-agent": "jest"
@@ -104,6 +104,25 @@ describe("auth middleware", () => {
       ipAddress: "127.0.0.1",
       userAgent: "jest"
     });
+  });
+
+  it("denies cashier product mutation permissions", () => {
+    const req = createRequest(Role.CASHIER, "/api/products/import/excel");
+    const next = jest.fn() as NextFunction;
+    const middleware = requirePermission(PERMISSIONS.ProductsImport);
+
+    expect(() => middleware(req, {} as Response, next)).toThrow("No autorizado");
+
+    expect(next).not.toHaveBeenCalled();
+    expect(sellerActivityMock.logSellerActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: {
+          method: "POST",
+          path: "/api/products/import/excel",
+          requiredPermissions: [PERMISSIONS.ProductsImport]
+        }
+      })
+    );
   });
 
 });

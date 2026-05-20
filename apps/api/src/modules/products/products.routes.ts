@@ -8,7 +8,7 @@ import { AppError } from "../../utils/AppError";
 
 import {
   requireAuth,
-  requireRoles
+  requirePermission
 } from "../../middlewares/auth";
 
 import { validate } from "../../middlewares/validate";
@@ -22,6 +22,7 @@ import {
 } from "../../utils/pagination";
 
 import { auditLog } from "../audit/audit.service";
+import { PERMISSIONS } from "../auth/permissions";
 import { getProductStocks } from "../inventory/inventory.service";
 
 import {
@@ -109,6 +110,7 @@ function getRouteId(req: Request) {
 
 productsRouter.get(
   "/",
+  requirePermission(PERMISSIONS.ProductsRead),
   asyncHandler(async (req, res) => {
     const pagination = getPagination(req.query as Record<string, unknown>, {
       defaultPageSize: 50,
@@ -246,7 +248,7 @@ productsRouter.get(
 
 productsRouter.post(
   "/",
-  requireRoles(Role.ADMIN),
+  requirePermission(PERMISSIONS.ProductsCreate),
   validate(createSchema),
   asyncHandler(async (req, res) => {
     const product = await prisma.product.create({
@@ -278,7 +280,7 @@ productsRouter.post(
 
 productsRouter.patch(
   "/:id",
-  requireRoles(Role.ADMIN),
+  requirePermission(PERMISSIONS.ProductsUpdate),
   validate(updateSchema),
   asyncHandler(async (req, res) => {
     const productId = getRouteId(req);
@@ -312,7 +314,7 @@ productsRouter.patch(
 
 productsRouter.patch(
   "/:id/toggle",
-  requireRoles(Role.ADMIN),
+  requirePermission(PERMISSIONS.ProductsToggleActive),
   asyncHandler(async (req, res) => {
     const productId = getRouteId(req);
 
@@ -347,7 +349,7 @@ productsRouter.patch(
 
 productsRouter.get(
   "/template/excel",
-  requireRoles(Role.ADMIN),
+  requirePermission(PERMISSIONS.ProductsImport),
   asyncHandler(async (_req, res) => {
     res.setHeader(
       "Content-Disposition",
@@ -365,7 +367,7 @@ productsRouter.get(
 
 productsRouter.post(
   "/import/excel",
-  requireRoles(Role.ADMIN),
+  requirePermission(PERMISSIONS.ProductsImport),
   upload.single("file"),
   asyncHandler(async (req, res) => {
     if (!req.file) {
