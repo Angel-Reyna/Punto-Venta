@@ -83,17 +83,16 @@ productsRouter.use(requireAuth);
 
 function assertExcelFile(file: Express.Multer.File) {
   const fileName = file.originalname.toLowerCase();
-  const allowedExtension = fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
+  const allowedExtension = fileName.endsWith(".xlsx");
   const allowedMimeTypes = new Set([
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/vnd.ms-excel",
     "application/octet-stream"
   ]);
 
   if (!allowedExtension || !allowedMimeTypes.has(file.mimetype)) {
     throw new AppError(
       400,
-      "El archivo debe ser un Excel válido con extensión .xlsx o .xls"
+      "El archivo debe ser un Excel válido con extensión .xlsx"
     );
   }
 }
@@ -349,7 +348,7 @@ productsRouter.patch(
 productsRouter.get(
   "/template/excel",
   requireRoles(Role.ADMIN),
-  (_req, res) => {
+  asyncHandler(async (_req, res) => {
     res.setHeader(
       "Content-Disposition",
       "attachment; filename=formato-productos.xlsx"
@@ -360,8 +359,8 @@ productsRouter.get(
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
 
-    res.send(productTemplateBuffer());
-  }
+    res.send(await productTemplateBuffer());
+  })
 );
 
 productsRouter.post(

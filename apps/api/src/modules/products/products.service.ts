@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
@@ -26,6 +26,9 @@ const PRODUCT_IMPORT_HEADER_SET = new Set<string>(PRODUCT_IMPORT_HEADERS);
 const MAX_IMPORT_COLUMNS = PRODUCT_IMPORT_HEADERS.length;
 const REQUIRED_PRODUCT_IMPORT_HEADERS = ["sku", "name"];
 
+type ProductImportHeader = (typeof PRODUCT_IMPORT_HEADERS)[number];
+type ProductImportRow = Partial<Record<ProductImportHeader, unknown>>;
+
 
 export function calculateMargin(
   costPrice: number,
@@ -47,36 +50,36 @@ export function calculateFinalPrice(
   );
 }
 
-export function productTemplateBuffer() {
-  const rows = [
-    {
-      categoryName: "General",
-      sku: "SKU-001",
-      barcode: "750000000001",
-      name: "Producto ejemplo",
-      description: "Descripción opcional",
-      costPrice: 50,
-      salePrice: 100,
-      promoPercent: 0,
-      initialStock: 10,
-      minStock: 2
-    }
-  ];
+export async function productTemplateBuffer() {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Punta Venta";
+  workbook.created = new Date();
+  workbook.modified = new Date();
 
-  const workbook = XLSX.utils.book_new();
+  const worksheet = workbook.addWorksheet("productos");
 
-  const sheet = XLSX.utils.json_to_sheet(rows);
+  worksheet.columns = PRODUCT_IMPORT_HEADERS.map((header) => ({
+    header,
+    key: header,
+    width: Math.max(header.length + 4, 16)
+  }));
 
-  XLSX.utils.book_append_sheet(
-    workbook,
-    sheet,
-    "productos"
-  );
-
-  return XLSX.write(workbook, {
-    type: "buffer",
-    bookType: "xlsx"
+  worksheet.addRow({
+    categoryName: "General",
+    sku: "SKU-001",
+    barcode: "750000000001",
+    name: "Producto ejemplo",
+    description: "Descripción opcional",
+    costPrice: 50,
+    salePrice: 100,
+    promoPercent: 0,
+    initialStock: 10,
+    minStock: 2
   });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+
+  return Buffer.from(buffer);
 }
 
 function cleanString(value: unknown) {
@@ -216,47 +219,91 @@ async function getOrCreateCategory(
   });
 }
 
-function readWorkbook(buffer: Buffer) {
+function normalizeCellValue(value: ExcelJS.CellValue | undefined) {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    value instanceof Date
+  ) {
+    return value;
+  }
+
+  if (typeof value === "object") {
+    if ("text" in value && typeof value.text === "string") {
+      return value.text;
+    }
+
+    if ("richText" in value && Array.isArray(value.richText)) {
+      return value.richText
+        .map((part) => part.text ?? "")
+        .join("");
+    }
+
+    if ("result" in value) {
+      return normalizeCellValue(value.result as ExcelJS.CellValue | undefined);
+    }
+  }
+
+  return String(value);
+}
+
+function hasCellContent(value: unknown) {
+  if (value === undefined || value === null) {
+    return false;
+  }
+
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  return true;
+}
+
+async function readWorkbook(buffer: Buffer) {
   try {
-    return XLSX.read(buffer, {
-      type: "buffer",
-      sheetRows: MAX_IMPORT_ROWS + 2
-    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(
+      buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]
+    );
+
+    return workbook;
   } catch {
     throw new AppError(
       400,
-      "No se pudo leer el archivo Excel. Verifica que no esté dañado y que use formato .xlsx o .xls válido"
+      "No se pudo leer el archivo Excel. Verifica que no esté dañado y que use formato .xlsx válido"
     );
   }
 }
 
-function getFirstWorksheet(workbook: XLSX.WorkBook) {
-  const sheetName = workbook.SheetNames[0];
+function getFirstWorksheet(workbook: ExcelJS.Workbook) {
+  const worksheet = workbook.worksheets[0];
 
-  if (!sheetName) {
+  if (!worksheet) {
     throw new AppError(
       400,
       "El archivo no contiene hojas válidas"
     );
   }
 
-  const sheet = workbook.Sheets[sheetName];
-
-  if (!sheet || !sheet["!ref"]) {
+  if (worksheet.actualRowCount === 0) {
     throw new AppError(
       400,
       "La primera hoja del archivo está vacía"
     );
   }
 
-  return sheet;
+  return worksheet;
 }
 
-function readHeaderNames(sheet: XLSX.WorkSheet) {
-  const range = XLSX.utils.decode_range(sheet["!ref"] as string);
-  const columnCount = range.e.c - range.s.c + 1;
+function readHeaderMap(worksheet: ExcelJS.Worksheet) {
+  const headerRow = worksheet.getRow(1);
 
-  if (columnCount > MAX_IMPORT_COLUMNS) {
+  if (headerRow.cellCount > MAX_IMPORT_COLUMNS) {
     throw new AppError(
       400,
       `El archivo excede el límite de ${MAX_IMPORT_COLUMNS} columnas permitidas para importación de productos`
@@ -264,25 +311,32 @@ function readHeaderNames(sheet: XLSX.WorkSheet) {
   }
 
   const headers: string[] = [];
+  const headerByColumn = new Map<number, ProductImportHeader>();
 
-  for (let columnIndex = range.s.c; columnIndex <= range.e.c; columnIndex += 1) {
-    const cellAddress = XLSX.utils.encode_cell({
-      r: range.s.r,
-      c: columnIndex
-    });
-    const header = cleanString(sheet[cellAddress]?.v);
+  headerRow.eachCell({ includeEmpty: false }, (cell, columnNumber) => {
+    const header = cleanString(normalizeCellValue(cell.value));
 
-    if (header) {
-      if (headers.includes(header)) {
-        throw new AppError(
-          400,
-          `El archivo contiene una columna duplicada: ${header}`
-        );
-      }
-
-      headers.push(header);
+    if (!header) {
+      return;
     }
-  }
+
+    if (headers.includes(header)) {
+      throw new AppError(
+        400,
+        `El archivo contiene una columna duplicada: ${header}`
+      );
+    }
+
+    if (!PRODUCT_IMPORT_HEADER_SET.has(header)) {
+      throw new AppError(
+        400,
+        `El archivo contiene una columna no permitida: ${header}`
+      );
+    }
+
+    headers.push(header);
+    headerByColumn.set(columnNumber, header as ProductImportHeader);
+  });
 
   if (headers.length === 0) {
     throw new AppError(
@@ -300,40 +354,58 @@ function readHeaderNames(sheet: XLSX.WorkSheet) {
     }
   }
 
-  const unknownHeader = headers.find(
-    (header) => !PRODUCT_IMPORT_HEADER_SET.has(header)
-  );
-
-  if (unknownHeader) {
-    throw new AppError(
-      400,
-      `El archivo contiene una columna no permitida: ${unknownHeader}`
-    );
-  }
+  return headerByColumn;
 }
 
-function readProductRows(buffer: Buffer) {
-  const workbook = readWorkbook(buffer);
-  const sheet = getFirstWorksheet(workbook);
+async function readProductRows(buffer: Buffer) {
+  const workbook = await readWorkbook(buffer);
+  const worksheet = getFirstWorksheet(workbook);
+  const headerByColumn = readHeaderMap(worksheet);
+  const rows: ProductImportRow[] = [];
 
-  readHeaderNames(sheet);
+  for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
+    const worksheetRow = worksheet.getRow(rowNumber);
+    const row: ProductImportRow = {};
+    let hasData = false;
 
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-    blankrows: false,
-    defval: ""
-  });
+    worksheetRow.eachCell({ includeEmpty: false }, (cell, columnNumber) => {
+      const value = normalizeCellValue(cell.value);
+
+      if (!hasCellContent(value)) {
+        return;
+      }
+
+      const header = headerByColumn.get(columnNumber);
+
+      if (!header) {
+        throw new AppError(
+          400,
+          `Fila ${rowNumber}: contiene datos en una columna sin encabezado permitido`
+        );
+      }
+
+      row[header] = value;
+      hasData = true;
+    });
+
+    if (!hasData) {
+      continue;
+    }
+
+    rows.push(row);
+
+    if (rows.length > MAX_IMPORT_ROWS) {
+      throw new AppError(
+        400,
+        `El archivo excede el límite de ${MAX_IMPORT_ROWS} productos por importación`
+      );
+    }
+  }
 
   if (rows.length === 0) {
     throw new AppError(
       400,
       "El archivo no contiene productos para importar"
-    );
-  }
-
-  if (rows.length > MAX_IMPORT_ROWS) {
-    throw new AppError(
-      400,
-      `El archivo excede el límite de ${MAX_IMPORT_ROWS} productos por importación`
     );
   }
 
@@ -344,7 +416,7 @@ export async function importProducts(
   buffer: Buffer,
   userId: string
 ) {
-  const rows = readProductRows(buffer);
+  const rows = await readProductRows(buffer);
 
   return prisma.$transaction(
     async (tx) => {

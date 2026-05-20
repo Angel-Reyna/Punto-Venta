@@ -452,7 +452,7 @@ const formIsInvalid =
             <input
               hidden
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx"
               onChange={(event) => importExcel(event.target.files?.[0])}
             />
           </Button>

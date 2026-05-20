@@ -1,4 +1,4 @@
-import XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 import { AppError } from "../src/utils/AppError";
 
@@ -19,15 +19,28 @@ jest.mock("../src/modules/inventory/inventory.service", () => inventoryServiceMo
 
 import { importProducts } from "../src/modules/products/products.service";
 
-function workbookBuffer(rows: Record<string, unknown>[]) {
-  const workbook = XLSX.utils.book_new();
-  const sheet = XLSX.utils.json_to_sheet(rows);
-  XLSX.utils.book_append_sheet(workbook, sheet, "productos");
+async function workbookBuffer(rows: Record<string, unknown>[]) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("productos");
 
-  return XLSX.write(workbook, {
-    type: "buffer",
-    bookType: "xlsx"
-  });
+  const headers = Array.from(
+    rows.reduce<Set<string>>((accumulator, row) => {
+      Object.keys(row).forEach((key) => accumulator.add(key));
+
+      return accumulator;
+    }, new Set<string>())
+  );
+
+  worksheet.columns = headers.map((header) => ({
+    header,
+    key: header
+  }));
+
+  rows.forEach((row) => worksheet.addRow(row));
+
+  const buffer = await workbook.xlsx.writeBuffer();
+
+  return Buffer.from(buffer);
 }
 
 function createTxMock() {
@@ -59,7 +72,7 @@ describe("products import", () => {
   it("rejects unsupported Excel columns before committing", async () => {
     await expect(
       importProducts(
-        workbookBuffer([
+        await workbookBuffer([
           {
             sku: "SKU-1",
             name: "Producto 1",
@@ -83,7 +96,7 @@ describe("products import", () => {
     }));
 
     await expect(
-      importProducts(workbookBuffer(rows), "admin-1")
+      importProducts(await workbookBuffer(rows), "admin-1")
     ).rejects.toMatchObject({
       statusCode: 400,
       message: "El archivo excede el límite de 1000 productos por importación"
@@ -95,7 +108,7 @@ describe("products import", () => {
   it("rejects duplicated SKUs in the same Excel file before committing", async () => {
     await expect(
       importProducts(
-        workbookBuffer([
+        await workbookBuffer([
           {
             sku: "SKU-1",
             name: "Producto 1"
@@ -124,7 +137,7 @@ describe("products import", () => {
 
     await expect(
       importProducts(
-        workbookBuffer([
+        await workbookBuffer([
           {
             sku: "SKU-1",
             barcode: "750000000001",
@@ -151,7 +164,7 @@ describe("products import", () => {
     );
 
     const result = await importProducts(
-      workbookBuffer([
+      await workbookBuffer([
         {
           categoryName: "General",
           sku: "SKU-1",
