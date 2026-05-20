@@ -7,6 +7,9 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+const CSRF_COOKIE_NAME = "csrfToken";
+const CSRF_HEADER_NAME = "X-CSRF-Token";
+
 type User = {
   id: string;
   name: string;
@@ -17,6 +20,11 @@ type User = {
 export type AuthSessionResponse = {
   accessToken: string;
   user: User;
+  csrfToken: string;
+};
+
+type CsrfTokenResponse = {
+  csrfToken: string;
 };
 
 type RetriableRequestConfig = InternalAxiosRequestConfig & {
@@ -35,6 +43,32 @@ export const api = axios.create({
   withCredentials: true
 });
 
+function getCookieValue(name: string): string | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const cookiePrefix = `${name}=`;
+  const cookie = document.cookie
+    .split(";")
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(cookiePrefix));
+
+  if (!cookie) {
+    return null;
+  }
+
+  return decodeURIComponent(cookie.slice(cookiePrefix.length));
+}
+
+function getCsrfTokenFromCookie(): string | null {
+  return getCookieValue(CSRF_COOKIE_NAME);
+}
+
+function isUnsafeHttpMethod(method?: string) {
+  return !["get", "head", "options"].includes((method ?? "get").toLowerCase());
+}
+
 function isAuthRoute(url: string) {
   return (
     url.includes("/auth/login") ||
@@ -45,6 +79,10 @@ function isAuthRoute(url: string) {
 
 function setAuthorizationHeader(config: RetriableRequestConfig, token: string) {
   config.headers.Authorization = `Bearer ${token}`;
+}
+
+function setCsrfHeader(config: RetriableRequestConfig, token: string) {
+  config.headers[CSRF_HEADER_NAME] = token;
 }
 
 function notifyAuthExpiredOnce() {
@@ -75,12 +113,30 @@ export function clearClientAuthState() {
   refreshSessionPromise = null;
 }
 
+export async function ensureCsrfToken() {
+  const existingToken = getCsrfTokenFromCookie();
+
+  if (existingToken) {
+    return existingToken;
+  }
+
+  const response = await api.get<CsrfTokenResponse>("/auth/csrf-token");
+
+  return response.data.csrfToken;
+}
+
 export function refreshSession() {
   if (!refreshSessionPromise) {
     const requestVersion = authSessionVersion;
 
-    refreshSessionPromise = api
-      .post<AuthSessionResponse>("/auth/refresh")
+    refreshSessionPromise = ensureCsrfToken()
+      .then((csrfToken) =>
+        api.post<AuthSessionResponse>("/auth/refresh", undefined, {
+          headers: {
+            [CSRF_HEADER_NAME]: csrfToken
+          }
+        })
+      )
       .then((response) => {
         if (requestVersion !== authSessionVersion) {
           throw new Error("La sesión cambió durante la renovación.");
@@ -104,6 +160,14 @@ api.interceptors.request.use((config) => {
 
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  if (isUnsafeHttpMethod(config.method)) {
+    const csrfToken = getCsrfTokenFromCookie();
+
+    if (csrfToken) {
+      setCsrfHeader(config, csrfToken);
+    }
   }
 
   return config;

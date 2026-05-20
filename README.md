@@ -199,4 +199,4 @@ POSTGRES_PASSWORD
 SEED_ADMIN_PASSWORD
 ```
 
-En producción, la app debe servirse por HTTPS para que las cookies seguras funcionen correctamente. Si web y API quedan bajo el mismo dominio mediante reverse proxy (`VITE_API_URL=/api`), usa `COOKIE_SAME_SITE=lax`. Si quedan en dominios distintos, usa `COOKIE_SAME_SITE=none` junto con `COOKIE_SECURE=true` y añade protección CSRF antes de exponer datos reales. PgAdmin debe quedar deshabilitado o protegido detrás de una red privada/VPN.
+En producción, la app debe servirse por HTTPS para que las cookies seguras funcionen correctamente. Si web y API quedan bajo el mismo dominio mediante reverse proxy (`VITE_API_URL=/api`), usa `COOKIE_SAME_SITE=lax`. Si quedan en subdominios distintos, usa `COOKIE_SAME_SITE=none`, `COOKIE_SECURE=true` y configura `COOKIE_DOMAIN` al dominio padre controlado para que el frontend pueda leer la cookie CSRF no sensible. PgAdmin debe quedar deshabilitado o protegido detrás de una red privada/VPN.

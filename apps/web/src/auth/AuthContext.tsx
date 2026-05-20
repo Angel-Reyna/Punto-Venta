@@ -10,6 +10,7 @@ import {
 import {
   api,
   clearClientAuthState,
+  ensureCsrfToken,
   refreshSession,
   setClientAuthSession
 } from "../api/client";
@@ -24,6 +25,7 @@ type User = {
 type AuthResponse = {
   accessToken: string;
   user: User;
+  csrfToken: string;
 };
 
 type AuthStatus = "loading" | "authenticated" | "guest";
@@ -91,7 +93,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function logout() {
     try {
-      await api.post("/auth/logout");
+      const csrfToken = await ensureCsrfToken();
+
+      await api.post("/auth/logout", undefined, {
+        headers: {
+          "X-CSRF-Token": csrfToken
+        }
+      });
     } catch {
       // El logout local no debe depender de la disponibilidad del backend.
     }
