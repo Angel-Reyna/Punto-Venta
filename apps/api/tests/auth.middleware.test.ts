@@ -143,4 +143,43 @@ describe("auth middleware", () => {
       })
     );
   });
+
+  it("denies cashier sale cancellation permissions but keeps failed attempt auditable", () => {
+    const req = createRequest(Role.CASHIER, "/api/sales/sale-1/cancel");
+    const next = jest.fn() as NextFunction;
+    const middleware = requirePermission(PERMISSIONS.SalesCancel);
+
+    expect(() => middleware(req, {} as Response, next)).toThrow("No autorizado");
+
+    expect(next).not.toHaveBeenCalled();
+    expect(sellerActivityMock.logSellerActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: {
+          method: "POST",
+          path: "/api/sales/sale-1/cancel",
+          requiredPermissions: [PERMISSIONS.SalesCancel]
+        }
+      })
+    );
+  });
+
+  it("denies cashier sale return permissions but keeps failed attempt auditable", () => {
+    const req = createRequest(Role.CASHIER, "/api/sales/sale-1/returns");
+    const next = jest.fn() as NextFunction;
+    const middleware = requirePermission(PERMISSIONS.SalesReturn);
+
+    expect(() => middleware(req, {} as Response, next)).toThrow("No autorizado");
+
+    expect(next).not.toHaveBeenCalled();
+    expect(sellerActivityMock.logSellerActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: {
+          method: "POST",
+          path: "/api/sales/sale-1/returns",
+          requiredPermissions: [PERMISSIONS.SalesReturn]
+        }
+      })
+    );
+  });
+
 });

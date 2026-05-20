@@ -41,10 +41,23 @@ describe("permissions", () => {
     expect(hasPermission(Role.CASHIER, PERMISSIONS.InventoryAdjust)).toBe(false);
   });
 
+  it("allows cashiers to read and create sales while keeping cancel and return restricted", () => {
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.SalesRead)).toBe(true);
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.SalesCreate)).toBe(true);
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.SalesCancel)).toBe(true);
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.SalesReturn)).toBe(true);
+
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.SalesRead)).toBe(true);
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.SalesCreate)).toBe(true);
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.SalesCancel)).toBe(false);
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.SalesReturn)).toBe(false);
+  });
+
   it("grants operational POS permissions to cashiers", () => {
     expect(hasAllPermissions(Role.CASHIER, [
       PERMISSIONS.ProductsRead,
       PERMISSIONS.InventoryRead,
+      PERMISSIONS.SalesRead,
       PERMISSIONS.SalesCreate,
       PERMISSIONS.CashRegisterOperate
     ])).toBe(true);

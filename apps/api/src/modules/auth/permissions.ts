@@ -20,6 +20,7 @@ export const PERMISSIONS = {
   SalesRead: "sales:read",
   SalesCreate: "sales:create",
   SalesCancel: "sales:cancel",
+  SalesReturn: "sales:return",
 
   CashRegisterRead: "cash-register:read",
   CashRegisterOperate: "cash-register:operate",
@@ -38,6 +39,7 @@ const ADMIN_PERMISSIONS = Object.values(PERMISSIONS) as Permission[];
 const CASHIER_PERMISSIONS = [
   PERMISSIONS.ProductsRead,
   PERMISSIONS.InventoryRead,
+  PERMISSIONS.SalesRead,
   PERMISSIONS.SalesCreate,
   PERMISSIONS.CashRegisterOperate,
   PERMISSIONS.DashboardRead

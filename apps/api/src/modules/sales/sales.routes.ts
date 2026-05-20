@@ -1,12 +1,13 @@
 import { Router, type Request } from "express";
 import { z } from "zod";
 
-import { requireAuth } from "../../middlewares/auth";
+import { requireAuth, requirePermission } from "../../middlewares/auth";
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { AppError } from "../../utils/AppError";
 import { setPaginationHeaders } from "../../utils/pagination";
 import { auditLog } from "../audit/audit.service";
+import { PERMISSIONS } from "../auth/permissions";
 
 import {
   cancelSale,
@@ -39,6 +40,7 @@ function getCurrentUser(req: Request) {
 
 salesRouter.get(
   "/",
+  requirePermission(PERMISSIONS.SalesRead),
   asyncHandler(async (req, res) => {
     const result = await listSales(
       getCurrentUser(req),
@@ -53,6 +55,7 @@ salesRouter.get(
 
 salesRouter.get(
   "/:id",
+  requirePermission(PERMISSIONS.SalesRead),
   validate(saleIdParamsSchema),
   asyncHandler(async (req, res) => {
     const sale = await getSaleById(getCurrentUser(req), String(req.params.id));
@@ -63,6 +66,7 @@ salesRouter.get(
 
 salesRouter.post(
   "/",
+  requirePermission(PERMISSIONS.SalesCreate),
   validate(saleSchema),
   asyncHandler(async (req, res) => {
     const sale = await createSale(getCurrentUser(req), req.body, {
@@ -85,6 +89,7 @@ salesRouter.post(
 
 salesRouter.post(
   "/:id/cancel",
+  requirePermission(PERMISSIONS.SalesCancel),
   validate(saleIdParamsSchema.merge(cancelSaleSchema)),
   asyncHandler(async (req, res) => {
     const sale = await cancelSale(
@@ -112,6 +117,7 @@ salesRouter.post(
 
 salesRouter.post(
   "/:id/returns",
+  requirePermission(PERMISSIONS.SalesReturn),
   validate(saleIdParamsSchema.merge(returnSaleSchema)),
   asyncHandler(async (req, res) => {
     const sale = await returnSaleItems(
