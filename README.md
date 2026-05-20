@@ -169,6 +169,8 @@ En producción real configura:
 API_NODE_ENV=production
 CORS_ORIGIN=https://tu-dominio.com
 VITE_API_URL=/api
+COOKIE_SECURE=true
+COOKIE_SAME_SITE=lax
 SEED_DEMO_DATA=false
 ```
 
@@ -197,4 +199,4 @@ POSTGRES_PASSWORD
 SEED_ADMIN_PASSWORD
 ```
 
-En producción, la app debe servirse por HTTPS para que las cookies seguras funcionen correctamente. PgAdmin debe quedar deshabilitado o protegido detrás de una red privada/VPN.
+En producción, la app debe servirse por HTTPS para que las cookies seguras funcionen correctamente. Si web y API quedan bajo el mismo dominio mediante reverse proxy (`VITE_API_URL=/api`), usa `COOKIE_SAME_SITE=lax`. Si quedan en dominios distintos, usa `COOKIE_SAME_SITE=none` junto con `COOKIE_SECURE=true` y añade protección CSRF antes de exponer datos reales. PgAdmin debe quedar deshabilitado o protegido detrás de una red privada/VPN.

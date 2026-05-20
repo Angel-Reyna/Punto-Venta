@@ -2,6 +2,7 @@ import { Router, type CookieOptions, type Request } from "express";
 import { Role } from "@prisma/client";
 
 import { env } from "../../config/env";
+import { resolveRefreshCookieSecurity } from "../../config/cookieSecurity";
 import { prisma } from "../../config/prisma";
 import { requireAuth, requireRole } from "../../middlewares/auth";
 import {
@@ -19,20 +20,30 @@ import * as service from "./auth.service";
 export const authRouter = Router();
 
 const REFRESH_COOKIE_NAME = "refreshToken";
+const REFRESH_COOKIE_PATH = "/api/auth";
+
+const refreshCookieSecurity = resolveRefreshCookieSecurity({
+  nodeEnv: env.NODE_ENV,
+  cookieSecure: env.COOKIE_SECURE,
+  cookieSameSite: env.COOKIE_SAME_SITE,
+  cookieDomain: env.COOKIE_DOMAIN
+});
 
 const refreshCookieOptions: CookieOptions = {
   httpOnly: true,
-  secure: env.NODE_ENV === "production",
-  sameSite: env.NODE_ENV === "production" ? "none" : "lax",
-  path: "/api/auth",
-  maxAge: env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000
+  secure: refreshCookieSecurity.secure,
+  sameSite: refreshCookieSecurity.sameSite,
+  path: REFRESH_COOKIE_PATH,
+  maxAge: env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+  ...(refreshCookieSecurity.domain ? { domain: refreshCookieSecurity.domain } : {})
 };
 
 const clearRefreshCookieOptions: CookieOptions = {
-  httpOnly: refreshCookieOptions.httpOnly,
-  secure: refreshCookieOptions.secure,
-  sameSite: refreshCookieOptions.sameSite,
-  path: refreshCookieOptions.path
+  httpOnly: true,
+  secure: refreshCookieSecurity.secure,
+  sameSite: refreshCookieSecurity.sameSite,
+  path: REFRESH_COOKIE_PATH,
+  ...(refreshCookieSecurity.domain ? { domain: refreshCookieSecurity.domain } : {})
 };
 
 function getClientMeta(req: Request) {

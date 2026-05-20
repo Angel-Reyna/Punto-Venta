@@ -1,7 +1,9 @@
 import "dotenv/config";
 import { z } from "zod";
 
-const booleanFromEnv = z.preprocess((value) => {
+import { resolveRefreshCookieSecurity } from "./cookieSecurity";
+
+const parseOptionalBooleanEnvValue = (value: unknown) => {
   if (value === undefined || value === null || value === "") {
     return undefined;
   }
@@ -23,7 +25,33 @@ const booleanFromEnv = z.preprocess((value) => {
   }
 
   return value;
-}, z.boolean());
+};
+
+const booleanFromEnv = z.preprocess(parseOptionalBooleanEnvValue, z.boolean());
+const optionalBooleanFromEnv = z.preprocess(
+  parseOptionalBooleanEnvValue,
+  z.boolean().optional()
+);
+
+const optionalTrimmedStringFromEnv = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const normalized = value.trim();
+
+  return normalized === "" ? undefined : normalized;
+}, z.string().min(1).optional());
+
+const optionalSameSiteFromEnv = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  return normalized === "" ? undefined : normalized;
+}, z.enum(["lax", "strict", "none"]).optional());
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -33,6 +61,10 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
 
   CORS_ORIGIN: z.string().url(),
+
+  COOKIE_SECURE: optionalBooleanFromEnv,
+  COOKIE_SAME_SITE: optionalSameSiteFromEnv,
+  COOKIE_DOMAIN: optionalTrimmedStringFromEnv,
 
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
@@ -50,6 +82,21 @@ const envSchema = z.object({
     z.string().min(12).max(128).optional()
   ),
   SEED_DEMO_DATA: booleanFromEnv.default(false)
+}).superRefine((value, ctx) => {
+  try {
+    resolveRefreshCookieSecurity({
+      nodeEnv: value.NODE_ENV,
+      cookieSecure: value.COOKIE_SECURE,
+      cookieSameSite: value.COOKIE_SAME_SITE,
+      cookieDomain: value.COOKIE_DOMAIN
+    });
+  } catch (error) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["COOKIE_SECURE"],
+      message: error instanceof Error ? error.message : "Configuración de cookie inválida"
+    });
+  }
 });
 
 const parsed = envSchema.safeParse(process.env);

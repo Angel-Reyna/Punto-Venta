@@ -32,7 +32,7 @@ Monorepo con `apps/api` y `apps/web`. La API concentra reglas de negocio, seguri
 ## Limitaciones actuales
 
 - La autorización todavía es coarse-grained: solo existen roles `ADMIN` y `CASHIER`, sin permisos granulares por acción.
-- Los endpoints que dependen de cookie `httpOnly` deben revisarse con especial cuidado si producción usa `SameSite=None`; en ese escenario conviene añadir protección CSRF explícita.
+- La política de cookie de refresh (`secure`, `sameSite`, `domain`) ya es configurable por entorno; si producción usa `SameSite=None`, sigue pendiente añadir protección CSRF explícita.
 - El frontend tiene infraestructura de test, pero faltan pruebas de componentes y flujos críticos.
 - La importación de Excel usa `exceljs` para archivos `.xlsx` y aplica límites de tamaño, filas, columnas y encabezados. Se eliminó la dependencia runtime vulnerable `xlsx`.
 - La documentación de producción todavía debe completarse con estrategia final de secretos, dominios, TLS, backups gestionados y observabilidad.
@@ -40,10 +40,9 @@ Monorepo con `apps/api` y `apps/web`. La API concentra reglas de negocio, seguri
 ## Siguiente nivel producción
 
 1. Confirmar el baseline local con scripts del monorepo: `npm run api:prisma:generate`, `npm run api:build`, `npm run api:test` y `npm run web:build`.
-2. Hacer configurable la política de cookie (`secure`, `sameSite`, dominio) según el modelo final de despliegue.
-3. Añadir protección CSRF para endpoints que aceptan cookies si el despliegue requiere cookies cross-site.
-4. Introducir autorización granular por permisos sin romper los roles actuales.
-6. Añadir pruebas frontend para auth, rutas protegidas y formularios críticos.
-7. Evolucionar logging hacia una solución estructurada de producción y agregar métricas/tracing.
-8. Mover secretos productivos a un gestor dedicado como AWS Secrets Manager o equivalente.
-9. Separar migraciones de base de datos como job explícito en despliegues productivos críticos.
+2. Añadir protección CSRF para endpoints que aceptan cookies si el despliegue requiere cookies cross-site (`COOKIE_SAME_SITE=none`).
+3. Introducir autorización granular por permisos sin romper los roles actuales.
+4. Añadir pruebas frontend para auth, rutas protegidas y formularios críticos.
+5. Evolucionar logging hacia una solución estructurada de producción y agregar métricas/tracing.
+6. Mover secretos productivos a un gestor dedicado como AWS Secrets Manager o equivalente.
+7. Separar migraciones de base de datos como job explícito en despliegues productivos críticos.

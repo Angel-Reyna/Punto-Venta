@@ -31,6 +31,9 @@ services:
       PORT: 4000
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/pos_senior_db?schema=public}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_access_secret_change_me_min_32_chars}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret_change_me_min_32_chars}
       TOKEN_HASH_PEPPER: ${TOKEN_HASH_PEPPER:-dev_token_pepper_change_me_min_32_chars}

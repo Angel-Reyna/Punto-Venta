@@ -4,6 +4,9 @@ process.env.PORT = process.env.PORT ?? "4000";
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ?? "postgresql://test:test@localhost:5432/punta_venta_test";
 process.env.CORS_ORIGIN = process.env.CORS_ORIGIN ?? "http://localhost:5173";
+process.env.COOKIE_SECURE = process.env.COOKIE_SECURE ?? "false";
+process.env.COOKIE_SAME_SITE = process.env.COOKIE_SAME_SITE ?? "lax";
+process.env.COOKIE_DOMAIN = process.env.COOKIE_DOMAIN ?? "";
 process.env.JWT_ACCESS_SECRET =
   process.env.JWT_ACCESS_SECRET ?? "test-access-secret-minimum-32-characters";
 process.env.JWT_REFRESH_SECRET =
