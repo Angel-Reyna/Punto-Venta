@@ -26,10 +26,9 @@ import UndoIcon from "@mui/icons-material/Undo";
 import CancelIcon from "@mui/icons-material/Cancel";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
-import { GridColDef } from "@mui/x-data-grid";
 import { api } from "../api/client";
 import { ActionDisabledReason } from "../components/ActionDisabledReason";
-import { DataGridCard } from "../components/DataGridCard";
+import { SearchToolbar } from "../components/SearchToolbar";
 import { PageHeader } from "../components/PageHeader";
 import { StatusFeedback } from "../components/StatusFeedback";
 import { useAuth } from "../auth/AuthContext";
@@ -196,6 +195,9 @@ export function SalesPage() {
   const [customerName, setCustomerName] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [productSearch, setProductSearch] = useState("");
+  const [saleSearch, setSaleSearch] = useState("");
+  const [saleStatusFilter, setSaleStatusFilter] = useState<SaleStatus | "ALL">("ALL");
+  const [salePaymentFilter, setSalePaymentFilter] = useState<PaymentMethod | "ALL">("ALL");
   const [paidAmount, setPaidAmount] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -617,114 +619,85 @@ export function SalesPage() {
     returnQuantityNumber > selectedReturnItemAvailable ||
     returnReason.trim().length < 5;
 
-  const columns = useMemo<GridColDef[]>(() => {
-    const baseColumns: GridColDef[] = [
-      {
-        field: "folio",
-        headerName: "Folio",
-        width: 180
-      },
-      {
-        field: "createdAt",
-        headerName: "Fecha",
-        width: 190,
-        valueFormatter: (value) => new Date(value as string).toLocaleString()
-      },
-      {
-        field: "customer",
-        headerName: "Cliente",
-        flex: 1,
-        minWidth: 180,
-        valueGetter: (_value, row) => row.customer?.name ?? "Sin cliente"
-      },
-      {
-        field: "status",
-        headerName: "Estado",
-        width: 170,
-        renderCell: (params) => (
-          <Chip
-            size="small"
-            label={statusLabel(params.value as SaleStatus)}
-            color={statusColor(params.value as SaleStatus)}
-          />
-        )
-      },
-      {
-        field: "payments",
-        headerName: "Pago",
-        width: 170,
-        valueGetter: (_value, row) =>
-          row.payments
-            ?.map((payment: { method: PaymentMethod }) => paymentMethodLabel(payment.method))
-            .join(", ") ?? "N/A"
-      },
-      {
-        field: "total",
-        headerName: "Total",
-        width: 130,
-        valueFormatter: (value) => formatMoney(Number(value))
-      }
-    ];
+  const filteredSales = useMemo(() => {
+    const query = normalizeSearch(saleSearch);
 
-    if (!canManageSales) {
-      return baseColumns;
+    return sales.filter((sale) => {
+      const salePaymentMethods = sale.payments?.map((payment) => payment.method) ?? [];
+      const matchesStatus =
+        saleStatusFilter === "ALL" || sale.status === saleStatusFilter;
+      const matchesPayment =
+        salePaymentFilter === "ALL" || salePaymentMethods.includes(salePaymentFilter);
+
+      if (!matchesStatus || !matchesPayment) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      return [
+        sale.folio,
+        sale.customer?.name ?? "Sin cliente",
+        sale.cashier?.name ?? "",
+        sale.cashier?.email ?? "",
+        statusLabel(sale.status),
+        ...salePaymentMethods.map(paymentMethodLabel)
+      ].some((value) => value.toLowerCase().includes(query));
+    });
+  }, [saleSearch, saleStatusFilter, salePaymentFilter, sales]);
+
+  const salesSummary = useMemo(() => {
+    const completedSales = sales.filter((sale) => sale.status === "COMPLETED");
+    const totalSold = completedSales.reduce(
+      (sum, sale) => sum + Number(sale.total ?? 0),
+      0
+    );
+    const cancelledOrReturned = sales.filter(
+      (sale) => sale.status === "CANCELLED" || sale.status === "REFUNDED"
+    ).length;
+
+    return {
+      totalCount: sales.length,
+      completedCount: completedSales.length,
+      totalSold,
+      cancelledOrReturned
+    };
+  }, [sales]);
+
+  function salePaymentSummary(sale: Sale) {
+    const payments = sale.payments ?? [];
+
+    if (payments.length === 0) {
+      return "Sin pago registrado";
     }
 
-    return [
-      ...baseColumns,
-      {
-        field: "cashier",
-        headerName: "Vendedor",
-        flex: 1,
-        minWidth: 240,
-        valueGetter: (_value, row) =>
-          row.cashier ? `${row.cashier.name} (${row.cashier.email})` : "Sin vendedor"
-      },
-      {
-        field: "actions",
-        headerName: "Acciones",
-        width: 260,
-        sortable: false,
-        filterable: false,
-        renderCell: (params) => {
-          const sale = params.row as Sale;
-          const hasReturnableItems = (sale.items ?? []).some(
-            (item) => getReturnableQuantity(sale, item) > 0
-          );
+    return payments
+      .map(
+        (payment) =>
+          `${paymentMethodLabel(payment.method)} · ${formatMoney(payment.amount)}`
+      )
+      .join(" · ");
+  }
 
-          return (
-            <Stack direction="row" spacing={1}>
-              {canReturnSales && (
-                <Button
-                  size="small"
-                  color="warning"
-                  startIcon={<UndoIcon />}
-                  disabled={
-                    isSubmitting || sale.status === "CANCELLED" || !hasReturnableItems
-                  }
-                  onClick={() => openReturnDialog(sale)}
-                >
-                  Devolver
-                </Button>
-              )}
+  function saleItemsSummary(sale: Sale) {
+    const items = sale.items ?? [];
 
-              {canCancelSales && (
-                <Button
-                  size="small"
-                  color="error"
-                  startIcon={<CancelIcon />}
-                  disabled={isSubmitting || sale.status !== "COMPLETED"}
-                  onClick={() => openCancelDialog(sale)}
-                >
-                  Cancelar
-                </Button>
-              )}
-            </Stack>
-          );
-        }
-      }
-    ];
-  }, [canManageSales, canReturnSales, canCancelSales, isSubmitting]);
+    if (items.length === 0) {
+      return "Sin detalle de productos";
+    }
+
+    const visibleItems = items
+      .slice(0, 3)
+      .map((item) => `${item.quantity}× ${item.product?.name ?? item.productId}`);
+
+    if (items.length > visibleItems.length) {
+      visibleItems.push(`+${items.length - visibleItems.length} más`);
+    }
+
+    return visibleItems.join(" · ");
+  }
 
   return (
     <>
@@ -852,74 +825,73 @@ export function SalesPage() {
                 })}
               </Box>
 
-              <Box sx={{ overflowX: "auto" }}>
-                <Box sx={{ minWidth: 780 }}>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={900} sx={{ mb: 1 }}>
+                  Ticket actual
+                </Typography>
+
+                {cartRows.length === 0 ? (
                   <Box
                     sx={{
-                      display: "grid",
-                      gridTemplateColumns: "1.1fr 0.9fr 130px 120px 130px 56px",
-                      gap: 1,
-                      px: 1.5,
-                      py: 1,
-                      bgcolor: "#f1f5f9",
-                      borderRadius: 2,
-                      fontWeight: 800,
-                      color: "text.secondary"
+                      py: 6,
+                      textAlign: "center",
+                      color: "text.secondary",
+                      border: "1px dashed #cbd5e1",
+                      borderRadius: 2
                     }}
                   >
-                    <Typography variant="caption">Código</Typography>
-                    <Typography variant="caption">Producto</Typography>
-                    <Typography variant="caption">Precio</Typography>
-                    <Typography variant="caption">Cant.</Typography>
-                    <Typography variant="caption">Importe</Typography>
-                    <Typography variant="caption" />
+                    Escanea o busca un producto para iniciar la venta.
                   </Box>
-
-                  {cartRows.length === 0 ? (
-                    <Box
-                      sx={{
-                        py: 6,
-                        textAlign: "center",
-                        color: "text.secondary",
-                        border: "1px dashed #cbd5e1",
-                        borderRadius: 2,
-                        mt: 1
-                      }}
-                    >
-                      Escanea o busca un producto para iniciar la venta.
-                    </Box>
-                  ) : (
-                    <Box sx={{ display: "grid", gap: 1, mt: 1 }}>
-                      {cartRows.map((item) => (
-                        <Box
-                          key={item.productId}
+                ) : (
+                  <Box sx={{ display: "grid", gap: 1 }}>
+                    {cartRows.map((item) => (
+                      <Card key={item.productId} variant="outlined" sx={{ boxShadow: "none" }}>
+                        <CardContent
                           sx={{
                             display: "grid",
-                            gridTemplateColumns: "1.1fr 0.9fr 130px 120px 130px 56px",
-                            gap: 1,
-                            alignItems: "center",
-                            px: 1.5,
-                            py: 1,
-                            border: "1px solid #e2e8f0",
-                            borderRadius: 2,
-                            bgcolor: "background.paper"
+                            gridTemplateColumns: {
+                              xs: "1fr",
+                              md: "minmax(0, 1.5fr) 110px 120px 120px auto"
+                            },
+                            gap: 1.5,
+                            alignItems: { xs: "stretch", md: "center" },
+                            p: { xs: 1.5, sm: 2 },
+                            "&:last-child": { pb: { xs: 1.5, sm: 2 } }
                           }}
                         >
-                          <Box>
-                            <Typography fontWeight={800} noWrap>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              alignItems="center"
+                              sx={{ minWidth: 0, mb: 0.25 }}
+                            >
+                              <Typography fontWeight={900} noWrap>
+                                {item.product?.name ?? "Producto"}
+                              </Typography>
+                              <Chip
+                                size="small"
+                                variant="outlined"
+                                label={`Stock ${item.product?.stock ?? 0}`}
+                              />
+                            </Stack>
+                            <Typography variant="caption" color="text.secondary" noWrap>
                               {item.product?.sku ?? item.productId}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              Stock {item.product?.stock ?? 0}
                             </Typography>
                           </Box>
 
-                          <Typography noWrap>{item.product?.name ?? "Producto"}</Typography>
-                          <Typography fontWeight={700}>{formatMoney(item.unitPrice)}</Typography>
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">
+                              Precio
+                            </Typography>
+                            <Typography fontWeight={800}>{formatMoney(item.unitPrice)}</Typography>
+                          </Box>
 
                           <TextField
+                            label="Cantidad"
                             type="number"
                             value={item.quantity}
+                            size="small"
                             inputProps={{
                               min: 1,
                               max: item.product?.stock ?? undefined,
@@ -931,20 +903,26 @@ export function SalesPage() {
                             }
                           />
 
-                          <Typography fontWeight={800}>{formatMoney(item.total)}</Typography>
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">
+                              Importe
+                            </Typography>
+                            <Typography fontWeight={900}>{formatMoney(item.total)}</Typography>
+                          </Box>
 
                           <IconButton
                             onClick={() => removeCartItem(item.productId)}
                             disabled={isSubmitting || saleDialogIsOpen}
                             aria-label="Quitar producto"
+                            sx={{ justifySelf: { xs: "flex-end", md: "center" } }}
                           >
                             <DeleteIcon />
                           </IconButton>
-                        </Box>
-                      ))}
-                    </Box>
-                  )}
-                </Box>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Box>
+                )}
               </Box>
             </Box>
 
@@ -1050,14 +1028,231 @@ export function SalesPage() {
         </Card>
       )}
 
-      <DataGridCard
-        rows={sales}
-        columns={columns}
-        minWidth={canManageSales ? 1320 : 880}
-        loading={isSubmitting || isLoadingCatalog}
-        noRowsLabel="No hay ventas registradas."
-        tableLabel="Ventas registradas"
-      />
+      <Box sx={{ display: "grid", gap: 2 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, minmax(0, 1fr))",
+              lg: "repeat(4, minmax(0, 1fr))"
+            },
+            gap: 2
+          }}
+        >
+          {[
+            ["Ventas cargadas", salesSummary.totalCount.toString()],
+            ["Completadas", salesSummary.completedCount.toString()],
+            ["Total completado", formatMoney(salesSummary.totalSold)],
+            ["Canceladas/devueltas", salesSummary.cancelledOrReturned.toString()]
+          ].map(([label, value]) => (
+            <Card key={label} variant="outlined" sx={{ boxShadow: "none" }}>
+              <CardContent>
+                <Typography variant="caption" color="text.secondary">
+                  {label}
+                </Typography>
+                <Typography variant="h5" fontWeight={900} sx={{ mt: 0.5 }}>
+                  {value}
+                </Typography>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+
+        <SearchToolbar
+          query={saleSearch}
+          onQueryChange={setSaleSearch}
+          resultCount={filteredSales.length}
+          totalCount={sales.length}
+          label="Buscar ventas"
+          placeholder="Folio, cliente, vendedor, estado o método de pago"
+          helperText="Filtra el historial cargado. Usa Actualizar venta para traer los datos más recientes."
+        />
+
+        <Card>
+          <CardContent>
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              spacing={1.5}
+              alignItems={{ xs: "stretch", md: "center" }}
+              justifyContent="space-between"
+              sx={{ mb: 2 }}
+            >
+              <Box>
+                <Typography variant="h6" fontWeight={900}>
+                  Historial operativo
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Ventas recientes sin tabla horizontal; usa filtros para revisar estados y pagos.
+                </Typography>
+              </Box>
+
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                <TextField
+                  select
+                  size="small"
+                  label="Estado"
+                  value={saleStatusFilter}
+                  onChange={(event) =>
+                    setSaleStatusFilter(event.target.value as SaleStatus | "ALL")
+                  }
+                  sx={{ minWidth: { xs: "100%", sm: 180 } }}
+                >
+                  <MenuItem value="ALL">Todos</MenuItem>
+                  <MenuItem value="COMPLETED">Completadas</MenuItem>
+                  <MenuItem value="CANCELLED">Canceladas</MenuItem>
+                  <MenuItem value="PARTIALLY_REFUNDED">Devolución parcial</MenuItem>
+                  <MenuItem value="REFUNDED">Devueltas</MenuItem>
+                </TextField>
+
+                <TextField
+                  select
+                  size="small"
+                  label="Pago"
+                  value={salePaymentFilter}
+                  onChange={(event) =>
+                    setSalePaymentFilter(event.target.value as PaymentMethod | "ALL")
+                  }
+                  sx={{ minWidth: { xs: "100%", sm: 180 } }}
+                >
+                  <MenuItem value="ALL">Todos</MenuItem>
+                  <MenuItem value="CASH">Efectivo</MenuItem>
+                  <MenuItem value="CARD">Tarjeta</MenuItem>
+                  <MenuItem value="TRANSFER">Transferencia</MenuItem>
+                  <MenuItem value="MIXED">Mixto</MenuItem>
+                </TextField>
+              </Stack>
+            </Stack>
+
+            {filteredSales.length === 0 ? (
+              <Box
+                sx={{
+                  border: "1px dashed #cbd5e1",
+                  borderRadius: 2,
+                  color: "text.secondary",
+                  py: 6,
+                  textAlign: "center"
+                }}
+              >
+                No hay ventas que coincidan con los filtros actuales.
+              </Box>
+            ) : (
+              <Box sx={{ display: "grid", gap: 1.5 }}>
+                {filteredSales.map((sale) => {
+                  const hasReturnableItems = (sale.items ?? []).some(
+                    (item) => getReturnableQuantity(sale, item) > 0
+                  );
+
+                  return (
+                    <Card key={sale.id} variant="outlined" sx={{ boxShadow: "none" }}>
+                      <CardContent
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: {
+                            xs: "1fr",
+                            lg: canManageSales
+                              ? "minmax(0, 1.5fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto"
+                              : "minmax(0, 1.5fr) minmax(180px, 0.8fr) auto"
+                          },
+                          gap: 2,
+                          alignItems: "center"
+                        }}
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            flexWrap="wrap"
+                            useFlexGap
+                            alignItems="center"
+                            sx={{ mb: 0.75 }}
+                          >
+                            <Typography fontWeight={900}>{sale.folio}</Typography>
+                            <Chip
+                              size="small"
+                              label={statusLabel(sale.status)}
+                              color={statusColor(sale.status)}
+                            />
+                          </Stack>
+
+                          <Typography variant="body2" color="text.secondary">
+                            {new Date(sale.createdAt).toLocaleString()}
+                          </Typography>
+                          <Typography fontWeight={700} sx={{ mt: 0.5 }} noWrap>
+                            {sale.customer?.name ?? "Sin cliente"}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" noWrap>
+                            {saleItemsSummary(sale)}
+                          </Typography>
+                        </Box>
+
+                        {canManageSales && (
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Vendedor
+                            </Typography>
+                            <Typography fontWeight={800} noWrap>
+                              {sale.cashier?.name ?? "Sin vendedor"}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                              {sale.cashier?.email ?? ""}
+                            </Typography>
+                          </Box>
+                        )}
+
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Pago
+                          </Typography>
+                          <Typography fontWeight={800}>{salePaymentSummary(sale)}</Typography>
+                          <Typography variant="h6" fontWeight={900} sx={{ mt: 0.5 }}>
+                            {formatMoney(sale.total)}
+                          </Typography>
+                        </Box>
+
+                        {canManageSales && (
+                          <Stack
+                            direction={{ xs: "column", sm: "row", lg: "column" }}
+                            spacing={1}
+                            alignItems="stretch"
+                            justifyContent="center"
+                          >
+                            {canReturnSales && (
+                              <Button
+                                size="small"
+                                color="warning"
+                                startIcon={<UndoIcon />}
+                                disabled={
+                                  isSubmitting || sale.status === "CANCELLED" || !hasReturnableItems
+                                }
+                                onClick={() => openReturnDialog(sale)}
+                              >
+                                Devolver
+                              </Button>
+                            )}
+
+                            {canCancelSales && (
+                              <Button
+                                size="small"
+                                color="error"
+                                startIcon={<CancelIcon />}
+                                disabled={isSubmitting || sale.status !== "COMPLETED"}
+                                onClick={() => openCancelDialog(sale)}
+                              >
+                                Cancelar
+                              </Button>
+                            )}
+                          </Stack>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      </Box>
 
       <Dialog
         open={cancelDialogOpen}
