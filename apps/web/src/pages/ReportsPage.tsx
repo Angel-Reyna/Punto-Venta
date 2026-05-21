@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   Alert,
@@ -11,7 +11,8 @@ import {
   Grid,
   Stack,
   TextField,
-  Typography
+  Typography,
+  type ChipProps
 } from "@mui/material";
 
 import { GridColDef } from "@mui/x-data-grid";
@@ -26,6 +27,8 @@ type MoneySummary = Record<string, number>;
 type OperationsReport = {
   from: string;
   to: string;
+  fromLabel?: string;
+  toLabel?: string;
   sales: {
     count: number;
     byStatus: Record<string, number>;
@@ -33,10 +36,28 @@ type OperationsReport = {
     refunded: number;
     net: number;
     paymentSummary: MoneySummary;
+    recent: Array<{
+      id: string;
+      folio: string;
+      status: string;
+      total: number;
+      createdAt: string;
+      cashier: {
+        id: string;
+        name: string;
+        email: string;
+      };
+      payments: Array<{
+        id: string;
+        method: string;
+        amount: number;
+      }>;
+    }>;
   };
   returns: {
     count: number;
     total: number;
+    byMethod: MoneySummary;
     latest: Array<{
       id: string;
       reason: string;
@@ -87,21 +108,36 @@ function formatMoney(value: number | null | undefined) {
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
 
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString("es-MX");
 }
 
 function statusLabel(status: string) {
   switch (status) {
     case "COMPLETED":
-      return "Completadas";
+      return "Completada";
     case "CANCELLED":
-      return "Canceladas";
+      return "Cancelada";
     case "PARTIALLY_REFUNDED":
       return "Devolución parcial";
     case "REFUNDED":
-      return "Devueltas";
+      return "Devuelta";
     default:
       return status;
+  }
+}
+
+function statusColor(status: string): ChipProps["color"] {
+  switch (status) {
+    case "COMPLETED":
+      return "success";
+    case "CANCELLED":
+      return "default";
+    case "PARTIALLY_REFUNDED":
+      return "warning";
+    case "REFUNDED":
+      return "error";
+    default:
+      return "default";
   }
 }
 
@@ -137,6 +173,27 @@ function cashMovementLabel(type: string) {
   }
 }
 
+function buildQuery(from: string, to: string) {
+  return new URLSearchParams({
+    from,
+    to
+  }).toString();
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+}
+
 export function ReportsPage() {
   const today = new Date().toISOString().slice(0, 10);
 
@@ -147,14 +204,24 @@ export function ReportsPage() {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [error, setError] = useState("");
 
-  function datesAreInvalid() {
-    return !from || !to || new Date(from) > new Date(to);
-  }
+  const dateRangeIsInvalid = !from || !to || from > to;
+
+  const periodLabel = data
+    ? `${data.fromLabel ?? from} al ${data.toLabel ?? to}`
+    : `${from || "—"} al ${to || "—"}`;
+
+  const hasReportActivity = Boolean(
+    data &&
+      (data.sales.count > 0 ||
+        data.returns.count > 0 ||
+        data.cashRegister.movements.count > 0 ||
+        data.cashRegister.sessions.length > 0)
+  );
 
   async function consult() {
     setError("");
 
-    if (datesAreInvalid()) {
+    if (dateRangeIsInvalid) {
       setError("El rango de fechas no es válido.");
       return;
     }
@@ -163,7 +230,7 @@ export function ReportsPage() {
       setIsLoading(true);
 
       const response = await api.get<OperationsReport>(
-        `/reports/operations?from=${from}&to=${to}`
+        `/reports/operations?${buildQuery(from, to)}`
       );
 
       setData(response.data);
@@ -179,7 +246,7 @@ export function ReportsPage() {
   async function downloadPdf() {
     setError("");
 
-    if (datesAreInvalid()) {
+    if (dateRangeIsInvalid) {
       setError("El rango de fechas no es válido.");
       return;
     }
@@ -188,26 +255,21 @@ export function ReportsPage() {
       setIsDownloadingPdf(true);
 
       const response = await api.get(
-        `/reports/sales/pdf?from=${from}&to=${to}`,
+        `/reports/operations/pdf?${buildQuery(from, to)}`,
         {
           responseType: "blob"
         }
       );
 
-      const url = URL.createObjectURL(response.data);
-      const anchor = document.createElement("a");
-
-      anchor.href = url;
-      anchor.download = `reporte-ventas-${from}-${to}.pdf`;
-      anchor.click();
-
-      URL.revokeObjectURL(url);
+      downloadBlob(response.data, `reporte-operativo-${from}-${to}.pdf`);
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, "No se pudo descargar el PDF."));
     } finally {
       setIsDownloadingPdf(false);
     }
   }
+
+  const recentSalesRows = data?.sales.recent ?? [];
 
   const topProductsRows =
     data?.topProducts.map((item, index) => ({
@@ -238,12 +300,65 @@ export function ReportsPage() {
     },
     {
       field: "quantity",
-      headerName: "Unidades",
-      width: 130
+      headerName: "Unidades netas",
+      width: 150
     },
     {
       field: "total",
-      headerName: "Vendido",
+      headerName: "Vendido neto",
+      width: 150,
+      valueFormatter: (value) => formatMoney(Number(value))
+    }
+  ];
+
+  const recentSalesColumns: GridColDef[] = [
+    {
+      field: "createdAt",
+      headerName: "Fecha",
+      width: 180,
+      valueFormatter: (value) => formatDate(value as string)
+    },
+    {
+      field: "folio",
+      headerName: "Folio",
+      minWidth: 190,
+      flex: 1
+    },
+    {
+      field: "cashier",
+      headerName: "Cajero",
+      flex: 1,
+      minWidth: 220,
+      valueGetter: (_value, row) => `${row.cashier.name} (${row.cashier.email})`
+    },
+    {
+      field: "status",
+      headerName: "Estado",
+      width: 170,
+      renderCell: (params) => (
+        <Chip
+          size="small"
+          label={statusLabel(String(params.value))}
+          color={statusColor(String(params.value))}
+        />
+      )
+    },
+    {
+      field: "payments",
+      headerName: "Pagos",
+      flex: 1,
+      minWidth: 220,
+      valueGetter: (_value, row) =>
+        row.payments
+          .map(
+            (payment: { method: string; amount: number }) =>
+              `${paymentMethodLabel(payment.method)} ${formatMoney(payment.amount)}`
+          )
+          .join(", ") || "—"
+    },
+    {
+      field: "total",
+      headerName: "Total",
       width: 140,
       valueFormatter: (value) => formatMoney(Number(value))
     }
@@ -343,15 +458,41 @@ export function ReportsPage() {
     }
   ];
 
+  const summaryCards = useMemo(
+    () => [
+      {
+        label: "Ventas registradas",
+        value: data?.sales.count ?? 0,
+        helper: "Incluye completadas, canceladas y con devolución."
+      },
+      {
+        label: "Venta bruta",
+        value: formatMoney(data?.sales.gross),
+        helper: "Ventas no canceladas antes de devoluciones."
+      },
+      {
+        label: "Devoluciones",
+        value: formatMoney(data?.sales.refunded),
+        helper: "Reembolsos registrados dentro del periodo."
+      },
+      {
+        label: "Venta neta",
+        value: formatMoney(data?.sales.net),
+        helper: "Venta bruta menos devoluciones."
+      }
+    ],
+    [data]
+  );
+
   return (
     <>
       <PageHeader
         title="Reportes"
-        subtitle="Consulta ventas netas, devoluciones, cortes de caja y productos más vendidos."
+        subtitle="Consulta ventas netas, devoluciones, caja y productos vendidos con un corte operativo consistente."
       />
 
       <Box sx={{ mb: 2 }}>
-        <Chip color="primary" label="Acceso exclusivo ADMIN" />
+        <Chip color="primary" label="Reporte operativo ADMIN" />
       </Box>
 
       {error && (
@@ -379,6 +520,7 @@ export function ReportsPage() {
               value={from}
               onChange={(event) => setFrom(event.target.value)}
               InputLabelProps={{ shrink: true }}
+              error={dateRangeIsInvalid}
             />
 
             <TextField
@@ -388,65 +530,55 @@ export function ReportsPage() {
               value={to}
               onChange={(event) => setTo(event.target.value)}
               InputLabelProps={{ shrink: true }}
+              error={dateRangeIsInvalid}
+              helperText={dateRangeIsInvalid ? "Revisa el rango." : undefined}
             />
 
-            <Button fullWidth onClick={consult} disabled={datesAreInvalid() || isLoading || isDownloadingPdf}>
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={consult}
+              disabled={dateRangeIsInvalid || isLoading || isDownloadingPdf}
+            >
               {isLoading ? "Consultando..." : "Consultar reporte"}
             </Button>
 
-            <Button fullWidth onClick={downloadPdf} disabled={datesAreInvalid() || isLoading || isDownloadingPdf}>
-              {isDownloadingPdf ? "Descargando..." : "Descargar PDF ventas"}
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={downloadPdf}
+              disabled={dateRangeIsInvalid || isLoading || isDownloadingPdf}
+            >
+              {isDownloadingPdf ? "Descargando..." : "Descargar PDF"}
             </Button>
           </Box>
         </CardContent>
       </Card>
 
+      {data && !hasReportActivity && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          No hay ventas, devoluciones ni movimientos de caja en el periodo {periodLabel}.
+        </Alert>
+      )}
+
       {data && (
         <>
           <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={12} sm={6} lg={3}>
-              <Card>
-                <CardContent>
-                  <Typography color="text.secondary">Ventas registradas</Typography>
-                  <Typography variant="h5" fontWeight={800}>
-                    {data.sales.count}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} lg={3}>
-              <Card>
-                <CardContent>
-                  <Typography color="text.secondary">Venta bruta</Typography>
-                  <Typography variant="h5" fontWeight={800}>
-                    {formatMoney(data.sales.gross)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} lg={3}>
-              <Card>
-                <CardContent>
-                  <Typography color="text.secondary">Devoluciones</Typography>
-                  <Typography variant="h5" fontWeight={800}>
-                    {formatMoney(data.sales.refunded)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} lg={3}>
-              <Card>
-                <CardContent>
-                  <Typography color="text.secondary">Venta neta</Typography>
-                  <Typography variant="h5" fontWeight={800}>
-                    {formatMoney(data.sales.net)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+            {summaryCards.map((card) => (
+              <Grid key={card.label} item xs={12} sm={6} lg={3}>
+                <Card sx={{ height: "100%" }}>
+                  <CardContent>
+                    <Typography color="text.secondary">{card.label}</Typography>
+                    <Typography variant="h5" fontWeight={800}>
+                      {card.value}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" mt={0.5}>
+                      {card.helper}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
           </Grid>
 
           <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -462,7 +594,11 @@ export function ReportsPage() {
                       <Typography color="text.secondary">Sin ventas.</Typography>
                     ) : (
                       Object.entries(data.sales.byStatus).map(([status, count]) => (
-                        <Chip key={status} label={`${statusLabel(status)}: ${count}`} />
+                        <Chip
+                          key={status}
+                          color={statusColor(status)}
+                          label={`${statusLabel(status)}: ${count}`}
+                        />
                       ))
                     )}
                   </Stack>
@@ -474,22 +610,49 @@ export function ReportsPage() {
               <Card sx={{ height: "100%" }}>
                 <CardContent>
                   <Typography variant="h6" fontWeight={800} mb={1}>
-                    Pagos
+                    Cobros y devoluciones
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
-                  <Stack direction="row" flexWrap="wrap" gap={1}>
-                    {Object.entries(data.sales.paymentSummary).length === 0 ? (
-                      <Typography color="text.secondary">Sin pagos registrados.</Typography>
-                    ) : (
-                      Object.entries(data.sales.paymentSummary).map(([method, amount]) => (
-                        <Chip
-                          key={method}
-                          color="primary"
-                          variant="outlined"
-                          label={`${paymentMethodLabel(method)}: ${formatMoney(amount)}`}
-                        />
-                      ))
-                    )}
+                  <Stack spacing={1.5}>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" mb={1}>
+                        Cobros por método
+                      </Typography>
+                      <Stack direction="row" flexWrap="wrap" gap={1}>
+                        {Object.entries(data.sales.paymentSummary).length === 0 ? (
+                          <Typography color="text.secondary">Sin cobros registrados.</Typography>
+                        ) : (
+                          Object.entries(data.sales.paymentSummary).map(([method, amount]) => (
+                            <Chip
+                              key={method}
+                              color="primary"
+                              variant="outlined"
+                              label={`${paymentMethodLabel(method)}: ${formatMoney(amount)}`}
+                            />
+                          ))
+                        )}
+                      </Stack>
+                    </Box>
+
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" mb={1}>
+                        Devoluciones por método
+                      </Typography>
+                      <Stack direction="row" flexWrap="wrap" gap={1}>
+                        {Object.entries(data.returns.byMethod).length === 0 ? (
+                          <Typography color="text.secondary">Sin devoluciones registradas.</Typography>
+                        ) : (
+                          Object.entries(data.returns.byMethod).map(([method, amount]) => (
+                            <Chip
+                              key={method}
+                              color="warning"
+                              variant="outlined"
+                              label={`${paymentMethodLabel(method)}: ${formatMoney(amount)}`}
+                            />
+                          ))
+                        )}
+                      </Stack>
+                    </Box>
                   </Stack>
                 </CardContent>
               </Card>
@@ -524,7 +687,19 @@ export function ReportsPage() {
           </Grid>
 
           <DataGridCard
-            title="Productos más vendidos"
+            title="Ventas recientes del periodo"
+            subtitle="Incluye estado, cajero, métodos de pago y total para detectar cancelaciones o devoluciones."
+            rows={recentSalesRows}
+            columns={recentSalesColumns}
+            minWidth={1120}
+            loading={isLoading}
+            cardSx={{ mb: 2 }}
+            noRowsLabel="No hay ventas en el periodo."
+          />
+
+          <DataGridCard
+            title="Productos más vendidos netos"
+            subtitle="Calculado con ventas no canceladas menos devoluciones registradas en el periodo."
             rows={topProductsRows}
             columns={topProductsColumns}
             minWidth={820}

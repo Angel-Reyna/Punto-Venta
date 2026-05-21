@@ -1,554 +1,289 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import PDFDocument from "pdfkit";
-import { Role, SaleStatus } from "@prisma/client";
 
-import { prisma } from "../../config/prisma";
-
-import {
-  requireAuth,
-  requireRole
-} from "../../middlewares/auth";
-
+import { requireAuth, requirePermission } from "../../middlewares/auth";
 import { asyncHandler } from "../../utils/asyncHandler";
-import { AppError } from "../../utils/AppError";
+import { PERMISSIONS } from "../auth/permissions";
+import {
+  getOperationsReport,
+  getSalesReport,
+  parseReportDateRange,
+  type OperationsReport
+} from "./reports.service";
 
 export const reportsRouter = Router();
 
-reportsRouter.use(
-  requireAuth,
-  requireRole(Role.ADMIN)
-);
+reportsRouter.use(requireAuth, requirePermission(PERMISSIONS.ReportsRead));
 
-
-function roundMoney(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+function formatMoney(value: number | null | undefined) {
+  return `$${Number(value ?? 0).toFixed(2)}`;
 }
 
-function parseDateRange(
-  from?: unknown,
-  to?: unknown
+function formatDate(value: Date | string | null | undefined) {
+  if (!value) return "—";
+
+  return new Date(value).toLocaleString("es-MX");
+}
+
+function saleStatusLabel(status: string) {
+  switch (status) {
+    case "COMPLETED":
+      return "Completadas";
+    case "CANCELLED":
+      return "Canceladas";
+    case "PARTIALLY_REFUNDED":
+      return "Devolución parcial";
+    case "REFUNDED":
+      return "Devueltas";
+    default:
+      return status;
+  }
+}
+
+function paymentMethodLabel(method: string) {
+  switch (method) {
+    case "CASH":
+      return "Efectivo";
+    case "CARD":
+      return "Tarjeta";
+    case "TRANSFER":
+      return "Transferencia";
+    case "MIXED":
+      return "Mixto";
+    default:
+      return method;
+  }
+}
+
+function cashMovementLabel(type: string) {
+  switch (type) {
+    case "OPENING":
+      return "Aperturas";
+    case "CASH_IN":
+      return "Entradas manuales";
+    case "CASH_OUT":
+      return "Salidas manuales";
+    case "SALE_CASH":
+      return "Ventas en efectivo";
+    case "RETURN_CASH":
+      return "Devoluciones en efectivo";
+    default:
+      return type;
+  }
+}
+
+function writeKeyValueLines(
+  doc: PDFKit.PDFDocument,
+  entries: Array<[string, string | number]>,
+  emptyLabel: string
 ) {
-  if (!from || !to) {
-    throw new AppError(
-      400,
-      "Debes enviar fecha inicial y fecha final"
-    );
+  if (entries.length === 0) {
+    doc.text(emptyLabel);
+    return;
   }
 
-  const start = new Date(String(from));
-  const end = new Date(String(to));
+  for (const [label, value] of entries) {
+    doc.text(`${label}: ${value}`);
+  }
+}
 
-  if (
-    Number.isNaN(start.getTime()) ||
-    Number.isNaN(end.getTime())
-  ) {
-    throw new AppError(
-      400,
-      "Rango de fechas inválido"
-    );
+function ensurePdfSpace(doc: PDFKit.PDFDocument, requiredHeight = 90) {
+  if (doc.y + requiredHeight >= doc.page.height - doc.page.margins.bottom) {
+    doc.addPage();
+  }
+}
+
+function writeOperationsPdf(doc: PDFKit.PDFDocument, report: OperationsReport) {
+  doc
+    .fontSize(20)
+    .text("Reporte operativo", {
+      align: "center"
+    });
+
+  doc.moveDown();
+
+  doc.fontSize(10).text(`Desde: ${report.fromLabel}`);
+  doc.text(`Hasta: ${report.toLabel}`);
+  doc.text(`Generado: ${new Date().toLocaleString("es-MX")}`);
+
+  doc.moveDown();
+
+  doc.fontSize(14).text("Resumen financiero");
+  doc.moveDown(0.35);
+  doc.fontSize(10);
+  doc.text(`Ventas registradas: ${report.sales.count}`);
+  doc.text(`Venta bruta: ${formatMoney(report.sales.gross)}`);
+  doc.text(`Devoluciones: ${formatMoney(report.sales.refunded)}`);
+  doc.text(`Venta neta: ${formatMoney(report.sales.net)}`);
+
+  doc.moveDown();
+
+  doc.fontSize(12).text("Ventas por estado");
+  doc.moveDown(0.35);
+  writeKeyValueLines(
+    doc.fontSize(10),
+    Object.entries(report.sales.byStatus).map(([status, count]) => [
+      saleStatusLabel(status),
+      count
+    ]),
+    "Sin ventas en el periodo"
+  );
+
+  doc.moveDown();
+
+  doc.fontSize(12).text("Cobros por método");
+  doc.moveDown(0.35);
+  writeKeyValueLines(
+    doc.fontSize(10),
+    Object.entries(report.sales.paymentSummary).map(([method, amount]) => [
+      paymentMethodLabel(method),
+      formatMoney(amount)
+    ]),
+    "Sin cobros registrados"
+  );
+
+  doc.moveDown();
+
+  doc.fontSize(12).text("Devoluciones por método");
+  doc.moveDown(0.35);
+  writeKeyValueLines(
+    doc.fontSize(10),
+    Object.entries(report.returns.byMethod).map(([method, amount]) => [
+      paymentMethodLabel(method),
+      formatMoney(amount)
+    ]),
+    "Sin devoluciones registradas"
+  );
+
+  doc.moveDown();
+
+  doc.fontSize(12).text("Movimientos de caja");
+  doc.moveDown(0.35);
+  writeKeyValueLines(
+    doc.fontSize(10),
+    Object.entries(report.cashRegister.movements.summary).map(([type, amount]) => [
+      cashMovementLabel(type),
+      formatMoney(amount)
+    ]),
+    "Sin movimientos de caja"
+  );
+
+  doc.moveDown();
+  ensurePdfSpace(doc, 130);
+
+  doc.fontSize(14).text("Productos más vendidos netos");
+  doc.moveDown(0.35);
+  doc.fontSize(10);
+
+  if (report.topProducts.length === 0) {
+    doc.text("Sin productos vendidos en el periodo.");
+  } else {
+    report.topProducts.forEach((item, index) => {
+      ensurePdfSpace(doc, 40);
+      doc.text(
+        `${index + 1}. ${item.product.sku ?? "—"} · ${item.product.name} · ` +
+          `${item.quantity} uds · ${formatMoney(item.total)}`
+      );
+    });
   }
 
-  if (start > end) {
-    throw new AppError(
-      400,
-      "La fecha inicial no puede ser mayor que la fecha final"
-    );
+  doc.moveDown();
+  ensurePdfSpace(doc, 130);
+
+  doc.fontSize(14).text("Ventas recientes");
+  doc.moveDown(0.35);
+
+  if (report.sales.recent.length === 0) {
+    doc.fontSize(10).text("Sin ventas en el periodo.");
+  } else {
+    report.sales.recent.slice(0, 30).forEach((sale) => {
+      ensurePdfSpace(doc, 85);
+      const payments = sale.payments
+        .map((payment) => `${paymentMethodLabel(payment.method)} ${formatMoney(payment.amount)}`)
+        .join(", ");
+
+      doc.fontSize(10).text(`Folio: ${sale.folio}`);
+      doc.text(`Fecha: ${formatDate(sale.createdAt)}`);
+      doc.text(`Estado: ${saleStatusLabel(sale.status)}`);
+      doc.text(`Cajero: ${sale.cashier.name} (${sale.cashier.email})`);
+      doc.text(`Pagos: ${payments || "—"}`);
+      doc.text(`Total: ${formatMoney(sale.total)}`);
+      doc.moveDown(0.6);
+    });
   }
 
-  start.setHours(0, 0, 0, 0);
-  end.setHours(23, 59, 59, 999);
+  doc.moveDown();
+  ensurePdfSpace(doc, 130);
 
-  return {
-    start,
-    end
-  };
+  doc.fontSize(14).text("Devoluciones recientes");
+  doc.moveDown(0.35);
+
+  if (report.returns.latest.length === 0) {
+    doc.fontSize(10).text("Sin devoluciones en el periodo.");
+  } else {
+    report.returns.latest.slice(0, 20).forEach((saleReturn) => {
+      ensurePdfSpace(doc, 75);
+      doc.fontSize(10).text(`Fecha: ${formatDate(saleReturn.createdAt)}`);
+      doc.text(`Responsable: ${saleReturn.cashier.name} (${saleReturn.cashier.email})`);
+      doc.text(`Método: ${paymentMethodLabel(saleReturn.refundMethod)}`);
+      doc.text(`Total devuelto: ${formatMoney(saleReturn.refundTotal)}`);
+      doc.text(`Motivo: ${saleReturn.reason}`);
+      doc.moveDown(0.6);
+    });
+  }
+}
+
+async function streamOperationsPdf(req: Request, res: Response) {
+  const range = parseReportDateRange(req.query.from, req.query.to);
+  const report = await getOperationsReport(range);
+  const filename = `reporte-operativo-${report.fromLabel}-${report.toLabel}.pdf`;
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+
+  const doc = new PDFDocument({
+    margin: 40,
+    size: "A4",
+    info: {
+      Title: "Reporte operativo Punta Venta"
+    }
+  });
+
+  doc.pipe(res);
+  writeOperationsPdf(doc, report);
+  doc.end();
 }
 
 reportsRouter.get(
   "/sales",
   asyncHandler(async (req, res) => {
-    const { start, end } = parseDateRange(
-      req.query.from,
-      req.query.to
-    );
+    const range = parseReportDateRange(req.query.from, req.query.to);
+    const report = await getSalesReport(range);
 
-    const sales = await prisma.sale.findMany({
-      where: {
-        status: "COMPLETED",
-
-        createdAt: {
-          gte: start,
-          lte: end
-        }
-      },
-
-      include: {
-        cashier: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            email: true
-          }
-        },
-
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                sku: true,
-                name: true
-              }
-            }
-          }
-        },
-
-        payments: true
-      },
-
-      orderBy: {
-        createdAt: "desc"
-      }
-    });
-
-    const subtotal = sales.reduce(
-      (sum, sale) => sum + Number(sale.subtotal),
-      0
-    );
-
-    const discount = sales.reduce(
-      (sum, sale) => sum + Number(sale.discount),
-      0
-    );
-
-    const tax = sales.reduce(
-      (sum, sale) => sum + Number(sale.tax),
-      0
-    );
-
-    const total = sales.reduce(
-      (sum, sale) => sum + Number(sale.total),
-      0
-    );
-
-    const paymentSummary = sales
-      .flatMap((sale) => sale.payments)
-      .reduce<Record<string, number>>(
-        (summary, payment) => {
-          const method = payment.method;
-
-          summary[method] =
-            (summary[method] ?? 0) +
-            Number(payment.amount);
-
-          return summary;
-        },
-        {}
-      );
-
-    res.json({
-      from: start,
-      to: end,
-
-      count: sales.length,
-
-      subtotal,
-      discount,
-      tax,
-      total,
-
-      paymentSummary,
-
-      sales: sales.map((sale) => ({
-        ...sale,
-
-        subtotal: Number(sale.subtotal),
-        discount: Number(sale.discount),
-        tax: Number(sale.tax),
-        total: Number(sale.total),
-
-        items: sale.items.map((item) => ({
-          ...item,
-          unitPrice: Number(item.unitPrice),
-          discount: Number(item.discount),
-          total: Number(item.total)
-        })),
-
-        payments: sale.payments.map((payment) => ({
-          ...payment,
-          amount: Number(payment.amount)
-        }))
-      }))
-    });
+    res.json(report);
   })
 );
-
 
 reportsRouter.get(
   "/operations",
   asyncHandler(async (req, res) => {
-    const { start, end } = parseDateRange(
-      req.query.from,
-      req.query.to
-    );
+    const range = parseReportDateRange(req.query.from, req.query.to);
+    const report = await getOperationsReport(range);
 
-    const [sales, returns, cashSessions, cashMovements, topProducts] =
-      await Promise.all([
-        prisma.sale.findMany({
-          where: {
-            createdAt: {
-              gte: start,
-              lte: end
-            }
-          },
-          include: {
-            payments: true
-          }
-        }),
-        prisma.saleReturn.findMany({
-          where: {
-            createdAt: {
-              gte: start,
-              lte: end
-            }
-          },
-          include: {
-            cashier: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          },
-          orderBy: {
-            createdAt: "desc"
-          }
-        }),
-        prisma.cashRegisterSession.findMany({
-          where: {
-            openedAt: {
-              gte: start,
-              lte: end
-            }
-          },
-          include: {
-            cashier: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          },
-          orderBy: {
-            openedAt: "desc"
-          }
-        }),
-        prisma.cashMovement.findMany({
-          where: {
-            createdAt: {
-              gte: start,
-              lte: end
-            }
-          },
-          include: {
-            cashier: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          },
-          orderBy: {
-            createdAt: "desc"
-          }
-        }),
-        prisma.saleItem.groupBy({
-          by: ["productId"],
-          where: {
-            sale: {
-              status: {
-                in: [
-                  SaleStatus.COMPLETED,
-                  SaleStatus.PARTIALLY_REFUNDED,
-                  SaleStatus.REFUNDED
-                ]
-              },
-              createdAt: {
-                gte: start,
-                lte: end
-              }
-            }
-          },
-          _sum: {
-            quantity: true,
-            total: true
-          },
-          orderBy: {
-            _sum: {
-              quantity: "desc"
-            }
-          },
-          take: 10
-        })
-      ]);
+    res.json(report);
+  })
+);
 
-    const productIds = topProducts.map((item) => item.productId);
-    const products = productIds.length
-      ? await prisma.product.findMany({
-          where: {
-            id: {
-              in: productIds
-            }
-          },
-          select: {
-            id: true,
-            sku: true,
-            name: true
-          }
-        })
-      : [];
-    const productById = new Map(products.map((product) => [product.id, product]));
-
-    const salesByStatus = sales.reduce<Record<string, number>>(
-      (summary, sale) => {
-        summary[sale.status] = (summary[sale.status] ?? 0) + 1;
-
-        return summary;
-      },
-      {}
-    );
-
-    const grossSales = roundMoney(
-      sales
-        .filter((sale) => sale.status !== "CANCELLED")
-        .reduce((sum, sale) => sum + Number(sale.total), 0)
-    );
-    const refundedTotal = roundMoney(
-      returns.reduce((sum, saleReturn) => sum + Number(saleReturn.refundTotal), 0)
-    );
-    const netSales = roundMoney(grossSales - refundedTotal);
-
-    const paymentSummary = sales
-      .filter((sale) => sale.status !== "CANCELLED")
-      .flatMap((sale) => sale.payments)
-      .reduce<Record<string, number>>((summary, payment) => {
-        summary[payment.method] = roundMoney(
-          (summary[payment.method] ?? 0) + Number(payment.amount)
-        );
-
-        return summary;
-      }, {});
-
-    const cashMovementSummary = cashMovements.reduce<Record<string, number>>(
-      (summary, movement) => {
-        summary[movement.type] = roundMoney(
-          (summary[movement.type] ?? 0) + Number(movement.amount)
-        );
-
-        return summary;
-      },
-      {}
-    );
-
-    res.json({
-      from: start,
-      to: end,
-      sales: {
-        count: sales.length,
-        byStatus: salesByStatus,
-        gross: grossSales,
-        refunded: refundedTotal,
-        net: netSales,
-        paymentSummary
-      },
-      returns: {
-        count: returns.length,
-        total: refundedTotal,
-        latest: returns.slice(0, 20).map((saleReturn) => ({
-          ...saleReturn,
-          refundTotal: Number(saleReturn.refundTotal)
-        }))
-      },
-      cashRegister: {
-        sessions: cashSessions.map((session) => ({
-          ...session,
-          openingAmount: Number(session.openingAmount),
-          expectedClosingAmount:
-            session.expectedClosingAmount === null
-              ? null
-              : Number(session.expectedClosingAmount),
-          closingAmount:
-            session.closingAmount === null ? null : Number(session.closingAmount),
-          difference: session.difference === null ? null : Number(session.difference)
-        })),
-        movements: {
-          count: cashMovements.length,
-          summary: cashMovementSummary
-        }
-      },
-      topProducts: topProducts.map((item) => ({
-        product: productById.get(item.productId) ?? {
-          id: item.productId,
-          sku: null,
-          name: "Producto no encontrado"
-        },
-        quantity: item._sum.quantity ?? 0,
-        total: Number(item._sum.total ?? 0)
-      }))
-    });
+reportsRouter.get(
+  "/operations/pdf",
+  asyncHandler(async (req, res) => {
+    await streamOperationsPdf(req, res);
   })
 );
 
 reportsRouter.get(
   "/sales/pdf",
   asyncHandler(async (req, res) => {
-    const { start, end } = parseDateRange(
-      req.query.from,
-      req.query.to
-    );
-
-    const sales = await prisma.sale.findMany({
-      where: {
-        status: "COMPLETED",
-
-        createdAt: {
-          gte: start,
-          lte: end
-        }
-      },
-
-      include: {
-        cashier: {
-          select: {
-            name: true,
-            email: true
-          }
-        },
-
-        customer: {
-          select: {
-            name: true
-          }
-        },
-
-        payments: true
-      },
-
-      orderBy: {
-        createdAt: "desc"
-      }
-    });
-
-    const subtotal = sales.reduce(
-      (sum, sale) => sum + Number(sale.subtotal),
-      0
-    );
-
-    const discount = sales.reduce(
-      (sum, sale) => sum + Number(sale.discount),
-      0
-    );
-
-    const tax = sales.reduce(
-      (sum, sale) => sum + Number(sale.tax),
-      0
-    );
-
-    const total = sales.reduce(
-      (sum, sale) => sum + Number(sale.total),
-      0
-    );
-
-    res.setHeader(
-      "Content-Type",
-      "application/pdf"
-    );
-
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="reporte-ventas.pdf"'
-    );
-
-    const doc = new PDFDocument({
-      margin: 40
-    });
-
-    doc.pipe(res);
-
-    doc
-      .fontSize(20)
-      .text("Reporte de ventas", {
-        align: "center"
-      });
-
-    doc.moveDown();
-
-    doc
-      .fontSize(10)
-      .text(`Desde: ${start.toLocaleDateString()}`);
-
-    doc.text(`Hasta: ${end.toLocaleDateString()}`);
-
-    doc.moveDown();
-
-    doc.text(`Ventas completadas: ${sales.length}`);
-    doc.text(`Subtotal: $${subtotal.toFixed(2)}`);
-    doc.text(`Descuentos: $${discount.toFixed(2)}`);
-    doc.text(`Impuestos: $${tax.toFixed(2)}`);
-
-    doc
-      .fontSize(14)
-      .text(`Total: $${total.toFixed(2)}`);
-
-    doc.moveDown();
-
-    doc
-      .fontSize(12)
-      .text("Detalle de ventas");
-
-    doc.moveDown(0.5);
-
-    sales.forEach((sale) => {
-      const payments = sale.payments
-        .map(
-          (payment) =>
-            `${payment.method}: $${Number(payment.amount).toFixed(2)}`
-        )
-        .join(", ");
-
-      doc
-        .fontSize(9)
-        .text(`Folio: ${sale.folio}`);
-
-      doc.text(`Fecha: ${sale.createdAt.toLocaleString()}`);
-
-      doc.text(
-        `Cajero: ${sale.cashier.name} (${sale.cashier.email})`
-      );
-
-      doc.text(
-        `Cliente: ${sale.customer?.name ?? "Sin cliente"}`
-      );
-
-      doc.text(`Pago: ${payments || "N/A"}`);
-
-      doc.text(`Total: $${Number(sale.total).toFixed(2)}`);
-
-      doc.moveDown(0.75);
-    });
-
-    doc.end();
+    await streamOperationsPdf(req, res);
   })
 );
