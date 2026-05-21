@@ -20,6 +20,7 @@ import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
 import { ActionDisabledReason } from "../components/ActionDisabledReason";
 import { DataGridCard } from "../components/DataGridCard";
+import { LabelWithInfo } from "../components/InfoTooltip";
 import { PageHeader } from "../components/PageHeader";
 import { StatusFeedback } from "../components/StatusFeedback";
 import { getApiErrorMessage } from "../utils/apiError";
@@ -85,6 +86,17 @@ function movementLabel(type: CashMovementType) {
     default:
       return type;
   }
+}
+
+const CASH_INFO_TEXT = {
+  expectedCash: "Efectivo calculado por el sistema: monto inicial más ventas y entradas en efectivo, menos salidas y devoluciones en efectivo.",
+  countedCash: "Dinero físico contado al cerrar caja. El sistema lo compara contra el efectivo esperado.",
+  cashDifference: "Diferencia entre el efectivo contado y el efectivo esperado. Ayuda a detectar sobrantes o faltantes.",
+  movementType: "Entrada aumenta el efectivo de caja; salida lo disminuye. Ambas requieren motivo para auditoría."
+};
+
+function renderHeaderWithInfo(label: string, info: string) {
+  return <LabelWithInfo label={label} info={info} ariaLabel={info} />;
 }
 
 export function CashRegisterPage() {
@@ -269,6 +281,7 @@ export function CashRegisterPage() {
       {
         field: "type",
         headerName: "Tipo",
+        renderHeader: () => renderHeaderWithInfo("Tipo", CASH_INFO_TEXT.movementType),
         width: 180,
         valueFormatter: (value) => movementLabel(value as CashMovementType)
       },
@@ -358,7 +371,8 @@ export function CashRegisterPage() {
       {
         field: "expectedClosingAmount",
         headerName: "Esperado",
-        width: 130,
+        renderHeader: () => renderHeaderWithInfo("Esperado", CASH_INFO_TEXT.expectedCash),
+        width: 135,
         valueFormatter: (value) => formatMoney(value as number | null)
       },
       {
@@ -370,7 +384,8 @@ export function CashRegisterPage() {
       {
         field: "difference",
         headerName: "Diferencia",
-        width: 130,
+        renderHeader: () => renderHeaderWithInfo("Diferencia", CASH_INFO_TEXT.cashDifference),
+        width: 140,
         valueFormatter: (value) => formatMoney(value as number | null)
       }
     ],
@@ -420,7 +435,12 @@ export function CashRegisterPage() {
                     Monto inicial: {formatMoney(currentSession.openingAmount)}
                   </Typography>
                   <Typography>
-                    Efectivo esperado: {formatMoney(currentSession.expectedCash)}
+                    <LabelWithInfo
+                      label="Efectivo esperado"
+                      info={CASH_INFO_TEXT.expectedCash}
+                      ariaLabel={CASH_INFO_TEXT.expectedCash}
+                    />
+                    : {formatMoney(currentSession.expectedCash)}
                   </Typography>
                   <Typography color="text.secondary">
                     {currentSession.notes || "Sin notas de apertura."}
@@ -490,7 +510,13 @@ export function CashRegisterPage() {
 
               <Box sx={{ display: "grid", gap: 2 }}>
                 <TextField
-                  label="Monto contado"
+                  label={
+                    <LabelWithInfo
+                      label="Monto contado"
+                      info={CASH_INFO_TEXT.countedCash}
+                      ariaLabel={CASH_INFO_TEXT.countedCash}
+                    />
+                  }
                   type="number"
                   value={closingAmount}
                   disabled={!canOperateCashRegister || !currentSession}
@@ -553,7 +579,13 @@ export function CashRegisterPage() {
             >
               <TextField
                 select
-                label="Tipo"
+                label={
+                  <LabelWithInfo
+                    label="Tipo"
+                    info={CASH_INFO_TEXT.movementType}
+                    ariaLabel={CASH_INFO_TEXT.movementType}
+                  />
+                }
                 value={movementType}
                 disabled={!canOperateCashRegister || !currentSession}
                 onChange={(event) =>

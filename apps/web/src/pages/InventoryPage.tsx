@@ -15,6 +15,7 @@ import { GridColDef } from "@mui/x-data-grid";
 import { api } from "../api/client";
 import { ActionDisabledReason } from "../components/ActionDisabledReason";
 import { DataGridCard } from "../components/DataGridCard";
+import { LabelWithInfo } from "../components/InfoTooltip";
 import { PageHeader } from "../components/PageHeader";
 import { StatusFeedback } from "../components/StatusFeedback";
 import { useAuth } from "../auth/AuthContext";
@@ -53,6 +54,15 @@ type Movement = {
     name: string;
   } | null;
 };
+
+const WAREHOUSE_INFO_TEXT =
+  "Ubicación donde se registra el stock. Si lo dejas vacío, el movimiento se aplica al almacén principal.";
+const MOVEMENT_TYPE_INFO_TEXT =
+  "IN es entrada, OUT salida manual, SALE venta, RETURN devolución y ADJUSTMENT ajuste de inventario.";
+
+function renderHeaderWithInfo(label: string, info: string) {
+  return <LabelWithInfo label={label} info={info} ariaLabel={info} />;
+}
 
 export function InventoryPage() {
   const { can } = useAuth();
@@ -166,6 +176,7 @@ export function InventoryPage() {
     {
       field: "type",
       headerName: "Tipo",
+      renderHeader: () => renderHeaderWithInfo("Tipo", MOVEMENT_TYPE_INFO_TEXT),
       width: 130,
       renderCell: (params) => (
         <Chip
@@ -281,7 +292,13 @@ export function InventoryPage() {
               <TextField
                 select
                 fullWidth
-                label="Almacén"
+                label={
+                  <LabelWithInfo
+                    label="Almacén"
+                    info={WAREHOUSE_INFO_TEXT}
+                    ariaLabel={WAREHOUSE_INFO_TEXT}
+                  />
+                }
                 value={form.warehouseId}
                 onChange={(event) =>
                   setForm({

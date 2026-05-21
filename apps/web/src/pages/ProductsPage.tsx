@@ -10,14 +10,12 @@ import {
   Grid,
   IconButton,
   MenuItem,
-  TextField,
-  Tooltip
+  TextField
 } from "@mui/material";
 
 import { GridColDef } from "@mui/x-data-grid";
 
 import AddIcon from "@mui/icons-material/Add";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import UploadIcon from "@mui/icons-material/Upload";
 import DownloadIcon from "@mui/icons-material/Download";
 import ToggleOffIcon from "@mui/icons-material/ToggleOff";
@@ -25,6 +23,7 @@ import ToggleOffIcon from "@mui/icons-material/ToggleOff";
 import { api } from "../api/client";
 import { ActionDisabledReason } from "../components/ActionDisabledReason";
 import { DataGridCard } from "../components/DataGridCard";
+import { LabelWithInfo } from "../components/InfoTooltip";
 import { PageHeader } from "../components/PageHeader";
 import { StatusFeedback } from "../components/StatusFeedback";
 import { useAuth } from "../auth/AuthContext";
@@ -60,7 +59,20 @@ type ProductCategory = {
   name: string;
 };
 
-const SKU_TOOLTIP_TEXT = 'SKU significa Stock Keeping Unit, o “unidad de mantenimiento de inventario”.';
+const SKU_INFO_TEXT =
+  "SKU es la clave única de inventario del producto; significa Stock Keeping Unit, es decir, una unidad para identificar y controlar existencias.";
+const PRODUCT_CODE_INFO_TEXT =
+  "Código físico o comercial del producto. Puede ser código de barras, código del proveedor o un código generado por el sistema.";
+const PROMO_INFO_TEXT =
+  "Descuento porcentual aplicado sobre el precio de venta antes de calcular el precio final.";
+const FINAL_PRICE_INFO_TEXT =
+  "Precio que pagará el cliente después de aplicar la promoción configurada.";
+const MARGIN_INFO_TEXT =
+  "Porcentaje de ganancia estimado entre el costo unitario y el precio de venta.";
+const INITIAL_STOCK_INFO_TEXT =
+  "Cantidad disponible al crear el producto. Se registra como inventario real en el almacén principal.";
+const MIN_STOCK_INFO_TEXT =
+  "Nivel de alerta: cuando el stock llega a este número o queda por debajo, el producto aparece como bajo inventario.";
 
 const initialForm = {
   categoryId: "",
@@ -112,6 +124,10 @@ function generateLocalProductCode() {
   const timePart = Date.now().toString(36).toUpperCase().slice(-6);
 
   return `PV-${timePart}-${randomPart}`;
+}
+
+function renderHeaderWithInfo(label: string, info: string) {
+  return <LabelWithInfo label={label} info={info} ariaLabel={info} />;
 }
 
 export function ProductsPage() {
@@ -278,13 +294,15 @@ export function ProductsPage() {
     const baseColumns: GridColDef[] = [
       {
         field: "sku",
-        headerName: "Clave/SKU",
-        width: 140
+        headerName: "Clave interna/SKU",
+        renderHeader: () => renderHeaderWithInfo("Clave interna/SKU", SKU_INFO_TEXT),
+        width: 180
       },
       {
         field: "barcode",
         headerName: "Código del producto",
-        width: 150,
+        renderHeader: () => renderHeaderWithInfo("Código", PRODUCT_CODE_INFO_TEXT),
+        width: 170,
         valueGetter: (_value, row) => row.barcode || "N/A"
       },
       {
@@ -308,13 +326,15 @@ export function ProductsPage() {
       {
         field: "promoPercent",
         headerName: "Promo %",
+        renderHeader: () => renderHeaderWithInfo("Promo %", PROMO_INFO_TEXT),
         width: 120,
         valueFormatter: (value) => `${Number(value).toFixed(2)}%`
       },
       {
         field: "finalPrice",
         headerName: "Precio final",
-        width: 140,
+        renderHeader: () => renderHeaderWithInfo("Precio final", FINAL_PRICE_INFO_TEXT),
+        width: 145,
         valueFormatter: (value) => `$${Number(value).toFixed(2)}`
       },
       {
@@ -339,13 +359,15 @@ export function ProductsPage() {
     return [
       {
         field: "sku",
-        headerName: "Clave/SKU",
-        width: 140
+        headerName: "Clave interna/SKU",
+        renderHeader: () => renderHeaderWithInfo("Clave interna/SKU", SKU_INFO_TEXT),
+        width: 180
       },
       {
         field: "barcode",
         headerName: "Código del producto",
-        width: 150,
+        renderHeader: () => renderHeaderWithInfo("Código", PRODUCT_CODE_INFO_TEXT),
+        width: 170,
         valueGetter: (_value, row) => row.barcode || "N/A"
       },
       {
@@ -375,19 +397,22 @@ export function ProductsPage() {
       {
         field: "promoPercent",
         headerName: "Promo %",
+        renderHeader: () => renderHeaderWithInfo("Promo %", PROMO_INFO_TEXT),
         width: 120,
         valueFormatter: (value) => `${Number(value).toFixed(2)}%`
       },
       {
         field: "finalPrice",
         headerName: "Precio final",
-        width: 140,
+        renderHeader: () => renderHeaderWithInfo("Precio final", FINAL_PRICE_INFO_TEXT),
+        width: 145,
         valueFormatter: (value) => `$${Number(value).toFixed(2)}`
       },
       {
         field: "marginPercent",
         headerName: "Margen de ganancia %",
-        width: 130,
+        renderHeader: () => renderHeaderWithInfo("Margen", MARGIN_INFO_TEXT),
+        width: 135,
         valueFormatter: (value) => `${Number(value ?? 0).toFixed(2)}%`
       },
       {
@@ -406,7 +431,8 @@ export function ProductsPage() {
       {
         field: "minStock",
         headerName: "Stock mín.",
-        width: 120
+        renderHeader: () => renderHeaderWithInfo("Stock mín.", MIN_STOCK_INFO_TEXT),
+        width: 130
       },
       {
         field: "isActive",
@@ -585,24 +611,11 @@ export function ProductsPage() {
                   <TextField
                     fullWidth
                     label={
-                      <Box
-                        component="span"
-                        sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}
-                      >
-                        Clave interna/SKU
-                        <Tooltip title={SKU_TOOLTIP_TEXT} arrow placement="top">
-                          <InfoOutlinedIcon
-                            aria-label={SKU_TOOLTIP_TEXT}
-                            fontSize="small"
-                            sx={{
-                              color: "text.secondary",
-                              cursor: "help",
-                              fontSize: 16,
-                              verticalAlign: "middle"
-                            }}
-                          />
-                        </Tooltip>
-                      </Box>
+                      <LabelWithInfo
+                        label="Clave interna/SKU"
+                        info={SKU_INFO_TEXT}
+                        ariaLabel={SKU_INFO_TEXT}
+                      />
                     }
                     value={form.sku}
                     helperText="Identificador interno único. Ejemplo: COCA-600 o SAB-ACE-1KG."
@@ -637,7 +650,13 @@ export function ProductsPage() {
                 <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
-                    label="Código del producto"
+                    label={
+                      <LabelWithInfo
+                        label="Código del producto"
+                        info={PRODUCT_CODE_INFO_TEXT}
+                        ariaLabel={PRODUCT_CODE_INFO_TEXT}
+                      />
+                    }
                     value={form.barcode}
                     helperText="Puede ser código de barras, código interno o código generado."
                     onChange={(event) =>
@@ -743,7 +762,13 @@ export function ProductsPage() {
                 <Grid item xs={12} md={4}>
                   <TextField
                     fullWidth
-                    label="Promoción (%)"
+                    label={
+                      <LabelWithInfo
+                        label="Promoción (%)"
+                        info={PROMO_INFO_TEXT}
+                        ariaLabel={PROMO_INFO_TEXT}
+                      />
+                    }
                     type="number"
                     value={form.promoPercent}
                     inputProps={{
@@ -763,7 +788,13 @@ export function ProductsPage() {
                 <Grid item xs={12} md={4}>
                   <TextField
                     fullWidth
-                    label="Stock inicial"
+                    label={
+                      <LabelWithInfo
+                        label="Stock inicial"
+                        info={INITIAL_STOCK_INFO_TEXT}
+                        ariaLabel={INITIAL_STOCK_INFO_TEXT}
+                      />
+                    }
                     type="number"
                     value={form.initialStock}
                     helperText="Crea inventario real en el almacén principal."
@@ -783,7 +814,13 @@ export function ProductsPage() {
                 <Grid item xs={12} md={4}>
                   <TextField
                     fullWidth
-                    label="Stock mínimo"
+                    label={
+                      <LabelWithInfo
+                        label="Stock mínimo"
+                        info={MIN_STOCK_INFO_TEXT}
+                        ariaLabel={MIN_STOCK_INFO_TEXT}
+                      />
+                    }
                     type="number"
                     value={form.minStock}
                     inputProps={{

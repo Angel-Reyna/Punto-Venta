@@ -19,6 +19,7 @@ import { GridColDef } from "@mui/x-data-grid";
 
 import { api } from "../api/client";
 import { DataGridCard } from "../components/DataGridCard";
+import { LabelWithInfo } from "../components/InfoTooltip";
 import { PageHeader } from "../components/PageHeader";
 import { StatusFeedback } from "../components/StatusFeedback";
 import { getApiErrorMessage } from "../utils/apiError";
@@ -182,6 +183,21 @@ function buildQuery(from: string, to: string) {
   }).toString();
 }
 
+const REPORT_INFO_TEXT = {
+  salesCount: "Número de ventas registradas en el periodo, incluyendo completadas, canceladas y ventas con devolución.",
+  grossSales: "Total de ventas no canceladas antes de restar devoluciones.",
+  refunds: "Monto reembolsado por devoluciones registradas dentro del periodo consultado.",
+  netSales: "Venta bruta menos devoluciones. Es el total operativo más útil para revisar el resultado real del periodo.",
+  netUnits: "Unidades vendidas menos unidades devueltas dentro del periodo.",
+  netSold: "Importe vendido menos devoluciones asociadas al producto dentro del periodo.",
+  expectedCash: "Efectivo calculado por el sistema: apertura más entradas y ventas en efectivo, menos salidas y devoluciones en efectivo.",
+  cashDifference: "Diferencia entre el efectivo contado al cerrar caja y el efectivo esperado por el sistema."
+};
+
+function renderHeaderWithInfo(label: string, info: string) {
+  return <LabelWithInfo label={label} info={info} ariaLabel={info} />;
+}
+
 export function ReportsPage() {
   const today = new Date().toISOString().slice(0, 10);
 
@@ -289,12 +305,14 @@ export function ReportsPage() {
     {
       field: "quantity",
       headerName: "Unidades netas",
-      width: 150
+      renderHeader: () => renderHeaderWithInfo("Unidades netas", REPORT_INFO_TEXT.netUnits),
+      width: 160
     },
     {
       field: "total",
       headerName: "Vendido neto",
-      width: 150,
+      renderHeader: () => renderHeaderWithInfo("Vendido neto", REPORT_INFO_TEXT.netSold),
+      width: 160,
       valueFormatter: (value) => formatMoney(Number(value))
     }
   ];
@@ -429,7 +447,8 @@ export function ReportsPage() {
     {
       field: "expectedClosingAmount",
       headerName: "Esperado",
-      width: 130,
+      renderHeader: () => renderHeaderWithInfo("Esperado", REPORT_INFO_TEXT.expectedCash),
+      width: 135,
       valueFormatter: (value) => formatMoney(value as number | null)
     },
     {
@@ -441,7 +460,8 @@ export function ReportsPage() {
     {
       field: "difference",
       headerName: "Diferencia",
-      width: 130,
+      renderHeader: () => renderHeaderWithInfo("Diferencia", REPORT_INFO_TEXT.cashDifference),
+      width: 140,
       valueFormatter: (value) => formatMoney(value as number | null)
     }
   ];
@@ -451,22 +471,26 @@ export function ReportsPage() {
       {
         label: "Ventas registradas",
         value: data?.sales.count ?? 0,
-        helper: "Incluye completadas, canceladas y con devolución."
+        helper: "Incluye completadas, canceladas y con devolución.",
+        info: REPORT_INFO_TEXT.salesCount
       },
       {
         label: "Venta bruta",
         value: formatMoney(data?.sales.gross),
-        helper: "Ventas no canceladas antes de devoluciones."
+        helper: "Ventas no canceladas antes de devoluciones.",
+        info: REPORT_INFO_TEXT.grossSales
       },
       {
         label: "Devoluciones",
         value: formatMoney(data?.sales.refunded),
-        helper: "Reembolsos registrados dentro del periodo."
+        helper: "Reembolsos registrados dentro del periodo.",
+        info: REPORT_INFO_TEXT.refunds
       },
       {
         label: "Venta neta",
         value: formatMoney(data?.sales.net),
-        helper: "Venta bruta menos devoluciones."
+        helper: "Venta bruta menos devoluciones.",
+        info: REPORT_INFO_TEXT.netSales
       }
     ],
     [data]
@@ -552,7 +576,13 @@ export function ReportsPage() {
               <Grid key={card.label} item xs={12} sm={6} lg={3}>
                 <Card sx={{ height: "100%" }}>
                   <CardContent>
-                    <Typography color="text.secondary">{card.label}</Typography>
+                    <Typography color="text.secondary">
+                      <LabelWithInfo
+                        label={card.label}
+                        info={card.info}
+                        ariaLabel={card.info}
+                      />
+                    </Typography>
                     <Typography variant="h5" fontWeight={800}>
                       {card.value}
                     </Typography>
