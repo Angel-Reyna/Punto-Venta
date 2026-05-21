@@ -11,12 +11,10 @@ import {
   TextField
 } from "@mui/material";
 
-import {
-  DataGrid,
-  GridColDef
-} from "@mui/x-data-grid";
+import { GridColDef } from "@mui/x-data-grid";
 
 import { api } from "../api/client";
+import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
@@ -348,18 +346,12 @@ export function InventoryPage() {
         </Card>
       )}
 
-      <Card>
-        <CardContent sx={{ overflowX: "auto" }}>
-          <Box sx={{ minWidth: 980 }}>
-            <DataGrid
-              autoHeight
-              rows={movements}
-              columns={columns}
-              disableRowSelectionOnClick
-            />
-          </Box>
-        </CardContent>
-      </Card>
+      <DataGridCard
+        rows={movements}
+        columns={columns}
+        minWidth={980}
+        noRowsLabel="No hay movimientos de inventario registrados."
+      />
     </>
   );
 }

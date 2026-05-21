@@ -13,12 +13,10 @@ import {
   Typography
 } from "@mui/material";
 
-import {
-  DataGrid,
-  GridColDef
-} from "@mui/x-data-grid";
+import { GridColDef } from "@mui/x-data-grid";
 
 import { api } from "../api/client";
+import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
 
 type SellerAction =
@@ -369,19 +367,13 @@ export function SellerActivityPage() {
         )}
       </Grid>
 
-      <Card>
-        <CardContent sx={{ overflowX: "auto" }}>
-          <Box sx={{ minWidth: 1480 }}>
-            <DataGrid
-              autoHeight
-              rows={rows}
-              columns={columns}
-              disableRowSelectionOnClick
-              loading={isLoading}
-            />
-          </Box>
-        </CardContent>
-      </Card>
+      <DataGridCard
+        rows={rows}
+        columns={columns}
+        minWidth={1400}
+        loading={isLoading}
+        noRowsLabel="No hay actividad registrada con los filtros actuales."
+      />
     </>
   );
 }

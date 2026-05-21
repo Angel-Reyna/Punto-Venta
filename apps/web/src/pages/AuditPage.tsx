@@ -3,17 +3,13 @@ import { useEffect, useState } from "react";
 import {
   Alert,
   Box,
-  Card,
-  CardContent,
   Chip
 } from "@mui/material";
 
-import {
-  DataGrid,
-  GridColDef
-} from "@mui/x-data-grid";
+import { GridColDef } from "@mui/x-data-grid";
 
 import { api } from "../api/client";
+import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
 
 type AuditLog = {
@@ -138,18 +134,12 @@ export function AuditPage() {
         </Alert>
       )}
 
-      <Card>
-        <CardContent sx={{ overflowX: "auto" }}>
-          <Box sx={{ minWidth: 1180 }}>
-            <DataGrid
-              autoHeight
-              rows={rows}
-              columns={columns}
-              disableRowSelectionOnClick
-            />
-          </Box>
-        </CardContent>
-      </Card>
+      <DataGridCard
+        rows={rows}
+        columns={columns}
+        minWidth={1180}
+        noRowsLabel="No hay eventos de auditoría registrados."
+      />
     </>
   );
 }

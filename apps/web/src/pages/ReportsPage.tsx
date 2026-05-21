@@ -14,9 +14,10 @@ import {
   Typography
 } from "@mui/material";
 
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { GridColDef } from "@mui/x-data-grid";
 
 import { api } from "../api/client";
+import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
 import { getApiErrorMessage } from "../utils/apiError";
 
@@ -522,56 +523,34 @@ export function ReportsPage() {
             </Grid>
           </Grid>
 
-          <Card sx={{ mb: 2 }}>
-            <CardContent sx={{ overflowX: "auto" }}>
-              <Typography variant="h6" fontWeight={800} mb={2}>
-                Productos más vendidos
-              </Typography>
-              <Box sx={{ minWidth: 820 }}>
-                <DataGrid
-                  autoHeight
-                  rows={topProductsRows}
-                  columns={topProductsColumns}
-                  disableRowSelectionOnClick
-                  loading={isLoading}
-                />
-              </Box>
-            </CardContent>
-          </Card>
+          <DataGridCard
+            title="Productos más vendidos"
+            rows={topProductsRows}
+            columns={topProductsColumns}
+            minWidth={820}
+            loading={isLoading}
+            cardSx={{ mb: 2 }}
+            noRowsLabel="No hay productos vendidos en el periodo."
+          />
 
-          <Card sx={{ mb: 2 }}>
-            <CardContent sx={{ overflowX: "auto" }}>
-              <Typography variant="h6" fontWeight={800} mb={2}>
-                Devoluciones recientes
-              </Typography>
-              <Box sx={{ minWidth: 1020 }}>
-                <DataGrid
-                  autoHeight
-                  rows={data.returns.latest}
-                  columns={returnsColumns}
-                  disableRowSelectionOnClick
-                  loading={isLoading}
-                />
-              </Box>
-            </CardContent>
-          </Card>
+          <DataGridCard
+            title="Devoluciones recientes"
+            rows={data.returns.latest}
+            columns={returnsColumns}
+            minWidth={1020}
+            loading={isLoading}
+            cardSx={{ mb: 2 }}
+            noRowsLabel="No hay devoluciones en el periodo."
+          />
 
-          <Card>
-            <CardContent sx={{ overflowX: "auto" }}>
-              <Typography variant="h6" fontWeight={800} mb={2}>
-                Cortes de caja del periodo
-              </Typography>
-              <Box sx={{ minWidth: 1120 }}>
-                <DataGrid
-                  autoHeight
-                  rows={data.cashRegister.sessions}
-                  columns={sessionsColumns}
-                  disableRowSelectionOnClick
-                  loading={isLoading}
-                />
-              </Box>
-            </CardContent>
-          </Card>
+          <DataGridCard
+            title="Cortes de caja del periodo"
+            rows={data.cashRegister.sessions}
+            columns={sessionsColumns}
+            minWidth={1120}
+            loading={isLoading}
+            noRowsLabel="No hay cortes de caja en el periodo."
+          />
         </>
       )}
     </>

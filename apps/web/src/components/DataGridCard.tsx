@@ -1,0 +1,68 @@
+import {
+  Box,
+  Card,
+  CardContent,
+  Stack,
+  Typography,
+  type SxProps,
+  type Theme
+} from "@mui/material";
+import type { GridValidRowModel } from "@mui/x-data-grid";
+
+import { AppDataGrid, type AppDataGridProps } from "./AppDataGrid";
+
+function asSxArray(sx?: SxProps<Theme>) {
+  if (!sx) return [];
+
+  return Array.isArray(sx) ? sx : [sx];
+}
+
+export type DataGridCardProps<R extends GridValidRowModel = any> = AppDataGridProps<R> & {
+  title?: string;
+  subtitle?: string;
+  minWidth?: number | string;
+  cardSx?: SxProps<Theme>;
+  contentSx?: SxProps<Theme>;
+};
+
+export function DataGridCard<R extends GridValidRowModel = any>({
+  title,
+  subtitle,
+  minWidth,
+  cardSx,
+  contentSx,
+  ...dataGridProps
+}: DataGridCardProps<R>) {
+  return (
+    <Card sx={cardSx}>
+      <CardContent
+        sx={[
+          {
+            overflowX: "auto"
+          },
+          ...asSxArray(contentSx)
+        ]}
+      >
+        {(title || subtitle) && (
+          <Stack spacing={0.5} sx={{ mb: 2 }}>
+            {title && (
+              <Typography variant="h6" fontWeight={800}>
+                {title}
+              </Typography>
+            )}
+
+            {subtitle && (
+              <Typography variant="body2" color="text.secondary">
+                {subtitle}
+              </Typography>
+            )}
+          </Stack>
+        )}
+
+        <Box sx={{ minWidth: minWidth ?? 0 }}>
+          <AppDataGrid {...dataGridProps} />
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}

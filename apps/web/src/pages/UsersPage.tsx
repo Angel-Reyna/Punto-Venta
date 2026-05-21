@@ -19,10 +19,11 @@ import {
   Typography
 } from "@mui/material";
 
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { GridColDef } from "@mui/x-data-grid";
 
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
 import { getApiErrorMessage } from "../utils/apiError";
 
@@ -483,35 +484,24 @@ export function UsersPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent sx={{ overflowX: "auto" }}>
-          <Stack spacing={0.5} sx={{ mb: 2 }}>
-            <Typography variant="h6">Usuarios registrados</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Desactiva accesos que ya no se usen. Al desactivar un usuario, sus
-              sesiones activas quedan revocadas.
-            </Typography>
-          </Stack>
-
-          <Box sx={{ minWidth: 1100 }}>
-            <DataGrid
-              autoHeight
-              rows={rows}
-              columns={columns}
-              loading={isLoading}
-              disableRowSelectionOnClick
-              initialState={{
-                pagination: {
-                  paginationModel: {
-                    pageSize: 10
-                  }
-                }
-              }}
-              pageSizeOptions={[10, 25, 50]}
-            />
-          </Box>
-        </CardContent>
-      </Card>
+      <DataGridCard
+        title="Usuarios registrados"
+        subtitle="Desactiva accesos que ya no se usen. Al desactivar un usuario, sus sesiones activas quedan revocadas."
+        rows={rows}
+        columns={columns}
+        loading={isLoading}
+        minWidth={1080}
+        initialState={{
+          pagination: {
+            paginationModel: {
+              pageSize: 10
+            }
+          }
+        }}
+        pageSizeOptions={[10, 25, 50]}
+        singlePageThreshold={10}
+        noRowsLabel="No hay usuarios registrados."
+      />
 
       <Dialog open={Boolean(roleDialogUser)} onClose={closeRoleDialog} fullWidth>
         <DialogTitle>Cambiar rol</DialogTitle>

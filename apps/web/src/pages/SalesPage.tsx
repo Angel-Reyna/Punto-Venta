@@ -26,9 +26,10 @@ import UndoIcon from "@mui/icons-material/Undo";
 import CancelIcon from "@mui/icons-material/Cancel";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { GridColDef } from "@mui/x-data-grid";
 
 import { api } from "../api/client";
+import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
@@ -1033,19 +1034,13 @@ export function SalesPage() {
         </Card>
       )}
 
-      <Card>
-        <CardContent sx={{ overflowX: "auto" }}>
-          <Box sx={{ minWidth: canManageSales ? 1380 : 900 }}>
-            <DataGrid
-              autoHeight
-              rows={sales}
-              columns={columns}
-              disableRowSelectionOnClick
-              loading={isSubmitting || isLoadingCatalog}
-            />
-          </Box>
-        </CardContent>
-      </Card>
+      <DataGridCard
+        rows={sales}
+        columns={columns}
+        minWidth={canManageSales ? 1320 : 880}
+        loading={isSubmitting || isLoadingCatalog}
+        noRowsLabel="No hay ventas registradas."
+      />
 
       <Dialog
         open={cancelDialogOpen}

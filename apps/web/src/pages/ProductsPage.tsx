@@ -4,8 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   Dialog,
   DialogContent,
@@ -16,10 +14,7 @@ import {
   TextField
 } from "@mui/material";
 
-import {
-  DataGrid,
-  GridColDef
-} from "@mui/x-data-grid";
+import { GridColDef } from "@mui/x-data-grid";
 
 import AddIcon from "@mui/icons-material/Add";
 import UploadIcon from "@mui/icons-material/Upload";
@@ -27,6 +22,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import ToggleOffIcon from "@mui/icons-material/ToggleOff";
 
 import { api } from "../api/client";
+import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
@@ -538,20 +534,14 @@ export function ProductsPage() {
         </Box>
       )}
 
-      <Card>
-        <CardContent sx={{ overflowX: "auto" }}>
-          <Box sx={{ minWidth: canViewAdminColumns ? 1180 : 860 }}>
-            <DataGrid
-              autoHeight
-              rows={rows}
-              columns={columns}
-              disableRowSelectionOnClick
-              hideFooter={rows.length <= 25}
-              pageSizeOptions={[25, 50, 100]}
-            />
-          </Box>
-        </CardContent>
-      </Card>
+      <DataGridCard
+        rows={rows}
+        columns={columns}
+        minWidth={canViewAdminColumns ? 1120 : 820}
+        pageSizeOptions={[25, 50, 100]}
+        singlePageThreshold={25}
+        noRowsLabel="No hay productos registrados."
+      />
 
       {canCreateProduct && (
         <Dialog

@@ -14,11 +14,12 @@ import {
   Typography
 } from "@mui/material";
 
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { GridColDef } from "@mui/x-data-grid";
 
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
+import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
 import { getApiErrorMessage } from "../utils/apiError";
 
@@ -560,42 +561,25 @@ export function CashRegisterPage() {
         </Card>
       )}
 
-      <Card sx={{ mb: 2 }}>
-        <CardContent sx={{ overflowX: "auto" }}>
-          <Typography variant="h6" fontWeight={800} mb={2}>
-            Movimientos de la caja actual
-          </Typography>
-
-          <Box sx={{ minWidth: 840 }}>
-            <DataGrid
-              autoHeight
-              rows={currentSession?.movements ?? []}
-              columns={currentMovementsColumns}
-              disableRowSelectionOnClick
-              loading={isLoading}
-            />
-          </Box>
-        </CardContent>
-      </Card>
+      <DataGridCard
+        title="Movimientos de la caja actual"
+        rows={currentSession?.movements ?? []}
+        columns={currentMovementsColumns}
+        minWidth={840}
+        loading={isLoading}
+        cardSx={{ mb: 2 }}
+        noRowsLabel="No hay movimientos en la caja actual."
+      />
 
       {canReadCashRegisterSessions && (
-        <Card>
-          <CardContent sx={{ overflowX: "auto" }}>
-            <Typography variant="h6" fontWeight={800} mb={2}>
-              Cortes recientes
-            </Typography>
-
-            <Box sx={{ minWidth: 1120 }}>
-              <DataGrid
-                autoHeight
-                rows={sessions}
-                columns={sessionColumns}
-                disableRowSelectionOnClick
-                loading={isLoading}
-              />
-            </Box>
-          </CardContent>
-        </Card>
+        <DataGridCard
+          title="Cortes recientes"
+          rows={sessions}
+          columns={sessionColumns}
+          minWidth={1120}
+          loading={isLoading}
+          noRowsLabel="No hay cortes de caja registrados."
+        />
       )}
     </>
   );
