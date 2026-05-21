@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -14,8 +13,10 @@ import {
 import { GridColDef } from "@mui/x-data-grid";
 
 import { api } from "../api/client";
+import { ActionDisabledReason } from "../components/ActionDisabledReason";
 import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
+import { StatusFeedback } from "../components/StatusFeedback";
 import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
 import { getApiErrorMessage } from "../utils/apiError";
@@ -200,6 +201,16 @@ export function InventoryPage() {
     form.reason.trim().length < 3 ||
     form.quantity <= 0;
 
+  const inventoryFormDisabledReason = (() => {
+    if (!form.productId) return "Selecciona un producto.";
+    if (form.quantity <= 0) return "La cantidad debe ser mayor a cero.";
+    if (!form.reason.trim() || form.reason.trim().length < 3) {
+      return "Captura un motivo de al menos 3 caracteres.";
+    }
+
+    return "";
+  })();
+
   return (
     <>
       <PageHeader
@@ -222,17 +233,12 @@ export function InventoryPage() {
         />
       </Box>
 
-      {message && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {message}
-        </Alert>
-      )}
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
+      <StatusFeedback
+        success={message}
+        error={error}
+        onSuccessClose={() => setMessage("")}
+        onErrorClose={() => setError("")}
+      />
 
       {canAdjustInventory && (
         <Card sx={{ mb: 2 }}>
@@ -325,22 +331,32 @@ export function InventoryPage() {
                 }
               />
 
-              <Button
-                fullWidth
-                onClick={() => submit("in")}
-                disabled={formIsInvalid}
-              >
-                Registrar entrada
-              </Button>
+              <Box>
+                <Button
+                  fullWidth
+                  onClick={() => submit("in")}
+                  disabled={formIsInvalid}
+                >
+                  Registrar entrada
+                </Button>
+                <ActionDisabledReason
+                  message={formIsInvalid ? inventoryFormDisabledReason : ""}
+                />
+              </Box>
 
-              <Button
-                fullWidth
-                color="warning"
-                onClick={() => submit("out")}
-                disabled={formIsInvalid}
-              >
-                Registrar salida
-              </Button>
+              <Box>
+                <Button
+                  fullWidth
+                  color="warning"
+                  onClick={() => submit("out")}
+                  disabled={formIsInvalid}
+                >
+                  Registrar salida
+                </Button>
+                <ActionDisabledReason
+                  message={formIsInvalid ? inventoryFormDisabledReason : ""}
+                />
+              </Box>
             </Box>
           </CardContent>
         </Card>
@@ -351,6 +367,7 @@ export function InventoryPage() {
         columns={columns}
         minWidth={980}
         noRowsLabel="No hay movimientos de inventario registrados."
+        tableLabel="Movimientos de inventario"
       />
     </>
   );

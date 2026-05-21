@@ -85,6 +85,10 @@ export function AppDataGrid<R extends GridValidRowModel = any>({
         "& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus": {
           outline: "none"
         },
+        "& .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within": {
+          outline: "2px solid rgba(37, 99, 235, 0.55)",
+          outlineOffset: -2
+        },
         ...sx
       }}
     />

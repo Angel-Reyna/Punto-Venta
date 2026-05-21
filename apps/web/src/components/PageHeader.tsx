@@ -29,6 +29,7 @@ export function PageHeader({
     >
       <Box sx={{ maxWidth: 760 }}>
         <Typography
+          component="h1"
           variant="h4"
           fontWeight={800}
           sx={{
@@ -66,6 +67,12 @@ export function PageHeader({
             justifyContent: {
               xs: "stretch",
               sm: "flex-end"
+            },
+            "& > *": {
+              width: {
+                xs: "100%",
+                sm: "auto"
+              }
             }
           }}
         >

@@ -30,8 +30,10 @@ import { GridColDef } from "@mui/x-data-grid";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "../api/client";
+import { ActionDisabledReason } from "../components/ActionDisabledReason";
 import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
+import { StatusFeedback } from "../components/StatusFeedback";
 import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
 import { getApiErrorMessage } from "../utils/apiError";
@@ -314,6 +316,17 @@ export function SalesPage() {
     isSubmitting ||
     saleDialogIsOpen ||
     cashRegisterBlocksCheckout;
+
+  const checkoutDisabledReason = (() => {
+    if (!canCreateSales) return "No tienes permiso para registrar ventas.";
+    if (saleDialogIsOpen) return "Termina o cierra el modal abierto antes de cobrar.";
+    if (isSubmitting) return "Procesando operación...";
+    if (cashRegisterBlocksCheckout) return "Abre caja antes de cobrar en efectivo.";
+    if (cart.length === 0) return "Agrega al menos un producto al ticket.";
+    if (cartIsInvalid) return "Revisa cantidades: no deben superar el stock disponible.";
+
+    return "";
+  })();
 
   function normalizeSearch(value: string) {
     return value.trim().toLowerCase();
@@ -787,17 +800,12 @@ export function SalesPage() {
         />
       </Box>
 
-      {message && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {message}
-        </Alert>
-      )}
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
+      <StatusFeedback
+        success={message}
+        error={error}
+        onSuccessClose={() => setMessage("")}
+        onErrorClose={() => setError("")}
+      />
 
       {canCreateSales && (
         <Card sx={{ mb: 2 }}>
@@ -1085,17 +1093,24 @@ export function SalesPage() {
                     onChange={(event) => setPaidAmount(event.target.value)}
                   />
 
-                  <Button
-                    color="success"
-                    size="large"
-                    onClick={createSale}
-                    disabled={checkoutIsDisabled}
-                    sx={{ minHeight: 58, fontSize: "1rem" }}
-                  >
-                    {cashRegisterBlocksCheckout
-                      ? "Abre caja para cobrar"
-                      : "F12 · Cobrar venta"}
-                  </Button>
+                  <Box>
+                    <Button
+                      color="success"
+                      size="large"
+                      fullWidth
+                      onClick={createSale}
+                      disabled={checkoutIsDisabled}
+                      title={checkoutIsDisabled ? checkoutDisabledReason : "Registrar venta"}
+                      sx={{ minHeight: 58, fontSize: "1rem" }}
+                    >
+                      {cashRegisterBlocksCheckout
+                        ? "Abre caja para cobrar"
+                        : "F12 · Cobrar venta"}
+                    </Button>
+                    <ActionDisabledReason
+                      message={checkoutIsDisabled ? checkoutDisabledReason : ""}
+                    />
+                  </Box>
                 </CardContent>
               </Card>
             </Box>
@@ -1110,6 +1125,7 @@ export function SalesPage() {
         minWidth={canManageSales ? 1320 : 880}
         loading={isSubmitting || isLoadingCatalog}
         noRowsLabel="No hay ventas registradas."
+        tableLabel="Ventas registradas"
       />
 
       <Dialog
@@ -1160,6 +1176,8 @@ export function SalesPage() {
             value={cancelReason}
             multiline
             minRows={3}
+            error={Boolean(cancelReason) && cancelReasonIsInvalid}
+            helperText="Mínimo 5 caracteres para auditoría."
             onChange={(event) => setCancelReason(event.target.value)}
           />
         </DialogContent>
@@ -1252,6 +1270,8 @@ export function SalesPage() {
             value={returnReason}
             multiline
             minRows={3}
+            error={Boolean(returnReason) && returnReason.trim().length < 5}
+            helperText="Mínimo 5 caracteres para auditoría."
             onChange={(event) => setReturnReason(event.target.value)}
           />
         </DialogContent>

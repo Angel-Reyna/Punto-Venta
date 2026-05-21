@@ -21,6 +21,7 @@ export type DataGridCardProps<R extends GridValidRowModel = any> = AppDataGridPr
   title?: string;
   subtitle?: string;
   minWidth?: number | string;
+  tableLabel?: string;
   cardSx?: SxProps<Theme>;
   contentSx?: SxProps<Theme>;
 };
@@ -29,6 +30,7 @@ export function DataGridCard<R extends GridValidRowModel = any>({
   title,
   subtitle,
   minWidth,
+  tableLabel,
   cardSx,
   contentSx,
   ...dataGridProps
@@ -60,7 +62,10 @@ export function DataGridCard<R extends GridValidRowModel = any>({
         )}
 
         <Box sx={{ minWidth: minWidth ?? 0 }}>
-          <AppDataGrid {...dataGridProps} />
+          <AppDataGrid
+            aria-label={tableLabel ?? title ?? "Tabla de datos"}
+            {...dataGridProps}
+          />
         </Box>
       </CardContent>
     </Card>

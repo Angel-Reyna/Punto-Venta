@@ -1,7 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
-  Alert,
   Box,
   Button,
   Chip,
@@ -22,11 +21,14 @@ import DownloadIcon from "@mui/icons-material/Download";
 import ToggleOffIcon from "@mui/icons-material/ToggleOff";
 
 import { api } from "../api/client";
+import { ActionDisabledReason } from "../components/ActionDisabledReason";
 import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
+import { StatusFeedback } from "../components/StatusFeedback";
 import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
 import { getApiErrorMessage } from "../utils/apiError";
+import { downloadBlob } from "../utils/downloadBlob";
 
 type Product = {
   id: string;
@@ -123,6 +125,7 @@ export function ProductsPage() {
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
   const [isImportingExcel, setIsImportingExcel] = useState(false);
   const [togglingProductId, setTogglingProductId] = useState<string | null>(null);
@@ -156,6 +159,8 @@ export function ProductsPage() {
     setError("");
 
     try {
+      setIsCreatingProduct(true);
+
       await api.post("/products", {
         categoryId: safeTrim(form.categoryId) || undefined,
         sku: safeTrim(form.sku),
@@ -181,6 +186,8 @@ export function ProductsPage() {
           "No se pudo crear el producto. Revisa SKU, precios y campos obligatorios."
         )
       );
+    } finally {
+      setIsCreatingProduct(false);
     }
   }
 
@@ -193,14 +200,7 @@ export function ProductsPage() {
         responseType: "blob"
       });
 
-      const url = URL.createObjectURL(response.data);
-      const anchor = document.createElement("a");
-
-      anchor.href = url;
-      anchor.download = "formato-productos.xlsx";
-      anchor.click();
-
-      URL.revokeObjectURL(url);
+      downloadBlob(response.data, "formato-productos.xlsx");
     } catch {
       setError("No se pudo descargar el formato Excel.");
     } finally {
@@ -445,7 +445,23 @@ export function ProductsPage() {
     isInvalidNonNegativeNumber(form.promoPercent) ||
     promoPercent > 100 ||
     isInvalidNonNegativeInteger(form.initialStock) ||
-    isInvalidNonNegativeInteger(form.minStock);
+    isInvalidNonNegativeInteger(form.minStock) ||
+    isCreatingProduct;
+
+  const productFormDisabledReason = (() => {
+    if (!safeTrim(form.sku)) return "Captura una clave interna/SKU.";
+    if (!safeTrim(form.name)) return "Captura el nombre del producto.";
+    if (isInvalidNonNegativeNumber(form.costPrice)) return "El costo debe ser un número mayor o igual a cero.";
+    if (isInvalidNonNegativeNumber(form.salePrice)) return "El precio de venta debe ser un número mayor o igual a cero.";
+    if (isInvalidNonNegativeNumber(form.promoPercent) || promoPercent > 100) {
+      return "La promoción debe estar entre 0 y 100%.";
+    }
+    if (isInvalidNonNegativeInteger(form.initialStock)) return "El stock inicial debe ser un entero mayor o igual a cero.";
+    if (isInvalidNonNegativeInteger(form.minStock)) return "El stock mínimo debe ser un entero mayor o igual a cero.";
+    if (isCreatingProduct) return "Guardando producto...";
+
+    return "";
+  })();
 
   return (
     <>
@@ -480,17 +496,12 @@ export function ProductsPage() {
         />
       </Box>
 
-      {message && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {message}
-        </Alert>
-      )}
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
+      <StatusFeedback
+        success={message}
+        error={error}
+        onSuccessClose={() => setMessage("")}
+        onErrorClose={() => setError("")}
+      />
 
       {canImportProducts && (
         <Box
@@ -541,12 +552,17 @@ export function ProductsPage() {
         pageSizeOptions={[25, 50, 100]}
         singlePageThreshold={25}
         noRowsLabel="No hay productos registrados."
+        tableLabel="Catálogo de productos"
       />
 
       {canCreateProduct && (
         <Dialog
           open={open}
-          onClose={() => setOpen(false)}
+          onClose={() => {
+            if (!isCreatingProduct) {
+              setOpen(false);
+            }
+          }}
           maxWidth="md"
           fullWidth
         >
@@ -766,8 +782,9 @@ export function ProductsPage() {
                     fullWidth
                     disabled={formIsInvalid}
                   >
-                    Guardar producto
+                    {isCreatingProduct ? "Guardando..." : "Guardar producto"}
                   </Button>
+                  <ActionDisabledReason message={formIsInvalid ? productFormDisabledReason : ""} />
                 </Grid>
               </Grid>
 

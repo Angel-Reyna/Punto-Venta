@@ -23,8 +23,10 @@ import { GridColDef } from "@mui/x-data-grid";
 
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { ActionDisabledReason } from "../components/ActionDisabledReason";
 import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
+import { StatusFeedback } from "../components/StatusFeedback";
 import { getApiErrorMessage } from "../utils/apiError";
 
 type UserRole = "ADMIN" | "CASHIER";
@@ -261,6 +263,16 @@ export function UsersPage() {
   const resetPasswordIsInvalid =
     !resetPasswordIsValid || !resetPasswordMatches || isResettingPassword;
 
+  const createUserDisabledReason = (() => {
+    if (!form.name.trim()) return "Captura el nombre completo.";
+    if (!form.email.trim()) return "Captura el correo electrónico.";
+    if (!passwordIsValid) return "La contraseña debe tener mayúscula, minúscula, número y 8 a 72 caracteres.";
+    if (!form.role) return "Selecciona un rol.";
+    if (isCreating) return "Creando usuario...";
+
+    return "";
+  })();
+
   const activeUsers = useMemo(
     () => rows.filter((item) => item.isActive).length,
     [rows]
@@ -382,17 +394,12 @@ export function UsersPage() {
         <Chip variant="outlined" label={`${adminUsers} administradores`} />
       </Stack>
 
-      {message && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {message}
-        </Alert>
-      )}
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
+      <StatusFeedback
+        success={message}
+        error={error}
+        onSuccessClose={() => setMessage("")}
+        onErrorClose={() => setError("")}
+      />
 
       <Card sx={{ mb: 2 }}>
         <CardContent>
@@ -436,6 +443,7 @@ export function UsersPage() {
                 label="Correo electrónico"
                 placeholder="usuario@empresa.com"
                 type="email"
+                autoComplete="email"
                 value={form.email}
                 helperText="Será usado para iniciar sesión."
                 onChange={(event) =>
@@ -449,6 +457,7 @@ export function UsersPage() {
               <TextField
                 label="Contraseña temporal"
                 type="password"
+                autoComplete="new-password"
                 value={form.password}
                 error={Boolean(form.password) && !passwordIsValid}
                 helperText="8 a 72 caracteres, con mayúscula, minúscula y número."
@@ -476,9 +485,19 @@ export function UsersPage() {
                 <MenuItem value="ADMIN">Administrador</MenuItem>
               </TextField>
 
-              <Button type="submit" disabled={formIsInvalid} sx={{ mt: 0.25 }}>
-                {isCreating ? "Creando..." : "Crear usuario"}
-              </Button>
+              <Box>
+                <Button
+                  fullWidth
+                  type="submit"
+                  disabled={formIsInvalid}
+                  sx={{ mt: 0.25 }}
+                >
+                  {isCreating ? "Creando..." : "Crear usuario"}
+                </Button>
+                <ActionDisabledReason
+                  message={formIsInvalid ? createUserDisabledReason : ""}
+                />
+              </Box>
             </Box>
           </Box>
         </CardContent>
@@ -501,6 +520,7 @@ export function UsersPage() {
         pageSizeOptions={[10, 25, 50]}
         singlePageThreshold={10}
         noRowsLabel="No hay usuarios registrados."
+        tableLabel="Usuarios registrados"
       />
 
       <Dialog open={Boolean(roleDialogUser)} onClose={closeRoleDialog} fullWidth>
@@ -555,6 +575,7 @@ export function UsersPage() {
             <TextField
               label="Nueva contraseña"
               type="password"
+              autoComplete="new-password"
               value={resetPasswordForm.password}
               error={Boolean(resetPasswordForm.password) && !resetPasswordIsValid}
               helperText="8 a 72 caracteres, con mayúscula, minúscula y número."
@@ -569,6 +590,7 @@ export function UsersPage() {
             <TextField
               label="Confirmar contraseña"
               type="password"
+              autoComplete="new-password"
               value={resetPasswordForm.confirmPassword}
               error={
                 Boolean(resetPasswordForm.confirmPassword) && !resetPasswordMatches

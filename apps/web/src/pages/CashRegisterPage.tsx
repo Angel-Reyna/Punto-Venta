@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -19,8 +18,10 @@ import { GridColDef } from "@mui/x-data-grid";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
+import { ActionDisabledReason } from "../components/ActionDisabledReason";
 import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
+import { StatusFeedback } from "../components/StatusFeedback";
 import { getApiErrorMessage } from "../utils/apiError";
 
 type CashRegisterStatus = "OPEN" | "CLOSED";
@@ -288,6 +289,32 @@ export function CashRegisterPage() {
     []
   );
 
+  const openRegisterDisabledReason = (() => {
+    if (!canOperateCashRegister) return "No tienes permiso para operar caja.";
+    if (currentSession) return "Ya tienes una caja abierta.";
+    if (isLoading) return "Actualizando caja...";
+
+    return "";
+  })();
+
+  const closeRegisterDisabledReason = (() => {
+    if (!canOperateCashRegister) return "No tienes permiso para operar caja.";
+    if (!currentSession) return "Primero abre caja.";
+    if (isLoading) return "Actualizando caja...";
+
+    return "";
+  })();
+
+  const manualMovementDisabledReason = (() => {
+    if (!canOperateCashRegister) return "No tienes permiso para operar caja.";
+    if (!currentSession) return "Primero abre caja.";
+    if (isLoading) return "Actualizando caja...";
+    if (!movementAmount || Number(movementAmount) <= 0) return "Captura un monto mayor a cero.";
+    if (movementReason.trim().length < 3) return "Captura un motivo de al menos 3 caracteres.";
+
+    return "";
+  })();
+
   const sessionColumns = useMemo<GridColDef[]>(
     () => [
       {
@@ -367,17 +394,12 @@ export function CashRegisterPage() {
         )}
       </Box>
 
-      {message && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {message}
-        </Alert>
-      )}
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
+      <StatusFeedback
+        success={message}
+        error={error}
+        onSuccessClose={() => setMessage("")}
+        onErrorClose={() => setError("")}
+      />
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid item xs={12} md={4}>
@@ -442,12 +464,16 @@ export function CashRegisterPage() {
                   onChange={(event) => setOpeningNotes(event.target.value)}
                 />
 
-                <Button
-                  onClick={openRegister}
-                  disabled={!canOperateCashRegister || Boolean(currentSession) || isLoading}
-                >
-                  Abrir caja
-                </Button>
+                <Box>
+                  <Button
+                    fullWidth
+                    onClick={openRegister}
+                    disabled={!canOperateCashRegister || Boolean(currentSession) || isLoading}
+                  >
+                    Abrir caja
+                  </Button>
+                  <ActionDisabledReason message={openRegisterDisabledReason} />
+                </Box>
               </Box>
             </CardContent>
           </Card>
@@ -486,13 +512,17 @@ export function CashRegisterPage() {
                   onChange={(event) => setClosingNotes(event.target.value)}
                 />
 
-                <Button
-                  color="warning"
-                  onClick={closeRegister}
-                  disabled={!canOperateCashRegister || !currentSession || isLoading}
-                >
-                  Cerrar caja
-                </Button>
+                <Box>
+                  <Button
+                    fullWidth
+                    color="warning"
+                    onClick={closeRegister}
+                    disabled={!canOperateCashRegister || !currentSession || isLoading}
+                  >
+                    Cerrar caja
+                  </Button>
+                  <ActionDisabledReason message={closeRegisterDisabledReason} />
+                </Box>
               </Box>
             </CardContent>
           </Card>
@@ -550,12 +580,23 @@ export function CashRegisterPage() {
                 onChange={(event) => setMovementReason(event.target.value)}
               />
 
-              <Button
-                onClick={addManualMovement}
-                disabled={!canOperateCashRegister || !currentSession || isLoading}
-              >
-                Registrar
-              </Button>
+              <Box>
+                <Button
+                  fullWidth
+                  onClick={addManualMovement}
+                  disabled={
+                    !canOperateCashRegister ||
+                    !currentSession ||
+                    isLoading ||
+                    !movementAmount ||
+                    Number(movementAmount) <= 0 ||
+                    movementReason.trim().length < 3
+                  }
+                >
+                  Registrar
+                </Button>
+                <ActionDisabledReason message={manualMovementDisabledReason} />
+              </Box>
             </Box>
           </CardContent>
         </Card>
@@ -569,6 +610,7 @@ export function CashRegisterPage() {
         loading={isLoading}
         cardSx={{ mb: 2 }}
         noRowsLabel="No hay movimientos en la caja actual."
+        tableLabel="Movimientos de la caja actual"
       />
 
       {canReadCashRegisterSessions && (
@@ -579,6 +621,7 @@ export function CashRegisterPage() {
           minWidth={1120}
           loading={isLoading}
           noRowsLabel="No hay cortes de caja registrados."
+          tableLabel="Cortes recientes"
         />
       )}
     </>

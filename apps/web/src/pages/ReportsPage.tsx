@@ -20,7 +20,9 @@ import { GridColDef } from "@mui/x-data-grid";
 import { api } from "../api/client";
 import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
+import { StatusFeedback } from "../components/StatusFeedback";
 import { getApiErrorMessage } from "../utils/apiError";
+import { downloadBlob } from "../utils/downloadBlob";
 
 type MoneySummary = Record<string, number>;
 
@@ -178,20 +180,6 @@ function buildQuery(from: string, to: string) {
     from,
     to
   }).toString();
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.style.display = "none";
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-
-  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
 
 export function ReportsPage() {
@@ -495,11 +483,7 @@ export function ReportsPage() {
         <Chip color="primary" label="Reporte operativo ADMIN" />
       </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
+      <StatusFeedback error={error} onErrorClose={() => setError("")} />
 
       <Card sx={{ mb: 2 }}>
         <CardContent>
@@ -695,6 +679,7 @@ export function ReportsPage() {
             loading={isLoading}
             cardSx={{ mb: 2 }}
             noRowsLabel="No hay ventas en el periodo."
+            tableLabel="Ventas recientes del periodo"
           />
 
           <DataGridCard
@@ -706,6 +691,7 @@ export function ReportsPage() {
             loading={isLoading}
             cardSx={{ mb: 2 }}
             noRowsLabel="No hay productos vendidos en el periodo."
+            tableLabel="Productos más vendidos netos"
           />
 
           <DataGridCard
@@ -716,6 +702,7 @@ export function ReportsPage() {
             loading={isLoading}
             cardSx={{ mb: 2 }}
             noRowsLabel="No hay devoluciones en el periodo."
+            tableLabel="Devoluciones recientes"
           />
 
           <DataGridCard
@@ -725,6 +712,7 @@ export function ReportsPage() {
             minWidth={1120}
             loading={isLoading}
             noRowsLabel="No hay cortes de caja en el periodo."
+            tableLabel="Cortes de caja del periodo"
           />
         </>
       )}

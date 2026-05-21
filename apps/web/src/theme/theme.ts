@@ -66,7 +66,33 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 12,
-          minHeight: 44
+          minHeight: 44,
+          "&.Mui-focusVisible": {
+            outline: "3px solid rgba(37, 99, 235, 0.35)",
+            outlineOffset: 2
+          }
+        }
+      }
+    },
+
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          "&.Mui-focusVisible": {
+            outline: "3px solid rgba(37, 99, 235, 0.35)",
+            outlineOffset: 2
+          }
+        }
+      }
+    },
+
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          "&.Mui-focusVisible": {
+            outline: "3px solid rgba(37, 99, 235, 0.35)",
+            outlineOffset: -2
+          }
         }
       }
     },
