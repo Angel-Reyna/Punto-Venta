@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 
 import { AppError } from "../src/utils/AppError";
 
@@ -19,8 +20,44 @@ jest.mock("../src/modules/inventory/inventory.service", () => inventoryServiceMo
 
 import {
   createProduct,
-  importProducts
+  importProducts,
+  productTemplateBuffer
 } from "../src/modules/products/products.service";
+
+
+const SPREADSHEETML_MAIN_NAMESPACE =
+  "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+
+function prefixSpreadsheetNamespaceXml(xml: string) {
+  if (!xml.includes(`xmlns="${SPREADSHEETML_MAIN_NAMESPACE}"`)) {
+    return xml;
+  }
+
+  return xml
+    .replaceAll(
+      `xmlns="${SPREADSHEETML_MAIN_NAMESPACE}"`,
+      `xmlns:x="${SPREADSHEETML_MAIN_NAMESPACE}"`
+    )
+    .replace(/<(\/?)([A-Za-z][\w.-]*)(?=[\s>/])/g, "<$1x:$2");
+}
+
+async function prefixSpreadsheetNamespaceBuffer(buffer: Buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+
+  for (const [path, file] of Object.entries(zip.files)) {
+    if (file.dir || !path.endsWith(".xml")) {
+      continue;
+    }
+
+    const xml = await file.async("string");
+    zip.file(path, prefixSpreadsheetNamespaceXml(xml));
+  }
+
+  return zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE"
+  });
+}
 
 async function workbookBuffer(rows: Record<string, unknown>[]) {
   const workbook = new ExcelJS.Workbook();
@@ -279,4 +316,101 @@ describe("products import", () => {
       }
     ]);
   });
+
+  it("imports .xlsx files that use prefixed spreadsheet namespace XML", async () => {
+    const tx = createTxMock();
+    tx.product.findFirst.mockResolvedValue(null);
+    tx.product.upsert.mockResolvedValue({
+      id: "product-prefixed",
+      sku: "SKU-PREFIXED"
+    });
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback(tx)
+    );
+
+    const buffer = await prefixSpreadsheetNamespaceBuffer(
+      await workbookBuffer([
+        {
+          categoryName: "General",
+          sku: "SKU-PREFIXED",
+          barcode: "7500000000999",
+          name: "Producto namespace",
+          costPrice: 11,
+          salePrice: 22,
+          promoPercent: 0,
+          minStock: 3,
+          initialStock: 8
+        }
+      ])
+    );
+
+    const result = await importProducts(buffer, "admin-1");
+
+    expect(tx.product.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          sku: "SKU-PREFIXED"
+        },
+        create: expect.objectContaining({
+          barcode: "7500000000999",
+          name: "Producto namespace"
+        })
+      })
+    );
+    expect(inventoryServiceMock.increaseStock).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        productId: "product-prefixed",
+        quantity: 8,
+        type: "IN"
+      })
+    );
+    expect(result).toEqual([
+      {
+        id: "product-prefixed",
+        sku: "SKU-PREFIXED"
+      }
+    ]);
+  });
+
+  it("generates a product template that the importer can read", async () => {
+    const tx = createTxMock();
+    tx.product.findFirst.mockResolvedValue(null);
+    tx.product.upsert.mockResolvedValue({
+      id: "product-template",
+      sku: "SKU-001"
+    });
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback(tx)
+    );
+
+    const result = await importProducts(await productTemplateBuffer(), "admin-1");
+
+    expect(tx.product.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          sku: "SKU-001"
+        },
+        create: expect.objectContaining({
+          name: "Producto ejemplo",
+          minStock: 2
+        })
+      })
+    );
+    expect(inventoryServiceMock.increaseStock).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        productId: "product-template",
+        quantity: 10,
+        type: "IN"
+      })
+    );
+    expect(result).toEqual([
+      {
+        id: "product-template",
+        sku: "SKU-001"
+      }
+    ]);
+  });
+
 });

@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
@@ -25,6 +26,9 @@ const PRODUCT_IMPORT_HEADERS = [
 const PRODUCT_IMPORT_HEADER_SET = new Set<string>(PRODUCT_IMPORT_HEADERS);
 const MAX_IMPORT_COLUMNS = PRODUCT_IMPORT_HEADERS.length;
 const REQUIRED_PRODUCT_IMPORT_HEADERS = ["sku", "name"];
+const PRODUCTS_IMPORT_SHEET_NAME = "productos";
+const SPREADSHEETML_MAIN_NAMESPACE =
+  "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 
 type ProductImportHeader = (typeof PRODUCT_IMPORT_HEADERS)[number];
 type ProductImportRow = Partial<Record<ProductImportHeader, unknown>>;
@@ -144,13 +148,27 @@ export async function productTemplateBuffer() {
   workbook.created = new Date();
   workbook.modified = new Date();
 
-  const worksheet = workbook.addWorksheet("productos");
+  const worksheet = workbook.addWorksheet(PRODUCTS_IMPORT_SHEET_NAME);
 
   worksheet.columns = PRODUCT_IMPORT_HEADERS.map((header) => ({
     header,
     key: header,
     width: Math.max(header.length + 4, 16)
   }));
+  worksheet.views = [
+    {
+      state: "frozen",
+      ySplit: 1
+    }
+  ];
+
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  headerRow.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF1E3A8A" }
+  };
 
   worksheet.addRow({
     categoryName: "General",
@@ -164,6 +182,61 @@ export async function productTemplateBuffer() {
     initialStock: 10,
     minStock: 2
   });
+
+  const instructions = workbook.addWorksheet("instrucciones");
+  instructions.columns = [
+    { header: "Columna", key: "column", width: 22 },
+    { header: "Descripción", key: "description", width: 78 }
+  ];
+  instructions.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  instructions.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF1E3A8A" }
+  };
+  instructions.addRows([
+    {
+      column: "categoryName",
+      description: "Nombre de la categoría. Si no existe, se crea automáticamente. Si está vacío, se usa General."
+    },
+    {
+      column: "sku",
+      description: "Requerido. Clave interna única para identificar y controlar existencias."
+    },
+    {
+      column: "barcode",
+      description: "Opcional. Código del producto, código de barras o código del proveedor."
+    },
+    {
+      column: "name",
+      description: "Requerido. Nombre comercial del producto."
+    },
+    {
+      column: "description",
+      description: "Opcional. Descripción corta del producto."
+    },
+    {
+      column: "costPrice",
+      description: "Costo unitario. Número mayor o igual a 0."
+    },
+    {
+      column: "salePrice",
+      description: "Precio de venta. Número mayor o igual a 0."
+    },
+    {
+      column: "promoPercent",
+      description: "Porcentaje de promoción entre 0 y 100."
+    },
+    {
+      column: "initialStock",
+      description: "Stock inicial entero mayor o igual a 0. Crea inventario real al importar."
+    },
+    {
+      column: "minStock",
+      description: "Stock mínimo entero mayor o igual a 0 para alertas de bajo inventario."
+    }
+  ]);
+  instructions.getColumn(2).alignment = { wrapText: true, vertical: "top" };
 
   const buffer = await workbook.xlsx.writeBuffer();
 
@@ -352,24 +425,84 @@ function hasCellContent(value: unknown) {
   return true;
 }
 
+async function loadWorkbookFromBuffer(buffer: Buffer) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(
+    buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]
+  );
+
+  return workbook;
+}
+
+function normalizeSpreadsheetNamespaceXml(xml: string) {
+  if (!xml.includes(`xmlns:x="${SPREADSHEETML_MAIN_NAMESPACE}"`)) {
+    return xml;
+  }
+
+  return xml
+    .replaceAll(
+      `xmlns:x="${SPREADSHEETML_MAIN_NAMESPACE}"`,
+      `xmlns="${SPREADSHEETML_MAIN_NAMESPACE}"`
+    )
+    .replace(/(<\/?)(x):/g, "$1");
+}
+
+async function normalizeSpreadsheetNamespaces(buffer: Buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  let normalizedAnyEntry = false;
+
+  const files = Object.entries(zip.files);
+
+  for (const [path, file] of files) {
+    if (file.dir || !path.endsWith(".xml")) {
+      continue;
+    }
+
+    const xml = await file.async("string");
+    const normalizedXml = normalizeSpreadsheetNamespaceXml(xml);
+
+    if (normalizedXml === xml) {
+      continue;
+    }
+
+    zip.file(path, normalizedXml);
+    normalizedAnyEntry = true;
+  }
+
+  if (!normalizedAnyEntry) {
+    return null;
+  }
+
+  return zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE"
+  });
+}
+
 async function readWorkbook(buffer: Buffer) {
   try {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(
-      buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]
-    );
-
-    return workbook;
+    return await loadWorkbookFromBuffer(buffer);
   } catch {
+    try {
+      const normalizedBuffer = await normalizeSpreadsheetNamespaces(buffer);
+
+      if (normalizedBuffer) {
+        return await loadWorkbookFromBuffer(normalizedBuffer);
+      }
+    } catch {
+      // The final user-facing error below intentionally avoids leaking parser internals.
+    }
+
     throw new AppError(
       400,
-      "No se pudo leer el archivo Excel. Verifica que no esté dañado y que use formato .xlsx válido"
+      "No se pudo leer el archivo Excel. Usa un archivo .xlsx válido descargado desde Punta Venta o guardado desde Excel/Google Sheets."
     );
   }
 }
 
-function getFirstWorksheet(workbook: ExcelJS.Workbook) {
-  const worksheet = workbook.worksheets[0];
+function getImportWorksheet(workbook: ExcelJS.Workbook) {
+  const worksheet =
+    workbook.getWorksheet(PRODUCTS_IMPORT_SHEET_NAME) ?? workbook.worksheets[0];
 
   if (!worksheet) {
     throw new AppError(
@@ -381,7 +514,7 @@ function getFirstWorksheet(workbook: ExcelJS.Workbook) {
   if (worksheet.actualRowCount === 0) {
     throw new AppError(
       400,
-      "La primera hoja del archivo está vacía"
+      "La hoja productos del archivo está vacía"
     );
   }
 
@@ -447,7 +580,7 @@ function readHeaderMap(worksheet: ExcelJS.Worksheet) {
 
 async function readProductRows(buffer: Buffer) {
   const workbook = await readWorkbook(buffer);
-  const worksheet = getFirstWorksheet(workbook);
+  const worksheet = getImportWorksheet(workbook);
   const headerByColumn = readHeaderMap(worksheet);
   const rows: ProductImportRow[] = [];
 
