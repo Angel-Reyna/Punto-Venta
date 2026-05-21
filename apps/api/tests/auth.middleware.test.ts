@@ -1,6 +1,16 @@
 import { Role } from "@prisma/client";
 import type { NextFunction, Request, Response } from "express";
 
+const prismaMock = {
+  user: {
+    findUnique: jest.fn()
+  }
+};
+
+jest.mock("../src/config/prisma", () => ({
+  prisma: prismaMock
+}));
+
 const sellerActivityMock = {
   logSellerActivity: jest.fn(),
   shouldLogSellerActivity: jest.fn((user?: { role: Role }) => user?.role === Role.CASHIER)
@@ -8,11 +18,13 @@ const sellerActivityMock = {
 
 jest.mock("../src/modules/seller-activity/seller-activity.service", () => sellerActivityMock);
 
-jest.mock("../src/modules/auth/auth.tokens", () => ({
+const authTokensMock = {
   verifyAccessToken: jest.fn()
-}));
+};
 
-import { requirePermission, requireRole } from "../src/middlewares/auth";
+jest.mock("../src/modules/auth/auth.tokens", () => authTokensMock);
+
+import { requireAuth, requirePermission, requireRole } from "../src/middlewares/auth";
 import { PERMISSIONS } from "../src/modules/auth/permissions";
 
 function createRequest(userRole: Role, originalUrl = "/api/users") {
@@ -26,14 +38,103 @@ function createRequest(userRole: Role, originalUrl = "/api/users") {
     originalUrl,
     ip: "127.0.0.1",
     headers: {
+      authorization: "Bearer access-token",
       "user-agent": "jest"
     }
   } as unknown as Request;
 }
 
+function waitForAsyncMiddleware() {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
 describe("auth middleware", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    authTokensMock.verifyAccessToken.mockReturnValue({
+      sub: "seller-1",
+      email: "old-email@pos.local",
+      role: Role.ADMIN,
+      type: "access"
+    });
+  });
+
+  it("hydrates the authenticated user from the database instead of trusting stale token claims", async () => {
+    const req = createRequest(Role.ADMIN);
+    req.user = undefined;
+    const next = jest.fn() as NextFunction;
+
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "seller-1",
+      email: "seller@pos.local",
+      role: Role.CASHIER,
+      isActive: true
+    });
+
+    requireAuth(req, {} as Response, next);
+    await waitForAsyncMiddleware();
+
+    expect(authTokensMock.verifyAccessToken).toHaveBeenCalledWith("access-token");
+    expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+      where: {
+        id: "seller-1"
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isActive: true
+      }
+    });
+    expect(req.user).toEqual({
+      id: "seller-1",
+      email: "seller@pos.local",
+      role: Role.CASHIER
+    });
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it("rejects inactive users even when the access token is still valid", async () => {
+    const req = createRequest(Role.ADMIN);
+    req.user = undefined;
+    const next = jest.fn() as NextFunction;
+
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "seller-1",
+      email: "seller@pos.local",
+      role: Role.ADMIN,
+      isActive: false
+    });
+
+    requireAuth(req, {} as Response, next);
+    await waitForAsyncMiddleware();
+
+    expect(req.user).toBeUndefined();
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 401,
+        message: "Usuario inactivo"
+      })
+    );
+  });
+
+  it("rejects users removed from the database", async () => {
+    const req = createRequest(Role.ADMIN);
+    req.user = undefined;
+    const next = jest.fn() as NextFunction;
+
+    prismaMock.user.findUnique.mockResolvedValue(null);
+
+    requireAuth(req, {} as Response, next);
+    await waitForAsyncMiddleware();
+
+    expect(req.user).toBeUndefined();
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 401,
+        message: "Usuario no encontrado"
+      })
+    );
   });
 
   it("logs failed authorization attempts for cashiers", () => {
@@ -200,5 +301,4 @@ describe("auth middleware", () => {
       })
     );
   });
-
 });

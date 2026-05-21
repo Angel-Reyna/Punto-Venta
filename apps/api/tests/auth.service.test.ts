@@ -42,6 +42,7 @@ jest.mock("../src/modules/auth/token-hash", () => tokenHashMock);
 import {
   login,
   logout,
+  logoutAll,
   refreshSession,
   registerCashier
 } from "../src/modules/auth/auth.service";
@@ -390,6 +391,22 @@ describe("auth.service", () => {
       expect(tokenHashMock.safeCompareHash).not.toHaveBeenCalled();
       expect(prismaMock.sellerActivityLog.create).not.toHaveBeenCalled();
       expect(prismaMock.refreshSession.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("logoutAll", () => {
+    it("revokes all active refresh sessions for a user", async () => {
+      await logoutAll("user-1");
+
+      expect(prismaMock.refreshSession.updateMany).toHaveBeenCalledWith({
+        where: {
+          userId: "user-1",
+          revokedAt: null
+        },
+        data: {
+          revokedAt: expect.any(Date)
+        }
+      });
     });
   });
 

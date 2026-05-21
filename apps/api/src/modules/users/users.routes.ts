@@ -19,6 +19,7 @@ import {
 } from "../../utils/pagination";
 import { auditLog } from "../audit/audit.service";
 import { PERMISSIONS } from "../auth/permissions";
+import { logoutAll } from "../auth/auth.service";
 
 const passwordSchema = z
   .string()
@@ -216,15 +217,7 @@ usersRouter.patch(
     });
 
     if (!user.isActive) {
-      await prisma.refreshSession.updateMany({
-        where: {
-          userId: user.id,
-          revokedAt: null
-        },
-        data: {
-          revokedAt: new Date()
-        }
-      });
+      await logoutAll(user.id);
     }
 
     await auditLog({
@@ -279,6 +272,10 @@ usersRouter.patch(
         createdAt: true
       }
     });
+
+    if (oldData.role !== user.role) {
+      await logoutAll(user.id);
+    }
 
     await auditLog({
       userId: req.user?.id,
@@ -338,15 +335,7 @@ usersRouter.patch(
       }
     });
 
-    await prisma.refreshSession.updateMany({
-      where: {
-        userId: user.id,
-        revokedAt: null
-      },
-      data: {
-        revokedAt: new Date()
-      }
-    });
+    await logoutAll(user.id);
 
     await auditLog({
       userId: req.user?.id,
