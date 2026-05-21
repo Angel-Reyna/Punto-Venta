@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 
 import {
   Box,
@@ -27,6 +27,7 @@ import { api } from "../api/client";
 import { ActionDisabledReason } from "../components/ActionDisabledReason";
 import { InfoTooltip, LabelWithInfo } from "../components/InfoTooltip";
 import { PageHeader } from "../components/PageHeader";
+import { SearchToolbar } from "../components/SearchToolbar";
 import { StatusFeedback } from "../components/StatusFeedback";
 import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
@@ -215,6 +216,7 @@ type ProductCatalogProps = {
   canViewAdminColumns: boolean;
   onToggleProduct: (productId: string) => void;
   rows: Product[];
+  searchQuery: string;
   togglingProductId: string | null;
 };
 
@@ -223,6 +225,7 @@ function ProductCatalog({
   canViewAdminColumns,
   onToggleProduct,
   rows,
+  searchQuery,
   togglingProductId,
 }: ProductCatalogProps) {
   if (rows.length === 0) {
@@ -235,11 +238,14 @@ function ProductCatalog({
             sx={{ py: 4, textAlign: "center" }}
           >
             <Typography variant="h6" fontWeight={800}>
-              No hay productos registrados
+              {searchQuery.trim()
+                ? "No hay productos que coincidan con la búsqueda"
+                : "No hay productos registrados"}
             </Typography>
             <Typography color="text.secondary">
-              Crea un producto o importa un archivo Excel para iniciar tu
-              catálogo.
+              {searchQuery.trim()
+                ? "Intenta buscar por nombre, clave interna/SKU, código, categoría o descripción."
+                : "Crea un producto o importa un archivo Excel para iniciar tu catálogo."}
             </Typography>
           </Stack>
         </CardContent>
@@ -262,8 +268,8 @@ function ProductCatalog({
                 Catálogo de productos
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Vista compacta sin desplazamiento horizontal; cada fila agrupa
-                identidad, precios e inventario.
+                Vista compacta y responsive; cada fila agrupa identidad, precios
+                e inventario sin depender de desplazamiento horizontal.
               </Typography>
             </Box>
 
@@ -506,6 +512,7 @@ export function ProductsPage() {
     canCreateProduct || canImportProducts || canToggleProducts;
 
   const [rows, setRows] = useState<Product[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [open, setOpen] = useState(false);
 
@@ -520,12 +527,17 @@ export function ProductsPage() {
     null,
   );
 
-  async function load() {
+  async function load(query = searchQuery) {
     try {
       setError("");
 
       const [productsResponse, categoriesResponse] = await Promise.all([
-        api.get<Product[]>("/products"),
+        api.get<Product[]>("/products", {
+          params: {
+            q: query.trim() || undefined,
+            pageSize: 100,
+          },
+        }),
         canCreateProduct
           ? api.get<ProductCategory[]>("/products/categories")
           : Promise.resolve({ data: [] as ProductCategory[] }),
@@ -539,8 +551,12 @@ export function ProductsPage() {
   }
 
   useEffect(() => {
-    void load();
-  }, [canCreateProduct]);
+    const timeoutId = window.setTimeout(() => {
+      void load(searchQuery);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [canCreateProduct, searchQuery]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -651,6 +667,16 @@ export function ProductsPage() {
     }
   }
 
+  const normalizedSearchQuery = searchQuery.trim();
+
+  const productSearchHelper = useMemo(() => {
+    if (!normalizedSearchQuery) {
+      return "Busca por nombre, clave interna/SKU, código del producto, categoría o descripción.";
+    }
+
+    return `Mostrando coincidencias para “${normalizedSearchQuery}”.`;
+  }, [normalizedSearchQuery]);
+
   const promoPercent = toNonNegativeNumber(form.promoPercent);
 
   const formIsInvalid =
@@ -723,6 +749,15 @@ export function ProductsPage() {
         onErrorClose={() => setError("")}
       />
 
+      <SearchToolbar
+        label="Buscar productos"
+        placeholder="Ej. COCA-600, refresco, 750..., bebidas"
+        query={searchQuery}
+        onQueryChange={setSearchQuery}
+        resultCount={rows.length}
+        helperText={productSearchHelper}
+      />
+
       {canImportProducts && (
         <Box
           sx={{
@@ -767,6 +802,7 @@ export function ProductsPage() {
 
       <ProductCatalog
         rows={rows}
+        searchQuery={searchQuery}
         canViewAdminColumns={canViewAdminColumns}
         canToggleProducts={canToggleProducts}
         togglingProductId={togglingProductId}

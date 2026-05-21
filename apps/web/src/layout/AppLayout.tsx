@@ -18,7 +18,7 @@ import {
   Typography,
   alpha,
   useMediaQuery,
-  useTheme
+  useTheme,
 } from "@mui/material";
 
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -34,14 +34,14 @@ import {
   flattenNavigationSections,
   getVisibleNavigationSections,
   isNavigationRouteActive,
-  type NavigationItem
+  type NavigationItem,
 } from "./navigation";
 
 const drawerWidth = 272;
 
 const ROLE_LABELS = {
   ADMIN: "Administrador",
-  CASHIER: "Vendedor"
+  CASHIER: "Vendedor",
 } as const;
 
 function getDisplayName(name?: string | null) {
@@ -49,21 +49,18 @@ function getDisplayName(name?: string | null) {
 }
 
 function getUserInitials(name?: string | null) {
-  const parts = getDisplayName(name)
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2);
+  const parts = getDisplayName(name).split(/\s+/).filter(Boolean).slice(0, 2);
 
   return parts.map((part) => part[0]?.toUpperCase()).join("") || "U";
 }
 
 function getRoleLabel(role?: keyof typeof ROLE_LABELS | null) {
-  return role ? ROLE_LABELS[role] ?? role : "Sin rol";
+  return role ? (ROLE_LABELS[role] ?? role) : "Sin rol";
 }
 
 function SidebarLink({
   item,
-  onNavigate
+  onNavigate,
 }: {
   item: NavigationItem;
   onNavigate: () => void;
@@ -77,39 +74,47 @@ function SidebarLink({
       sx={{
         mx: 1.25,
         mb: 0.5,
-        minHeight: 44,
+        minHeight: 56,
         borderRadius: 2.5,
         color: "text.secondary",
         "& .MuiListItemIcon-root": {
           color: "text.secondary",
-          minWidth: 40
+          minWidth: 40,
         },
         "&:hover": {
           backgroundColor: "action.hover",
           color: "text.primary",
           "& .MuiListItemIcon-root": {
-            color: "primary.main"
-          }
+            color: "primary.main",
+          },
         },
         "&.active": {
           backgroundColor: "primary.main",
           color: "primary.contrastText",
           boxShadow: "0 12px 24px rgba(37, 99, 235, 0.22)",
           "& .MuiListItemIcon-root": {
-            color: "primary.contrastText"
+            color: "primary.contrastText",
           },
           "&:hover": {
-            backgroundColor: "primary.dark"
-          }
-        }
+            backgroundColor: "primary.dark",
+          },
+        },
       }}
     >
       <ListItemIcon>{item.icon}</ListItemIcon>
       <ListItemText
         primary={item.label}
+        secondary={item.description}
         primaryTypographyProps={{
-          fontWeight: 750,
-          fontSize: 14
+          fontWeight: 800,
+          fontSize: 14,
+          lineHeight: 1.25,
+        }}
+        secondaryTypographyProps={{
+          fontSize: 12,
+          lineHeight: 1.25,
+          color: "inherit",
+          sx: { opacity: 0.72 },
         }}
       />
     </ListItemButton>
@@ -128,19 +133,19 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   const visibleSections = useMemo(
     () => getVisibleNavigationSections(buildNavigationSections(can)),
-    [can]
+    [can],
   );
 
   const visibleItems = useMemo(
     () => [
       ...(primaryAction ? [primaryAction] : []),
-      ...flattenNavigationSections(visibleSections)
+      ...flattenNavigationSections(visibleSections),
     ],
-    [primaryAction, visibleSections]
+    [primaryAction, visibleSections],
   );
 
   const currentItem = visibleItems.find((item) =>
-    isNavigationRouteActive(location.pathname, item.to)
+    isNavigationRouteActive(location.pathname, item.to),
   );
 
   const displayName = getDisplayName(user?.name);
@@ -157,7 +162,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       sx={{
         minHeight: "100%",
         display: "flex",
-        flexDirection: "column"
+        flexDirection: "column",
       }}
     >
       <Box sx={{ px: 2.25, pt: 2.5, pb: 2 }}>
@@ -171,7 +176,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               placeItems: "center",
               color: "primary.contrastText",
               background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-              boxShadow: "0 14px 28px rgba(37, 99, 235, 0.22)"
+              boxShadow: "0 14px 28px rgba(37, 99, 235, 0.22)",
             }}
           >
             <StorefrontIcon />
@@ -198,7 +203,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             borderRadius: 3,
             border: "1px solid",
             borderColor: "divider",
-            backgroundColor: alpha(theme.palette.primary.main, 0.04)
+            backgroundColor: alpha(theme.palette.primary.main, 0.04),
           }}
         >
           <Avatar
@@ -206,7 +211,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               width: 38,
               height: 38,
               fontWeight: 800,
-              bgcolor: "primary.main"
+              bgcolor: "primary.main",
             }}
           >
             {getUserInitials(user?.name)}
@@ -240,11 +245,26 @@ export function AppLayout({ children }: { children: ReactNode }) {
               borderRadius: 3,
               boxShadow: "0 14px 28px rgba(37, 99, 235, 0.24)",
               "&.active": {
-                bgcolor: "primary.dark"
-              }
+                bgcolor: "primary.dark",
+              },
             }}
           >
-            {primaryAction.label}
+            <Stack
+              spacing={0.1}
+              alignItems="flex-start"
+              sx={{ lineHeight: 1.1 }}
+            >
+              <Typography component="span" fontWeight={850} lineHeight={1.1}>
+                {primaryAction.label}
+              </Typography>
+              <Typography
+                component="span"
+                variant="caption"
+                sx={{ opacity: 0.82 }}
+              >
+                {primaryAction.description}
+              </Typography>
+            </Stack>
           </Button>
         </Box>
       )}
@@ -263,7 +283,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 px: 2.5,
                 py: 1,
                 letterSpacing: "0.08em",
-                textTransform: "uppercase"
+                textTransform: "uppercase",
               }}
             >
               {section.label}
@@ -289,7 +309,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       sx={{
         display: "flex",
         minHeight: "100vh",
-        bgcolor: "background.default"
+        bgcolor: "background.default",
       }}
     >
       <AppBar
@@ -300,27 +320,27 @@ export function AppLayout({ children }: { children: ReactNode }) {
           zIndex: (muiTheme) => muiTheme.zIndex.drawer + 1,
           width: {
             xs: "100%",
-            md: `calc(100% - ${drawerWidth}px)`
+            md: `calc(100% - ${drawerWidth}px)`,
           },
           ml: {
-            md: `${drawerWidth}px`
+            md: `${drawerWidth}px`,
           },
           borderBottom: "1px solid",
           borderColor: "divider",
           backdropFilter: "blur(10px)",
-          backgroundColor: alpha(theme.palette.background.paper, 0.92)
+          backgroundColor: alpha(theme.palette.background.paper, 0.92),
         }}
       >
         <Toolbar
           sx={{
             minHeight: {
               xs: 64,
-              sm: 72
+              sm: 72,
             },
             px: {
               xs: 2,
-              sm: 3
-            }
+              sm: 3,
+            },
           }}
         >
           {isMobile && (
@@ -370,8 +390,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
               minHeight: 40,
               px: {
                 xs: 1.25,
-                sm: 2
-              }
+                sm: 2,
+              },
             }}
           >
             {isMobile ? "Salir" : "Cerrar sesión"}
@@ -384,7 +404,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         open={isMobile ? open : true}
         onClose={() => setOpen(false)}
         ModalProps={{
-          keepMounted: true
+          keepMounted: true,
         }}
         sx={{
           width: isMobile ? undefined : drawerWidth,
@@ -394,8 +414,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
             borderRight: "1px solid",
             borderColor: "divider",
             backgroundColor: "background.paper",
-            boxSizing: "border-box"
-          }
+            boxSizing: "border-box",
+          },
         }}
       >
         {drawerContent}
@@ -407,18 +427,18 @@ export function AppLayout({ children }: { children: ReactNode }) {
           flexGrow: 1,
           width: {
             xs: "100%",
-            md: `calc(100% - ${drawerWidth}px)`
+            md: `calc(100% - ${drawerWidth}px)`,
           },
           minHeight: "100vh",
           p: {
             xs: 2,
-            sm: 3
+            sm: 3,
           },
           pt: {
             xs: 10,
-            sm: 12
+            sm: 12,
           },
-          overflowX: "hidden"
+          overflowX: "hidden",
         }}
       >
         {children}

@@ -6,7 +6,7 @@ import {
   buildPrimaryNavigationAction,
   flattenNavigationSections,
   getVisibleNavigationSections,
-  isNavigationRouteActive
+  isNavigationRouteActive,
 } from "./navigation";
 
 function canFrom(permissions: readonly Permission[]) {
@@ -19,13 +19,15 @@ const CASHIER_PERMISSIONS = [
   PERMISSIONS.ProductsRead,
   PERMISSIONS.InventoryRead,
   PERMISSIONS.SalesRead,
-  PERMISSIONS.SalesCreate
+  PERMISSIONS.SalesCreate,
 ] as const satisfies readonly Permission[];
 
 describe("navigation visibility", () => {
   it("shows admin control and administration routes only when permissions are present", () => {
     const visibleItems = flattenNavigationSections(
-      getVisibleNavigationSections(buildNavigationSections(canFrom(ADMIN_PERMISSIONS)))
+      getVisibleNavigationSections(
+        buildNavigationSections(canFrom(ADMIN_PERMISSIONS)),
+      ),
     );
 
     const visiblePaths = visibleItems.map((item) => item.to);
@@ -38,21 +40,23 @@ describe("navigation visibility", () => {
         "/users",
         "/seller-activity",
         "/reports",
-        "/audit"
-      ])
+        "/audit",
+      ]),
     );
     expect(visiblePaths).not.toContain("/cash-register");
   });
 
   it("hides admin-only routes for cashiers", () => {
     const visibleItems = flattenNavigationSections(
-      getVisibleNavigationSections(buildNavigationSections(canFrom(CASHIER_PERMISSIONS)))
+      getVisibleNavigationSections(
+        buildNavigationSections(canFrom(CASHIER_PERMISSIONS)),
+      ),
     );
 
     expect(visibleItems.map((item) => item.to)).toEqual([
       "/",
       "/products",
-      "/inventory"
+      "/inventory",
     ]);
   });
 
@@ -60,15 +64,36 @@ describe("navigation visibility", () => {
     expect(buildPrimaryNavigationAction(canFrom(CASHIER_PERMISSIONS))).toEqual(
       expect.objectContaining({
         label: "Nueva venta",
-        to: "/sales"
-      })
+        to: "/sales",
+      }),
     );
 
     expect(
       buildPrimaryNavigationAction(
-        canFrom([PERMISSIONS.SalesCreate, PERMISSIONS.ProductsRead])
-      )
+        canFrom([PERMISSIONS.SalesCreate, PERMISSIONS.ProductsRead]),
+      ),
     ).toBeNull();
+  });
+
+  it("defines concise descriptions for the sidebar items", () => {
+    const visibleItems = flattenNavigationSections(
+      getVisibleNavigationSections(
+        buildNavigationSections(canFrom(ADMIN_PERMISSIONS)),
+      ),
+    );
+
+    const descriptionsByPath = new Map(
+      visibleItems.map((item) => [item.to, item.description]),
+    );
+
+    expect(buildPrimaryNavigationAction(canFrom(ADMIN_PERMISSIONS))).toEqual(
+      expect.objectContaining({
+        description: "Registrar venta",
+      }),
+    );
+    expect(descriptionsByPath.get("/products")).toBe("Gestionar catálogo");
+    expect(descriptionsByPath.get("/inventory")).toBe("Revisar existencias");
+    expect(descriptionsByPath.get("/reports")).toBe("Analizar resultados");
   });
 
   it("marks nested routes as active without making root active for every path", () => {

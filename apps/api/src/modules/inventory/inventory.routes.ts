@@ -136,6 +136,14 @@ inventoryRouter.get(
                 }
               },
               {
+                product: {
+                  barcode: {
+                    contains: q,
+                    mode: "insensitive"
+                  }
+                }
+              },
+              {
                 warehouse: {
                   name: {
                     contains: q,
@@ -157,6 +165,7 @@ inventoryRouter.get(
             select: {
               id: true,
               sku: true,
+              barcode: true,
               name: true
             }
           },
@@ -213,6 +222,20 @@ inventoryRouter.get(
                   contains: q,
                   mode: "insensitive"
                 }
+              },
+              {
+                barcode: {
+                  contains: q,
+                  mode: "insensitive"
+                }
+              },
+              {
+                category: {
+                  name: {
+                    contains: q,
+                    mode: "insensitive"
+                  }
+                }
               }
             ]
           }
@@ -253,6 +276,7 @@ inventoryRouter.get(
           return {
             id: product.id,
             sku: product.sku,
+            barcode: product.barcode,
             name: product.name,
             category: product.category,
             minStock: product.minStock,
@@ -286,6 +310,7 @@ inventoryRouter.get(
         return {
           id: product.id,
           sku: product.sku,
+          barcode: product.barcode,
           name: product.name,
           category: product.category,
           minStock: product.minStock,

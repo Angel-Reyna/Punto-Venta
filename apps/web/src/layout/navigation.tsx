@@ -15,6 +15,7 @@ type CanAccess = (permission: Permission) => boolean;
 
 export type NavigationItem = {
   label: string;
+  description: string;
   to: string;
   icon: ReactElement;
   visible: boolean;
@@ -25,16 +26,19 @@ export type NavigationSection = {
   items: NavigationItem[];
 };
 
-export function buildPrimaryNavigationAction(can: CanAccess): NavigationItem | null {
+export function buildPrimaryNavigationAction(
+  can: CanAccess,
+): NavigationItem | null {
   if (!can(PERMISSIONS.SalesCreate) || !can(PERMISSIONS.SalesRead)) {
     return null;
   }
 
   return {
     label: "Nueva venta",
+    description: "Registrar venta",
     to: "/sales",
     icon: <PointOfSaleIcon />,
-    visible: true
+    visible: true,
   };
 }
 
@@ -45,75 +49,81 @@ export function buildNavigationSections(can: CanAccess): NavigationSection[] {
       items: [
         {
           label: "Inicio",
+          description: "Resumen operativo",
           to: "/",
           icon: <DashboardIcon />,
-          visible: can(PERMISSIONS.DashboardRead)
+          visible: can(PERMISSIONS.DashboardRead),
         },
         {
           label: "Productos",
+          description: "Gestionar catálogo",
           to: "/products",
           icon: <CategoryIcon />,
-          visible: can(PERMISSIONS.ProductsRead)
+          visible: can(PERMISSIONS.ProductsRead),
         },
         {
           label: "Inventario",
+          description: "Revisar existencias",
           to: "/inventory",
           icon: <WarehouseIcon />,
-          visible: can(PERMISSIONS.InventoryRead)
+          visible: can(PERMISSIONS.InventoryRead),
         },
-
-      ]
+      ],
     },
     {
       label: "Administración",
       items: [
         {
           label: "Usuarios",
+          description: "Gestionar vendedores",
           to: "/users",
           icon: <PeopleIcon />,
-          visible: can(PERMISSIONS.UsersRead)
+          visible: can(PERMISSIONS.UsersRead),
         },
         {
           label: "Actividad vendedores",
+          description: "Supervisar desempeño",
           to: "/seller-activity",
           icon: <ManageSearchIcon />,
-          visible: can(PERMISSIONS.SellerActivityRead)
-        }
-      ]
+          visible: can(PERMISSIONS.SellerActivityRead),
+        },
+      ],
     },
     {
       label: "Control",
       items: [
         {
           label: "Reportes",
+          description: "Analizar resultados",
           to: "/reports",
           icon: <AssessmentIcon />,
-          visible: can(PERMISSIONS.ReportsRead)
+          visible: can(PERMISSIONS.ReportsRead),
         },
         {
           label: "Auditoría",
+          description: "Revisar actividad",
           to: "/audit",
           icon: <HistoryIcon />,
-          visible: can(PERMISSIONS.AuditRead)
-        }
-      ]
-    }
+          visible: can(PERMISSIONS.AuditRead),
+        },
+      ],
+    },
   ];
 }
 
 export function getVisibleNavigationSections(
-  sections: NavigationSection[]
+  sections: NavigationSection[],
 ): NavigationSection[] {
   return sections
     .map((section) => ({
       ...section,
-      items: section.items.filter((item) => item.visible)
+      items: section.items.filter((item) => item.visible),
     }))
     .filter((section) => section.items.length > 0);
 }
 
 export function flattenNavigationSections(
-  sections: NavigationSection[]
+  sections: NavigationSection[],
 ): NavigationItem[] {
   return sections.flatMap((section) => section.items);
 }

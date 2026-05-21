@@ -145,6 +145,20 @@ productsRouter.get(
                   contains: q,
                   mode: "insensitive"
                 }
+              },
+              {
+                description: {
+                  contains: q,
+                  mode: "insensitive"
+                }
+              },
+              {
+                category: {
+                  name: {
+                    contains: q,
+                    mode: "insensitive"
+                  }
+                }
               }
             ]
           }
