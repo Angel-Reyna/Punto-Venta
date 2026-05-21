@@ -310,6 +310,33 @@ export async function recordSaleCashMovement(
   });
 }
 
+export async function tryRecordSaleCashMovement(
+  tx: Prisma.TransactionClient,
+  input: {
+    cashierId: string;
+    saleId: string;
+    amount: number;
+    reason: string;
+  }
+) {
+  const session = await findOpenSession(tx, input.cashierId);
+
+  if (!session) {
+    return null;
+  }
+
+  return tx.cashMovement.create({
+    data: {
+      sessionId: session.id,
+      cashierId: input.cashierId,
+      saleId: input.saleId,
+      type: CashMovementType.SALE_CASH,
+      amount: input.amount,
+      reason: input.reason
+    }
+  });
+}
+
 export async function recordReturnCashMovement(
   tx: Prisma.TransactionClient,
   input: {
@@ -323,6 +350,33 @@ export async function recordReturnCashMovement(
 
   if (!session) {
     throw new AppError(409, "Debes abrir caja antes de devolver efectivo");
+  }
+
+  return tx.cashMovement.create({
+    data: {
+      sessionId: session.id,
+      cashierId: input.cashierId,
+      saleReturnId: input.saleReturnId,
+      type: CashMovementType.RETURN_CASH,
+      amount: input.amount,
+      reason: input.reason
+    }
+  });
+}
+
+export async function tryRecordReturnCashMovement(
+  tx: Prisma.TransactionClient,
+  input: {
+    cashierId: string;
+    saleReturnId?: string;
+    amount: number;
+    reason: string;
+  }
+) {
+  const session = await findOpenSession(tx, input.cashierId);
+
+  if (!session) {
+    return null;
   }
 
   return tx.cashMovement.create({

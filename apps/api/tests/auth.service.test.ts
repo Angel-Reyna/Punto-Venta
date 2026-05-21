@@ -185,7 +185,6 @@ describe("auth.service", () => {
           PERMISSIONS.ProductsRead,
           PERMISSIONS.InventoryRead,
           PERMISSIONS.SalesCreate,
-          PERMISSIONS.CashRegisterOperate,
           PERMISSIONS.DashboardRead
         ])
       );

@@ -17,8 +17,8 @@ import {
   increaseStock
 } from "../inventory/inventory.service";
 import {
-  recordReturnCashMovement,
-  recordSaleCashMovement
+  tryRecordReturnCashMovement,
+  tryRecordSaleCashMovement
 } from "../cash-register/cash-register.service";
 
 export const saleSchema = z.object({
@@ -646,7 +646,7 @@ async function createSaleAttempt(
       }
 
       if (input.paymentMethod === PaymentMethod.CASH) {
-        await recordSaleCashMovement(tx, {
+        await tryRecordSaleCashMovement(tx, {
           cashierId: user.id,
           saleId: createdSale.id,
           amount: total,
@@ -771,7 +771,7 @@ export async function cancelSale(
       });
 
       if (hasCashRefund(refundMethod)) {
-        await recordReturnCashMovement(tx, {
+        await tryRecordReturnCashMovement(tx, {
           cashierId: user.id,
           saleReturnId: saleReturn.id,
           amount: Number(sale.total),
@@ -903,7 +903,7 @@ export async function returnSaleItems(
       });
 
       if (hasCashRefund(refundMethod)) {
-        await recordReturnCashMovement(tx, {
+        await tryRecordReturnCashMovement(tx, {
           cashierId: user.id,
           saleReturnId: saleReturn.id,
           amount: refundTotal,

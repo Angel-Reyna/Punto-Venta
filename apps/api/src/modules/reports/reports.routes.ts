@@ -205,7 +205,7 @@ function writeOperationsPdf(doc: PDFKit.PDFDocument, report: OperationsReport) {
       doc.fontSize(10).text(`Folio: ${sale.folio}`);
       doc.text(`Fecha: ${formatDate(sale.createdAt)}`);
       doc.text(`Estado: ${saleStatusLabel(sale.status)}`);
-      doc.text(`Cajero: ${sale.cashier.name} (${sale.cashier.email})`);
+      doc.text(`Vendedor: ${sale.cashier.name} (${sale.cashier.email})`);
       doc.text(`Pagos: ${payments || "—"}`);
       doc.text(`Total: ${formatMoney(sale.total)}`);
       doc.moveDown(0.6);

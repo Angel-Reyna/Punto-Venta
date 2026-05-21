@@ -19,8 +19,7 @@ const CASHIER_PERMISSIONS = [
   PERMISSIONS.ProductsRead,
   PERMISSIONS.InventoryRead,
   PERMISSIONS.SalesRead,
-  PERMISSIONS.SalesCreate,
-  PERMISSIONS.CashRegisterOperate
+  PERMISSIONS.SalesCreate
 ] as const satisfies readonly Permission[];
 
 describe("navigation visibility", () => {
@@ -29,18 +28,20 @@ describe("navigation visibility", () => {
       getVisibleNavigationSections(buildNavigationSections(canFrom(ADMIN_PERMISSIONS)))
     );
 
-    expect(visibleItems.map((item) => item.to)).toEqual(
+    const visiblePaths = visibleItems.map((item) => item.to);
+
+    expect(visiblePaths).toEqual(
       expect.arrayContaining([
         "/",
         "/products",
         "/inventory",
-        "/cash-register",
         "/users",
         "/seller-activity",
         "/reports",
         "/audit"
       ])
     );
+    expect(visiblePaths).not.toContain("/cash-register");
   });
 
   it("hides admin-only routes for cashiers", () => {
@@ -51,8 +52,7 @@ describe("navigation visibility", () => {
     expect(visibleItems.map((item) => item.to)).toEqual([
       "/",
       "/products",
-      "/inventory",
-      "/cash-register"
+      "/inventory"
     ]);
   });
 

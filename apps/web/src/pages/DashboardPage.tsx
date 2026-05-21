@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Alert,
@@ -17,16 +17,12 @@ import {
 } from "@mui/material";
 
 import AssessmentIcon from "@mui/icons-material/Assessment";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import InventoryIcon from "@mui/icons-material/Inventory2";
 import PaidIcon from "@mui/icons-material/Paid";
 import PeopleIcon from "@mui/icons-material/People";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import StorefrontIcon from "@mui/icons-material/Storefront";
 import WarningIcon from "@mui/icons-material/WarningAmber";
-
-import { useNavigate } from "react-router-dom";
 
 import { api } from "../api/client";
 import { PERMISSIONS } from "../auth/permissions";
@@ -61,7 +57,6 @@ function DashboardSkeleton() {
 
 export function DashboardPage() {
   const { can, isAdmin } = useAuth();
-  const navigate = useNavigate();
 
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -94,60 +89,7 @@ export function DashboardPage() {
   const hasMetrics = Boolean(metrics);
   const hasCriticalStock = (metrics?.productSummary.outOfStockTotal ?? 0) > 0;
   const hasLowStock = (metrics?.productSummary.lowStockTotal ?? 0) > 0;
-  const hasOpenRegister = Boolean(metrics?.cashRegister.hasOpenRegister);
   const salesDestination = can(PERMISSIONS.ReportsRead) ? "/reports" : "/sales";
-
-  const quickActions = useMemo(
-    () =>
-      [
-        {
-          label: "Nueva venta",
-          description: "Crear ticket y cobrar",
-          to: "/sales",
-          visible: can(PERMISSIONS.SalesCreate),
-          primary: true
-        },
-        {
-          label: hasOpenRegister ? "Ver caja" : "Abrir caja",
-          description: hasOpenRegister
-            ? "Consultar sesión abierta"
-            : "Requerido para operar efectivo",
-          to: "/cash-register",
-          visible:
-            can(PERMISSIONS.CashRegisterOperate) || can(PERMISSIONS.CashRegisterRead),
-          primary: false
-        },
-        {
-          label: "Inventario",
-          description: "Revisar existencias",
-          to: "/inventory",
-          visible: can(PERMISSIONS.InventoryRead),
-          primary: false
-        },
-        {
-          label: "Productos",
-          description: "Gestionar catálogo",
-          to: "/products",
-          visible: can(PERMISSIONS.ProductsRead),
-          primary: false
-        },
-        {
-          label: "Usuarios",
-          description: "Administrar accesos",
-          to: "/users",
-          visible: can(PERMISSIONS.UsersRead),
-          primary: false
-        },
-        {
-          label: "Reportes",
-          description: "Consultar ventas y PDF",
-          to: "/reports",
-          visible: can(PERMISSIONS.ReportsRead),
-          primary: false
-        }
-      ].filter((action) => action.visible),
-    [can, hasOpenRegister]
-  );
 
   return (
     <>
@@ -155,8 +97,8 @@ export function DashboardPage() {
         title="Inicio"
         subtitle={
           isAdmin
-            ? "Resumen operativo del negocio: ventas, caja, inventario crítico y usuarios activos."
-            : "Panel operativo para ventas, caja e inventario disponible durante tu turno."
+            ? "Resumen operativo del negocio: ventas por vendedor, inventario crítico y usuarios activos."
+            : "Panel para registrar ventas y consultar tu actividad reciente."
         }
         action={
           <Button
@@ -214,33 +156,12 @@ export function DashboardPage() {
                 tone="success"
                 footer={
                   <Typography color="text.secondary" variant="caption">
-                    Alcance: {metrics?.salesToday.scope === "cashier" ? "cajero" : "global"}
+                    Alcance: {metrics?.salesToday.scope === "cashier" ? "vendedor" : "global"}
                   </Typography>
                 }
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} lg={4} xl={2}>
-              <DashboardMetricCard
-                title="Caja"
-                value={formatMoney(metrics?.cashRegister.currentBalance)}
-                icon={<StorefrontIcon />}
-                description={
-                  hasOpenRegister
-                    ? `${formatNumber(metrics?.cashRegister.openSessions)} sesión(es) abierta(s)`
-                    : "No hay caja abierta en tu alcance"
-                }
-                to="/cash-register"
-                tone={hasOpenRegister ? "success" : "warning"}
-                footer={
-                  <Chip
-                    size="small"
-                    color={hasOpenRegister ? "success" : "warning"}
-                    label={hasOpenRegister ? "Caja abierta" : "Caja cerrada"}
-                  />
-                }
-              />
-            </Grid>
 
             {isAdmin && (
               <Grid item xs={12} sm={6} lg={4} xl={2}>
@@ -248,7 +169,7 @@ export function DashboardPage() {
                   title="Usuarios activos"
                   value={formatNumber(metrics?.userSummary.totalActive)}
                   icon={<PeopleIcon />}
-                  description="Administradores y cajeros activos"
+                  description="Administradores y vendedores activos"
                   to="/users"
                   footer={
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -258,7 +179,7 @@ export function DashboardPage() {
                       />
                       <Chip
                         size="small"
-                        label={`Cajeros ${formatNumber(metrics?.userSummary.activeCashiers)}`}
+                        label={`Vendedores ${formatNumber(metrics?.userSummary.activeCashiers)}`}
                       />
                     </Stack>
                   }
@@ -351,7 +272,7 @@ export function DashboardPage() {
               </DashboardPanelCard>
             </Grid>
 
-            <Grid item xs={12} lg={4}>
+            <Grid item xs={12} lg={7}>
               <DashboardPanelCard
                 title="Ventas recientes"
                 subtitle={
@@ -418,128 +339,10 @@ export function DashboardPage() {
               </DashboardPanelCard>
             </Grid>
 
-            <Grid item xs={12} lg={3}>
-              <DashboardPanelCard
-                title="Acciones rápidas"
-                subtitle="Accesos visibles según tus permisos."
-              >
-                <Stack spacing={1.25}>
-                  {quickActions.map((actionItem) => (
-                    <Button
-                      key={actionItem.to}
-                      variant={actionItem.primary ? "contained" : "outlined"}
-                      color={actionItem.primary ? "primary" : "inherit"}
-                      onClick={() => navigate(actionItem.to)}
-                      endIcon={<ChevronRightIcon />}
-                      sx={{
-                        justifyContent: "space-between",
-                        borderRadius: 3,
-                        px: 2,
-                        py: 1.2,
-                        textAlign: "left"
-                      }}
-                    >
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography fontWeight={800} variant="body2">
-                          {actionItem.label}
-                        </Typography>
-                        <Typography
-                          color={actionItem.primary ? "primary.contrastText" : "text.secondary"}
-                          variant="caption"
-                        >
-                          {actionItem.description}
-                        </Typography>
-                      </Box>
-                    </Button>
-                  ))}
-                </Stack>
-
-                <Divider sx={{ my: 2 }} />
-
-                <Stack spacing={1.25}>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 2
-                    }}
-                  >
-                    <Typography color="text.secondary" variant="body2">
-                      Estado de caja
-                    </Typography>
-                    <Chip
-                      size="small"
-                      color={hasOpenRegister ? "success" : "warning"}
-                      label={hasOpenRegister ? "Abierta" : "Cerrada"}
-                    />
-                  </Box>
-
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 2
-                    }}
-                  >
-                    <Typography color="text.secondary" variant="body2">
-                      Inventario crítico
-                    </Typography>
-                    <Typography fontWeight={900} color={hasCriticalStock ? "error" : "success.main"}>
-                      {formatNumber(metrics?.productSummary.outOfStockTotal)}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </DashboardPanelCard>
-            </Grid>
           </Grid>
 
           <Grid container spacing={2.5}>
-            <Grid item xs={12} lg={6}>
-              <DashboardPanelCard
-                title="Sesiones de caja abiertas"
-                subtitle={
-                  isAdmin
-                    ? "Sesiones activas del equipo y efectivo esperado."
-                    : "Tu sesión activa y efectivo esperado."
-                }
-                actionTo="/cash-register"
-              >
-                {metrics?.cashRegister.sessions.length ? (
-                  <List disablePadding>
-                    {metrics.cashRegister.sessions.map((session, index) => (
-                      <Box key={session.id}>
-                        {index > 0 && <Divider component="li" />}
-                        <ListItem disableGutters sx={{ py: 1.25 }}>
-                          <ListItemText
-                            primary={
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  gap: 1
-                                }}
-                              >
-                                <Typography fontWeight={800}>
-                                  {session.cashierName}
-                                </Typography>
-                                <Typography fontWeight={900}>
-                                  {formatMoney(session.expectedCash)}
-                                </Typography>
-                              </Box>
-                            }
-                            secondary={`Abierta: ${formatDateTime(session.openedAt)}`}
-                          />
-                        </ListItem>
-                      </Box>
-                    ))}
-                  </List>
-                ) : (
-                  <DashboardEmptyPanel>No hay sesiones de caja abiertas.</DashboardEmptyPanel>
-                )}
-              </DashboardPanelCard>
-            </Grid>
-
-            <Grid item xs={12} lg={6}>
+            <Grid item xs={12}>
               <DashboardPanelCard
                 title="Lectura operativa"
                 subtitle="Resumen rápido para decidir el siguiente paso."
@@ -557,15 +360,9 @@ export function DashboardPage() {
                     </Alert>
                   )}
 
-                  {!hasOpenRegister && (
-                    <Alert severity="warning">
-                      No hay caja abierta en tu alcance. Abre caja antes de cobrar en efectivo.
-                    </Alert>
-                  )}
-
-                  {hasOpenRegister && !hasLowStock && !hasCriticalStock && (
+                  {!hasLowStock && !hasCriticalStock && (
                     <Alert severity="success">
-                      Operación estable: caja abierta y sin alertas de inventario críticas.
+                      Operación estable: ventas registrables sin dependencia de caja y sin alertas críticas de inventario.
                     </Alert>
                   )}
 
@@ -574,6 +371,7 @@ export function DashboardPage() {
                     startIcon={<AssessmentIcon />}
                     onClick={load}
                     disabled={isLoading}
+                    sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
                   >
                     Recalcular resumen
                   </Button>

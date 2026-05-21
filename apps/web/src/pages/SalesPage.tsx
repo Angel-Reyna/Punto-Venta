@@ -27,8 +27,6 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { GridColDef } from "@mui/x-data-grid";
-import { useNavigate } from "react-router-dom";
-
 import { api } from "../api/client";
 import { ActionDisabledReason } from "../components/ActionDisabledReason";
 import { DataGridCard } from "../components/DataGridCard";
@@ -121,18 +119,6 @@ type Sale = {
   }>;
 };
 
-type CashRegisterSession = {
-  id: string;
-  status: "OPEN" | "CLOSED";
-  openingAmount: number;
-  expectedCash: number;
-  openedAt: string;
-};
-
-type CurrentCashRegisterResponse = {
-  session: CashRegisterSession | null;
-};
-
 function formatMoney(value: number | null | undefined) {
   return `$${Number(value ?? 0).toFixed(2)}`;
 }
@@ -181,10 +167,6 @@ function paymentMethodLabel(method: PaymentMethod) {
   }
 }
 
-function requiresOpenCashRegister(method: PaymentMethod) {
-  return method === "CASH";
-}
-
 function getReturnedQuantity(sale: Sale, saleItemId: string) {
   return (sale.returns ?? []).reduce((sum, saleReturn) => {
     return (
@@ -202,20 +184,15 @@ function getReturnableQuantity(sale: Sale, saleItem: SaleItem) {
 
 export function SalesPage() {
   const { can } = useAuth();
-  const navigate = useNavigate();
 
   const canCreateSales = can(PERMISSIONS.SalesCreate);
   const canCancelSales = can(PERMISSIONS.SalesCancel);
   const canReturnSales = can(PERMISSIONS.SalesReturn);
-  const canOperateCashRegister = can(PERMISSIONS.CashRegisterOperate);
   const canManageSales = canCancelSales || canReturnSales;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
-  const [currentCashRegister, setCurrentCashRegister] =
-    useState<CashRegisterSession | null>(null);
-
   const [customerName, setCustomerName] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [productSearch, setProductSearch] = useState("");
@@ -242,20 +219,13 @@ export function SalesPage() {
       setError("");
       setIsLoadingCatalog(true);
 
-      const cashRegisterRequest = canOperateCashRegister
-        ? api.get<CurrentCashRegisterResponse>("/cash-register/current")
-        : Promise.resolve({ data: { session: null } });
-
-      const [productsResponse, salesResponse, cashRegisterResponse] =
-        await Promise.all([
-          api.get<Product[]>("/products?page=1&pageSize=100"),
-          api.get<Sale[]>("/sales?page=1&pageSize=100"),
-          cashRegisterRequest
-        ]);
+      const [productsResponse, salesResponse] = await Promise.all([
+        api.get<Product[]>("/products?page=1&pageSize=100"),
+        api.get<Sale[]>("/sales?page=1&pageSize=100")
+      ]);
 
       setProducts(productsResponse.data);
       setSales(salesResponse.data);
-      setCurrentCashRegister(cashRegisterResponse.data.session);
     } catch (err: unknown) {
       setError(
         getApiErrorMessage(
@@ -306,22 +276,16 @@ export function SalesPage() {
   const change = Math.max((Number.isFinite(paid) ? paid : 0) - total, 0);
   const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const saleDialogIsOpen = cancelDialogOpen || returnDialogOpen;
-  const hasOpenCashRegister = Boolean(currentCashRegister);
-  const paymentRequiresOpenCashRegister = requiresOpenCashRegister(paymentMethod);
-  const cashRegisterBlocksCheckout =
-    paymentRequiresOpenCashRegister && !hasOpenCashRegister;
   const checkoutIsDisabled =
     !canCreateSales ||
     cartIsInvalid ||
     isSubmitting ||
-    saleDialogIsOpen ||
-    cashRegisterBlocksCheckout;
+    saleDialogIsOpen;
 
   const checkoutDisabledReason = (() => {
     if (!canCreateSales) return "No tienes permiso para registrar ventas.";
     if (saleDialogIsOpen) return "Termina o cierra el modal abierto antes de cobrar.";
     if (isSubmitting) return "Procesando operación...";
-    if (cashRegisterBlocksCheckout) return "Abre caja antes de cobrar en efectivo.";
     if (cart.length === 0) return "Agrega al menos un producto al ticket.";
     if (cartIsInvalid) return "Revisa cantidades: no deben superar el stock disponible.";
 
@@ -452,10 +416,6 @@ export function SalesPage() {
       return;
     }
 
-    if (cashRegisterBlocksCheckout) {
-      setError("Abre tu caja antes de cobrar una venta en efectivo.");
-      return;
-    }
 
     try {
       setIsSubmitting(true);
@@ -482,7 +442,7 @@ export function SalesPage() {
       setError(
         getApiErrorMessage(
           err,
-          "No se pudo registrar la venta. Verifica productos, stock, método de pago y caja."
+          "No se pudo registrar la venta. Verifica productos, stock y método de pago."
         )
       );
     } finally {
@@ -578,7 +538,7 @@ export function SalesPage() {
       setError(
         getApiErrorMessage(
           err,
-          "No se pudo cancelar la venta. Si la devolución es en efectivo, verifica que la caja esté abierta."
+          "No se pudo cancelar la venta. Verifica el motivo y el método de devolución."
         )
       );
     } finally {
@@ -632,7 +592,7 @@ export function SalesPage() {
       setError(
         getApiErrorMessage(
           err,
-          "No se pudo registrar la devolución. Si es en efectivo, verifica que la caja esté abierta."
+          "No se pudo registrar la devolución. Verifica el producto, cantidad, motivo y método."
         )
       );
     } finally {
@@ -648,10 +608,6 @@ export function SalesPage() {
       ? getReturnableQuantity(selectedSale, selectedReturnItem)
       : 0;
 
-  const cancelCashRegisterIsMissing =
-    requiresOpenCashRegister(cancelRefundMethod) && !hasOpenCashRegister;
-  const returnCashRegisterIsMissing =
-    requiresOpenCashRegister(returnRefundMethod) && !hasOpenCashRegister;
   const cancelReasonIsInvalid = cancelReason.trim().length < 5;
   const returnQuantityNumber = Number(returnQuantity);
   const returnFormIsInvalid =
@@ -659,8 +615,7 @@ export function SalesPage() {
     !Number.isInteger(returnQuantityNumber) ||
     returnQuantityNumber <= 0 ||
     returnQuantityNumber > selectedReturnItemAvailable ||
-    returnReason.trim().length < 5 ||
-    returnCashRegisterIsMissing;
+    returnReason.trim().length < 5;
 
   const columns = useMemo<GridColDef[]>(() => {
     const baseColumns: GridColDef[] = [
@@ -719,11 +674,11 @@ export function SalesPage() {
       ...baseColumns,
       {
         field: "cashier",
-        headerName: "Cajero",
+        headerName: "Vendedor",
         flex: 1,
         minWidth: 240,
         valueGetter: (_value, row) =>
-          row.cashier ? `${row.cashier.name} (${row.cashier.email})` : "Sin cajero"
+          row.cashier ? `${row.cashier.name} (${row.cashier.email})` : "Sin vendedor"
       },
       {
         field: "actions",
@@ -1061,28 +1016,6 @@ export function SalesPage() {
                     <MenuItem value="MIXED">Mixto</MenuItem>
                   </TextField>
 
-                  {paymentRequiresOpenCashRegister && (
-                    <Alert
-                      severity={hasOpenCashRegister ? "success" : "warning"}
-                      action={
-                        !hasOpenCashRegister && canOperateCashRegister ? (
-                          <Button
-                            color="inherit"
-                            size="small"
-                            onClick={() => navigate("/cash-register")}
-                          >
-                            Abrir caja
-                          </Button>
-                        ) : undefined
-                      }
-                    >
-                      {hasOpenCashRegister
-                        ? `Caja abierta. Efectivo esperado: ${formatMoney(
-                            currentCashRegister?.expectedCash
-                          )}.`
-                        : "Debes abrir caja antes de cobrar en efectivo."}
-                    </Alert>
-                  )}
 
                   <TextField
                     label="Pago con"
@@ -1103,9 +1036,7 @@ export function SalesPage() {
                       title={checkoutIsDisabled ? checkoutDisabledReason : "Registrar venta"}
                       sx={{ minHeight: 58, fontSize: "1rem" }}
                     >
-                      {cashRegisterBlocksCheckout
-                        ? "Abre caja para cobrar"
-                        : "F12 · Cobrar venta"}
+                      F12 · Cobrar venta
                     </Button>
                     <ActionDisabledReason
                       message={checkoutIsDisabled ? checkoutDisabledReason : ""}
@@ -1140,24 +1071,6 @@ export function SalesPage() {
             Esta acción restaura el stock de todos los productos vendidos y marca la venta como cancelada.
           </Alert>
 
-          {cancelCashRegisterIsMissing && (
-            <Alert
-              severity="error"
-              action={
-                canOperateCashRegister ? (
-                  <Button
-                    color="inherit"
-                    size="small"
-                    onClick={() => navigate("/cash-register")}
-                  >
-                    Abrir caja
-                  </Button>
-                ) : undefined
-              }
-            >
-              Abre caja antes de devolver efectivo por cancelación.
-            </Alert>
-          )}
 
           <TextField
             select
@@ -1186,7 +1099,7 @@ export function SalesPage() {
           <Button
             color="error"
             onClick={cancelSale}
-            disabled={isSubmitting || cancelReasonIsInvalid || cancelCashRegisterIsMissing}
+            disabled={isSubmitting || cancelReasonIsInvalid}
           >
             Confirmar cancelación
           </Button>
@@ -1205,24 +1118,6 @@ export function SalesPage() {
             La devolución restaura stock y actualiza el estado de la venta.
           </Alert>
 
-          {returnCashRegisterIsMissing && (
-            <Alert
-              severity="error"
-              action={
-                canOperateCashRegister ? (
-                  <Button
-                    color="inherit"
-                    size="small"
-                    onClick={() => navigate("/cash-register")}
-                  >
-                    Abrir caja
-                  </Button>
-                ) : undefined
-              }
-            >
-              Abre caja antes de devolver efectivo.
-            </Alert>
-          )}
 
           <TextField
             select

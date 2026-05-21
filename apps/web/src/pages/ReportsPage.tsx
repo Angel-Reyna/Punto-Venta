@@ -332,7 +332,7 @@ export function ReportsPage() {
     },
     {
       field: "cashier",
-      headerName: "Cajero",
+      headerName: "Vendedor",
       flex: 1,
       minWidth: 220,
       valueGetter: (_value, row) => `${row.cashier.name} (${row.cashier.email})`
@@ -420,7 +420,7 @@ export function ReportsPage() {
     },
     {
       field: "cashier",
-      headerName: "Cajero",
+      headerName: "Vendedor",
       flex: 1,
       minWidth: 220,
       valueGetter: (_value, row) =>
@@ -702,7 +702,7 @@ export function ReportsPage() {
 
           <DataGridCard
             title="Ventas recientes del periodo"
-            subtitle="Incluye estado, cajero, métodos de pago y total para detectar cancelaciones o devoluciones."
+            subtitle="Incluye estado, vendedor, métodos de pago y total para detectar cancelaciones o devoluciones."
             rows={recentSalesRows}
             columns={recentSalesColumns}
             minWidth={1120}

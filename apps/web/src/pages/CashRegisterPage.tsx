@@ -344,7 +344,7 @@ export function CashRegisterPage() {
       },
       {
         field: "cashier",
-        headerName: "Cajero",
+        headerName: "Vendedor",
         flex: 1,
         minWidth: 220,
         valueGetter: (_value, row) =>

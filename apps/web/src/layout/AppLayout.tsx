@@ -41,7 +41,7 @@ const drawerWidth = 272;
 
 const ROLE_LABELS = {
   ADMIN: "Administrador",
-  CASHIER: "Cajero"
+  CASHIER: "Vendedor"
 } as const;
 
 function getDisplayName(name?: string | null) {
@@ -182,7 +182,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               Punta Venta
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Panel operativo POS
+              Panel de ventas
             </Typography>
           </Box>
         </Stack>

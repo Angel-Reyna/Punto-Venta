@@ -41,7 +41,6 @@ const CASHIER_PERMISSIONS = [
   PERMISSIONS.InventoryRead,
   PERMISSIONS.SalesRead,
   PERMISSIONS.SalesCreate,
-  PERMISSIONS.CashRegisterOperate,
   PERMISSIONS.DashboardRead
 ] as const satisfies readonly Permission[];
 

@@ -53,22 +53,22 @@ describe("permissions", () => {
     expect(hasPermission(Role.CASHIER, PERMISSIONS.SalesReturn)).toBe(false);
   });
 
-  it("grants operational POS permissions to cashiers", () => {
+  it("grants seller workflow permissions without requiring cash-register access", () => {
     expect(hasAllPermissions(Role.CASHIER, [
       PERMISSIONS.ProductsRead,
       PERMISSIONS.InventoryRead,
       PERMISSIONS.SalesRead,
       PERMISSIONS.SalesCreate,
-      PERMISSIONS.CashRegisterOperate
+      PERMISSIONS.DashboardRead
     ])).toBe(true);
   });
 
-  it("keeps cash-register reports and manual cash movements restricted to admins", () => {
+  it("keeps cash-register operations restricted to admins until liquidations are modeled", () => {
     expect(hasPermission(Role.ADMIN, PERMISSIONS.CashRegisterRead)).toBe(true);
     expect(hasPermission(Role.ADMIN, PERMISSIONS.CashRegisterOperate)).toBe(true);
     expect(hasPermission(Role.ADMIN, PERMISSIONS.CashRegisterManage)).toBe(true);
 
-    expect(hasPermission(Role.CASHIER, PERMISSIONS.CashRegisterOperate)).toBe(true);
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.CashRegisterOperate)).toBe(false);
     expect(hasPermission(Role.CASHIER, PERMISSIONS.CashRegisterRead)).toBe(false);
     expect(hasPermission(Role.CASHIER, PERMISSIONS.CashRegisterManage)).toBe(false);
   });

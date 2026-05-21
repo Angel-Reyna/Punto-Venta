@@ -20,8 +20,8 @@ const inventoryServiceMock = {
 jest.mock("../src/modules/inventory/inventory.service", () => inventoryServiceMock);
 
 const cashRegisterServiceMock = {
-  recordSaleCashMovement: jest.fn(),
-  recordReturnCashMovement: jest.fn()
+  tryRecordSaleCashMovement: jest.fn(),
+  tryRecordReturnCashMovement: jest.fn()
 };
 
 jest.mock("../src/modules/cash-register/cash-register.service", () => cashRegisterServiceMock);
@@ -194,7 +194,7 @@ describe("sales.service", () => {
         type: "SALE"
       })
     );
-    expect(cashRegisterServiceMock.recordSaleCashMovement).toHaveBeenCalledWith(
+    expect(cashRegisterServiceMock.tryRecordSaleCashMovement).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
         cashierId: "cashier-1",
@@ -206,7 +206,7 @@ describe("sales.service", () => {
     expect(sale.total).toBe(270);
   });
 
-  it("rejects cash sale when the cashier has no open cash register", async () => {
+  it("allows cash sales without requiring an open cash register", async () => {
     const tx = {
       customer: {
         findUnique: jest.fn(),
@@ -247,40 +247,41 @@ describe("sales.service", () => {
     inventoryServiceMock.getOrCreateDefaultWarehouse.mockResolvedValue({
       id: "warehouse-1"
     });
-    cashRegisterServiceMock.recordSaleCashMovement.mockRejectedValueOnce({
-      statusCode: 409,
-      message: "Debes abrir caja antes de registrar ventas en efectivo"
-    });
+    cashRegisterServiceMock.tryRecordSaleCashMovement.mockResolvedValueOnce(null);
 
-    await expect(
-      createSale(
-        {
-          id: "cashier-1",
-          email: "cashier@pos.local",
-          role: Role.CASHIER
-        },
-        {
-          paymentMethod: "CASH",
-          customerId: null,
-          customerName: null,
-          items: [
-            {
-              productId: "product-1",
-              quantity: 1
-            }
-          ]
-        },
-        {
-          ipAddress: "127.0.0.1",
-          userAgent: "jest"
-        }
-      )
-    ).rejects.toMatchObject({
-      statusCode: 409,
-      message: "Debes abrir caja antes de registrar ventas en efectivo"
-    });
+    const sale = await createSale(
+      {
+        id: "cashier-1",
+        email: "cashier@pos.local",
+        role: Role.CASHIER
+      },
+      {
+        paymentMethod: "CASH",
+        customerId: null,
+        customerName: null,
+        items: [
+          {
+            productId: "product-1",
+            quantity: 1
+          }
+        ]
+      },
+      {
+        ipAddress: "127.0.0.1",
+        userAgent: "jest"
+      }
+    );
 
-    expect(tx.sellerActivityLog.create).not.toHaveBeenCalled();
+    expect(cashRegisterServiceMock.tryRecordSaleCashMovement).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        cashierId: "cashier-1",
+        saleId: "sale-1",
+        amount: 100
+      })
+    );
+    expect(tx.sellerActivityLog.create).toHaveBeenCalled();
+    expect(sale.total).toBe(100);
   });
 
   it("requires admin role to cancel sales", async () => {

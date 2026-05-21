@@ -105,6 +105,7 @@ describe("critical route permissions", () => {
     ["crear producto", "post", "/api/products", { sku: "SKU-1", name: "Producto", costPrice: 1, salePrice: 2 }],
     ["importar productos", "post", "/api/products/import/excel", undefined],
     ["activar/desactivar producto", "patch", "/api/products/00000000-0000-4000-8000-000000000001/toggle", undefined],
+    ["consultar caja actual", "get", "/api/cash-register/current", undefined],
     ["movimiento manual de caja", "post", "/api/cash-register/movements", { type: "IN", amount: 10, reason: "Ajuste manual" }],
     ["cancelar venta", "post", "/api/sales/00000000-0000-4000-8000-000000000002/cancel", { reason: "Prueba de permiso" }],
     ["registrar devolución", "post", "/api/sales/00000000-0000-4000-8000-000000000002/returns", { reason: "Prueba de permiso", items: [] }],
@@ -170,27 +171,6 @@ describe("critical route permissions", () => {
     ]);
     expect(response.body[0]).not.toHaveProperty("costPrice");
     expect(response.body[0]).not.toHaveProperty("marginPercent");
-  });
-
-  it("allows CASHIER to operate own cash register", async () => {
-    cashRegisterServiceMock.getCurrentCashRegister.mockResolvedValue({
-      id: "session-1",
-      cashierId: CASHIER_USER.id,
-      status: "OPEN",
-      expectedClosingAmount: 500
-    });
-
-    const response = await request(app)
-      .get("/api/cash-register/current")
-      .set(AUTH_HEADER);
-
-    expect(response.status).toBe(200);
-    expect(response.body.session).toEqual(
-      expect.objectContaining({
-        id: "session-1",
-        status: "OPEN"
-      })
-    );
   });
 
   it("allows CASHIER to create sales when request is valid", async () => {

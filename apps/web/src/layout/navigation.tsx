@@ -7,7 +7,6 @@ import HistoryIcon from "@mui/icons-material/History";
 import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 import PeopleIcon from "@mui/icons-material/People";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
-import PointOfSaleOutlinedIcon from "@mui/icons-material/PointOfSaleOutlined";
 import WarehouseIcon from "@mui/icons-material/Warehouse";
 
 import { PERMISSIONS, type Permission } from "../auth/permissions";
@@ -62,14 +61,7 @@ export function buildNavigationSections(can: CanAccess): NavigationSection[] {
           icon: <WarehouseIcon />,
           visible: can(PERMISSIONS.InventoryRead)
         },
-        {
-          label: "Caja",
-          to: "/cash-register",
-          icon: <PointOfSaleOutlinedIcon />,
-          visible:
-            can(PERMISSIONS.CashRegisterOperate) ||
-            can(PERMISSIONS.CashRegisterRead)
-        }
+
       ]
     },
     {
