@@ -10,12 +10,14 @@ import {
   Grid,
   IconButton,
   MenuItem,
-  TextField
+  TextField,
+  Tooltip
 } from "@mui/material";
 
 import { GridColDef } from "@mui/x-data-grid";
 
 import AddIcon from "@mui/icons-material/Add";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import UploadIcon from "@mui/icons-material/Upload";
 import DownloadIcon from "@mui/icons-material/Download";
 import ToggleOffIcon from "@mui/icons-material/ToggleOff";
@@ -57,6 +59,8 @@ type ProductCategory = {
   id: string;
   name: string;
 };
+
+const SKU_TOOLTIP_TEXT = 'SKU significa Stock Keeping Unit, o “unidad de mantenimiento de inventario”.';
 
 const initialForm = {
   categoryId: "",
@@ -580,9 +584,28 @@ export function ProductsPage() {
                 <Grid item xs={12} md={8}>
                   <TextField
                     fullWidth
-                    label="Clave interna/SKU"
+                    label={
+                      <Box
+                        component="span"
+                        sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}
+                      >
+                        Clave interna/SKU
+                        <Tooltip title={SKU_TOOLTIP_TEXT} arrow placement="top">
+                          <InfoOutlinedIcon
+                            aria-label={SKU_TOOLTIP_TEXT}
+                            fontSize="small"
+                            sx={{
+                              color: "text.secondary",
+                              cursor: "help",
+                              fontSize: 16,
+                              verticalAlign: "middle"
+                            }}
+                          />
+                        </Tooltip>
+                      </Box>
+                    }
                     value={form.sku}
-                    helperText="SKU identifica internamente el producto. Debe ser único."
+                    helperText="Identificador interno único. Ejemplo: COCA-600 o SAB-ACE-1KG."
                     onChange={(event) =>
                       setForm({
                         ...form,
