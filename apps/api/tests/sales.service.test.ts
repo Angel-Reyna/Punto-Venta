@@ -206,6 +206,83 @@ describe("sales.service", () => {
     expect(sale.total).toBe(270);
   });
 
+  it("rejects cash sale when the cashier has no open cash register", async () => {
+    const tx = {
+      customer: {
+        findUnique: jest.fn(),
+        create: jest.fn()
+      },
+      product: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "product-1",
+          name: "Café",
+          salePrice: 100,
+          promoPercent: 0,
+          isActive: true
+        })
+      },
+      sale: {
+        create: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260518-ABC123",
+          cashierId: "cashier-1",
+          customerId: null,
+          status: "COMPLETED",
+          subtotal: 100,
+          discount: 0,
+          tax: 0,
+          total: 100,
+          createdAt: new Date("2026-05-18T00:00:00.000Z"),
+          updatedAt: new Date("2026-05-18T00:00:00.000Z"),
+          items: [],
+          payments: []
+        })
+      },
+      sellerActivityLog: {
+        create: jest.fn()
+      }
+    };
+
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
+    inventoryServiceMock.getOrCreateDefaultWarehouse.mockResolvedValue({
+      id: "warehouse-1"
+    });
+    cashRegisterServiceMock.recordSaleCashMovement.mockRejectedValueOnce({
+      statusCode: 409,
+      message: "Debes abrir caja antes de registrar ventas en efectivo"
+    });
+
+    await expect(
+      createSale(
+        {
+          id: "cashier-1",
+          email: "cashier@pos.local",
+          role: Role.CASHIER
+        },
+        {
+          paymentMethod: "CASH",
+          customerId: null,
+          customerName: null,
+          items: [
+            {
+              productId: "product-1",
+              quantity: 1
+            }
+          ]
+        },
+        {
+          ipAddress: "127.0.0.1",
+          userAgent: "jest"
+        }
+      )
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: "Debes abrir caja antes de registrar ventas en efectivo"
+    });
+
+    expect(tx.sellerActivityLog.create).not.toHaveBeenCalled();
+  });
+
   it("requires admin role to cancel sales", async () => {
     await expect(
       cancelSale(

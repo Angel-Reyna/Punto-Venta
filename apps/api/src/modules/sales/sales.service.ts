@@ -416,26 +416,6 @@ function hasCashRefund(refundMethod: PaymentMethod) {
   return refundMethod === PaymentMethod.CASH;
 }
 
-async function recordSaleCashMovementIfRegisterIsOpen(
-  tx: Prisma.TransactionClient,
-  input: {
-    cashierId: string;
-    saleId: string;
-    amount: number;
-    reason: string;
-  }
-) {
-  try {
-    await recordSaleCashMovement(tx, input);
-  } catch (error) {
-    if (error instanceof AppError && error.statusCode === 409) {
-      return;
-    }
-
-    throw error;
-  }
-}
-
 function getReturnedQuantities(sale: SaleForMutation) {
   const returnedQuantities = new Map<string, number>();
 
@@ -666,7 +646,7 @@ async function createSaleAttempt(
       }
 
       if (input.paymentMethod === PaymentMethod.CASH) {
-        await recordSaleCashMovementIfRegisterIsOpen(tx, {
+        await recordSaleCashMovement(tx, {
           cashierId: user.id,
           saleId: createdSale.id,
           amount: total,
