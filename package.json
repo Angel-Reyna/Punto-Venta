@@ -17,6 +17,9 @@
     "dev:doctor": "npm --prefix apps/api run dev:doctor",
     "build": "npm run api:prisma:generate && npm run api:build && npm run web:build",
     "test": "npm run api:test && npm run web:test",
+    "qa:critical": "npm run api:test:critical && npm run web:test:critical",
+    "api:test:critical": "npm --prefix apps/api test -- critical-routes.permissions.test.ts auth.middleware.test.ts sales.service.test.ts products.import.test.ts reports.service.test.ts --runInBand",
+    "web:test:critical": "npm --prefix apps/web test -- --run src/auth/permissions.test.ts src/layout/navigation.test.tsx",
     "docker:build": "docker compose build api web",
     "docker:up": "docker compose up -d postgres api web",
     "docker:logs:api": "docker compose logs -f api"
