@@ -1,19 +1,22 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
 
 import {
   Box,
   Button,
+  Card,
+  CardContent,
   Chip,
   Dialog,
   DialogContent,
   DialogTitle,
+  Divider,
   Grid,
   IconButton,
   MenuItem,
-  TextField
+  Stack,
+  TextField,
+  Typography,
 } from "@mui/material";
-
-import { GridColDef } from "@mui/x-data-grid";
 
 import AddIcon from "@mui/icons-material/Add";
 import UploadIcon from "@mui/icons-material/Upload";
@@ -22,8 +25,7 @@ import ToggleOffIcon from "@mui/icons-material/ToggleOff";
 
 import { api } from "../api/client";
 import { ActionDisabledReason } from "../components/ActionDisabledReason";
-import { DataGridCard } from "../components/DataGridCard";
-import { LabelWithInfo } from "../components/InfoTooltip";
+import { InfoTooltip, LabelWithInfo } from "../components/InfoTooltip";
 import { PageHeader } from "../components/PageHeader";
 import { StatusFeedback } from "../components/StatusFeedback";
 import { useAuth } from "../auth/AuthContext";
@@ -84,7 +86,7 @@ const initialForm = {
   salePrice: "",
   promoPercent: "",
   initialStock: "",
-  minStock: ""
+  minStock: "",
 };
 
 function safeTrim(value: unknown) {
@@ -126,8 +128,373 @@ function generateLocalProductCode() {
   return `PV-${timePart}-${randomPart}`;
 }
 
-function renderHeaderWithInfo(label: string, info: string) {
-  return <LabelWithInfo label={label} info={info} ariaLabel={info} />;
+const currencyFormatter = new Intl.NumberFormat("es-MX", {
+  currency: "MXN",
+  style: "currency",
+});
+
+function formatCurrency(value: unknown) {
+  return currencyFormatter.format(Number(value ?? 0));
+}
+
+function formatPercent(value: unknown) {
+  return `${Number(value ?? 0).toFixed(2)}%`;
+}
+
+function getStockChip(product: Product) {
+  const stock = Number(product.stock ?? 0);
+  const minStock = Number(product.minStock ?? 0);
+
+  if (stock <= 0) {
+    return {
+      color: "error" as const,
+      label: "Sin stock",
+    };
+  }
+
+  if (minStock > 0 && stock <= minStock) {
+    return {
+      color: "warning" as const,
+      label: "Bajo inventario",
+    };
+  }
+
+  return {
+    color: "success" as const,
+    label: "Disponible",
+  };
+}
+
+type ProductFieldProps = {
+  label: string;
+  value: ReactNode;
+  info?: ReactNode;
+  emphasize?: boolean;
+};
+
+function ProductField({
+  label,
+  value,
+  info,
+  emphasize = false,
+}: ProductFieldProps) {
+  return (
+    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+      <Stack direction="row" spacing={0.5} alignItems="center">
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ fontWeight: 700, letterSpacing: 0.2, lineHeight: 1.3 }}
+        >
+          {label}
+        </Typography>
+        {info && (
+          <InfoTooltip
+            title={info}
+            ariaLabel={typeof info === "string" ? info : undefined}
+          />
+        )}
+      </Stack>
+
+      <Typography
+        variant="body2"
+        sx={{
+          fontWeight: emphasize ? 800 : 600,
+          minWidth: 0,
+          overflowWrap: "anywhere",
+        }}
+      >
+        {value === null || value === undefined || value === "" ? "N/A" : value}
+      </Typography>
+    </Stack>
+  );
+}
+
+type ProductCatalogProps = {
+  canToggleProducts: boolean;
+  canViewAdminColumns: boolean;
+  onToggleProduct: (productId: string) => void;
+  rows: Product[];
+  togglingProductId: string | null;
+};
+
+function ProductCatalog({
+  canToggleProducts,
+  canViewAdminColumns,
+  onToggleProduct,
+  rows,
+  togglingProductId,
+}: ProductCatalogProps) {
+  if (rows.length === 0) {
+    return (
+      <Card>
+        <CardContent>
+          <Stack
+            spacing={1}
+            alignItems="center"
+            sx={{ py: 4, textAlign: "center" }}
+          >
+            <Typography variant="h6" fontWeight={800}>
+              No hay productos registrados
+            </Typography>
+            <Typography color="text.secondary">
+              Crea un producto o importa un archivo Excel para iniciar tu
+              catálogo.
+            </Typography>
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent sx={{ p: 0, "&:last-child": { pb: 0 } }}>
+        <Box sx={{ px: 2.5, py: 2, borderBottom: 1, borderColor: "divider" }}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            justifyContent="space-between"
+          >
+            <Box>
+              <Typography variant="h6" fontWeight={900}>
+                Catálogo de productos
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Vista compacta sin desplazamiento horizontal; cada fila agrupa
+                identidad, precios e inventario.
+              </Typography>
+            </Box>
+
+            <Chip
+              color="primary"
+              variant="outlined"
+              label={`${rows.length} producto${rows.length === 1 ? "" : "s"}`}
+            />
+          </Stack>
+        </Box>
+
+        <Stack divider={<Divider flexItem />}>
+          {rows.map((product) => {
+            const stockChip = getStockChip(product);
+            const hasPromo = Number(product.promoPercent ?? 0) > 0;
+            const isToggleInProgress = togglingProductId === product.id;
+
+            return (
+              <Box
+                key={product.id}
+                sx={{
+                  display: "grid",
+                  gap: 2,
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    md: canToggleProducts
+                      ? "minmax(0, 1.6fr) minmax(190px, 0.85fr) minmax(190px, 0.85fr) auto"
+                      : "minmax(0, 1.6fr) minmax(190px, 0.85fr) minmax(190px, 0.85fr)",
+                  },
+                  px: 2.5,
+                  py: 2.25,
+                  transition: "background-color 120ms ease",
+                  "&:hover": {
+                    backgroundColor: "action.hover",
+                  },
+                }}
+              >
+                <Stack spacing={1.25} sx={{ minWidth: 0 }}>
+                  <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight={900}
+                      sx={{ overflowWrap: "anywhere" }}
+                    >
+                      {product.name}
+                    </Typography>
+
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      useFlexGap
+                      flexWrap="wrap"
+                      alignItems="center"
+                    >
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        label={product.category?.name ?? "Sin categoría"}
+                      />
+                      {canViewAdminColumns && (
+                        <Chip
+                          size="small"
+                          color={product.isActive ? "success" : "default"}
+                          label={product.isActive ? "Activo" : "Inactivo"}
+                        />
+                      )}
+                    </Stack>
+                  </Stack>
+
+                  {product.description && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{
+                        display: "-webkit-box",
+                        overflow: "hidden",
+                        WebkitBoxOrient: "vertical",
+                        WebkitLineClamp: 2,
+                      }}
+                    >
+                      {product.description}
+                    </Typography>
+                  )}
+
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gap: 1.25,
+                      gridTemplateColumns: {
+                        xs: "1fr",
+                        sm: "repeat(2, minmax(0, 1fr))",
+                      },
+                    }}
+                  >
+                    <ProductField
+                      label="Clave interna/SKU"
+                      value={product.sku}
+                      info={SKU_INFO_TEXT}
+                    />
+                    <ProductField
+                      label="Código del producto"
+                      value={product.barcode || "N/A"}
+                      info={PRODUCT_CODE_INFO_TEXT}
+                    />
+                  </Box>
+                </Stack>
+
+                <Stack spacing={1.25}>
+                  <Typography
+                    variant="overline"
+                    color="text.secondary"
+                    sx={{ fontWeight: 900, lineHeight: 1 }}
+                  >
+                    Precios
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gap: 1.25,
+                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                    }}
+                  >
+                    {canViewAdminColumns && (
+                      <ProductField
+                        label="Costo"
+                        value={formatCurrency(product.costPrice)}
+                      />
+                    )}
+                    <ProductField
+                      label="Venta"
+                      value={formatCurrency(product.salePrice)}
+                    />
+                    <ProductField
+                      label="Precio final"
+                      value={formatCurrency(product.finalPrice)}
+                      info={FINAL_PRICE_INFO_TEXT}
+                      emphasize
+                    />
+                    <ProductField
+                      label="Promo %"
+                      value={formatPercent(product.promoPercent)}
+                      info={PROMO_INFO_TEXT}
+                    />
+                    {canViewAdminColumns && (
+                      <ProductField
+                        label="Margen"
+                        value={formatPercent(product.marginPercent)}
+                        info={MARGIN_INFO_TEXT}
+                      />
+                    )}
+                  </Box>
+
+                  {hasPromo && (
+                    <Chip
+                      size="small"
+                      color="info"
+                      variant="outlined"
+                      label={`Promoción aplicada: ${formatPercent(product.promoPercent)}`}
+                      sx={{ alignSelf: "flex-start" }}
+                    />
+                  )}
+                </Stack>
+
+                <Stack spacing={1.25}>
+                  <Typography
+                    variant="overline"
+                    color="text.secondary"
+                    sx={{ fontWeight: 900, lineHeight: 1 }}
+                  >
+                    Inventario
+                  </Typography>
+
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    useFlexGap
+                    flexWrap="wrap"
+                    alignItems="center"
+                  >
+                    <Chip
+                      size="small"
+                      label={`${product.stock} en stock`}
+                      color={stockChip.color}
+                      variant="outlined"
+                    />
+                    <Chip
+                      size="small"
+                      label={stockChip.label}
+                      color={stockChip.color}
+                    />
+                  </Stack>
+
+                  {canViewAdminColumns && (
+                    <ProductField
+                      label="Stock mínimo"
+                      value={product.minStock ?? 0}
+                      info={MIN_STOCK_INFO_TEXT}
+                    />
+                  )}
+                </Stack>
+
+                {canToggleProducts && (
+                  <Stack
+                    alignItems={{ xs: "stretch", md: "flex-end" }}
+                    justifyContent="center"
+                  >
+                    <IconButton
+                      onClick={() => onToggleProduct(product.id)}
+                      disabled={Boolean(togglingProductId)}
+                      title="Activar/desactivar producto"
+                      aria-label={`Activar o desactivar ${product.name}`}
+                      sx={{
+                        border: 1,
+                        borderColor: "divider",
+                        borderRadius: 2,
+                      }}
+                    >
+                      <ToggleOffIcon
+                        color={isToggleInProgress ? "disabled" : "action"}
+                      />
+                    </IconButton>
+                  </Stack>
+                )}
+              </Box>
+            );
+          })}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function ProductsPage() {
@@ -135,7 +502,8 @@ export function ProductsPage() {
   const canCreateProduct = can(PERMISSIONS.ProductsCreate);
   const canImportProducts = can(PERMISSIONS.ProductsImport);
   const canToggleProducts = can(PERMISSIONS.ProductsToggleActive);
-  const canViewAdminColumns = canCreateProduct || canImportProducts || canToggleProducts;
+  const canViewAdminColumns =
+    canCreateProduct || canImportProducts || canToggleProducts;
 
   const [rows, setRows] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
@@ -148,7 +516,9 @@ export function ProductsPage() {
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
   const [isImportingExcel, setIsImportingExcel] = useState(false);
-  const [togglingProductId, setTogglingProductId] = useState<string | null>(null);
+  const [togglingProductId, setTogglingProductId] = useState<string | null>(
+    null,
+  );
 
   async function load() {
     try {
@@ -158,7 +528,7 @@ export function ProductsPage() {
         api.get<Product[]>("/products"),
         canCreateProduct
           ? api.get<ProductCategory[]>("/products/categories")
-          : Promise.resolve({ data: [] as ProductCategory[] })
+          : Promise.resolve({ data: [] as ProductCategory[] }),
       ]);
 
       setRows(productsResponse.data);
@@ -191,7 +561,7 @@ export function ProductsPage() {
         salePrice: toNonNegativeNumber(form.salePrice),
         promoPercent: toNonNegativeNumber(form.promoPercent),
         initialStock: toNonNegativeNumber(form.initialStock),
-        minStock: toNonNegativeNumber(form.minStock)
+        minStock: toNonNegativeNumber(form.minStock),
       });
 
       setMessage("Producto creado correctamente.");
@@ -203,8 +573,8 @@ export function ProductsPage() {
       setError(
         getApiErrorMessage(
           err,
-          "No se pudo crear el producto. Revisa SKU, precios y campos obligatorios."
-        )
+          "No se pudo crear el producto. Revisa SKU, precios y campos obligatorios.",
+        ),
       );
     } finally {
       setIsCreatingProduct(false);
@@ -217,7 +587,7 @@ export function ProductsPage() {
 
     try {
       const response = await api.get("/products/template/excel", {
-        responseType: "blob"
+        responseType: "blob",
       });
 
       downloadBlob(response.data, "formato-productos.xlsx");
@@ -240,15 +610,11 @@ export function ProductsPage() {
 
       formData.append("file", file);
 
-      const response = await api.post(
-        "/products/import/excel",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data"
-          }
-        }
-      );
+      const response = await api.post("/products/import/excel", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
       setMessage(`Productos importados: ${response.data.imported}`);
 
@@ -257,8 +623,8 @@ export function ProductsPage() {
       setError(
         getApiErrorMessage(
           err,
-          "No se pudo importar el archivo Excel. Verifica que uses el formato correcto."
-        )
+          "No se pudo importar el archivo Excel. Verifica que uses el formato correcto.",
+        ),
       );
     } finally {
       setIsImportingExcel(false);
@@ -279,191 +645,11 @@ export function ProductsPage() {
 
       await load();
     } catch (err: any) {
-      setError(
-        getApiErrorMessage(
-          err,
-          "No se pudo actualizar el producto."
-        )
-      );
+      setError(getApiErrorMessage(err, "No se pudo actualizar el producto."));
     } finally {
       setTogglingProductId(null);
     }
   }
-
-  const columns = useMemo<GridColDef[]>(() => {
-    const baseColumns: GridColDef[] = [
-      {
-        field: "sku",
-        headerName: "Clave interna/SKU",
-        renderHeader: () => renderHeaderWithInfo("Clave interna/SKU", SKU_INFO_TEXT),
-        width: 180
-      },
-      {
-        field: "barcode",
-        headerName: "Código del producto",
-        renderHeader: () => renderHeaderWithInfo("Código", PRODUCT_CODE_INFO_TEXT),
-        width: 170,
-        valueGetter: (_value, row) => row.barcode || "N/A"
-      },
-      {
-        field: "name",
-        headerName: "Producto",
-        flex: 1,
-        minWidth: 220
-      },
-      {
-        field: "category",
-        headerName: "Categoría",
-        width: 160,
-        valueGetter: (_value, row) => row.category?.name ?? "Sin categoría"
-      },
-      {
-        field: "salePrice",
-        headerName: "Venta",
-        width: 120,
-        valueFormatter: (value) => `$${Number(value).toFixed(2)}`
-      },
-      {
-        field: "promoPercent",
-        headerName: "Promo %",
-        renderHeader: () => renderHeaderWithInfo("Promo %", PROMO_INFO_TEXT),
-        width: 120,
-        valueFormatter: (value) => `${Number(value).toFixed(2)}%`
-      },
-      {
-        field: "finalPrice",
-        headerName: "Precio final",
-        renderHeader: () => renderHeaderWithInfo("Precio final", FINAL_PRICE_INFO_TEXT),
-        width: 145,
-        valueFormatter: (value) => `$${Number(value).toFixed(2)}`
-      },
-      {
-        field: "stock",
-        headerName: "Stock",
-        width: 100,
-        renderCell: (params) => (
-          <Chip
-            size="small"
-            label={params.value}
-            color={Number(params.value) <= 0 ? "error" : "success"}
-            variant="outlined"
-          />
-        )
-      }
-    ];
-
-    if (!canViewAdminColumns) {
-      return baseColumns;
-    }
-
-    return [
-      {
-        field: "sku",
-        headerName: "Clave interna/SKU",
-        renderHeader: () => renderHeaderWithInfo("Clave interna/SKU", SKU_INFO_TEXT),
-        width: 180
-      },
-      {
-        field: "barcode",
-        headerName: "Código del producto",
-        renderHeader: () => renderHeaderWithInfo("Código", PRODUCT_CODE_INFO_TEXT),
-        width: 170,
-        valueGetter: (_value, row) => row.barcode || "N/A"
-      },
-      {
-        field: "name",
-        headerName: "Producto",
-        flex: 1,
-        minWidth: 220
-      },
-      {
-        field: "category",
-        headerName: "Categoría",
-        width: 160,
-        valueGetter: (_value, row) => row.category?.name ?? "Sin categoría"
-      },
-      {
-        field: "costPrice",
-        headerName: "Costo",
-        width: 120,
-        valueFormatter: (value) => `$${Number(value ?? 0).toFixed(2)}`
-      },
-      {
-        field: "salePrice",
-        headerName: "Venta",
-        width: 120,
-        valueFormatter: (value) => `$${Number(value).toFixed(2)}`
-      },
-      {
-        field: "promoPercent",
-        headerName: "Promo %",
-        renderHeader: () => renderHeaderWithInfo("Promo %", PROMO_INFO_TEXT),
-        width: 120,
-        valueFormatter: (value) => `${Number(value).toFixed(2)}%`
-      },
-      {
-        field: "finalPrice",
-        headerName: "Precio final",
-        renderHeader: () => renderHeaderWithInfo("Precio final", FINAL_PRICE_INFO_TEXT),
-        width: 145,
-        valueFormatter: (value) => `$${Number(value).toFixed(2)}`
-      },
-      {
-        field: "marginPercent",
-        headerName: "Margen de ganancia %",
-        renderHeader: () => renderHeaderWithInfo("Margen", MARGIN_INFO_TEXT),
-        width: 135,
-        valueFormatter: (value) => `${Number(value ?? 0).toFixed(2)}%`
-      },
-      {
-        field: "stock",
-        headerName: "Stock",
-        width: 100,
-        renderCell: (params) => (
-          <Chip
-            size="small"
-            label={params.value}
-            color={Number(params.value) <= 0 ? "error" : "success"}
-            variant="outlined"
-          />
-        )
-      },
-      {
-        field: "minStock",
-        headerName: "Stock mín.",
-        renderHeader: () => renderHeaderWithInfo("Stock mín.", MIN_STOCK_INFO_TEXT),
-        width: 130
-      },
-      {
-        field: "isActive",
-        headerName: "Estado",
-        width: 130,
-        renderCell: (params) => (
-          <Chip
-            size="small"
-            label={params.value ? "Activo" : "Inactivo"}
-            color={params.value ? "success" : "default"}
-          />
-        )
-      },
-      ...(canToggleProducts ? [{
-        field: "actions",
-        headerName: "",
-        width: 90,
-        sortable: false,
-        filterable: false,
-        renderCell: (params) => (
-          <IconButton
-            onClick={() => toggleProduct(params.row.id)}
-            disabled={Boolean(togglingProductId)}
-            title="Activar/desactivar"
-          >
-            <ToggleOffIcon />
-          </IconButton>
-        )
-      } satisfies GridColDef] : [])
-    ];
-  }, [canViewAdminColumns, canToggleProducts, togglingProductId]);
 
   const promoPercent = toNonNegativeNumber(form.promoPercent);
 
@@ -481,13 +667,17 @@ export function ProductsPage() {
   const productFormDisabledReason = (() => {
     if (!safeTrim(form.sku)) return "Captura una clave interna/SKU.";
     if (!safeTrim(form.name)) return "Captura el nombre del producto.";
-    if (isInvalidNonNegativeNumber(form.costPrice)) return "El costo debe ser un número mayor o igual a cero.";
-    if (isInvalidNonNegativeNumber(form.salePrice)) return "El precio de venta debe ser un número mayor o igual a cero.";
+    if (isInvalidNonNegativeNumber(form.costPrice))
+      return "El costo debe ser un número mayor o igual a cero.";
+    if (isInvalidNonNegativeNumber(form.salePrice))
+      return "El precio de venta debe ser un número mayor o igual a cero.";
     if (isInvalidNonNegativeNumber(form.promoPercent) || promoPercent > 100) {
       return "La promoción debe estar entre 0 y 100%.";
     }
-    if (isInvalidNonNegativeInteger(form.initialStock)) return "El stock inicial debe ser un entero mayor o igual a cero.";
-    if (isInvalidNonNegativeInteger(form.minStock)) return "El stock mínimo debe ser un entero mayor o igual a cero.";
+    if (isInvalidNonNegativeInteger(form.initialStock))
+      return "El stock inicial debe ser un entero mayor o igual a cero.";
+    if (isInvalidNonNegativeInteger(form.minStock))
+      return "El stock mínimo debe ser un entero mayor o igual a cero.";
     if (isCreatingProduct) return "Guardando producto...";
 
     return "";
@@ -539,10 +729,10 @@ export function ProductsPage() {
             display: "flex",
             flexDirection: {
               xs: "column",
-              sm: "row"
+              sm: "row",
             },
             gap: 1,
-            mb: 2
+            mb: 2,
           }}
         >
           <Button
@@ -575,14 +765,12 @@ export function ProductsPage() {
         </Box>
       )}
 
-      <DataGridCard
+      <ProductCatalog
         rows={rows}
-        columns={columns}
-        minWidth={canViewAdminColumns ? 1120 : 820}
-        pageSizeOptions={[25, 50, 100]}
-        singlePageThreshold={25}
-        noRowsLabel="No hay productos registrados."
-        tableLabel="Catálogo de productos"
+        canViewAdminColumns={canViewAdminColumns}
+        canToggleProducts={canToggleProducts}
+        togglingProductId={togglingProductId}
+        onToggleProduct={toggleProduct}
       />
 
       {canCreateProduct && (
@@ -603,7 +791,7 @@ export function ProductsPage() {
               component="form"
               onSubmit={submit}
               sx={{
-                mt: 1
+                mt: 1,
               }}
             >
               <Grid container spacing={2}>
@@ -622,7 +810,7 @@ export function ProductsPage() {
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        sku: event.target.value
+                        sku: event.target.value,
                       })
                     }
                   />
@@ -639,7 +827,7 @@ export function ProductsPage() {
                       setForm((currentForm) => ({
                         ...currentForm,
                         sku: currentForm.sku || code,
-                        barcode: code
+                        barcode: code,
                       }));
                     }}
                   >
@@ -662,7 +850,7 @@ export function ProductsPage() {
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        barcode: event.target.value
+                        barcode: event.target.value,
                       })
                     }
                   />
@@ -678,7 +866,7 @@ export function ProductsPage() {
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        categoryId: event.target.value
+                        categoryId: event.target.value,
                       })
                     }
                   >
@@ -699,7 +887,7 @@ export function ProductsPage() {
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        name: event.target.value
+                        name: event.target.value,
                       })
                     }
                   />
@@ -715,7 +903,7 @@ export function ProductsPage() {
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        description: event.target.value
+                        description: event.target.value,
                       })
                     }
                   />
@@ -729,12 +917,12 @@ export function ProductsPage() {
                     value={form.costPrice}
                     inputProps={{
                       min: 0,
-                      step: 0.01
+                      step: 0.01,
                     }}
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        costPrice: event.target.value
+                        costPrice: event.target.value,
                       })
                     }
                   />
@@ -748,12 +936,12 @@ export function ProductsPage() {
                     value={form.salePrice}
                     inputProps={{
                       min: 0,
-                      step: 0.01
+                      step: 0.01,
                     }}
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        salePrice: event.target.value
+                        salePrice: event.target.value,
                       })
                     }
                   />
@@ -774,12 +962,12 @@ export function ProductsPage() {
                     inputProps={{
                       min: 0,
                       max: 100,
-                      step: 0.01
+                      step: 0.01,
                     }}
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        promoPercent: event.target.value
+                        promoPercent: event.target.value,
                       })
                     }
                   />
@@ -800,12 +988,12 @@ export function ProductsPage() {
                     helperText="Crea inventario real en el almacén principal."
                     inputProps={{
                       min: 0,
-                      step: 1
+                      step: 1,
                     }}
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        initialStock: event.target.value
+                        initialStock: event.target.value,
                       })
                     }
                   />
@@ -825,29 +1013,26 @@ export function ProductsPage() {
                     value={form.minStock}
                     inputProps={{
                       min: 0,
-                      step: 1
+                      step: 1,
                     }}
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        minStock: event.target.value
+                        minStock: event.target.value,
                       })
                     }
                   />
                 </Grid>
 
                 <Grid item xs={12}>
-                  <Button
-                    type="submit"
-                    fullWidth
-                    disabled={formIsInvalid}
-                  >
+                  <Button type="submit" fullWidth disabled={formIsInvalid}>
                     {isCreatingProduct ? "Guardando..." : "Guardar producto"}
                   </Button>
-                  <ActionDisabledReason message={formIsInvalid ? productFormDisabledReason : ""} />
+                  <ActionDisabledReason
+                    message={formIsInvalid ? productFormDisabledReason : ""}
+                  />
                 </Grid>
               </Grid>
-
             </Box>
           </DialogContent>
         </Dialog>
