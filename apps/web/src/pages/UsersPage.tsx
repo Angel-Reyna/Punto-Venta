@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Card,
@@ -19,17 +20,26 @@ import {
   Typography
 } from "@mui/material";
 
-import { GridColDef } from "@mui/x-data-grid";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import KeyOutlinedIcon from "@mui/icons-material/KeyOutlined";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
+import PersonAddAlt1OutlinedIcon from "@mui/icons-material/PersonAddAlt1Outlined";
 
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { ActionDisabledReason } from "../components/ActionDisabledReason";
-import { DataGridCard } from "../components/DataGridCard";
 import { PageHeader } from "../components/PageHeader";
+import { SearchToolbar } from "../components/SearchToolbar";
 import { StatusFeedback } from "../components/StatusFeedback";
 import { getApiErrorMessage } from "../utils/apiError";
 
 type UserRole = "ADMIN" | "CASHIER";
+type RoleFilter = "ALL" | UserRole;
+type StatusFilter = "ALL" | "ACTIVE" | "INACTIVE";
 
 type User = {
   id: string;
@@ -71,10 +81,265 @@ function getRoleLabel(role: UserRole) {
   return role === "ADMIN" ? "Administrador" : "Vendedor";
 }
 
+function getRoleDescription(role: UserRole) {
+  return role === "ADMIN"
+    ? "Gestiona catálogo, inventario, vendedores y reportes."
+    : "Registra ventas y consulta información operativa permitida.";
+}
+
+function normalizeSearch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function formatCreatedAt(value: string) {
+  return new Date(value).toLocaleString("es-MX", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    year: "numeric"
+  });
+}
+
+function getInitials(name: string, email: string) {
+  const source = name.trim() || email.trim();
+  const parts = source.split(/\s+/).filter(Boolean);
+
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+
+  return source.slice(0, 2).toUpperCase() || "US";
+}
+
+function getUserSearchText(user: User) {
+  return normalizeSearch(
+    [
+      user.name,
+      user.email,
+      getRoleLabel(user.role),
+      user.role,
+      user.isActive ? "activo" : "inactivo"
+    ].join(" ")
+  );
+}
+
+type SummaryCardProps = {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  helper: string;
+};
+
+function SummaryCard({ icon, label, value, helper }: SummaryCardProps) {
+  return (
+    <Card variant="outlined" sx={{ height: "100%" }}>
+      <CardContent>
+        <Stack direction="row" spacing={1.5} alignItems="flex-start">
+          <Avatar
+            variant="rounded"
+            sx={{
+              bgcolor: "action.hover",
+              color: "text.primary",
+              height: 40,
+              width: 40
+            }}
+          >
+            {icon}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" color="text.secondary">
+              {label}
+            </Typography>
+            <Typography variant="h5" fontWeight={800}>
+              {value}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {helper}
+            </Typography>
+          </Box>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+type UserCardProps = {
+  currentUserId?: string;
+  isBusy: boolean;
+  onOpenResetPasswordDialog: (targetUser: User) => void;
+  onOpenRoleDialog: (targetUser: User) => void;
+  onToggleUser: (targetUser: User) => void;
+  targetUser: User;
+  togglingUserId: string | null;
+};
+
+function UserCard({
+  currentUserId,
+  isBusy,
+  onOpenResetPasswordDialog,
+  onOpenRoleDialog,
+  onToggleUser,
+  targetUser,
+  togglingUserId
+}: UserCardProps) {
+  const isSelf = targetUser.id === currentUserId;
+  const roleLabel = getRoleLabel(targetUser.role);
+  const statusLabel = targetUser.isActive ? "Activo" : "Inactivo";
+  const toggleLabel = targetUser.isActive ? "Desactivar" : "Activar";
+
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        borderColor: targetUser.isActive ? "divider" : "action.disabledBackground",
+        height: "100%",
+        opacity: targetUser.isActive ? 1 : 0.82
+      }}
+    >
+      <CardContent>
+        <Stack spacing={2}>
+          <Stack direction="row" spacing={1.5} alignItems="flex-start">
+            <Avatar
+              sx={{
+                bgcolor: targetUser.role === "ADMIN" ? "primary.main" : "success.main",
+                color: "primary.contrastText",
+                flex: "0 0 auto"
+              }}
+            >
+              {getInitials(targetUser.name, targetUser.email)}
+            </Avatar>
+
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{ minWidth: 0 }}
+              >
+                <Typography variant="subtitle1" fontWeight={800} noWrap>
+                  {targetUser.name}
+                </Typography>
+                {isSelf && <Chip size="small" label="Tú" variant="outlined" />}
+              </Stack>
+
+              <Stack
+                direction="row"
+                spacing={0.75}
+                alignItems="center"
+                sx={{ color: "text.secondary", minWidth: 0 }}
+              >
+                <MailOutlineIcon sx={{ fontSize: 16, flex: "0 0 auto" }} />
+                <Typography variant="body2" noWrap title={targetUser.email}>
+                  {targetUser.email}
+                </Typography>
+              </Stack>
+            </Box>
+          </Stack>
+
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Chip
+              size="small"
+              icon={
+                targetUser.role === "ADMIN" ? (
+                  <AdminPanelSettingsIcon />
+                ) : (
+                  <BadgeOutlinedIcon />
+                )
+              }
+              label={roleLabel}
+              color={targetUser.role === "ADMIN" ? "primary" : "success"}
+              variant="outlined"
+            />
+            <Chip
+              size="small"
+              icon={
+                targetUser.isActive ? (
+                  <CheckCircleOutlineIcon />
+                ) : (
+                  <BlockOutlinedIcon />
+                )
+              }
+              label={statusLabel}
+              color={targetUser.isActive ? "success" : "default"}
+              variant={targetUser.isActive ? "outlined" : "filled"}
+            />
+          </Stack>
+
+          <Box>
+            <Typography variant="body2" color="text.secondary">
+              {getRoleDescription(targetUser.role)}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Creado: {formatCreatedAt(targetUser.createdAt)}
+            </Typography>
+          </Box>
+
+          {isSelf && (
+            <Alert severity="info" variant="outlined">
+              Este es tu usuario actual. No puedes desactivar tu propio acceso.
+            </Alert>
+          )}
+
+          <Divider />
+
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            useFlexGap
+            flexWrap="wrap"
+            sx={{
+              "& .MuiButton-root": {
+                justifyContent: "center"
+              }
+            }}
+          >
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={isSelf || isBusy}
+              onClick={() => onToggleUser(targetUser)}
+            >
+              {togglingUserId === targetUser.id ? "Guardando..." : toggleLabel}
+            </Button>
+
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<ManageAccountsOutlinedIcon />}
+              disabled={isBusy}
+              onClick={() => onOpenRoleDialog(targetUser)}
+            >
+              Cambiar rol
+            </Button>
+
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<KeyOutlinedIcon />}
+              disabled={isBusy}
+              onClick={() => onOpenResetPasswordDialog(targetUser)}
+            >
+              Nueva contraseña
+            </Button>
+          </Stack>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function UsersPage() {
   const { user: currentUser } = useAuth();
 
   const [rows, setRows] = useState<User[]>([]);
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("ALL");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [form, setForm] = useState(initialForm);
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -278,7 +543,12 @@ export function UsersPage() {
     [rows]
   );
 
-  const cashierUsers = useMemo(
+  const inactiveUsers = useMemo(
+    () => rows.filter((item) => !item.isActive).length,
+    [rows]
+  );
+
+  const sellerUsers = useMemo(
     () => rows.filter((item) => item.role === "CASHIER").length,
     [rows]
   );
@@ -288,111 +558,72 @@ export function UsersPage() {
     [rows]
   );
 
-  const columns: GridColDef<User>[] = [
-    {
-      field: "name",
-      headerName: "Nombre",
-      flex: 1,
-      minWidth: 180
-    },
-    {
-      field: "email",
-      headerName: "Correo",
-      flex: 1,
-      minWidth: 240
-    },
-    {
-      field: "role",
-      headerName: "Rol",
-      width: 160,
-      renderCell: (params) => (
-        <Chip
-          label={getRoleLabel(params.row.role)}
-          size="small"
-          color={params.row.role === "ADMIN" ? "primary" : "success"}
-        />
-      )
-    },
-    {
-      field: "isActive",
-      headerName: "Estado",
-      width: 140,
-      renderCell: (params) => (
-        <Chip
-          label={params.row.isActive ? "Activo" : "Inactivo"}
-          size="small"
-          color={params.row.isActive ? "success" : "default"}
-          variant="outlined"
-        />
-      )
-    },
-    {
-      field: "createdAt",
-      headerName: "Creado",
-      width: 190,
-      valueFormatter: (value) => new Date(value).toLocaleString()
-    },
-    {
-      field: "actions",
-      headerName: "Acciones",
-      width: 360,
-      sortable: false,
-      filterable: false,
-      renderCell: (params) => {
-        const targetUser = params.row;
-        const isSelf = targetUser.id === currentUser?.id;
+  const filteredRows = useMemo(() => {
+    const normalizedQuery = normalizeSearch(query);
 
-        return (
-          <Stack direction="row" spacing={1}>
-            <Button
-              size="small"
-              variant="outlined"
-              disabled={isSelf || Boolean(togglingUserId) || isUpdatingRole || isResettingPassword}
-              onClick={() => toggleUser(targetUser)}
-            >
-              {togglingUserId === targetUser.id ? "Guardando..." : targetUser.isActive ? "Desactivar" : "Activar"}
-            </Button>
+    return rows.filter((item) => {
+      const matchesQuery = normalizedQuery
+        ? getUserSearchText(item).includes(normalizedQuery)
+        : true;
+      const matchesRole = roleFilter === "ALL" || item.role === roleFilter;
+      const matchesStatus =
+        statusFilter === "ALL" ||
+        (statusFilter === "ACTIVE" ? item.isActive : !item.isActive);
 
-            <Button
-              size="small"
-              variant="outlined"
-              disabled={Boolean(togglingUserId) || isUpdatingRole || isResettingPassword}
-              onClick={() => openRoleDialog(targetUser)}
-            >
-              Cambiar rol
-            </Button>
+      return matchesQuery && matchesRole && matchesStatus;
+    });
+  }, [query, roleFilter, rows, statusFilter]);
 
-            <Button
-              size="small"
-              variant="outlined"
-              disabled={Boolean(togglingUserId) || isUpdatingRole || isResettingPassword}
-              onClick={() => openResetPasswordDialog(targetUser)}
-            >
-              Nueva contraseña
-            </Button>
-          </Stack>
-        );
-      }
-    }
-  ];
+  const anyFilterActive =
+    Boolean(query.trim()) || roleFilter !== "ALL" || statusFilter !== "ALL";
+
+  const actionsAreBusy =
+    Boolean(togglingUserId) || isUpdatingRole || isResettingPassword;
 
   return (
     <>
       <PageHeader
-        title="Usuarios"
-        subtitle="Administra accesos internos. Crea vendedores, asigna roles y bloquea usuarios cuando sea necesario."
+        title="Usuarios y vendedores"
+        subtitle="Administra accesos internos. Crea vendedores, asigna permisos por rol y bloquea usuarios cuando sea necesario."
       />
 
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        spacing={1.5}
-        sx={{ mb: 2 }}
+      <Box
+        sx={{
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(4, minmax(0, 1fr))"
+          },
+          mb: 2
+        }}
       >
-        <Chip color="primary" label="Acceso exclusivo ADMIN" />
-        <Chip variant="outlined" label={`${activeUsers} activos`} />
-        <Chip variant="outlined" label={`${cashierUsers} vendedores`} />
-        <Chip variant="outlined" label={`${adminUsers} administradores`} />
-      </Stack>
+        <SummaryCard
+          icon={<CheckCircleOutlineIcon />}
+          label="Usuarios activos"
+          value={activeUsers}
+          helper="Pueden iniciar sesión."
+        />
+        <SummaryCard
+          icon={<BadgeOutlinedIcon />}
+          label="Vendedores"
+          value={sellerUsers}
+          helper="Registran ventas."
+        />
+        <SummaryCard
+          icon={<AdminPanelSettingsIcon />}
+          label="Administradores"
+          value={adminUsers}
+          helper="Gestionan la operación."
+        />
+        <SummaryCard
+          icon={<BlockOutlinedIcon />}
+          label="Inactivos"
+          value={inactiveUsers}
+          helper="Acceso bloqueado."
+        />
+      </Box>
 
       <StatusFeedback
         success={message}
@@ -419,7 +650,8 @@ export function UsersPage() {
                 display: "grid",
                 gridTemplateColumns: {
                   xs: "1fr",
-                  md: "1.2fr 1.4fr 1.2fr 1fr auto"
+                  md: "1.2fr 1.4fr",
+                  lg: "1.2fr 1.4fr 1.2fr 1fr auto"
                 },
                 gap: 2,
                 alignItems: "start"
@@ -490,6 +722,7 @@ export function UsersPage() {
                   fullWidth
                   type="submit"
                   disabled={formIsInvalid}
+                  startIcon={<PersonAddAlt1OutlinedIcon />}
                   sx={{ mt: 0.25 }}
                 >
                   {isCreating ? "Creando..." : "Crear usuario"}
@@ -503,25 +736,131 @@ export function UsersPage() {
         </CardContent>
       </Card>
 
-      <DataGridCard
-        title="Usuarios registrados"
-        subtitle="Desactiva accesos que ya no se usen. Al desactivar un usuario, sus sesiones activas quedan revocadas."
-        rows={rows}
-        columns={columns}
-        loading={isLoading}
-        minWidth={1080}
-        initialState={{
-          pagination: {
-            paginationModel: {
-              pageSize: 10
-            }
-          }
-        }}
-        pageSizeOptions={[10, 25, 50]}
-        singlePageThreshold={10}
-        noRowsLabel="No hay usuarios registrados."
-        tableLabel="Usuarios registrados"
+      <SearchToolbar
+        query={query}
+        onQueryChange={setQuery}
+        resultCount={filteredRows.length}
+        totalCount={rows.length}
+        label="Buscar usuarios"
+        placeholder="Nombre, correo, rol o estado"
+        helperText="Filtra vendedores y administradores sin depender de una tabla horizontal."
       />
+
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={1.5}
+            alignItems={{ xs: "stretch", md: "center" }}
+          >
+            <TextField
+              select
+              label="Rol"
+              value={roleFilter}
+              onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}
+              sx={{ minWidth: { md: 220 } }}
+            >
+              <MenuItem value="ALL">Todos los roles</MenuItem>
+              <MenuItem value="CASHIER">Vendedores</MenuItem>
+              <MenuItem value="ADMIN">Administradores</MenuItem>
+            </TextField>
+
+            <TextField
+              select
+              label="Estado"
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as StatusFilter)
+              }
+              sx={{ minWidth: { md: 220 } }}
+            >
+              <MenuItem value="ALL">Todos los estados</MenuItem>
+              <MenuItem value="ACTIVE">Activos</MenuItem>
+              <MenuItem value="INACTIVE">Inactivos</MenuItem>
+            </TextField>
+
+            <Box sx={{ flex: 1 }} />
+
+            <Button
+              variant="outlined"
+              disabled={!anyFilterActive}
+              onClick={() => {
+                setQuery("");
+                setRoleFilter("ALL");
+                setStatusFilter("ALL");
+              }}
+            >
+              Limpiar filtros
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Stack spacing={1} sx={{ mb: 2 }}>
+        <Typography variant="h6">Usuarios registrados</Typography>
+        <Typography variant="body2" color="text.secondary">
+          Desactiva accesos que ya no se usen. Al desactivar un usuario,
+          sus sesiones activas quedan revocadas.
+        </Typography>
+      </Stack>
+
+      {isLoading ? (
+        <Card variant="outlined">
+          <CardContent>
+            <Typography color="text.secondary">Cargando usuarios...</Typography>
+          </CardContent>
+        </Card>
+      ) : filteredRows.length === 0 ? (
+        <Card variant="outlined">
+          <CardContent>
+            <Stack spacing={1} alignItems="flex-start">
+              <Typography variant="subtitle1" fontWeight={700}>
+                No se encontraron usuarios
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Ajusta la búsqueda o los filtros para ver otros registros.
+              </Typography>
+              {anyFilterActive && (
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    setQuery("");
+                    setRoleFilter("ALL");
+                    setStatusFilter("ALL");
+                  }}
+                >
+                  Limpiar filtros
+                </Button>
+              )}
+            </Stack>
+          </CardContent>
+        </Card>
+      ) : (
+        <Box
+          sx={{
+            display: "grid",
+            gap: 2,
+            gridTemplateColumns: {
+              xs: "1fr",
+              lg: "repeat(2, minmax(0, 1fr))",
+              xl: "repeat(3, minmax(0, 1fr))"
+            }
+          }}
+        >
+          {filteredRows.map((targetUser) => (
+            <UserCard
+              key={targetUser.id}
+              currentUserId={currentUser?.id}
+              isBusy={actionsAreBusy}
+              onOpenResetPasswordDialog={openResetPasswordDialog}
+              onOpenRoleDialog={openRoleDialog}
+              onToggleUser={toggleUser}
+              targetUser={targetUser}
+              togglingUserId={togglingUserId}
+            />
+          ))}
+        </Box>
+      )}
 
       <Dialog open={Boolean(roleDialogUser)} onClose={closeRoleDialog} fullWidth>
         <DialogTitle>Cambiar rol</DialogTitle>
