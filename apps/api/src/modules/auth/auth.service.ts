@@ -1,5 +1,7 @@
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+import { Role } from "@prisma/client";
+
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
 import { env } from "../../config/env";
@@ -9,6 +11,7 @@ import {
   verifyRefreshToken
 } from "./auth.tokens";
 import { hashToken, safeCompareHash } from "./token-hash";
+import { getPermissionsForRole, type Permission } from "./permissions";
 import {
   logSellerActivity,
   shouldLogSellerActivity
@@ -24,13 +27,16 @@ type LoginInput = {
   password: string;
 };
 
+export type PublicAuthUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  permissions: Permission[];
+};
+
 type AuthResult = {
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-  };
+  user: PublicAuthUser;
   accessToken: string;
   refreshToken: string;
 };
@@ -41,17 +47,18 @@ function getRefreshExpiresAt(): Date {
   return expiresAt;
 }
 
-function toPublicUser(user: {
+export function toPublicUser(user: {
   id: string;
   name: string;
   email: string;
-  role: string;
-}) {
+  role: Role;
+}): PublicAuthUser {
   return {
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role
+    role: user.role,
+    permissions: [...getPermissionsForRole(user.role)]
   };
 }
 

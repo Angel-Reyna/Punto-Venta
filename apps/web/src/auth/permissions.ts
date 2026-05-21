@@ -33,26 +33,35 @@ export const PERMISSIONS = {
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 export type Role = "ADMIN" | "CASHIER";
 
-const ADMIN_PERMISSIONS = Object.values(PERMISSIONS) as Permission[];
+const PERMISSION_VALUES = new Set<Permission>(
+  Object.values(PERMISSIONS) as Permission[]
+);
 
-const CASHIER_PERMISSIONS = [
-  PERMISSIONS.ProductsRead,
-  PERMISSIONS.InventoryRead,
-  PERMISSIONS.SalesRead,
-  PERMISSIONS.SalesCreate,
-  PERMISSIONS.CashRegisterOperate,
-  PERMISSIONS.DashboardRead
-] as const satisfies readonly Permission[];
+export function normalizePermissions(
+  permissions: readonly string[] | null | undefined
+): Permission[] {
+  if (!Array.isArray(permissions)) {
+    return [];
+  }
 
-const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-  ADMIN: ADMIN_PERMISSIONS,
-  CASHIER: CASHIER_PERMISSIONS
-};
+  const normalizedPermissions = new Set<Permission>();
 
-export function getPermissionsForRole(role?: Role | null): readonly Permission[] {
-  return role ? ROLE_PERMISSIONS[role] ?? [] : [];
+  for (const permission of permissions) {
+    if (typeof permission !== "string") {
+      continue;
+    }
+
+    if (PERMISSION_VALUES.has(permission as Permission)) {
+      normalizedPermissions.add(permission as Permission);
+    }
+  }
+
+  return [...normalizedPermissions];
 }
 
-export function hasPermission(role: Role | null | undefined, permission: Permission) {
-  return getPermissionsForRole(role).includes(permission);
+export function hasPermission(
+  permissions: readonly Permission[] | null | undefined,
+  permission: Permission
+) {
+  return Boolean(permissions?.includes(permission));
 }

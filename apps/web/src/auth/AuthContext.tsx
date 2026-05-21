@@ -16,6 +16,7 @@ import {
 } from "../api/client";
 import {
   hasPermission,
+  normalizePermissions,
   type Permission,
   type Role
 } from "./permissions";
@@ -25,11 +26,20 @@ type User = {
   name: string;
   email: string;
   role: Role;
+  permissions: Permission[];
+};
+
+type AuthUserResponse = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  permissions?: string[];
 };
 
 type AuthResponse = {
   accessToken: string;
-  user: User;
+  user: AuthUserResponse;
   csrfToken: string;
 };
 
@@ -40,12 +50,24 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isAdmin: boolean;
+  permissions: readonly Permission[];
   can: (permission: Permission) => boolean;
   isAuthenticated: boolean;
   isLoading: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue>({} as AuthContextValue);
+
+function toAuthUser(user: AuthUserResponse): User {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    permissions: normalizePermissions(user.permissions)
+  };
+}
+
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
@@ -60,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!isMounted) return;
 
-        setUser(session.user);
+        setUser(toAuthUser(session.user));
         setStatus("authenticated");
       } catch {
         if (!isMounted) return;
@@ -93,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     setClientAuthSession(response.data.accessToken);
-    setUser(response.data.user);
+    setUser(toAuthUser(response.data.user));
     setStatus("authenticated");
   }
 
@@ -123,7 +145,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       isAdmin: user?.role === "ADMIN",
-      can: (permission: Permission) => hasPermission(user?.role, permission),
+      permissions: user?.permissions ?? [],
+      can: (permission: Permission) => hasPermission(user?.permissions, permission),
       isAuthenticated: status === "authenticated" && Boolean(user),
       isLoading: status === "loading"
     }),

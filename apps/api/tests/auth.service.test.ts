@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 
+import { PERMISSIONS } from "../src/modules/auth/permissions";
 import { AppError } from "../src/utils/AppError";
 
 const prismaMock = {
@@ -111,7 +112,8 @@ describe("auth.service", () => {
           id: "user-1",
           name: "Administrador",
           email: "admin@pos.local",
-          role: "ADMIN"
+          role: "ADMIN",
+          permissions: expect.arrayContaining(Object.values(PERMISSIONS))
         },
         accessToken: "access-token",
         refreshToken: "refresh-token"
@@ -166,7 +168,7 @@ describe("auth.service", () => {
       prismaMock.user.findUnique.mockResolvedValue(cashier);
       bcryptMock.compare.mockResolvedValue(true as never);
 
-      await login(
+      const result = await login(
         {
           email: "seller@pos.local",
           password: "Seller123"
@@ -176,6 +178,18 @@ describe("auth.service", () => {
           userAgent: "jest"
         }
       );
+
+      expect(result.user.permissions).toEqual(
+        expect.arrayContaining([
+          PERMISSIONS.ProductsRead,
+          PERMISSIONS.InventoryRead,
+          PERMISSIONS.SalesCreate,
+          PERMISSIONS.CashRegisterOperate,
+          PERMISSIONS.DashboardRead
+        ])
+      );
+      expect(result.user.permissions).not.toContain(PERMISSIONS.UsersRead);
+      expect(result.user.permissions).not.toContain(PERMISSIONS.ProductsImport);
 
       expect(prismaMock.sellerActivityLog.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -240,6 +254,13 @@ describe("auth.service", () => {
       });
       expect(result.refreshToken).toBe("next-refresh-token");
       expect(result.accessToken).toBe("access-token");
+      expect(result.user.permissions).toEqual(
+        expect.arrayContaining([
+          PERMISSIONS.UsersRead,
+          PERMISSIONS.ProductsImport,
+          PERMISSIONS.ReportsRead
+        ])
+      );
     });
 
     it("revokes active sessions when token hash does not match", async () => {

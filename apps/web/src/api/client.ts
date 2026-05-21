@@ -4,6 +4,7 @@ import {
   getAccessToken,
   setAccessToken
 } from "../auth/tokenStore";
+import type { Permission, Role } from "../auth/permissions";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -14,7 +15,8 @@ type User = {
   id: string;
   name: string;
   email: string;
-  role: "ADMIN" | "CASHIER";
+  role: Role;
+  permissions: Permission[];
 };
 
 export type AuthSessionResponse = {
