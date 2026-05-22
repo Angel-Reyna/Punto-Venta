@@ -7,10 +7,6 @@ import {
   Card,
   CardContent,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   IconButton,
   MenuItem,
@@ -30,6 +26,7 @@ import { api } from "../api/client";
 import { ActionDisabledReason } from "../components/ActionDisabledReason";
 import { SearchToolbar } from "../components/SearchToolbar";
 import { PageHeader } from "../components/PageHeader";
+import { ResponsiveDialog } from "../components/ResponsiveDialog";
 import { StatusFeedback } from "../components/StatusFeedback";
 import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
@@ -1254,14 +1251,33 @@ export function SalesPage() {
         </Card>
       </Box>
 
-      <Dialog
+      <ResponsiveDialog
         open={cancelDialogOpen}
         onClose={() => setCancelDialogOpen(false)}
-        fullWidth
+        disableClose={isSubmitting}
         maxWidth="sm"
+        title={`Cancelar venta ${selectedSale?.folio ?? ""}`.trim()}
+        description="Confirma la cancelación solo cuando la venta deba anularse por completo."
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              onClick={() => setCancelDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cerrar
+            </Button>
+            <Button
+              color="error"
+              onClick={cancelSale}
+              disabled={isSubmitting || cancelReasonIsInvalid}
+            >
+              Confirmar cancelación
+            </Button>
+          </>
+        }
       >
-        <DialogTitle>Cancelar venta {selectedSale?.folio}</DialogTitle>
-        <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
+        <Box sx={{ display: "grid", gap: 2 }}>
           <Alert severity="warning">
             Esta acción restaura el stock de todos los productos vendidos y marca la venta como cancelada.
           </Alert>
@@ -1288,27 +1304,36 @@ export function SalesPage() {
             helperText="Mínimo 5 caracteres para auditoría."
             onChange={(event) => setCancelReason(event.target.value)}
           />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCancelDialogOpen(false)} disabled={isSubmitting}>Cerrar</Button>
-          <Button
-            color="error"
-            onClick={cancelSale}
-            disabled={isSubmitting || cancelReasonIsInvalid}
-          >
-            Confirmar cancelación
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Box>
+      </ResponsiveDialog>
 
-      <Dialog
+      <ResponsiveDialog
         open={returnDialogOpen}
         onClose={() => setReturnDialogOpen(false)}
-        fullWidth
+        disableClose={isSubmitting}
         maxWidth="sm"
+        title={`Registrar devolución ${selectedSale?.folio ?? ""}`.trim()}
+        description="Devuelve unidades vendidas y registra el motivo para auditoría."
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              onClick={() => setReturnDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cerrar
+            </Button>
+            <Button
+              color="warning"
+              onClick={returnSaleItem}
+              disabled={isSubmitting || returnFormIsInvalid}
+            >
+              Registrar devolución
+            </Button>
+          </>
+        }
       >
-        <DialogTitle>Registrar devolución {selectedSale?.folio}</DialogTitle>
-        <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
+        <Box sx={{ display: "grid", gap: 2 }}>
           <Alert severity="info">
             La devolución restaura stock y actualiza el estado de la venta.
           </Alert>
@@ -1364,14 +1389,8 @@ export function SalesPage() {
             helperText="Mínimo 5 caracteres para auditoría."
             onChange={(event) => setReturnReason(event.target.value)}
           />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setReturnDialogOpen(false)} disabled={isSubmitting}>Cerrar</Button>
-          <Button color="warning" onClick={returnSaleItem} disabled={isSubmitting || returnFormIsInvalid}>
-            Registrar devolución
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Box>
+      </ResponsiveDialog>
     </>
   );
 }

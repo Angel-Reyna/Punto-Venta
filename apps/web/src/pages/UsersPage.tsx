@@ -8,10 +8,6 @@ import {
   Card,
   CardContent,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   FormHelperText,
   MenuItem,
@@ -33,6 +29,7 @@ import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { ActionDisabledReason } from "../components/ActionDisabledReason";
 import { PageHeader } from "../components/PageHeader";
+import { ResponsiveDialog } from "../components/ResponsiveDialog";
 import { SearchToolbar } from "../components/SearchToolbar";
 import { StatusFeedback } from "../components/StatusFeedback";
 import { getApiErrorMessage } from "../utils/apiError";
@@ -862,10 +859,35 @@ export function UsersPage() {
         </Box>
       )}
 
-      <Dialog open={Boolean(roleDialogUser)} onClose={closeRoleDialog} fullWidth>
-        <DialogTitle>Cambiar rol</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+      <ResponsiveDialog
+        open={Boolean(roleDialogUser)}
+        onClose={closeRoleDialog}
+        disableClose={isUpdatingRole}
+        title="Cambiar rol"
+        description="Actualiza el acceso operativo de este usuario."
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              onClick={closeRoleDialog}
+              disabled={isUpdatingRole}
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={
+                isUpdatingRole ||
+                !roleDialogUser ||
+                selectedRole === roleDialogUser.role
+              }
+              onClick={updateUserRole}
+            >
+              {isUpdatingRole ? "Guardando..." : "Guardar rol"}
+            </Button>
+          </>
+        }
+      >
+        <Stack spacing={2}>
             <Alert severity="warning">
               Cambiar el rol afecta los permisos disponibles para este usuario.
             </Alert>
@@ -879,33 +901,31 @@ export function UsersPage() {
               <MenuItem value="CASHIER">Vendedor</MenuItem>
               <MenuItem value="ADMIN">Administrador</MenuItem>
             </TextField>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button variant="outlined" onClick={closeRoleDialog}>
-            Cancelar
-          </Button>
-          <Button
-            disabled={
-              isUpdatingRole ||
-              !roleDialogUser ||
-              selectedRole === roleDialogUser.role
-            }
-            onClick={updateUserRole}
-          >
-            {isUpdatingRole ? "Guardando..." : "Guardar rol"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Stack>
+      </ResponsiveDialog>
 
-      <Dialog
+      <ResponsiveDialog
         open={Boolean(resetPasswordUser)}
         onClose={closeResetPasswordDialog}
-        fullWidth
+        disableClose={isResettingPassword}
+        title="Asignar nueva contraseña"
+        description="Genera una contraseña temporal y compártela por un canal seguro."
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              onClick={closeResetPasswordDialog}
+              disabled={isResettingPassword}
+            >
+              Cancelar
+            </Button>
+            <Button disabled={resetPasswordIsInvalid} onClick={resetPassword}>
+              {isResettingPassword ? "Guardando..." : "Guardar contraseña"}
+            </Button>
+          </>
+        }
       >
-        <DialogTitle>Asignar nueva contraseña</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+        <Stack spacing={2}>
             <Alert severity="info">
               Usa una contraseña temporal y compártela por un canal seguro. El
               usuario debe cambiarla después si habilitamos ese flujo.
@@ -947,17 +967,8 @@ export function UsersPage() {
                 Las contraseñas no coinciden.
               </FormHelperText>
             )}
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button variant="outlined" onClick={closeResetPasswordDialog}>
-            Cancelar
-          </Button>
-          <Button disabled={resetPasswordIsInvalid} onClick={resetPassword}>
-            {isResettingPassword ? "Guardando..." : "Guardar contraseña"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Stack>
+      </ResponsiveDialog>
     </>
   );
 }

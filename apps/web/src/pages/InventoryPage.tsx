@@ -7,6 +7,7 @@ import {
   CardContent,
   Chip,
   Divider,
+  Grid,
   MenuItem,
   Stack,
   TextField,
@@ -514,125 +515,118 @@ export function InventoryPage() {
       {canAdjustInventory && (
         <Card sx={{ mb: 2 }}>
           <CardContent>
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: {
-                  xs: "column",
-                  md: "row",
-                },
-                gap: 2,
-              }}
-            >
-              <TextField
-                select
-                fullWidth
-                label="Producto"
-                value={form.productId}
-                onChange={(event) =>
-                  setForm({
-                    ...form,
-                    productId: event.target.value,
-                  })
-                }
-                sx={{
-                  minWidth: {
-                    xs: "100%",
-                    md: 320,
-                  },
-                }}
-              >
-                {products.map((product) => (
-                  <MenuItem key={product.id} value={product.id}>
-                    {product.sku} · {product.name} · stock {product.stock}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <TextField
-                select
-                fullWidth
-                label={
-                  <LabelWithInfo
-                    label="Almacén"
-                    info={WAREHOUSE_INFO_TEXT}
-                    ariaLabel={WAREHOUSE_INFO_TEXT}
-                  />
-                }
-                value={form.warehouseId}
-                onChange={(event) =>
-                  setForm({
-                    ...form,
-                    warehouseId: event.target.value,
-                  })
-                }
-                helperText="Si no eliges almacén, se usará el principal"
-              >
-                <MenuItem value="">Almacén principal automático</MenuItem>
-
-                {warehouses.map((warehouse) => (
-                  <MenuItem key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <TextField
-                fullWidth
-                label="Cantidad"
-                type="number"
-                value={form.quantity}
-                inputProps={{
-                  min: 1,
-                }}
-                onChange={(event) =>
-                  setForm({
-                    ...form,
-                    quantity: Number(event.target.value),
-                  })
-                }
-              />
-
-              <TextField
-                fullWidth
-                label="Motivo del movimiento"
-                value={form.reason}
-                helperText="Mínimo 3 caracteres"
-                onChange={(event) =>
-                  setForm({
-                    ...form,
-                    reason: event.target.value,
-                  })
-                }
-              />
-
-              <Box>
-                <Button
+            <Grid container spacing={2} alignItems="flex-start">
+              <Grid item xs={12} md={6}>
+                <TextField
+                  select
                   fullWidth
-                  onClick={() => submit("in")}
-                  disabled={formIsInvalid}
+                  label="Producto"
+                  value={form.productId}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      productId: event.target.value,
+                    })
+                  }
                 >
-                  Registrar entrada
-                </Button>
+                  {products.map((product) => (
+                    <MenuItem key={product.id} value={product.id}>
+                      {product.sku} · {product.name} · stock {product.stock}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label={
+                    <LabelWithInfo
+                      label="Almacén"
+                      info={WAREHOUSE_INFO_TEXT}
+                      ariaLabel={WAREHOUSE_INFO_TEXT}
+                    />
+                  }
+                  value={form.warehouseId}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      warehouseId: event.target.value,
+                    })
+                  }
+                  helperText="Si no eliges almacén, se usará el principal"
+                >
+                  <MenuItem value="">Almacén principal automático</MenuItem>
+
+                  {warehouses.map((warehouse) => (
+                    <MenuItem key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Cantidad"
+                  type="number"
+                  value={form.quantity}
+                  inputProps={{
+                    min: 1,
+                  }}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      quantity: Number(event.target.value),
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={8}>
+                <TextField
+                  fullWidth
+                  label="Motivo del movimiento"
+                  value={form.reason}
+                  helperText="Mínimo 3 caracteres"
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      reason: event.target.value,
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1.5}
+                  sx={{
+                    alignItems: { xs: "stretch", sm: "flex-start" },
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  <Button onClick={() => submit("in")} disabled={formIsInvalid}>
+                    Registrar entrada
+                  </Button>
+
+                  <Button
+                    color="warning"
+                    onClick={() => submit("out")}
+                    disabled={formIsInvalid}
+                  >
+                    Registrar salida
+                  </Button>
+                </Stack>
+
                 <ActionDisabledReason
                   message={formIsInvalid ? inventoryFormDisabledReason : ""}
                 />
-              </Box>
-
-              <Box>
-                <Button
-                  fullWidth
-                  color="warning"
-                  onClick={() => submit("out")}
-                  disabled={formIsInvalid}
-                >
-                  Registrar salida
-                </Button>
-                <ActionDisabledReason
-                  message={formIsInvalid ? inventoryFormDisabledReason : ""}
-                />
-              </Box>
-            </Box>
+              </Grid>
+            </Grid>
           </CardContent>
         </Card>
       )}

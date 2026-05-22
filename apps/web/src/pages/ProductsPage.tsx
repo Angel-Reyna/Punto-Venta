@@ -6,9 +6,6 @@ import {
   Card,
   CardContent,
   Chip,
-  Dialog,
-  DialogContent,
-  DialogTitle,
   Divider,
   Grid,
   IconButton,
@@ -27,6 +24,7 @@ import { api } from "../api/client";
 import { ActionDisabledReason } from "../components/ActionDisabledReason";
 import { InfoTooltip, LabelWithInfo } from "../components/InfoTooltip";
 import { PageHeader } from "../components/PageHeader";
+import { ResponsiveDialog } from "../components/ResponsiveDialog";
 import { SearchToolbar } from "../components/SearchToolbar";
 import { StatusFeedback } from "../components/StatusFeedback";
 import { useAuth } from "../auth/AuthContext";
@@ -810,268 +808,276 @@ export function ProductsPage() {
       />
 
       {canCreateProduct && (
-        <Dialog
+        <ResponsiveDialog
           open={open}
-          onClose={() => {
-            if (!isCreatingProduct) {
-              setOpen(false);
-            }
-          }}
+          onClose={() => setOpen(false)}
+          disableClose={isCreatingProduct}
           maxWidth="md"
-          fullWidth
+          title="Nuevo producto"
+          description="Registra datos comerciales, precios e inventario inicial en una sola operación."
+          actions={
+            <>
+              <Button
+                variant="outlined"
+                onClick={() => setOpen(false)}
+                disabled={isCreatingProduct}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                form="product-create-form"
+                disabled={formIsInvalid}
+              >
+                {isCreatingProduct ? "Guardando..." : "Guardar producto"}
+              </Button>
+            </>
+          }
         >
-          <DialogTitle>Nuevo producto</DialogTitle>
-
-          <DialogContent>
-            <Box
-              component="form"
-              onSubmit={submit}
-              sx={{
-                mt: 1,
-              }}
-            >
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={8}>
-                  <TextField
-                    fullWidth
-                    label={
-                      <LabelWithInfo
-                        label="Clave interna/SKU"
-                        info={SKU_INFO_TEXT}
-                        ariaLabel={SKU_INFO_TEXT}
-                      />
-                    }
-                    value={form.sku}
-                    helperText="Identificador interno único. Ejemplo: COCA-600 o SAB-ACE-1KG."
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        sku: event.target.value,
-                      })
-                    }
-                  />
-                </Grid>
-
-                <Grid item xs={12} md={4}>
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    sx={{ minHeight: 56 }}
-                    onClick={() => {
-                      const code = generateLocalProductCode();
-
-                      setForm((currentForm) => ({
-                        ...currentForm,
-                        sku: currentForm.sku || code,
-                        barcode: code,
-                      }));
-                    }}
-                  >
-                    Generar código
-                  </Button>
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label={
-                      <LabelWithInfo
-                        label="Código del producto"
-                        info={PRODUCT_CODE_INFO_TEXT}
-                        ariaLabel={PRODUCT_CODE_INFO_TEXT}
-                      />
-                    }
-                    value={form.barcode}
-                    helperText="Puede ser código de barras, código interno o código generado."
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        barcode: event.target.value,
-                      })
-                    }
-                  />
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    select
-                    label="Categoría"
-                    value={form.categoryId}
-                    helperText="Selecciona una categoría activa."
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        categoryId: event.target.value,
-                      })
-                    }
-                  >
-                    <MenuItem value="">Sin categoría</MenuItem>
-                    {categories.map((category) => (
-                      <MenuItem key={category.id} value={category.id}>
-                        {category.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Nombre del producto"
-                    value={form.name}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        name: event.target.value,
-                      })
-                    }
-                  />
-                </Grid>
-
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    multiline
-                    minRows={3}
-                    label="Descripción opcional"
-                    value={form.description}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        description: event.target.value,
-                      })
-                    }
-                  />
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Costo unitario"
-                    type="number"
-                    value={form.costPrice}
-                    inputProps={{
-                      min: 0,
-                      step: 0.01,
-                    }}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        costPrice: event.target.value,
-                      })
-                    }
-                  />
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Precio de venta"
-                    type="number"
-                    value={form.salePrice}
-                    inputProps={{
-                      min: 0,
-                      step: 0.01,
-                    }}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        salePrice: event.target.value,
-                      })
-                    }
-                  />
-                </Grid>
-
-                <Grid item xs={12} md={4}>
-                  <TextField
-                    fullWidth
-                    label={
-                      <LabelWithInfo
-                        label="Promoción (%)"
-                        info={PROMO_INFO_TEXT}
-                        ariaLabel={PROMO_INFO_TEXT}
-                      />
-                    }
-                    type="number"
-                    value={form.promoPercent}
-                    inputProps={{
-                      min: 0,
-                      max: 100,
-                      step: 0.01,
-                    }}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        promoPercent: event.target.value,
-                      })
-                    }
-                  />
-                </Grid>
-
-                <Grid item xs={12} md={4}>
-                  <TextField
-                    fullWidth
-                    label={
-                      <LabelWithInfo
-                        label="Stock inicial"
-                        info={INITIAL_STOCK_INFO_TEXT}
-                        ariaLabel={INITIAL_STOCK_INFO_TEXT}
-                      />
-                    }
-                    type="number"
-                    value={form.initialStock}
-                    helperText="Crea inventario real en el almacén principal."
-                    inputProps={{
-                      min: 0,
-                      step: 1,
-                    }}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        initialStock: event.target.value,
-                      })
-                    }
-                  />
-                </Grid>
-
-                <Grid item xs={12} md={4}>
-                  <TextField
-                    fullWidth
-                    label={
-                      <LabelWithInfo
-                        label="Stock mínimo"
-                        info={MIN_STOCK_INFO_TEXT}
-                        ariaLabel={MIN_STOCK_INFO_TEXT}
-                      />
-                    }
-                    type="number"
-                    value={form.minStock}
-                    inputProps={{
-                      min: 0,
-                      step: 1,
-                    }}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        minStock: event.target.value,
-                      })
-                    }
-                  />
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Button type="submit" fullWidth disabled={formIsInvalid}>
-                    {isCreatingProduct ? "Guardando..." : "Guardar producto"}
-                  </Button>
-                  <ActionDisabledReason
-                    message={formIsInvalid ? productFormDisabledReason : ""}
-                  />
-                </Grid>
+          <Box
+            id="product-create-form"
+            component="form"
+            noValidate
+            onSubmit={submit}
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={8}>
+                <TextField
+                  fullWidth
+                  label={
+                    <LabelWithInfo
+                      label="Clave interna/SKU"
+                      info={SKU_INFO_TEXT}
+                      ariaLabel={SKU_INFO_TEXT}
+                    />
+                  }
+                  value={form.sku}
+                  helperText="Identificador interno único. Ejemplo: COCA-600 o SAB-ACE-1KG."
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      sku: event.target.value,
+                    })
+                  }
+                />
               </Grid>
-            </Box>
-          </DialogContent>
-        </Dialog>
+
+              <Grid item xs={12} md={4}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  sx={{ minHeight: 56 }}
+                  onClick={() => {
+                    const code = generateLocalProductCode();
+
+                    setForm((currentForm) => ({
+                      ...currentForm,
+                      sku: currentForm.sku || code,
+                      barcode: code,
+                    }));
+                  }}
+                >
+                  Generar código
+                </Button>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label={
+                    <LabelWithInfo
+                      label="Código del producto"
+                      info={PRODUCT_CODE_INFO_TEXT}
+                      ariaLabel={PRODUCT_CODE_INFO_TEXT}
+                    />
+                  }
+                  value={form.barcode}
+                  helperText="Puede ser código de barras, código interno o código generado."
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      barcode: event.target.value,
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Categoría"
+                  value={form.categoryId}
+                  helperText="Selecciona una categoría activa."
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      categoryId: event.target.value,
+                    })
+                  }
+                >
+                  <MenuItem value="">Sin categoría</MenuItem>
+                  {categories.map((category) => (
+                    <MenuItem key={category.id} value={category.id}>
+                      {category.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Nombre del producto"
+                  value={form.name}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      name: event.target.value,
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={3}
+                  label="Descripción opcional"
+                  value={form.description}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      description: event.target.value,
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Costo unitario"
+                  type="number"
+                  value={form.costPrice}
+                  inputProps={{
+                    min: 0,
+                    step: 0.01,
+                  }}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      costPrice: event.target.value,
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Precio de venta"
+                  type="number"
+                  value={form.salePrice}
+                  inputProps={{
+                    min: 0,
+                    step: 0.01,
+                  }}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      salePrice: event.target.value,
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label={
+                    <LabelWithInfo
+                      label="Promoción (%)"
+                      info={PROMO_INFO_TEXT}
+                      ariaLabel={PROMO_INFO_TEXT}
+                    />
+                  }
+                  type="number"
+                  value={form.promoPercent}
+                  inputProps={{
+                    min: 0,
+                    max: 100,
+                    step: 0.01,
+                  }}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      promoPercent: event.target.value,
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label={
+                    <LabelWithInfo
+                      label="Stock inicial"
+                      info={INITIAL_STOCK_INFO_TEXT}
+                      ariaLabel={INITIAL_STOCK_INFO_TEXT}
+                    />
+                  }
+                  type="number"
+                  value={form.initialStock}
+                  helperText="Crea inventario real en el almacén principal."
+                  inputProps={{
+                    min: 0,
+                    step: 1,
+                  }}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      initialStock: event.target.value,
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label={
+                    <LabelWithInfo
+                      label="Stock mínimo"
+                      info={MIN_STOCK_INFO_TEXT}
+                      ariaLabel={MIN_STOCK_INFO_TEXT}
+                    />
+                  }
+                  type="number"
+                  value={form.minStock}
+                  inputProps={{
+                    min: 0,
+                    step: 1,
+                  }}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      minStock: event.target.value,
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <ActionDisabledReason
+                  message={formIsInvalid ? productFormDisabledReason : ""}
+                />
+              </Grid>
+            </Grid>
+          </Box>
+        </ResponsiveDialog>
       )}
     </>
   );
