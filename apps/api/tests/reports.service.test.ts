@@ -228,6 +228,19 @@ describe("reports.service", () => {
     expect(report.returns.byMethod).toEqual({
       CASH: 50
     });
+    expect(report.sales.bySeller).toEqual([
+      {
+        seller: {
+          id: "cashier-1",
+          name: "Caja 1",
+          email: "cashier@pos.local"
+        },
+        count: 1,
+        gross: 200,
+        refunded: 50,
+        net: 150
+      }
+    ]);
     expect(report.cashRegister.movements.summary).toEqual({
       SALE_CASH: 200,
       RETURN_CASH: 50

@@ -131,6 +131,26 @@ function writeOperationsPdf(doc: PDFKit.PDFDocument, report: OperationsReport) {
 
   doc.moveDown();
 
+  doc.fontSize(12).text("Ventas por vendedor");
+  doc.moveDown(0.35);
+
+  if (report.sales.bySeller.length === 0) {
+    doc.fontSize(10).text("Sin ventas por vendedor en el periodo.");
+  } else {
+    report.sales.bySeller.forEach((item) => {
+      ensurePdfSpace(doc, 60);
+      doc
+        .fontSize(10)
+        .text(
+          `${item.seller.name} (${item.seller.email}) · ${item.count} ventas · ` +
+            `Bruto ${formatMoney(item.gross)} · Devoluciones ${formatMoney(item.refunded)} · ` +
+            `Neto ${formatMoney(item.net)}`
+        );
+    });
+  }
+
+  doc.moveDown();
+
   doc.fontSize(12).text("Cobros por método");
   doc.moveDown(0.35);
   writeKeyValueLines(

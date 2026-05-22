@@ -52,6 +52,13 @@ export type OperationsReport = {
     refunded: number;
     net: number;
     paymentSummary: Record<string, number>;
+    bySeller: Array<{
+      seller: ReportPerson;
+      count: number;
+      gross: number;
+      refunded: number;
+      net: number;
+    }>;
     recent: Array<{
       id: string;
       folio: string;
@@ -481,6 +488,56 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
       return summary;
     }, {});
 
+  const sellerTotals = new Map<
+    string,
+    {
+      seller: ReportPerson;
+      count: number;
+      gross: number;
+      refunded: number;
+    }
+  >();
+
+  for (const sale of sales) {
+    if (sale.status === SaleStatus.CANCELLED) continue;
+
+    const current = sellerTotals.get(sale.cashier.id) ?? {
+      seller: sale.cashier,
+      count: 0,
+      gross: 0,
+      refunded: 0
+    };
+
+    sellerTotals.set(sale.cashier.id, {
+      ...current,
+      count: current.count + 1,
+      gross: roundMoney(current.gross + Number(sale.total))
+    });
+  }
+
+  for (const saleReturn of returns) {
+    const current = sellerTotals.get(saleReturn.cashier.id) ?? {
+      seller: saleReturn.cashier,
+      count: 0,
+      gross: 0,
+      refunded: 0
+    };
+
+    sellerTotals.set(saleReturn.cashier.id, {
+      ...current,
+      refunded: roundMoney(current.refunded + Number(saleReturn.refundTotal))
+    });
+  }
+
+  const salesBySeller = [...sellerTotals.values()]
+    .map((entry) => ({
+      ...entry,
+      gross: roundMoney(entry.gross),
+      refunded: roundMoney(entry.refunded),
+      net: roundMoney(entry.gross - entry.refunded)
+    }))
+    .sort((a, b) => b.net - a.net || b.gross - a.gross || a.seller.name.localeCompare(b.seller.name));
+
   const refundSummary = returns.reduce<Record<string, number>>((summary, saleReturn) => {
     summary[saleReturn.refundMethod] = roundMoney(
       (summary[saleReturn.refundMethod] ?? 0) + Number(saleReturn.refundTotal)
@@ -512,6 +569,7 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
       refunded: refundedTotal,
       net: netSales,
       paymentSummary,
+      bySeller: salesBySeller,
       recent: sales.slice(0, 25).map((sale) => ({
         id: sale.id,
         folio: sale.folio,

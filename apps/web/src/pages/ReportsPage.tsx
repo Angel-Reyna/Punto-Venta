@@ -15,10 +15,7 @@ import {
   type ChipProps
 } from "@mui/material";
 
-import { GridColDef } from "@mui/x-data-grid";
-
 import { api } from "../api/client";
-import { DataGridCard } from "../components/DataGridCard";
 import { LabelWithInfo } from "../components/InfoTooltip";
 import { PageHeader } from "../components/PageHeader";
 import { StatusFeedback } from "../components/StatusFeedback";
@@ -26,6 +23,12 @@ import { getApiErrorMessage } from "../utils/apiError";
 import { downloadBlob } from "../utils/downloadBlob";
 
 type MoneySummary = Record<string, number>;
+
+type ReportPerson = {
+  id: string;
+  name: string;
+  email: string;
+};
 
 type OperationsReport = {
   from: string;
@@ -39,17 +42,20 @@ type OperationsReport = {
     refunded: number;
     net: number;
     paymentSummary: MoneySummary;
+    bySeller: Array<{
+      seller: ReportPerson;
+      count: number;
+      gross: number;
+      refunded: number;
+      net: number;
+    }>;
     recent: Array<{
       id: string;
       folio: string;
       status: string;
       total: number;
       createdAt: string;
-      cashier: {
-        id: string;
-        name: string;
-        email: string;
-      };
+      cashier: ReportPerson;
       payments: Array<{
         id: string;
         method: string;
@@ -67,10 +73,7 @@ type OperationsReport = {
       refundMethod: string;
       refundTotal: number;
       createdAt: string;
-      cashier?: {
-        name: string;
-        email: string;
-      };
+      cashier?: ReportPerson;
     }>;
   };
   cashRegister: {
@@ -83,10 +86,7 @@ type OperationsReport = {
       difference: number | null;
       openedAt: string;
       closedAt: string | null;
-      cashier?: {
-        name: string;
-        email: string;
-      };
+      cashier?: ReportPerson;
     }>;
     movements: {
       count: number;
@@ -183,19 +183,110 @@ function buildQuery(from: string, to: string) {
   }).toString();
 }
 
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function includesQuery(values: Array<string | number | null | undefined>, query: string) {
+  const normalizedQuery = normalizeText(query);
+
+  if (!normalizedQuery) return true;
+
+  return values.some((value) => normalizeText(String(value ?? "")).includes(normalizedQuery));
+}
+
 const REPORT_INFO_TEXT = {
   salesCount: "Número de ventas registradas en el periodo, incluyendo completadas, canceladas y ventas con devolución.",
   grossSales: "Total de ventas no canceladas antes de restar devoluciones.",
   refunds: "Monto reembolsado por devoluciones registradas dentro del periodo consultado.",
   netSales: "Venta bruta menos devoluciones. Es el total operativo más útil para revisar el resultado real del periodo.",
+  sellerNet: "Venta neta del vendedor: ventas no canceladas menos devoluciones asociadas al periodo.",
   netUnits: "Unidades vendidas menos unidades devueltas dentro del periodo.",
   netSold: "Importe vendido menos devoluciones asociadas al producto dentro del periodo.",
   expectedCash: "Efectivo calculado por el sistema: apertura más entradas y ventas en efectivo, menos salidas y devoluciones en efectivo.",
   cashDifference: "Diferencia entre el efectivo contado al cerrar caja y el efectivo esperado por el sistema."
 };
 
-function renderHeaderWithInfo(label: string, info: string) {
-  return <LabelWithInfo label={label} info={info} ariaLabel={info} />;
+function MetricCard({
+  label,
+  value,
+  helper,
+  info
+}: {
+  label: string;
+  value: string | number;
+  helper: string;
+  info: string;
+}) {
+  return (
+    <Card sx={{ height: "100%" }}>
+      <CardContent>
+        <Typography color="text.secondary">
+          <LabelWithInfo label={label} info={info} ariaLabel={info} />
+        </Typography>
+        <Typography variant="h5" fontWeight={800} sx={{ mt: 0.5 }}>
+          {value}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" mt={0.5}>
+          {helper}
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ReportPanel({
+  title,
+  subtitle,
+  children
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card sx={{ height: "100%" }}>
+      <CardContent>
+        <Typography variant="h6" fontWeight={800}>
+          {title}
+        </Typography>
+        {subtitle && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            {subtitle}
+          </Typography>
+        )}
+        <Divider sx={{ my: 2 }} />
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
+function EmptyText({ children }: { children: React.ReactNode }) {
+  return <Typography color="text.secondary">{children}</Typography>;
+}
+
+function DetailLine({
+  label,
+  value
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <Box>
+      <Typography variant="caption" color="text.secondary" display="block">
+        {label}
+      </Typography>
+      <Typography variant="body2" fontWeight={700}>
+        {value}
+      </Typography>
+    </Box>
+  );
 }
 
 export function ReportsPage() {
@@ -207,6 +298,7 @@ export function ReportsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
 
   const dateRangeIsInvalid = !from || !to || from > to;
 
@@ -239,9 +331,7 @@ export function ReportsPage() {
 
       setData(response.data);
     } catch (err: unknown) {
-      setError(
-        getApiErrorMessage(err, "No se pudo consultar el reporte operativo.")
-      );
+      setError(getApiErrorMessage(err, "No se pudo consultar el reporte operativo."));
     } finally {
       setIsLoading(false);
     }
@@ -258,12 +348,9 @@ export function ReportsPage() {
     try {
       setIsDownloadingPdf(true);
 
-      const response = await api.get(
-        `/reports/operations/pdf?${buildQuery(from, to)}`,
-        {
-          responseType: "blob"
-        }
-      );
+      const response = await api.get(`/reports/operations/pdf?${buildQuery(from, to)}`, {
+        responseType: "blob"
+      });
 
       downloadBlob(response.data, `reporte-operativo-${from}-${to}.pdf`);
     } catch (err: unknown) {
@@ -272,199 +359,6 @@ export function ReportsPage() {
       setIsDownloadingPdf(false);
     }
   }
-
-  const recentSalesRows = data?.sales.recent ?? [];
-
-  const topProductsRows =
-    data?.topProducts.map((item, index) => ({
-      id: item.product.id || index,
-      position: index + 1,
-      sku: item.product.sku ?? "—",
-      name: item.product.name,
-      quantity: item.quantity,
-      total: item.total
-    })) ?? [];
-
-  const topProductsColumns: GridColDef[] = [
-    {
-      field: "position",
-      headerName: "#",
-      width: 80
-    },
-    {
-      field: "sku",
-      headerName: "SKU",
-      width: 160
-    },
-    {
-      field: "name",
-      headerName: "Producto",
-      flex: 1,
-      minWidth: 220
-    },
-    {
-      field: "quantity",
-      headerName: "Unidades netas",
-      renderHeader: () => renderHeaderWithInfo("Unidades netas", REPORT_INFO_TEXT.netUnits),
-      width: 160
-    },
-    {
-      field: "total",
-      headerName: "Vendido neto",
-      renderHeader: () => renderHeaderWithInfo("Vendido neto", REPORT_INFO_TEXT.netSold),
-      width: 160,
-      valueFormatter: (value) => formatMoney(Number(value))
-    }
-  ];
-
-  const recentSalesColumns: GridColDef[] = [
-    {
-      field: "createdAt",
-      headerName: "Fecha",
-      width: 180,
-      valueFormatter: (value) => formatDate(value as string)
-    },
-    {
-      field: "folio",
-      headerName: "Folio",
-      minWidth: 190,
-      flex: 1
-    },
-    {
-      field: "cashier",
-      headerName: "Vendedor",
-      flex: 1,
-      minWidth: 220,
-      valueGetter: (_value, row) => `${row.cashier.name} (${row.cashier.email})`
-    },
-    {
-      field: "status",
-      headerName: "Estado",
-      width: 170,
-      renderCell: (params) => (
-        <Chip
-          size="small"
-          label={statusLabel(String(params.value))}
-          color={statusColor(String(params.value))}
-        />
-      )
-    },
-    {
-      field: "payments",
-      headerName: "Pagos",
-      flex: 1,
-      minWidth: 220,
-      valueGetter: (_value, row) =>
-        row.payments
-          .map(
-            (payment: { method: string; amount: number }) =>
-              `${paymentMethodLabel(payment.method)} ${formatMoney(payment.amount)}`
-          )
-          .join(", ") || "—"
-    },
-    {
-      field: "total",
-      headerName: "Total",
-      width: 140,
-      valueFormatter: (value) => formatMoney(Number(value))
-    }
-  ];
-
-  const returnsColumns: GridColDef[] = [
-    {
-      field: "createdAt",
-      headerName: "Fecha",
-      width: 180,
-      valueFormatter: (value) => formatDate(value as string)
-    },
-    {
-      field: "cashier",
-      headerName: "Responsable",
-      flex: 1,
-      minWidth: 220,
-      valueGetter: (_value, row) =>
-        row.cashier ? `${row.cashier.name} (${row.cashier.email})` : "—"
-    },
-    {
-      field: "reason",
-      headerName: "Motivo",
-      flex: 1,
-      minWidth: 260
-    },
-    {
-      field: "refundMethod",
-      headerName: "Método",
-      width: 150,
-      valueFormatter: (value) => paymentMethodLabel(String(value))
-    },
-    {
-      field: "refundTotal",
-      headerName: "Total devuelto",
-      width: 160,
-      valueFormatter: (value) => formatMoney(Number(value))
-    }
-  ];
-
-  const sessionsColumns: GridColDef[] = [
-    {
-      field: "openedAt",
-      headerName: "Apertura",
-      width: 180,
-      valueFormatter: (value) => formatDate(value as string)
-    },
-    {
-      field: "closedAt",
-      headerName: "Cierre",
-      width: 180,
-      valueFormatter: (value) => formatDate(value as string | null)
-    },
-    {
-      field: "cashier",
-      headerName: "Vendedor",
-      flex: 1,
-      minWidth: 220,
-      valueGetter: (_value, row) =>
-        row.cashier ? `${row.cashier.name} (${row.cashier.email})` : "—"
-    },
-    {
-      field: "status",
-      headerName: "Estado",
-      width: 130,
-      renderCell: (params) => (
-        <Chip
-          size="small"
-          label={params.value === "OPEN" ? "Abierta" : "Cerrada"}
-          color={params.value === "OPEN" ? "success" : "default"}
-        />
-      )
-    },
-    {
-      field: "openingAmount",
-      headerName: "Inicial",
-      width: 130,
-      valueFormatter: (value) => formatMoney(Number(value))
-    },
-    {
-      field: "expectedClosingAmount",
-      headerName: "Esperado",
-      renderHeader: () => renderHeaderWithInfo("Esperado", REPORT_INFO_TEXT.expectedCash),
-      width: 135,
-      valueFormatter: (value) => formatMoney(value as number | null)
-    },
-    {
-      field: "closingAmount",
-      headerName: "Contado",
-      width: 130,
-      valueFormatter: (value) => formatMoney(value as number | null)
-    },
-    {
-      field: "difference",
-      headerName: "Diferencia",
-      renderHeader: () => renderHeaderWithInfo("Diferencia", REPORT_INFO_TEXT.cashDifference),
-      width: 140,
-      valueFormatter: (value) => formatMoney(value as number | null)
-    }
-  ];
 
   const summaryCards = useMemo(
     () => [
@@ -496,11 +390,69 @@ export function ReportsPage() {
     [data]
   );
 
+  const filteredSellers = useMemo(
+    () =>
+      data?.sales.bySeller.filter((item) =>
+        includesQuery(
+          [item.seller.name, item.seller.email, item.count, item.gross, item.refunded, item.net],
+          search
+        )
+      ) ?? [],
+    [data, search]
+  );
+
+  const filteredTopProducts = useMemo(
+    () =>
+      data?.topProducts.filter((item) =>
+        includesQuery([item.product.sku, item.product.name, item.quantity, item.total], search)
+      ) ?? [],
+    [data, search]
+  );
+
+  const filteredRecentSales = useMemo(
+    () =>
+      data?.sales.recent.filter((sale) =>
+        includesQuery(
+          [
+            sale.folio,
+            sale.cashier.name,
+            sale.cashier.email,
+            statusLabel(sale.status),
+            sale.total,
+            sale.payments.map((payment) => paymentMethodLabel(payment.method)).join(" ")
+          ],
+          search
+        )
+      ) ?? [],
+    [data, search]
+  );
+
+  const filteredReturns = useMemo(
+    () =>
+      data?.returns.latest.filter((saleReturn) =>
+        includesQuery(
+          [
+            saleReturn.reason,
+            saleReturn.cashier?.name,
+            saleReturn.cashier?.email,
+            paymentMethodLabel(saleReturn.refundMethod),
+            saleReturn.refundTotal
+          ],
+          search
+        )
+      ) ?? [],
+    [data, search]
+  );
+
+  const hasCashActivity = Boolean(
+    data && (data.cashRegister.movements.count > 0 || data.cashRegister.sessions.length > 0)
+  );
+
   return (
     <>
       <PageHeader
         title="Reportes"
-        subtitle="Consulta ventas netas, devoluciones, caja y productos vendidos con un corte operativo consistente."
+        subtitle="Consulta ventas netas, devoluciones, productos vendidos y desempeño por vendedor."
       />
 
       <Box sx={{ mb: 2 }}>
@@ -513,10 +465,11 @@ export function ReportsPage() {
         <CardContent>
           <Box
             sx={{
-              display: "flex",
-              flexDirection: {
-                xs: "column",
-                md: "row"
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "1fr 1fr",
+                lg: "repeat(4, minmax(0, 1fr))"
               },
               gap: 2
             }}
@@ -563,9 +516,23 @@ export function ReportsPage() {
         </CardContent>
       </Card>
 
+      {data && (
+        <Card sx={{ mb: 2 }}>
+          <CardContent>
+            <TextField
+              fullWidth
+              label="Buscar dentro del reporte"
+              placeholder="Folio, vendedor, producto, método de pago, estado..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       {data && !hasReportActivity && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          No hay ventas, devoluciones ni movimientos de caja en el periodo {periodLabel}.
+          No hay ventas, devoluciones ni movimientos registrados en el periodo {periodLabel}.
         </Alert>
       )}
 
@@ -574,176 +541,406 @@ export function ReportsPage() {
           <Grid container spacing={2} sx={{ mb: 2 }}>
             {summaryCards.map((card) => (
               <Grid key={card.label} item xs={12} sm={6} lg={3}>
-                <Card sx={{ height: "100%" }}>
-                  <CardContent>
-                    <Typography color="text.secondary">
-                      <LabelWithInfo
-                        label={card.label}
-                        info={card.info}
-                        ariaLabel={card.info}
-                      />
-                    </Typography>
-                    <Typography variant="h5" fontWeight={800}>
-                      {card.value}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" mt={0.5}>
-                      {card.helper}
-                    </Typography>
-                  </CardContent>
-                </Card>
+                <MetricCard {...card} />
               </Grid>
             ))}
           </Grid>
 
           <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={12} md={4}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent>
-                  <Typography variant="h6" fontWeight={800} mb={1}>
-                    Ventas por estado
-                  </Typography>
-                  <Divider sx={{ mb: 2 }} />
-                  <Stack direction="row" flexWrap="wrap" gap={1}>
-                    {Object.entries(data.sales.byStatus).length === 0 ? (
-                      <Typography color="text.secondary">Sin ventas.</Typography>
-                    ) : (
-                      Object.entries(data.sales.byStatus).map(([status, count]) => (
-                        <Chip
-                          key={status}
-                          color={statusColor(status)}
-                          label={`${statusLabel(status)}: ${count}`}
-                        />
-                      ))
-                    )}
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent>
-                  <Typography variant="h6" fontWeight={800} mb={1}>
-                    Cobros y devoluciones
-                  </Typography>
-                  <Divider sx={{ mb: 2 }} />
+            <Grid item xs={12} lg={7}>
+              <ReportPanel
+                title="Ventas por vendedor"
+                subtitle="Desempeño neto por vendedor en el periodo consultado."
+              >
+                {filteredSellers.length === 0 ? (
+                  <EmptyText>No hay vendedores que coincidan con la búsqueda.</EmptyText>
+                ) : (
                   <Stack spacing={1.5}>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary" mb={1}>
-                        Cobros por método
-                      </Typography>
-                      <Stack direction="row" flexWrap="wrap" gap={1}>
-                        {Object.entries(data.sales.paymentSummary).length === 0 ? (
-                          <Typography color="text.secondary">Sin cobros registrados.</Typography>
-                        ) : (
-                          Object.entries(data.sales.paymentSummary).map(([method, amount]) => (
-                            <Chip
-                              key={method}
-                              color="primary"
-                              variant="outlined"
-                              label={`${paymentMethodLabel(method)}: ${formatMoney(amount)}`}
-                            />
-                          ))
-                        )}
-                      </Stack>
-                    </Box>
-
-                    <Box>
-                      <Typography variant="body2" color="text.secondary" mb={1}>
-                        Devoluciones por método
-                      </Typography>
-                      <Stack direction="row" flexWrap="wrap" gap={1}>
-                        {Object.entries(data.returns.byMethod).length === 0 ? (
-                          <Typography color="text.secondary">Sin devoluciones registradas.</Typography>
-                        ) : (
-                          Object.entries(data.returns.byMethod).map(([method, amount]) => (
-                            <Chip
-                              key={method}
-                              color="warning"
-                              variant="outlined"
-                              label={`${paymentMethodLabel(method)}: ${formatMoney(amount)}`}
-                            />
-                          ))
-                        )}
-                      </Stack>
-                    </Box>
+                    {filteredSellers.map((item) => (
+                      <Card key={item.seller.id} variant="outlined">
+                        <CardContent
+                          sx={{
+                            display: "grid",
+                            gridTemplateColumns: {
+                              xs: "1fr",
+                              sm: "minmax(0, 1.4fr) repeat(2, minmax(120px, 0.7fr))",
+                              lg: "minmax(0, 1.6fr) repeat(4, minmax(110px, 0.65fr))"
+                            },
+                            gap: 1.5,
+                            alignItems: "center"
+                          }}
+                        >
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography fontWeight={800} noWrap>
+                              {item.seller.name}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" noWrap>
+                              {item.seller.email}
+                            </Typography>
+                          </Box>
+                          <DetailLine label="Ventas" value={item.count} />
+                          <DetailLine label="Bruto" value={formatMoney(item.gross)} />
+                          <DetailLine label="Devoluciones" value={formatMoney(item.refunded)} />
+                          <DetailLine
+                            label="Venta neta"
+                            value={
+                              <LabelWithInfo
+                                label={formatMoney(item.net)}
+                                info={REPORT_INFO_TEXT.sellerNet}
+                                ariaLabel={REPORT_INFO_TEXT.sellerNet}
+                              />
+                            }
+                          />
+                        </CardContent>
+                      </Card>
+                    ))}
                   </Stack>
-                </CardContent>
-              </Card>
+                )}
+              </ReportPanel>
             </Grid>
 
-            <Grid item xs={12} md={4}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent>
-                  <Typography variant="h6" fontWeight={800} mb={1}>
-                    Caja
-                  </Typography>
-                  <Divider sx={{ mb: 2 }} />
-                  <Typography color="text.secondary" mb={1}>
-                    Movimientos: {data.cashRegister.movements.count}
-                  </Typography>
-                  <Stack direction="row" flexWrap="wrap" gap={1}>
-                    {Object.entries(data.cashRegister.movements.summary).length === 0 ? (
-                      <Typography color="text.secondary">Sin movimientos de caja.</Typography>
-                    ) : (
-                      Object.entries(data.cashRegister.movements.summary).map(([type, amount]) => (
-                        <Chip
-                          key={type}
-                          variant="outlined"
-                          label={`${cashMovementLabel(type)}: ${formatMoney(amount)}`}
-                        />
-                      ))
-                    )}
-                  </Stack>
-                </CardContent>
-              </Card>
+            <Grid item xs={12} lg={5}>
+              <ReportPanel
+                title="Estados y métodos"
+                subtitle="Resumen rápido de estados de venta, cobros y devoluciones."
+              >
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" mb={1}>
+                      Ventas por estado
+                    </Typography>
+                    <Stack direction="row" flexWrap="wrap" gap={1}>
+                      {Object.entries(data.sales.byStatus).length === 0 ? (
+                        <EmptyText>Sin ventas.</EmptyText>
+                      ) : (
+                        Object.entries(data.sales.byStatus).map(([status, count]) => (
+                          <Chip
+                            key={status}
+                            color={statusColor(status)}
+                            label={`${statusLabel(status)}: ${count}`}
+                          />
+                        ))
+                      )}
+                    </Stack>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" mb={1}>
+                      Cobros por método
+                    </Typography>
+                    <Stack direction="row" flexWrap="wrap" gap={1}>
+                      {Object.entries(data.sales.paymentSummary).length === 0 ? (
+                        <EmptyText>Sin cobros registrados.</EmptyText>
+                      ) : (
+                        Object.entries(data.sales.paymentSummary).map(([method, amount]) => (
+                          <Chip
+                            key={method}
+                            color="primary"
+                            variant="outlined"
+                            label={`${paymentMethodLabel(method)}: ${formatMoney(amount)}`}
+                          />
+                        ))
+                      )}
+                    </Stack>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" mb={1}>
+                      Devoluciones por método
+                    </Typography>
+                    <Stack direction="row" flexWrap="wrap" gap={1}>
+                      {Object.entries(data.returns.byMethod).length === 0 ? (
+                        <EmptyText>Sin devoluciones registradas.</EmptyText>
+                      ) : (
+                        Object.entries(data.returns.byMethod).map(([method, amount]) => (
+                          <Chip
+                            key={method}
+                            color="warning"
+                            variant="outlined"
+                            label={`${paymentMethodLabel(method)}: ${formatMoney(amount)}`}
+                          />
+                        ))
+                      )}
+                    </Stack>
+                  </Box>
+                </Stack>
+              </ReportPanel>
             </Grid>
           </Grid>
 
-          <DataGridCard
-            title="Ventas recientes del periodo"
-            subtitle="Incluye estado, vendedor, métodos de pago y total para detectar cancelaciones o devoluciones."
-            rows={recentSalesRows}
-            columns={recentSalesColumns}
-            minWidth={1120}
-            loading={isLoading}
-            cardSx={{ mb: 2 }}
-            noRowsLabel="No hay ventas en el periodo."
-            tableLabel="Ventas recientes del periodo"
-          />
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={12} lg={5}>
+              <ReportPanel
+                title="Productos más vendidos"
+                subtitle="Ranking neto: ventas no canceladas menos devoluciones del periodo."
+              >
+                {filteredTopProducts.length === 0 ? (
+                  <EmptyText>No hay productos vendidos que coincidan con la búsqueda.</EmptyText>
+                ) : (
+                  <Stack spacing={1.25}>
+                    {filteredTopProducts.map((item, index) => (
+                      <Card key={`${item.product.id}-${index}`} variant="outlined">
+                        <CardContent
+                          sx={{
+                            display: "grid",
+                            gridTemplateColumns: {
+                              xs: "1fr",
+                              sm: "minmax(0, 1.5fr) repeat(2, minmax(110px, 0.7fr))"
+                            },
+                            gap: 1.5,
+                            alignItems: "center"
+                          }}
+                        >
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              #{index + 1} · SKU {item.product.sku ?? "—"}
+                            </Typography>
+                            <Typography fontWeight={800} noWrap>
+                              {item.product.name}
+                            </Typography>
+                          </Box>
+                          <DetailLine
+                            label="Unidades netas"
+                            value={
+                              <LabelWithInfo
+                                label={item.quantity}
+                                info={REPORT_INFO_TEXT.netUnits}
+                                ariaLabel={REPORT_INFO_TEXT.netUnits}
+                              />
+                            }
+                          />
+                          <DetailLine
+                            label="Vendido neto"
+                            value={
+                              <LabelWithInfo
+                                label={formatMoney(item.total)}
+                                info={REPORT_INFO_TEXT.netSold}
+                                ariaLabel={REPORT_INFO_TEXT.netSold}
+                              />
+                            }
+                          />
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Stack>
+                )}
+              </ReportPanel>
+            </Grid>
 
-          <DataGridCard
-            title="Productos más vendidos netos"
-            subtitle="Calculado con ventas no canceladas menos devoluciones registradas en el periodo."
-            rows={topProductsRows}
-            columns={topProductsColumns}
-            minWidth={820}
-            loading={isLoading}
-            cardSx={{ mb: 2 }}
-            noRowsLabel="No hay productos vendidos en el periodo."
-            tableLabel="Productos más vendidos netos"
-          />
+            <Grid item xs={12} lg={7}>
+              <ReportPanel
+                title="Ventas recientes"
+                subtitle="Historial operativo del periodo con folio, vendedor, estado y pagos."
+              >
+                {filteredRecentSales.length === 0 ? (
+                  <EmptyText>No hay ventas que coincidan con la búsqueda.</EmptyText>
+                ) : (
+                  <Stack spacing={1.25}>
+                    {filteredRecentSales.map((sale) => (
+                      <Card key={sale.id} variant="outlined">
+                        <CardContent>
+                          <Stack
+                            direction={{ xs: "column", sm: "row" }}
+                            justifyContent="space-between"
+                            alignItems={{ xs: "flex-start", sm: "center" }}
+                            gap={1}
+                          >
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography fontWeight={800}>{sale.folio}</Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {formatDate(sale.createdAt)}
+                              </Typography>
+                            </Box>
+                            <Chip
+                              size="small"
+                              label={statusLabel(sale.status)}
+                              color={statusColor(sale.status)}
+                            />
+                          </Stack>
 
-          <DataGridCard
-            title="Devoluciones recientes"
-            rows={data.returns.latest}
-            columns={returnsColumns}
-            minWidth={1020}
-            loading={isLoading}
-            cardSx={{ mb: 2 }}
-            noRowsLabel="No hay devoluciones en el periodo."
-            tableLabel="Devoluciones recientes"
-          />
+                          <Box
+                            sx={{
+                              mt: 2,
+                              display: "grid",
+                              gridTemplateColumns: {
+                                xs: "1fr",
+                                sm: "repeat(2, minmax(0, 1fr))",
+                                md: "minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(110px, 0.6fr)"
+                              },
+                              gap: 1.5
+                            }}
+                          >
+                            <DetailLine
+                              label="Vendedor"
+                              value={`${sale.cashier.name} (${sale.cashier.email})`}
+                            />
+                            <DetailLine
+                              label="Pagos"
+                              value={
+                                sale.payments.length === 0
+                                  ? "—"
+                                  : sale.payments
+                                      .map(
+                                        (payment) =>
+                                          `${paymentMethodLabel(payment.method)} ${formatMoney(
+                                            payment.amount
+                                          )}`
+                                      )
+                                      .join(", ")
+                              }
+                            />
+                            <DetailLine label="Total" value={formatMoney(sale.total)} />
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Stack>
+                )}
+              </ReportPanel>
+            </Grid>
+          </Grid>
 
-          <DataGridCard
-            title="Cortes de caja del periodo"
-            rows={data.cashRegister.sessions}
-            columns={sessionsColumns}
-            minWidth={1120}
-            loading={isLoading}
-            noRowsLabel="No hay cortes de caja en el periodo."
-            tableLabel="Cortes de caja del periodo"
-          />
+          <Grid container spacing={2}>
+            <Grid item xs={12} lg={hasCashActivity ? 7 : 12}>
+              <ReportPanel
+                title="Devoluciones recientes"
+                subtitle="Reembolsos registrados dentro del periodo."
+              >
+                {filteredReturns.length === 0 ? (
+                  <EmptyText>No hay devoluciones que coincidan con la búsqueda.</EmptyText>
+                ) : (
+                  <Stack spacing={1.25}>
+                    {filteredReturns.map((saleReturn) => (
+                      <Card key={saleReturn.id} variant="outlined">
+                        <CardContent
+                          sx={{
+                            display: "grid",
+                            gridTemplateColumns: {
+                              xs: "1fr",
+                              sm: "minmax(0, 1.4fr) repeat(2, minmax(120px, 0.7fr))"
+                            },
+                            gap: 1.5
+                          }}
+                        >
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography fontWeight={800}>{saleReturn.reason}</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {formatDate(saleReturn.createdAt)}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" noWrap>
+                              {saleReturn.cashier
+                                ? `${saleReturn.cashier.name} (${saleReturn.cashier.email})`
+                                : "Sin responsable"}
+                            </Typography>
+                          </Box>
+                          <DetailLine
+                            label="Método"
+                            value={paymentMethodLabel(saleReturn.refundMethod)}
+                          />
+                          <DetailLine
+                            label="Total devuelto"
+                            value={formatMoney(saleReturn.refundTotal)}
+                          />
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Stack>
+                )}
+              </ReportPanel>
+            </Grid>
+
+            {hasCashActivity && (
+              <Grid item xs={12} lg={5}>
+                <ReportPanel
+                  title="Movimientos de efectivo registrados"
+                  subtitle="Aparece solo si existen datos históricos del módulo de caja."
+                >
+                  <Stack spacing={2}>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" mb={1}>
+                        Movimientos: {data.cashRegister.movements.count}
+                      </Typography>
+                      <Stack direction="row" flexWrap="wrap" gap={1}>
+                        {Object.entries(data.cashRegister.movements.summary).length === 0 ? (
+                          <EmptyText>Sin movimientos de efectivo.</EmptyText>
+                        ) : (
+                          Object.entries(data.cashRegister.movements.summary).map(([type, amount]) => (
+                            <Chip
+                              key={type}
+                              variant="outlined"
+                              label={`${cashMovementLabel(type)}: ${formatMoney(amount)}`}
+                            />
+                          ))
+                        )}
+                      </Stack>
+                    </Box>
+
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" mb={1}>
+                        Cortes históricos
+                      </Typography>
+                      {data.cashRegister.sessions.length === 0 ? (
+                        <EmptyText>Sin cortes registrados.</EmptyText>
+                      ) : (
+                        <Stack spacing={1}>
+                          {data.cashRegister.sessions.slice(0, 5).map((session) => (
+                            <Card key={session.id} variant="outlined">
+                              <CardContent>
+                                <Stack direction="row" justifyContent="space-between" gap={1}>
+                                  <Typography fontWeight={800}>
+                                    {session.cashier?.name ?? "Sin vendedor"}
+                                  </Typography>
+                                  <Chip
+                                    size="small"
+                                    label={session.status === "OPEN" ? "Abierta" : "Cerrada"}
+                                    color={session.status === "OPEN" ? "success" : "default"}
+                                  />
+                                </Stack>
+                                <Box
+                                  sx={{
+                                    mt: 1.5,
+                                    display: "grid",
+                                    gridTemplateColumns: {
+                                      xs: "1fr",
+                                      sm: "repeat(2, minmax(0, 1fr))"
+                                    },
+                                    gap: 1
+                                  }}
+                                >
+                                  <DetailLine label="Apertura" value={formatDate(session.openedAt)} />
+                                  <DetailLine label="Cierre" value={formatDate(session.closedAt)} />
+                                  <DetailLine
+                                    label="Esperado"
+                                    value={
+                                      <LabelWithInfo
+                                        label={formatMoney(session.expectedClosingAmount)}
+                                        info={REPORT_INFO_TEXT.expectedCash}
+                                        ariaLabel={REPORT_INFO_TEXT.expectedCash}
+                                      />
+                                    }
+                                  />
+                                  <DetailLine
+                                    label="Diferencia"
+                                    value={
+                                      <LabelWithInfo
+                                        label={formatMoney(session.difference)}
+                                        info={REPORT_INFO_TEXT.cashDifference}
+                                        ariaLabel={REPORT_INFO_TEXT.cashDifference}
+                                      />
+                                    }
+                                  />
+                                </Box>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </Stack>
+                      )}
+                    </Box>
+                  </Stack>
+                </ReportPanel>
+              </Grid>
+            )}
+          </Grid>
         </>
       )}
     </>
