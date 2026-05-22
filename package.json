@@ -22,7 +22,8 @@
     "web:test:critical": "npm --prefix apps/web test -- --run src/auth/permissions.test.ts src/layout/navigation.test.tsx",
     "docker:build": "docker compose build api web",
     "docker:up": "docker compose up -d postgres api web",
-    "docker:logs:api": "docker compose logs -f api"
+    "docker:logs:api": "docker compose logs -f api",
+    "ci:validate-lockfiles": "node scripts/ci/validate-lockfiles.js"
   },
   "engines": {
     "node": ">=22"
