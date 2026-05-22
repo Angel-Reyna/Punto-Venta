@@ -49,6 +49,21 @@ export const theme = createTheme({
   },
 
   components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        html: {
+          minWidth: 0,
+        },
+        body: {
+          minWidth: 0,
+          overflowX: "hidden",
+        },
+        "#root": {
+          minHeight: "100vh",
+        },
+      },
+    },
+
     MuiCard: {
       styleOverrides: {
         root: {
@@ -56,6 +71,23 @@ export const theme = createTheme({
           boxShadow: "0 12px 30px rgba(15, 23, 42, 0.06)"
         }
       }
+    },
+
+    MuiCardContent: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          padding: theme.spacing(2),
+          "&:last-child": {
+            paddingBottom: theme.spacing(2),
+          },
+          [theme.breakpoints.up("sm")]: {
+            padding: theme.spacing(2.5),
+            "&:last-child": {
+              paddingBottom: theme.spacing(2.5),
+            },
+          },
+        }),
+      },
     },
 
     MuiButton: {

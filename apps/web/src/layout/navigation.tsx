@@ -128,6 +128,34 @@ export function flattenNavigationSections(
   return sections.flatMap((section) => section.items);
 }
 
+const MOBILE_NAVIGATION_PRIORITY = [
+  "/sales",
+  "/",
+  "/products",
+  "/inventory",
+  "/reports",
+] as const;
+
+export function buildMobileNavigationItems({
+  primaryAction,
+  sections,
+}: {
+  primaryAction: NavigationItem | null;
+  sections: NavigationSection[];
+}): NavigationItem[] {
+  const items = [
+    ...(primaryAction ? [primaryAction] : []),
+    ...flattenNavigationSections(sections),
+  ];
+  const itemsByPath = new Map(items.map((item) => [item.to, item]));
+
+  return MOBILE_NAVIGATION_PRIORITY.flatMap((path) => {
+    const item = itemsByPath.get(path);
+
+    return item ? [item] : [];
+  });
+}
+
 export function isNavigationRouteActive(pathname: string, itemPath: string) {
   if (itemPath === "/") {
     return pathname === "/";

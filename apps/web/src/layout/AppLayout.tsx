@@ -12,6 +12,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Paper,
   Stack,
   Toolbar,
   Tooltip,
@@ -29,6 +30,7 @@ import { NavLink, useLocation } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
 import {
+  buildMobileNavigationItems,
   buildNavigationSections,
   buildPrimaryNavigationAction,
   flattenNavigationSections,
@@ -38,6 +40,8 @@ import {
 } from "./navigation";
 
 const drawerWidth = 272;
+const mobileDrawerWidth = "min(88vw, 320px)";
+const mobileNavigationHeight = 76;
 
 const ROLE_LABELS = {
   ADMIN: "Administrador",
@@ -121,6 +125,103 @@ function SidebarLink({
   );
 }
 
+function MobileBottomNavigation({
+  currentPathname,
+  items,
+}: {
+  currentPathname: string;
+  items: NavigationItem[];
+}) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <Paper
+      component="nav"
+      elevation={10}
+      aria-label="Navegación principal móvil"
+      sx={{
+        position: "fixed",
+        right: 0,
+        bottom: 0,
+        left: 0,
+        zIndex: (muiTheme) => muiTheme.zIndex.appBar,
+        display: { xs: "block", md: "none" },
+        borderTop: "1px solid",
+        borderColor: "divider",
+        borderRadius: 0,
+        backgroundColor: "background.paper",
+        pb: "env(safe-area-inset-bottom)",
+      }}
+    >
+      <Box
+        sx={{
+          minHeight: mobileNavigationHeight,
+          display: "grid",
+          gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`,
+          alignItems: "stretch",
+          px: 0.75,
+          py: 0.75,
+        }}
+      >
+        {items.map((item) => {
+          const isActive = isNavigationRouteActive(currentPathname, item.to);
+
+          return (
+            <Box
+              key={item.to}
+              component={NavLink}
+              to={item.to}
+              aria-current={isActive ? "page" : undefined}
+              sx={{
+                minWidth: 0,
+                px: 0.5,
+                py: 0.75,
+                borderRadius: 2.5,
+                color: isActive ? "primary.main" : "text.secondary",
+                textAlign: "center",
+                textDecoration: "none",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 0.25,
+                WebkitTapHighlightColor: "transparent",
+                "& .MuiSvgIcon-root": {
+                  fontSize: 22,
+                },
+                "&:hover": {
+                  backgroundColor: "action.hover",
+                  color: isActive ? "primary.main" : "text.primary",
+                },
+                "&.Mui-focusVisible, &:focus-visible": {
+                  outline: "3px solid rgba(37, 99, 235, 0.35)",
+                  outlineOffset: -2,
+                },
+              }}
+            >
+              {item.icon}
+              <Typography
+                component="span"
+                noWrap
+                sx={{
+                  maxWidth: "100%",
+                  fontSize: 11,
+                  lineHeight: 1.1,
+                  fontWeight: isActive ? 850 : 700,
+                }}
+              >
+                {item.label}
+              </Typography>
+            </Box>
+          );
+        })}
+      </Box>
+    </Paper>
+  );
+}
+
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, logout, can } = useAuth();
   const theme = useTheme();
@@ -141,6 +242,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
       ...(primaryAction ? [primaryAction] : []),
       ...flattenNavigationSections(visibleSections),
     ],
+    [primaryAction, visibleSections],
+  );
+
+  const mobileNavigationItems = useMemo(
+    () => buildMobileNavigationItems({ primaryAction, sections: visibleSections }),
     [primaryAction, visibleSections],
   );
 
@@ -334,12 +440,17 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <Toolbar
           sx={{
             minHeight: {
-              xs: 64,
+              xs: 60,
               sm: 72,
             },
             px: {
-              xs: 2,
-              sm: 3,
+              xs: 1.25,
+              sm: 2.5,
+              lg: 3,
+            },
+            gap: {
+              xs: 0.75,
+              sm: 1.5,
             },
           }}
         >
@@ -348,7 +459,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               color="inherit"
               edge="start"
               onClick={() => setOpen(true)}
-              sx={{ mr: 1 }}
+              sx={{ mr: 0.25 }}
               aria-label="Abrir navegación"
             >
               <MenuIcon />
@@ -360,11 +471,23 @@ export function AppLayout({ children }: { children: ReactNode }) {
               variant="caption"
               color="text.secondary"
               fontWeight={750}
-              sx={{ display: "block", lineHeight: 1.2 }}
+              noWrap
+              sx={{
+                display: { xs: "none", sm: "block" },
+                lineHeight: 1.2,
+              }}
             >
-              Módulo actual
+              {currentItem?.description ?? "Panel de ventas"}
             </Typography>
-            <Typography variant="h6" fontWeight={850} noWrap>
+            <Typography
+              variant="h6"
+              fontWeight={850}
+              noWrap
+              sx={{
+                fontSize: { xs: "1.05rem", sm: "1.25rem" },
+                lineHeight: 1.2,
+              }}
+            >
               {currentItem?.label ?? "Punta Venta"}
             </Typography>
           </Box>
@@ -387,11 +510,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
             onClick={logout}
             aria-label="Cerrar sesión"
             sx={{
-              minHeight: 40,
+              minHeight: { xs: 38, sm: 40 },
               px: {
-                xs: 1.25,
+                xs: 1.15,
                 sm: 2,
               },
+              flexShrink: 0,
             }}
           >
             {isMobile ? "Salir" : "Cerrar sesión"}
@@ -407,10 +531,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
           keepMounted: true,
         }}
         sx={{
-          width: isMobile ? undefined : drawerWidth,
+          width: isMobile ? mobileDrawerWidth : drawerWidth,
           flexShrink: 0,
           "& .MuiDrawer-paper": {
-            width: drawerWidth,
+            width: isMobile ? mobileDrawerWidth : drawerWidth,
             borderRight: "1px solid",
             borderColor: "divider",
             backgroundColor: "background.paper",
@@ -431,18 +555,36 @@ export function AppLayout({ children }: { children: ReactNode }) {
           },
           minHeight: "100vh",
           p: {
-            xs: 2,
-            sm: 3,
+            xs: 1.5,
+            sm: 2.5,
+            lg: 3,
           },
           pt: {
-            xs: 10,
-            sm: 12,
+            xs: 9,
+            sm: 11,
+          },
+          pb: {
+            xs: `calc(${mobileNavigationHeight}px + env(safe-area-inset-bottom) + 24px)`,
+            md: 3,
           },
           overflowX: "hidden",
         }}
       >
-        {children}
+        <Box
+          sx={{
+            width: "100%",
+            maxWidth: 1480,
+            mx: "auto",
+          }}
+        >
+          {children}
+        </Box>
       </Box>
+
+      <MobileBottomNavigation
+        currentPathname={location.pathname}
+        items={mobileNavigationItems}
+      />
     </Box>
   );
 }

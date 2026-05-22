@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { PERMISSIONS, type Permission } from "../auth/permissions";
 import {
+  buildMobileNavigationItems,
   buildNavigationSections,
   buildPrimaryNavigationAction,
   flattenNavigationSections,
@@ -94,6 +95,35 @@ describe("navigation visibility", () => {
     expect(descriptionsByPath.get("/products")).toBe("Gestionar catálogo");
     expect(descriptionsByPath.get("/inventory")).toBe("Revisar existencias");
     expect(descriptionsByPath.get("/reports")).toBe("Analizar resultados");
+  });
+
+  it("prioritizes the mobile navigation for the main operational routes", () => {
+    const adminPrimaryAction = buildPrimaryNavigationAction(
+      canFrom(ADMIN_PERMISSIONS),
+    );
+    const adminSections = getVisibleNavigationSections(
+      buildNavigationSections(canFrom(ADMIN_PERMISSIONS)),
+    );
+
+    expect(
+      buildMobileNavigationItems({
+        primaryAction: adminPrimaryAction,
+        sections: adminSections,
+      }).map((item) => item.to),
+    ).toEqual(["/sales", "/", "/products", "/inventory", "/reports"]);
+
+    const cashierSections = getVisibleNavigationSections(
+      buildNavigationSections(canFrom(CASHIER_PERMISSIONS)),
+    );
+
+    expect(
+      buildMobileNavigationItems({
+        primaryAction: buildPrimaryNavigationAction(
+          canFrom(CASHIER_PERMISSIONS),
+        ),
+        sections: cashierSections,
+      }).map((item) => item.to),
+    ).toEqual(["/sales", "/", "/products", "/inventory"]);
   });
 
   it("marks nested routes as active without making root active for every path", () => {
