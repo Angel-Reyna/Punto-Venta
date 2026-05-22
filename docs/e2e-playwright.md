@@ -49,3 +49,9 @@ Cuando el modelo de datos quede estable, conviene agregar E2E con backend real p
 - importar Excel;
 - generar reporte PDF;
 - validar que rutas directas admin siguen bloqueadas para vendedor.
+
+## Cobertura de ventas
+
+La suite smoke incluye un flujo de vendedor que registra una venta en efectivo con API mockeada. Este caso protege la regla de negocio actual: Punta Venta usa vendedores que reportan ventas físicas; por ahora la venta en efectivo no debe depender de una caja abierta.
+
+El objetivo de esta prueba no es sustituir integración backend/DB, sino bloquear regresiones visuales y de navegación en el flujo crítico de venta: búsqueda por SKU, agregado al ticket, cobro, limpieza del ticket y aparición del folio en historial.

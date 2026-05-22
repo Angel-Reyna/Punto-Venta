@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import type { Page, Request, Route } from "@playwright/test";
 
 const REQUEST_PATTERN = "**/*";
 
@@ -75,6 +75,8 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
   const role = options.role ?? "ADMIN";
   const authenticated = options.authenticated ?? true;
   const user = buildMockUser(role);
+  const products = productsResponse(role);
+  const sales = salesResponse(role);
 
   await page.route(REQUEST_PATTERN, async (route) => {
     const request = route.request();
@@ -119,7 +121,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
     }
 
     if (pathname.endsWith("/products")) {
-      return json(route, productsResponse(role));
+      return json(route, products);
     }
 
     if (pathname.endsWith("/inventory/warehouses")) {
@@ -134,8 +136,21 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
       return json(route, []);
     }
 
-    if (pathname.endsWith("/sales")) {
-      return json(route, salesResponse(role));
+    if (pathname.endsWith("/sales") && method === "GET") {
+      return json(route, sales);
+    }
+
+    if (pathname.endsWith("/sales") && method === "POST") {
+      const payload = readJsonPayload(request) as {
+        customerName?: string;
+        paymentMethod?: string;
+        items?: Array<{ productId: string; quantity: number }>;
+      };
+      const sale = buildCreatedSale(payload, sales.length + 1);
+
+      sales.unshift(sale);
+
+      return json(route, sale, 201);
     }
 
     return json(route, { message: `Mock API route not implemented: ${method} ${pathname}` }, 501);
@@ -237,6 +252,7 @@ function productsResponse(role: Role) {
       finalPrice: 18,
       promoPercent: 0,
       currentStock: 24,
+      stock: 24,
       isActive: true,
       ...(isAdmin
         ? {
@@ -271,19 +287,113 @@ function salesResponse(role: Role) {
     {
       id: "sale-1",
       folio: "PV-0001",
+      subtotal: role === "ADMIN" ? 320 : 180,
+      discount: 0,
+      tax: 0,
       total: role === "ADMIN" ? 320 : 180,
       status: "COMPLETED",
       paymentMethod: "CASH",
       customerName: "Cliente de prueba",
+      customer: {
+        id: "customer-1",
+        name: "Cliente de prueba",
+      },
       createdAt: "2026-05-22T10:00:00.000Z",
       cashier: {
         id: "seller-e2e",
         name: role === "ADMIN" ? "Vendedor E2E" : "Mi usuario",
         email: "vendedor@puntaventa.test",
       },
-      items: [],
+      payments: [
+        {
+          id: "payment-1",
+          method: "CASH",
+          amount: role === "ADMIN" ? 320 : 180,
+          createdAt: "2026-05-22T10:00:00.000Z",
+        },
+      ],
+      items: [
+        {
+          id: "sale-item-1",
+          productId: "product-1",
+          quantity: 1,
+          unitPrice: role === "ADMIN" ? 320 : 180,
+          discount: 0,
+          total: role === "ADMIN" ? 320 : 180,
+          product: {
+            id: "product-1",
+            sku: "COCA-600",
+            name: "Coca-Cola 600 ml",
+          },
+        },
+      ],
+      returns: [],
     },
   ];
+}
+
+function buildCreatedSale(
+  payload: {
+    customerName?: string;
+    paymentMethod?: string;
+    items?: Array<{ productId: string; quantity: number }>;
+  },
+  sequence: number
+) {
+  const quantity = payload.items?.[0]?.quantity ?? 1;
+  const total = 18 * quantity;
+  const createdAt = "2026-05-22T11:00:00.000Z";
+
+  return {
+    id: `sale-created-${sequence}`,
+    folio: `PV-E2E-${String(sequence).padStart(4, "0")}`,
+    subtotal: total,
+    discount: 0,
+    tax: 0,
+    total,
+    status: "COMPLETED",
+    createdAt,
+    customer: payload.customerName
+      ? { id: `customer-${sequence}`, name: payload.customerName }
+      : null,
+    cashier: {
+      id: "seller-e2e",
+      name: "Vendedor E2E",
+      email: "vendedor@puntaventa.test",
+    },
+    payments: [
+      {
+        id: `payment-${sequence}`,
+        method: payload.paymentMethod ?? "CASH",
+        amount: total,
+        createdAt,
+      },
+    ],
+    items: [
+      {
+        id: `sale-item-${sequence}`,
+        productId: "product-1",
+        quantity,
+        unitPrice: 18,
+        discount: 0,
+        total,
+        product: {
+          id: "product-1",
+          sku: "COCA-600",
+          name: "Coca-Cola 600 ml",
+        },
+      },
+    ],
+    returns: [],
+  };
+}
+
+function readJsonPayload(request: Request) {
+  try {
+    return request.postDataJSON();
+  } catch {
+    return {};
+  }
 }
 
 async function json(route: Route, body: unknown, status = 200) {
