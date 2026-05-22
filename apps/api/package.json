@@ -32,7 +32,6 @@
     "jszip": "^3.10.1",
     "multer": "^1.4.5-lts.1",
     "pdfkit": "^0.16.0",
-    "punta-venta": "file:../..",
     "zod": "^3.24.2"
   },
   "devDependencies": {

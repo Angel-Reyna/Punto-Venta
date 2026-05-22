@@ -8,7 +8,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
-COPY package*.json ./
+COPY package.json package-lock.json ./
 RUN npm ci
 
 FROM deps AS builder

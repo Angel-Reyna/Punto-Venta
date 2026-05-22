@@ -4,7 +4,7 @@ FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 ENV CI=true
 
-COPY package*.json ./
+COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY index.html ./
