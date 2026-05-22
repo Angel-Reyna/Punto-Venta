@@ -1,6 +1,6 @@
 import type { Page, Route } from "@playwright/test";
 
-const API_PATTERN = "**/api/**";
+const REQUEST_PATTERN = "**/*";
 
 type Role = "ADMIN" | "CASHIER";
 
@@ -76,10 +76,18 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
   const authenticated = options.authenticated ?? true;
   const user = buildMockUser(role);
 
-  await page.route(API_PATTERN, async (route) => {
+  await page.route(REQUEST_PATTERN, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
-    const pathname = url.pathname;
+    const rawPathname = url.pathname;
+
+    if (!rawPathname.startsWith("/api/") && !rawPathname.startsWith("/auth/")) {
+      return route.continue();
+    }
+
+    const pathname = rawPathname.startsWith("/api/")
+      ? rawPathname.slice(4)
+      : rawPathname;
     const method = request.method().toUpperCase();
 
     if (pathname.endsWith("/auth/csrf-token")) {

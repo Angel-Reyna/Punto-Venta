@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const port = Number(process.env.E2E_WEB_PORT ?? 5173);
+const port = Number(process.env.E2E_WEB_PORT ?? 5174);
 const host = "127.0.0.1";
 const baseURL = `http://${host}:${port}`;
 
@@ -10,10 +10,10 @@ export default defineConfig({
   expect: {
     timeout: 7_500,
   },
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   reporter: process.env.CI ? [["html", { open: "never" }], ["list"]] : "list",
   use: {
     baseURL,
@@ -28,13 +28,13 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run dev -- --host ${host} --port ${port}`,
+    command: `npm run dev -- --host ${host} --port ${port} --strictPort`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: process.env.E2E_REUSE_SERVER === "true",
     timeout: 120_000,
     env: {
       ...process.env,
-      VITE_API_URL: process.env.VITE_API_URL ?? "http://localhost:4000/api",
+      VITE_API_URL: process.env.VITE_API_URL ?? "/api",
     },
   },
 });

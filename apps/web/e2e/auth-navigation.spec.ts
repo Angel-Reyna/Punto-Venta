@@ -11,8 +11,8 @@ test.describe("autenticación y navegación principal", () => {
     await page.getByLabel("Contraseña").fill("Admin12345DevOnly");
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
 
-    await expect(page.getByRole("heading", { name: "Inicio" })).toBeVisible();
-    await expect(page.getByText("Usuarios activos")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Ver usuarios/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Usuarios/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Reportes/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Auditoría/i })).toBeVisible();
@@ -24,7 +24,7 @@ test.describe("autenticación y navegación principal", () => {
     await page.goto("/users");
 
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole("heading", { name: "Inicio" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
     await expect(page.getByText("Panel para registrar ventas")).toBeVisible();
     await expect(page.getByRole("link", { name: /Usuarios/i })).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Reportes/i })).toHaveCount(0);
@@ -37,10 +37,12 @@ test.describe("autenticación y navegación principal", () => {
 
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: "Inicio" })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Nueva venta/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Inicio/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Productos/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Inventario/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
+
+    const mobileNavigation = page.getByRole("navigation", { name: "Navegación principal móvil" });
+    await expect(mobileNavigation.getByRole("link", { name: /Nueva venta/i })).toBeVisible();
+    await expect(mobileNavigation.getByRole("link", { name: /Inicio/i })).toBeVisible();
+    await expect(mobileNavigation.getByRole("link", { name: /Productos/i })).toBeVisible();
+    await expect(mobileNavigation.getByRole("link", { name: /Inventario/i })).toBeVisible();
   });
 });

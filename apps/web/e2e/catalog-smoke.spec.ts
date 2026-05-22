@@ -8,12 +8,12 @@ test.describe("catálogo e inventario responsive", () => {
 
     await page.goto("/products");
 
-    await expect(page.getByRole("heading", { name: "Productos" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Productos", level: 1 })).toBeVisible();
     await expect(page.getByText("Coca-Cola 600 ml")).toBeVisible();
 
     await page.getByLabel("Buscar productos").fill("COCA-600");
 
-    await expect(page.getByText("COCA-600")).toBeVisible();
+    await expect(page.getByText("COCA-600", { exact: true })).toBeVisible();
     await expect(page.getByText("Coca-Cola 600 ml")).toBeVisible();
   });
 
@@ -22,7 +22,7 @@ test.describe("catálogo e inventario responsive", () => {
 
     await page.goto("/inventory");
 
-    await expect(page.getByRole("heading", { name: "Inventario" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();
     await expect(page.getByText("Coca-Cola 600 ml")).toBeVisible();
     await expect(page.getByText("Principal")).toBeVisible();
   });
