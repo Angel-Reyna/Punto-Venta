@@ -22,8 +22,12 @@ Este repositorio valida tres capas antes de aceptar cambios en `main`:
    - Ejecuta pruebas críticas de permisos y navegación.
    - Compila TypeScript y Vite.
 
-4. **Docker**
-   - Construye imágenes de `api` y `web` después de que API/Web pasen.
+4. **E2E smoke tests**
+   - Instala Chromium para Playwright.
+   - Ejecuta pruebas E2E con API mockeada para validar login, permisos, navegación móvil y pantallas operativas principales.
+
+5. **Docker**
+   - Construye imágenes de `api` y `web` después de que API/Web/E2E pasen.
 
 ## Validación local equivalente
 
@@ -36,6 +40,8 @@ npm run api:build
 npm run api:test:critical
 npm run web:test:critical
 npm run web:build
+npm --prefix apps/web run playwright:install
+npm run web:e2e
 docker compose build api web
 ```
 

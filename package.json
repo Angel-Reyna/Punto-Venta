@@ -12,6 +12,7 @@
     "web:dev": "npm --prefix apps/web run dev",
     "web:build": "npm --prefix apps/web run build",
     "web:test": "npm --prefix apps/web test -- --run --passWithNoTests",
+    "web:e2e": "npm --prefix apps/web run e2e",
     "dev:db": "docker compose stop api web && docker compose up -d postgres",
     "dev:bootstrap": "npm run dev:db && npm run api:prisma:generate && npm --prefix apps/api run prisma:migrate:deploy && npm --prefix apps/api run seed && npm run dev:doctor",
     "dev:doctor": "npm --prefix apps/api run dev:doctor",
