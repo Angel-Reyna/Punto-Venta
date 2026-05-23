@@ -249,7 +249,7 @@ function ReportPanel({
   children: React.ReactNode;
 }) {
   return (
-    <Card sx={{ height: "100%" }}>
+    <Card component="section" aria-label={title} sx={{ height: "100%" }}>
       <CardContent>
         <Typography variant="h6" fontWeight={800}>
           {title}
@@ -558,39 +558,47 @@ export function ReportsPage() {
                   <Stack spacing={1.5}>
                     {filteredSellers.map((item) => (
                       <Card key={item.seller.id} variant="outlined">
-                        <CardContent
-                          sx={{
-                            display: "grid",
-                            gridTemplateColumns: {
-                              xs: "1fr",
-                              sm: "minmax(0, 1.4fr) repeat(2, minmax(120px, 0.7fr))",
-                              lg: "minmax(0, 1.6fr) repeat(4, minmax(110px, 0.65fr))"
-                            },
-                            gap: 1.5,
-                            alignItems: "center"
-                          }}
-                        >
-                          <Box sx={{ minWidth: 0 }}>
-                            <Typography fontWeight={800} noWrap>
-                              {item.seller.name}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" noWrap>
-                              {item.seller.email}
-                            </Typography>
-                          </Box>
-                          <DetailLine label="Ventas" value={item.count} />
-                          <DetailLine label="Bruto" value={formatMoney(item.gross)} />
-                          <DetailLine label="Devoluciones" value={formatMoney(item.refunded)} />
-                          <DetailLine
-                            label="Venta neta"
-                            value={
-                              <LabelWithInfo
-                                label={formatMoney(item.net)}
-                                info={REPORT_INFO_TEXT.sellerNet}
-                                ariaLabel={REPORT_INFO_TEXT.sellerNet}
+                        <CardContent>
+                          <Stack spacing={1.5}>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography fontWeight={800} sx={{ overflowWrap: "anywhere" }}>
+                                {item.seller.name}
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ overflowWrap: "anywhere" }}
+                              >
+                                {item.seller.email}
+                              </Typography>
+                            </Box>
+
+                            <Box
+                              sx={{
+                                display: "grid",
+                                gridTemplateColumns: {
+                                  xs: "1fr",
+                                  sm: "repeat(2, minmax(0, 1fr))",
+                                  md: "repeat(4, minmax(0, 1fr))"
+                                },
+                                gap: 1.5
+                              }}
+                            >
+                              <DetailLine label="Ventas" value={item.count} />
+                              <DetailLine label="Bruto" value={formatMoney(item.gross)} />
+                              <DetailLine label="Devoluciones" value={formatMoney(item.refunded)} />
+                              <DetailLine
+                                label="Venta neta"
+                                value={
+                                  <LabelWithInfo
+                                    label={formatMoney(item.net)}
+                                    info={REPORT_INFO_TEXT.sellerNet}
+                                    ariaLabel={REPORT_INFO_TEXT.sellerNet}
+                                  />
+                                }
                               />
-                            }
-                          />
+                            </Box>
+                          </Stack>
                         </CardContent>
                       </Card>
                     ))}
