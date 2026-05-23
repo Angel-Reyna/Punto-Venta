@@ -63,10 +63,11 @@ Variables esperadas en desarrollo local:
 
 ## Verificaciones manuales pendientes
 
-Estas pruebas siguen siendo manuales hasta introducir Playwright/Cypress con navegador real:
+Aunque ya existe Playwright mockeado e integrado, estas verificaciones siguen requiriendo revisión manual o nuevos casos automatizados específicos:
 
 1. Atajos de teclado en venta: Enter/F12 no deben disparar acciones con modal abierto, ticket vacío o submit en curso.
-2. Responsive visual en dashboard, productos y ventas.
-3. Descarga real de Excel/PDF desde navegador.
-4. Importación real con archivo Excel del usuario.
-5. Confirmaciones visuales y foco accesible después de errores.
+2. Responsive visual fino en dashboard, productos, ventas, inventario y reportes en celular/tablet/desktop.
+3. Descarga real de Excel/PDF desde navegador y apertura del archivo generado.
+4. Importación real con archivos Excel de usuario, incluyendo encabezados inválidos y filas mixtas.
+5. Confirmaciones visuales, foco accesible y mensajes accionables después de errores.
+6. Flujo futuro de liquidaciones/entregas de efectivo si se formaliza el control de dinero físico por vendedor.

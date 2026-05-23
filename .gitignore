@@ -119,9 +119,6 @@ Notas/
 **/Notas.md
 **/Proyecto.md
 
-.env
-.env.*
-!.env.example
 # Database backups
 backups/*
 !backups/.gitkeep
@@ -137,6 +134,8 @@ test-results/
 # Punta Venta local diagnostics
 .puntaventa_diagnostics/
 punta-venta-local-diagnostics-*.txt
+punta-venta-post-patches-diagnostics-*.txt
+Punta_Venta_after_patch_*.tar.gz
 
 # Accidental shell/output files created from malformed commands
 /npm

@@ -1,57 +1,60 @@
-# Pruebas E2E con Playwright
+# E2E Playwright mockeado
 
-Este proyecto incluye una base de pruebas E2E para validar navegación, permisos visuales y pantallas operativas críticas del frontend.
-
-Las pruebas actuales usan mocks HTTP de la API. Esto permite cubrir rutas, permisos, responsividad y contratos mínimos sin depender de una base de datos real en cada ejecución.
+Esta suite valida navegación, permisos visuales, responsividad y flujos operativos rápidos del frontend con API mockeada. No levanta PostgreSQL ni API real; por eso debe mantenerse separada del E2E integrado.
 
 ## Comandos
 
-Desde la raíz del repositorio:
+Desde la raíz:
 
 ```bash
+npm run web:e2e:list
 npm run web:e2e
 ```
 
-Instalar navegadores localmente:
+Desde `apps/web`:
 
 ```bash
-npm --prefix apps/web run playwright:install
-```
-
-Modo interactivo:
-
-```bash
-npm --prefix apps/web run e2e:ui
+npm run e2e
+npm run e2e:ui
+npm run playwright:install
 ```
 
 ## Alcance actual
 
-Las pruebas cubren:
+La suite mockeada cubre:
 
 - login de admin;
 - navegación administrativa;
 - bloqueo visual y por ruta directa para vendedor;
 - navegación móvil operativa;
 - carga de Productos con búsqueda por SKU;
-- carga de Inventario con existencias visibles.
+- carga de Inventario con existencias visibles;
+- venta en efectivo reportada por vendedor sin depender de caja abierta.
+
+## Diferencia contra E2E integrado
+
+`npm run web:e2e` usa mocks HTTP y debe ejecutar solo specs en `apps/web/e2e/*.spec.ts`.
+
+`npm run web:e2e:integration` usa backend real y PostgreSQL real, y debe ejecutar solo `apps/web/e2e/integration/**` mediante `playwright.integration.config.ts`.
+
+Si `web:e2e` lista archivos de `e2e/integration`, revisa `apps/web/playwright.config.ts`. Si Vitest intenta ejecutar specs Playwright, revisa `apps/web/vitest.config.ts`.
 
 ## Criterio de diseño
 
-Los mocks no sustituyen las pruebas backend. El backend sigue validándose con Jest y Prisma. Playwright aquí valida la experiencia real del navegador: rutas, permisos del cliente, responsive y renderizado de flujos principales.
+- Preferir selectores accesibles: `getByRole`, `getByLabel`, `getByText` con texto estable.
+- Evitar validar texto oculto por layouts responsive o variantes móvil/desktop duplicadas.
+- Si un dato existe en DOM pero Playwright lo marca `hidden`, revisar el layout antes de endurecer el selector.
+- Los mocks deben representar permisos reales del backend para evitar falsos positivos.
 
-## Próximos flujos recomendados
+## Cuándo agregar casos aquí
 
-Cuando el modelo de datos quede estable, conviene agregar E2E con backend real para:
+Agrega casos mockeados cuando el cambio afecte:
 
-- crear producto con stock inicial;
-- registrar venta como vendedor;
-- cancelar/devolver venta como admin;
-- importar Excel;
-- generar reporte PDF;
-- validar que rutas directas admin siguen bloqueadas para vendedor.
+- navegación;
+- permisos visibles;
+- responsive;
+- formularios críticos;
+- estados vacíos/error/carga;
+- flujo UX que no necesita persistencia real.
 
-## Cobertura de ventas
-
-La suite smoke incluye un flujo de vendedor que registra una venta en efectivo con API mockeada. Este caso protege la regla de negocio actual: Punta Venta usa vendedores que reportan ventas físicas; por ahora la venta en efectivo no debe depender de una caja abierta.
-
-El objetivo de esta prueba no es sustituir integración backend/DB, sino bloquear regresiones visuales y de navegación en el flujo crítico de venta: búsqueda por SKU, agregado al ticket, cobro, limpieza del ticket y aparición del folio en historial.
+Si el caso requiere verificar inventario real, transacciones, reportes o migraciones, agrégalo al E2E integrado en `docs/e2e-integration.md`.

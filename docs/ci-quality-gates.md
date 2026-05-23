@@ -1,55 +1,70 @@
 # CI quality gates
 
-Este repositorio valida tres capas antes de aceptar cambios en `main`:
+El repositorio valida tres niveles: guardrails del monorepo, calidad de API/Web y build Docker.
 
-1. **Guardrails del repositorio**
-   - Verifica que `apps/api/package-lock.json` y `apps/web/package-lock.json` existan.
-   - Verifica que los lockfiles coincidan con sus `package.json`.
-   - Bloquea dependencias locales accidentales como `file:../..`, porque rompen builds Docker con contexto por app.
-   - Valida que `docker compose config` sea resoluble.
+## Jobs actuales
 
-2. **Backend/API**
-   - Instala con `npm ci`.
-   - Valida Prisma.
-   - Genera Prisma Client.
-   - Aplica migraciones contra PostgreSQL de CI.
-   - Ejecuta pruebas críticas.
-   - Ejecuta la suite completa.
-   - Compila TypeScript.
+### Repository guardrails
 
-3. **Frontend/Web**
-   - Instala con `npm ci`.
-   - Ejecuta pruebas críticas de permisos y navegación.
-   - Compila TypeScript y Vite.
+- Usa Node.js 22.
+- Valida lockfiles y límites de dependencias.
+- Valida que `docker compose config` sea resoluble.
 
-4. **E2E smoke tests**
-   - Instala Chromium para Playwright.
-   - Ejecuta pruebas E2E con API mockeada para validar login, permisos, navegación móvil y pantallas operativas principales.
+### API quality gate
 
-5. **Docker**
-   - Construye imágenes de `api` y `web` después de que API/Web/E2E pasen.
+- Instala con `npm ci`.
+- Valida Prisma.
+- Genera Prisma Client.
+- Aplica migraciones contra PostgreSQL real de CI.
+- Ejecuta pruebas críticas.
+- Ejecuta suite completa API.
+- Compila TypeScript.
+
+### Web quality gate
+
+- Instala con `npm ci`.
+- Ejecuta pruebas críticas de permisos y navegación.
+- Compila TypeScript y Vite.
+
+### Web E2E smoke gate
+
+- Instala Chromium.
+- Ejecuta Playwright mockeado.
+- Sube reporte Playwright como artefacto si existe.
+
+### Docker build gate
+
+- Valida Compose.
+- Construye imágenes `api` y `web`.
 
 ## Validación local equivalente
 
-Antes de hacer push, ejecuta:
+Para cambios comunes:
 
 ```bash
-npm run ci:validate-lockfiles
-npm run api:prisma:generate
-npm run api:build
-npm run api:test:critical
-npm run web:test:critical
-npm run web:build
-npm --prefix apps/web run playwright:install
-npm run web:e2e
-docker compose build api web
+npm run qa:local
 ```
 
-Si cambias dependencias, actualiza y commitea el lockfile del paquete afectado:
+Para cierre de ronda o cambios en ventas, inventario, reportes, Prisma, Docker, auth o E2E:
 
 ```bash
-npm --prefix apps/api install
-npm --prefix apps/web install
+npm run qa:full
 ```
 
-No uses `npm install` dentro de Dockerfiles. Los contenedores deben usar `npm ci` para builds reproducibles.
+`qa:full` agrega E2E integrado real y Docker build. Es el equivalente operativo más cercano a una validación completa local.
+
+## Reglas de dependencias
+
+- Cada app conserva su propio `package-lock.json`.
+- Los Dockerfiles usan `npm ci`, no `npm install`.
+- Si cambias dependencias, actualiza solo el lockfile de la app afectada.
+- Evita dependencias locales tipo `file:../..`, porque rompen los build contexts de Docker.
+
+## Criterios de fallo que sí deben bloquear
+
+- Prisma no valida o no genera client.
+- Tests críticos API fallan.
+- Vitest ejecuta specs Playwright.
+- `web:e2e` lista specs de `e2e/integration`.
+- Docker Compose resuelve `DATABASE_URL` de API con `localhost` dentro del contenedor.
+- Docker build falla.

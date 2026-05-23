@@ -197,6 +197,7 @@ Docker build API/Web OK.
 ## Checklist antes de commit
 
 ```bash
+npm run clean:generated
 git status --short
 git diff --check
 git diff --stat
@@ -205,7 +206,7 @@ git diff --stat
 Verifica:
 
 - El commit incluye solo archivos relacionados con el patch.
-- No hay `.env`, logs, screenshots, videos, traces ni carpetas de resultados.
+- No hay `.env`, logs, screenshots, videos, traces, `dist`, `*.tsbuildinfo`, carpetas de resultados ni notas personales versionadas.
 - Si eliminaste archivos generados ya trackeados, usa `git add -A`.
 - El mensaje de commit usa un scope claro: `fix`, `test`, `docs`, `chore`, `refactor`.
 

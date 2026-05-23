@@ -199,6 +199,17 @@ Vendedor: vendedor.e2e@puntaventa.test / Vendedor12345DevOnly
 Producto: E2E-COCA-600
 ```
 
+
+## Limpieza local segura
+
+Después de builds o E2E puedes borrar artefactos generados con:
+
+```bash
+npm run clean:generated
+```
+
+El script elimina `dist`, `test-results`, `playwright-report`, `*.tsbuildinfo`, diagnósticos locales y archivos accidentales conocidos. No elimina `.env` ni `node_modules`.
+
 ## Recuperación de errores comunes
 
 ### `EADDRINUSE` en API o Web

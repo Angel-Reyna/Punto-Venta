@@ -1,49 +1,107 @@
-# Revisión arquitectónica
+# Arquitectura de Punta Venta
 
-## Decisión
+## Decisión base
 
-Monorepo con `apps/api` y `apps/web`. La API concentra reglas de negocio, seguridad, transacciones, auditoría y persistencia. El frontend no calcula estados críticos de inventario, caja ni ventas; solo presenta información y envía comandos a la API.
+Punta Venta es un monorepo con dos aplicaciones principales:
 
-## Estado implementado
+```txt
+apps/api  -> API Express + Prisma + PostgreSQL
+apps/web  -> Web React/Vite
+```
 
-- Backend Node.js + Express + TypeScript con módulos por dominio.
-- PostgreSQL con Prisma, schema versionado y migraciones.
-- Autenticación con JWT access token y refresh token en cookie `httpOnly`.
-- Refresh sessions persistidas en base de datos mediante hashes, expiración, revocación y reemplazo de sesión.
-- Middleware de autenticación, autorización por rol (`ADMIN`, `CASHIER`), base de permisos por acción y protección CSRF para endpoints que dependen de cookies de sesión.
+La API concentra reglas de negocio, autorización, transacciones, auditoría y persistencia. El frontend no calcula estados críticos de inventario, ventas, devoluciones ni permisos; presenta información y envía comandos a endpoints protegidos.
+
+El modelo funcional actual no obliga a abrir caja para vender. El flujo principal es vendedor → venta física reportada → inventario descontado → administrador consulta reportes y actividad.
+
+## Capas actuales
+
+### Backend
+
+- Express + TypeScript.
+- Prisma como ORM sobre PostgreSQL.
+- Módulos por dominio: auth, usuarios, productos, inventario, ventas, reportes, dashboard, auditoría, actividad de vendedores y caja.
 - Validación de entrada con Zod en rutas críticas.
-- Manejo centralizado de errores y logging con request id.
-- Transacciones para operaciones sensibles de ventas, inventario y caja.
+- Middleware centralizado de autenticación, autorización, CSRF, rate limit, request id y errores.
+- Transacciones Prisma para operaciones sensibles de venta, inventario, devolución y caja.
 - Auditoría para operaciones críticas.
-- Frontend React + Vite + TypeScript con rutas protegidas, interceptor HTTP y refresh automático.
-- Docker Compose para PostgreSQL, API, frontend con Nginx y PgAdmin opcional.
-- CI con GitHub Actions para validación Prisma, migraciones contra PostgreSQL real, build/test de API, build de frontend y build de imágenes Docker.
-- Guardrails de desarrollo local para detectar conflictos Docker/API local, configuración CORS/cookies, Prisma, seed y usuario administrador.
-- Scripts de backup y restauración de PostgreSQL.
+- Refresh sessions persistidas mediante hash, expiración, revocación y reemplazo.
+
+### Frontend
+
+- React + Vite + TypeScript.
+- Material UI para layout, formularios, cards y tablas.
+- Rutas protegidas por autenticación y permisos efectivos recibidos desde backend.
+- Access token en memoria y refresh token en cookie `httpOnly`.
+- Interceptor HTTP para refresh y manejo de errores.
+- Pantallas adaptadas progresivamente a responsive real mediante cards/listas/tablas según módulo.
+
+### Infraestructura local
+
+- Docker Compose para PostgreSQL, API, Web/Nginx y PgAdmin opcional.
+- Modo local recomendado: PostgreSQL en Docker; API y Web por npm.
+- Modo Docker completo: API usa `DOCKER_DATABASE_URL` con host interno `postgres`.
+- Runner E2E integrado con API real, Web real y schema PostgreSQL `e2e` descartable.
+
+## Seguridad implementada
+
+- JWT access token de vida corta.
+- Refresh token en cookie `httpOnly`.
+- CSRF double-submit para endpoints que dependen de cookies de sesión.
+- Hash de refresh tokens con pepper.
+- Revocación de sesiones en logout, rotación de refresh, cambio de rol, reset de contraseña y desactivación de usuario.
+- Rate limiting en autenticación y API general.
+- Helmet y CORS configurables por entorno.
+- Permisos efectivos derivados del rol y validados en backend.
+- Registro de intentos no autorizados de vendedores.
+
+## Autorización
+
+Roles persistidos:
+
+```txt
+ADMIN
+CASHIER
+```
+
+`CASHIER` se conserva como nombre técnico del enum por compatibilidad de migraciones, pero en UI y documentación funcional se presenta como vendedor.
+
+La autorización usa permisos por acción para los módulos principales: usuarios, productos, inventario, ventas, caja, reportes, dashboard, auditoría y actividad de vendedores. Quedan rutas puntuales de auth administrativo que todavía usan control por rol explícito cuando el endpoint está semánticamente ligado al rol `ADMIN`.
+
+## Pruebas y calidad
+
+- Jest cubre servicios y rutas críticas de API.
+- Vitest cubre permisos y navegación frontend.
+- Playwright mockeado valida navegación, permisos visuales, responsive y flujo básico de venta sin backend real.
+- Playwright integrado valida login real, venta real, descuento de inventario real y validación de reportes con admin.
+- CI valida lockfiles, Prisma, migraciones contra PostgreSQL real, tests, builds y Docker build.
 
 ## Fortalezas actuales
 
-- Separación base entre API, frontend e infraestructura local.
-- Refresh tokens no se guardan en claro.
-- El access token se mantiene en memoria en el frontend, reduciendo exposición frente a XSS persistente.
-- Hay revocación de sesiones, rotación de refresh token y protección CSRF double-submit con token firmado.
-- Las operaciones de inventario y venta están modeladas como operaciones de negocio, no como simples CRUD.
-- Docker y CI ya existen, por lo que el proyecto puede evolucionar con validación automatizada.
+- Separación clara entre frontend, API e infraestructura.
+- Operaciones críticas modeladas como reglas de negocio, no como CRUD plano.
+- Tokens refresh no se almacenan en claro.
+- Buen baseline de pruebas críticas y E2E real.
+- Docker y documentación operativa están separados entre modo local y modo contenedor.
+- Los scripts `qa:local` y `qa:full` reducen errores manuales al validar patches.
 
-## Limitaciones actuales
+## Riesgos actuales y siguientes mejoras
 
-- La autorización ya tiene una base de permisos derivados del rol actual y los módulos de usuarios, productos, inventario y ventas usan permisos por acción. Aún faltan migrar caja, reportes, auditoría y dashboard de `requireRole` a `requirePermission`.
-- La política de cookie de refresh (`secure`, `sameSite`, `domain`) ya es configurable por entorno. Si producción usa subdominios separados, `COOKIE_DOMAIN` debe configurarse para que el frontend pueda leer la cookie CSRF no sensible.
-- El frontend tiene infraestructura de test, pero faltan pruebas de componentes y flujos críticos.
-- La importación de Excel usa `exceljs` para archivos `.xlsx` y aplica límites de tamaño, filas, columnas y encabezados. Se eliminó la dependencia runtime vulnerable `xlsx`.
-- La documentación de producción todavía debe completarse con estrategia final de secretos, dominios, TLS, backups gestionados y observabilidad.
-- El entorno local ahora tiene doctor/preflight, pero esos guardrails no reemplazan monitoreo, health checks externos ni gestión real de secretos en producción.
+1. **Archivos grandes de UI**: páginas como ventas, productos, reportes y usuarios concentran demasiada lógica de estado, render y handlers. Conviene extraer hooks y subcomponentes por dominio antes de añadir más funciones.
+2. **Caja sigue siendo módulo secundario**: el dominio existe, pero el modelo de negocio actual prioriza ventas por vendedor. Si se requiere control de efectivo real, debería evolucionar hacia liquidaciones/entregas de efectivo, no forzar caja abierta para vender.
+3. **RBAC editable**: los permisos aún se derivan del rol en código. Para producción multiempresa o administración granular, conviene persistir permisos/roles en base de datos.
+4. **Paginación server-side**: algunas pantallas aún pueden crecer en memoria si el volumen de ventas/productos aumenta. Hay utilidades de paginación en API, pero falta extenderlas uniformemente al frontend.
+5. **Observabilidad**: existe logging base con request id, pero falta logging estructurado completo, métricas y tracing.
+6. **Dependencias de importación**: revisar periódicamente `multer`/uploads y límites de Excel para mantener superficie de ataque baja.
+7. **Node local**: el proyecto declara Node 22. Los entornos locales deberían alinearse para evitar diferencias con CI/Docker.
 
-## Siguiente nivel producción
+## Criterio para nuevos módulos
 
-1. Confirmar el baseline local con scripts del monorepo: `npm run api:prisma:generate`, `npm run api:build`, `npm run api:test` y `npm run web:build`.
-2. Migrar progresivamente el resto de módulos a `requirePermission` y definir una matriz formal de permisos por rol.
-3. Añadir pruebas frontend para auth, rutas protegidas y formularios críticos.
-4. Evolucionar logging hacia una solución estructurada de producción y agregar métricas/tracing.
-5. Mover secretos productivos a un gestor dedicado como AWS Secrets Manager o equivalente.
-6. Separar migraciones de base de datos como job explícito en despliegues productivos críticos.
+Antes de añadir código nuevo:
+
+- definir permisos backend y frontend;
+- agregar validación Zod;
+- revisar transacciones si modifica dinero, inventario o usuarios;
+- agregar pruebas unitarias/servicio para reglas críticas;
+- agregar E2E mockeado si cambia navegación/UX;
+- agregar E2E integrado si cruza API + DB + Web en flujo crítico;
+- documentar variables o comandos nuevos en `docs/`.

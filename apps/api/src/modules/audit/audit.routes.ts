@@ -1,12 +1,13 @@
 import { Router } from "express";
-import { Prisma, Role } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 
 import {
   requireAuth,
-  requireRole
+  requirePermission
 } from "../../middlewares/auth";
+import { PERMISSIONS } from "../auth/permissions";
 
 import { asyncHandler } from "../../utils/asyncHandler";
 import {
@@ -21,7 +22,7 @@ export const auditRouter = Router();
 
 auditRouter.use(
   requireAuth,
-  requireRole(Role.ADMIN)
+  requirePermission(PERMISSIONS.AuditRead)
 );
 
 auditRouter.get(

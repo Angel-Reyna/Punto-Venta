@@ -2,7 +2,7 @@
   "name": "punta-venta",
   "version": "1.0.0",
   "private": true,
-  "description": "Monorepo de Punta Venta: POS web con API Express, Prisma, PostgreSQL y frontend React/Vite.",
+  "description": "Monorepo de Punta Venta: gestión web de ventas por vendedores, inventario, productos y reportes.",
   "scripts": {
     "api:dev": "npm --prefix apps/api run dev",
     "api:build": "npm --prefix apps/api run build",
@@ -27,6 +27,7 @@
     "docker:up": "docker compose up -d postgres api web",
     "docker:logs:api": "docker compose logs -f api",
     "ci:validate-lockfiles": "node scripts/ci/validate-lockfiles.js",
+    "clean:generated": "node scripts/clean-generated.js",
     "web:e2e:integration": "node scripts/e2e/run-integration.js",
     "web:e2e:integration:list": "npm --prefix apps/web run e2e:integration -- --list",
     "qa:local": "npm run ci:validate-lockfiles && npm run api:prisma:generate && npm run api:prisma:validate && npm run api:build && npm run api:test:critical && npm run web:test && npm run web:test:critical && npm run web:build && npm run web:e2e:list && npm run web:e2e",

@@ -36,6 +36,7 @@ export const ADMIN_PERMISSIONS = [
   "sales:cancel",
   "sales:return",
   "cash-register:read",
+  "cash-register:operate",
   "cash-register:manage",
   "reports:read",
   "dashboard:read",

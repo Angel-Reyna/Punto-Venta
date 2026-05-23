@@ -1,13 +1,14 @@
 import { Router } from "express";
-import { Prisma, Role, SellerAction } from "@prisma/client";
+import { Prisma, SellerAction } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "../../config/prisma";
 
 import {
   requireAuth,
-  requireRoles
+  requirePermission
 } from "../../middlewares/auth";
+import { PERMISSIONS } from "../auth/permissions";
 
 import { asyncHandler } from "../../utils/asyncHandler";
 import { AppError } from "../../utils/AppError";
@@ -21,7 +22,7 @@ export const sellerActivityRouter = Router();
 
 sellerActivityRouter.use(
   requireAuth,
-  requireRoles(Role.ADMIN)
+  requirePermission(PERMISSIONS.SellerActivityRead)
 );
 
 const querySchema = z.object({
