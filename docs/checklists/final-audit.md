@@ -148,7 +148,19 @@ docker compose down
 
 ## Validación completa de cierre
 
-Ejecuta este bloque antes de cerrar una ronda grande o antes de crear un tag interno de estabilidad:
+Para un patch común, ejecuta:
+
+```bash
+npm run qa:local
+```
+
+Antes de cerrar una ronda grande o crear un tag interno de estabilidad, ejecuta:
+
+```bash
+npm run qa:full
+```
+
+`qa:full` equivale a este bloque explícito:
 
 ```bash
 npm run ci:validate-lockfiles
@@ -159,12 +171,12 @@ npm run api:test:critical
 npm run web:test
 npm run web:test:critical
 npm run web:build
-npm --prefix apps/web run e2e -- --list
+npm run web:e2e:list
 npm run web:e2e
-npm --prefix apps/web run e2e:integration -- --list
+npm run web:e2e:integration:list
 npm run web:e2e:integration
-docker compose config
-docker compose build api web
+npm run docker:config
+npm run docker:build
 ```
 
 Resultado esperado:

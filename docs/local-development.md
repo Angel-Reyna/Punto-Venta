@@ -125,7 +125,29 @@ Contraseña:  Admin12345DevOnly
 
 ## Validación antes de cerrar un cambio
 
-Validación rápida para cambios comunes:
+Validación rápida para cambios críticos acotados:
+
+```bash
+npm run qa:critical
+```
+
+Validación local recomendada antes de cerrar un patch común:
+
+```bash
+npm run qa:local
+```
+
+`qa:local` ejecuta lockfiles, Prisma generate/validate, build API, tests críticos API, Vitest, tests críticos web, build web, listado E2E mockeado y E2E mockeado.
+
+Validación completa cuando tocaste autenticación, ventas, inventario, reportes, Prisma, Docker o E2E:
+
+```bash
+npm run qa:full
+```
+
+`qa:full` agrega listado E2E integrado, E2E integrado real, `docker compose config` y build Docker API/Web.
+
+Si un paso falla, ejecuta el comando individual equivalente para aislar la causa:
 
 ```bash
 npm run ci:validate-lockfiles
@@ -133,18 +155,15 @@ npm run api:prisma:generate
 npm run api:prisma:validate
 npm run api:build
 npm run api:test:critical
-npm run web:build
 npm run web:test
 npm run web:test:critical
+npm run web:build
+npm run web:e2e:list
 npm run web:e2e
-```
-
-Validación completa cuando tocaste autenticación, ventas, inventario, reportes, Prisma, Docker o E2E:
-
-```bash
+npm run web:e2e:integration:list
 npm run web:e2e:integration
-docker compose config
-docker compose build api web
+npm run docker:config
+npm run docker:build
 ```
 
 La separación de pruebas es intencional:

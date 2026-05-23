@@ -47,8 +47,10 @@ El archivo `.env` raíz no debe commitearse.
 Ejecuta siempre:
 
 ```bash
-docker compose config
+npm run docker:config
 ```
+
+El script ejecuta `docker compose config`.
 
 En el servicio `api`, la salida debe contener una URL equivalente a:
 
@@ -69,8 +71,10 @@ Si aparece `localhost` dentro del servicio `api`, revisa que tu `.env` raíz use
 Para validar imágenes sin levantar servicios:
 
 ```bash
-docker compose build api web
+npm run docker:build
 ```
+
+El script ejecuta `docker compose build api web`.
 
 Para reconstruir sin cache cuando sospeches dependencias antiguas:
 

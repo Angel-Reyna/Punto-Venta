@@ -13,6 +13,7 @@
     "web:build": "npm --prefix apps/web run build",
     "web:test": "npm --prefix apps/web test -- --run --passWithNoTests",
     "web:e2e": "npm --prefix apps/web run e2e",
+    "web:e2e:list": "npm --prefix apps/web run e2e -- --list",
     "dev:db": "docker compose stop api web && docker compose up -d postgres",
     "dev:bootstrap": "npm run dev:db && npm run api:prisma:generate && npm --prefix apps/api run prisma:migrate:deploy && npm --prefix apps/api run seed && npm run dev:doctor",
     "dev:doctor": "npm --prefix apps/api run dev:doctor",
@@ -22,10 +23,14 @@
     "api:test:critical": "npm --prefix apps/api test -- critical-routes.permissions.test.ts auth.middleware.test.ts sales.service.test.ts products.import.test.ts reports.service.test.ts --runInBand",
     "web:test:critical": "npm --prefix apps/web test -- --run src/auth/permissions.test.ts src/layout/navigation.test.tsx",
     "docker:build": "docker compose build api web",
+    "docker:config": "docker compose config",
     "docker:up": "docker compose up -d postgres api web",
     "docker:logs:api": "docker compose logs -f api",
     "ci:validate-lockfiles": "node scripts/ci/validate-lockfiles.js",
-    "web:e2e:integration": "node scripts/e2e/run-integration.js"
+    "web:e2e:integration": "node scripts/e2e/run-integration.js",
+    "web:e2e:integration:list": "npm --prefix apps/web run e2e:integration -- --list",
+    "qa:local": "npm run ci:validate-lockfiles && npm run api:prisma:generate && npm run api:prisma:validate && npm run api:build && npm run api:test:critical && npm run web:test && npm run web:test:critical && npm run web:build && npm run web:e2e:list && npm run web:e2e",
+    "qa:full": "npm run qa:local && npm run web:e2e:integration:list && npm run web:e2e:integration && npm run docker:config && npm run docker:build"
   },
   "engines": {
     "node": ">=22"
