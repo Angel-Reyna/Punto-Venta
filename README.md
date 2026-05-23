@@ -86,6 +86,8 @@ cp docker.env.example .env
 docker compose up --build
 ```
 
+En Docker Compose, la API debe conectarse a PostgreSQL mediante el host interno `postgres`, no `localhost`. Por eso los archivos `docker.env*` usan `DOCKER_DATABASE_URL`; reserva `DATABASE_URL` para el backend ejecutado fuera de Docker, por ejemplo `apps/api/.env`.
+
 URLs Docker:
 
 ```txt
@@ -146,11 +148,14 @@ npm run preview
 Docker:
 
 ```bash
+docker compose config
 docker compose build api web
 docker compose up -d postgres api web
 docker compose logs -f api
 docker compose down
 ```
+
+`docker compose config` debe mostrar `DATABASE_URL` apuntando a `@postgres:5432` dentro del servicio `api`. Si muestra `@localhost:5432`, revisa que estés usando `DOCKER_DATABASE_URL` en el `.env` de Docker.
 
 Para borrar datos locales de PostgreSQL en Docker:
 
@@ -192,6 +197,7 @@ En producción real configura:
 
 ```txt
 API_NODE_ENV=production
+DOCKER_DATABASE_URL=postgresql://punta_venta:CHANGE_ME_STRONG_DATABASE_PASSWORD@postgres:5432/punta_venta?schema=public
 CORS_ORIGIN=https://tu-dominio.com
 VITE_API_URL=/api
 COOKIE_SECURE=true
