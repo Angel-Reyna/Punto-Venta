@@ -83,6 +83,8 @@ docker compose up -d postgres
 
 ## Ejecutar todo con Docker Compose
 
+La guía operativa completa está en `docs/docker-operations.md`. Úsala para validar `DOCKER_DATABASE_URL`, levantar servicios, revisar logs y recuperar errores comunes.
+
 Para levantar PostgreSQL, API y frontend servido por Nginx:
 
 ```bash
@@ -159,7 +161,7 @@ docker compose logs -f api
 docker compose down
 ```
 
-`docker compose config` debe mostrar `DATABASE_URL` apuntando a `@postgres:5432` dentro del servicio `api`. Si muestra `@localhost:5432`, revisa que estés usando `DOCKER_DATABASE_URL` en el `.env` de Docker.
+`docker compose config` debe mostrar `DATABASE_URL` apuntando a `@postgres:5432` dentro del servicio `api`. Si muestra `@localhost:5432`, revisa que estés usando `DOCKER_DATABASE_URL` en el `.env` de Docker. Más detalle en `docs/docker-operations.md`.
 
 Para borrar datos locales de PostgreSQL en Docker:
 

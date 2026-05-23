@@ -16,6 +16,7 @@ Antes de usar Punta Venta con datos reales, valida esta lista.
 
 ## Base de datos
 
+- `docker compose config` muestra `DATABASE_URL` con host interno `postgres`, no `localhost`, dentro del servicio `api`.
 - `npx prisma migrate deploy` corre correctamente en el contenedor API.
 - Existe backup probado con `scripts/db/backup-postgres.sh`.
 - Existe restore probado en ambiente separado.
@@ -45,3 +46,4 @@ Antes de usar Punta Venta con datos reales, valida esta lista.
 - Backend compila y tests pasan.
 - Frontend compila.
 - Imágenes Docker construyen.
+- La guía `docs/docker-operations.md` fue revisada para el ambiente final.
