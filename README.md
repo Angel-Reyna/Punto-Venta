@@ -17,6 +17,8 @@ Aplicación web para punto de venta, inventario, productos, reportes, auditoría
 
 ## Desarrollo local sin Docker para la app
 
+La guía operativa completa está en `docs/local-development.md`. Usa Node.js 22 LTS para alinear tu entorno con CI y Docker.
+
 Levanta primero PostgreSQL:
 
 ```bash
@@ -51,6 +53,8 @@ Frontend: http://localhost:5173
 Backend:  http://localhost:4000
 Health:   http://localhost:4000/health
 ```
+
+Para recuperación de errores comunes, validaciones antes de commit y diferencias entre Vitest, E2E mockeado y E2E integrado, consulta `docs/local-development.md`.
 
 ### Modo local recomendado con guardrails
 

@@ -1,6 +1,6 @@
 # E2E integrado con backend y PostgreSQL
 
-Este flujo valida Punta Venta sin mocks: levanta PostgreSQL, prepara una base aislada, inicia la API real, inicia la Web real y ejecuta Playwright contra el flujo vendedor → venta → inventario.
+Este flujo valida Punta Venta sin mocks: levanta PostgreSQL, prepara una base aislada, inicia la API real, inicia la Web real y ejecuta Playwright contra el flujo vendedor → venta → inventario → reportes.
 
 ## Ejecutar
 
@@ -14,7 +14,7 @@ El script usa por defecto:
 
 ```txt
 PostgreSQL Docker: localhost:5432
-DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/pos_senior_db?schema=e2e
+DATABASE_URL: postgresql://postgres:***@127.0.0.1:5432/pos_senior_db?schema=e2e
 API: http://127.0.0.1:4010
 Web: http://127.0.0.1:5175
 ```
@@ -38,13 +38,14 @@ La prueba integrada valida que:
 - la venta en efectivo se registra sin caja obligatoria;
 - la venta queda visible en el historial;
 - el ticket se limpia después de cobrar;
-- el inventario real descuenta stock de 24 a 23.
+- el inventario real descuenta stock de 24 a 23;
+- el admin puede consultar Reportes y ver la venta real reflejada en estados, métodos de pago, vendedor, producto y ventas recientes.
 
 ## Aislamiento
 
 La prueba usa el schema PostgreSQL `e2e`, no `public`. Antes de correr, ejecuta `prisma migrate reset --force --skip-seed` contra ese schema y luego corre un seed específico de E2E.
 
-No uses este flujo contra una base de producción. Si cambias `E2E_DATABASE_URL`, asegúrate de que apunte a una base descartable.
+No uses este flujo contra una base de producción. Si cambias `E2E_DATABASE_URL`, asegúrate de que apunte a una base descartable. El runner rechaza por defecto schemas distintos a `e2e` para evitar resets destructivos accidentales.
 
 ## Variables opcionales
 
