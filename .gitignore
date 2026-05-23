@@ -125,3 +125,21 @@ Notas/
 # Database backups
 backups/*
 !backups/.gitkeep
+
+# =========================
+# Playwright / local test artifacts
+# =========================
+playwright-report/
+**/playwright-report/
+test-results/
+**/test-results/
+
+# Punta Venta local diagnostics
+.puntaventa_diagnostics/
+punta-venta-local-diagnostics-*.txt
+
+# Accidental shell/output files created from malformed commands
+/npm
+/playwright
+/punta-venta@*
+/punta-venta-web@*
