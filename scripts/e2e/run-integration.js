@@ -12,9 +12,9 @@ const npmCmd = isWindows ? 'npm.cmd' : 'npm';
 const npxCmd = isWindows ? 'npx.cmd' : 'npx';
 const dockerCmd = isWindows ? 'docker.exe' : 'docker';
 
-const apiPort = process.env.E2E_API_PORT || '4010';
-const webPort = process.env.E2E_WEB_PORT || '5175';
-const postgresPort = process.env.POSTGRES_PORT || '5432';
+const apiPort = readPort('E2E_API_PORT', '4010');
+const webPort = readPort('E2E_WEB_PORT', '5175');
+const postgresPort = readPort('POSTGRES_PORT', '5432');
 const webUrl = process.env.E2E_WEB_URL || `http://127.0.0.1:${webPort}`;
 const apiUrl = process.env.E2E_API_URL || `http://127.0.0.1:${apiPort}`;
 const databaseUrl =
@@ -75,6 +75,113 @@ function log(message) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function readPort(envName, defaultValue) {
+  const value = process.env[envName] || defaultValue;
+  const port = Number(value);
+
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+    throw new Error(`${envName} must be a valid TCP port between 1 and 65535. Received: ${value}`);
+  }
+
+  return String(port);
+}
+
+function isTruthy(value) {
+  return ['1', 'true', 'yes', 'y', 'on'].includes(String(value || '').trim().toLowerCase());
+}
+
+function parseDatabaseTarget(connectionUrl) {
+  let parsed;
+
+  try {
+    parsed = new URL(connectionUrl);
+  } catch {
+    throw new Error('E2E_DATABASE_URL must be a valid PostgreSQL connection URL.');
+  }
+
+  if (!['postgresql:', 'postgres:'].includes(parsed.protocol)) {
+    throw new Error('E2E_DATABASE_URL must use the postgresql:// or postgres:// protocol.');
+  }
+
+  const database = decodeURIComponent(parsed.pathname.replace(/^\//, '')).trim();
+  const schema = (parsed.searchParams.get('schema') || 'public').trim();
+  const host = parsed.hostname.replace(/^\[/, '').replace(/\]$/, '').toLowerCase();
+
+  if (!host) {
+    throw new Error('E2E_DATABASE_URL must include a database host.');
+  }
+
+  if (!database) {
+    throw new Error('E2E_DATABASE_URL must include a database name.');
+  }
+
+  if (!schema) {
+    throw new Error('E2E_DATABASE_URL must include a non-empty schema query parameter.');
+  }
+
+  return {
+    host,
+    port: parsed.port || '5432',
+    database,
+    schema,
+    redactedUrl: redactDatabaseUrl(parsed),
+  };
+}
+
+function redactDatabaseUrl(parsedUrl) {
+  const redacted = new URL(parsedUrl.toString());
+
+  if (redacted.password) {
+    redacted.password = '***';
+  }
+
+  return redacted.toString();
+}
+
+function isLocalDatabaseHost(host) {
+  return ['localhost', '127.0.0.1', '::1'].includes(host);
+}
+
+function assertSafeE2EDatabaseReset(connectionUrl) {
+  const nodeEnv = String(process.env.NODE_ENV || '').trim().toLowerCase();
+
+  if (nodeEnv === 'production') {
+    throw new Error('Refusing to run integrated E2E reset while NODE_ENV=production.');
+  }
+
+  const target = parseDatabaseTarget(connectionUrl);
+  const allowNonLocalReset = isTruthy(process.env.E2E_ALLOW_NON_LOCAL_DB_RESET);
+  const allowNonE2ESchemaReset = isTruthy(process.env.E2E_ALLOW_DESTRUCTIVE_RESET);
+
+  log(
+    `Using E2E database target host=${target.host}, port=${target.port}, ` +
+      `database=${target.database}, schema=${target.schema}.`,
+  );
+  log(`Using E2E database URL ${target.redactedUrl}.`);
+
+  if (!isLocalDatabaseHost(target.host) && !allowNonLocalReset) {
+    throw new Error(
+      'Refusing to reset a non-local E2E database. ' +
+        'Use localhost/127.0.0.1/::1 or set E2E_ALLOW_NON_LOCAL_DB_RESET=true intentionally.',
+    );
+  }
+
+  if (target.schema !== 'e2e' && !allowNonE2ESchemaReset) {
+    throw new Error(
+      `Refusing to reset schema "${target.schema}". Integrated E2E requires schema=e2e. ` +
+        'Set E2E_ALLOW_DESTRUCTIVE_RESET=true only when intentionally resetting a disposable schema.',
+    );
+  }
+
+  if (allowNonLocalReset) {
+    log('WARNING: E2E_ALLOW_NON_LOCAL_DB_RESET=true allows resetting a non-local database target.');
+  }
+
+  if (allowNonE2ESchemaReset) {
+    log('WARNING: E2E_ALLOW_DESTRUCTIVE_RESET=true allows resetting a schema different from e2e.');
+  }
 }
 
 function runBestEffort(command, args, options = {}) {
@@ -281,6 +388,8 @@ async function main() {
     stopChildren();
     process.exit(143);
   });
+
+  assertSafeE2EDatabaseReset(databaseUrl);
 
   await cleanupPreviousE2EProcesses();
 

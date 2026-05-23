@@ -6,6 +6,7 @@ const baseURL = `http://${host}:${port}`;
 
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: ["**/integration/**"],
   timeout: 30_000,
   expect: {
     timeout: 7_500,
