@@ -15,7 +15,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "prisma:validate": "prisma validate"
+    "prisma:validate": "prisma validate",
+    "dev:e2e": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "seed:e2e": "ts-node-dev --transpile-only --exit-child src/scripts/seed-e2e.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
