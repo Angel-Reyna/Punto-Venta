@@ -32,7 +32,6 @@ build/
 # Prisma
 apps/api/prisma/dev.db
 apps/api/prisma/dev.db-journal
-apps/api/prisma/migrations/migration_lock.toml
 
 # =========================
 # Logs
@@ -135,6 +134,7 @@ test-results/
 .puntaventa_diagnostics/
 punta-venta-local-diagnostics-*.txt
 punta-venta-post-patches-diagnostics-*.txt
+punta-venta-after-patch-*.txt
 Punta_Venta_after_patch_*.tar.gz
 
 # Accidental shell/output files created from malformed commands

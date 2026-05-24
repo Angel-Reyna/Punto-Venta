@@ -34,7 +34,7 @@
     "qa:full": "npm run qa:local && npm run web:e2e:integration:list && npm run web:e2e:integration && npm run docker:config && npm run docker:build"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22 <25"
   },
   "license": "UNLICENSED"
 }

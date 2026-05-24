@@ -78,6 +78,9 @@ docker --version
 docker compose version
 ```
 
+
+> Versión de Node recomendada: Node 22. El repositorio incluye `.nvmrc` y `.node-version`; `package.json` acepta `>=22 <25`, pero CI y Docker usan Node 22.
+
 ## Inicio rápido local
 
 El modo local recomendado ejecuta API y Web con `npm`, y PostgreSQL con Docker Compose.

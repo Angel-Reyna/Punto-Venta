@@ -23,7 +23,7 @@ npm run ci:validate-lockfiles
 
 Criterios:
 
-- Node debe ser 22 LTS o compatible con `engines.node`.
+- Node debe ser compatible con `engines.node`; para reproducibilidad usa Node 22, que es la versión usada por CI y Docker.
 - No debe haber cambios locales no relacionados con el patch.
 - Docker Desktop debe estar activo si el patch toca PostgreSQL, Docker o E2E integrado.
 - Los lockfiles deben coincidir con sus `package.json`.

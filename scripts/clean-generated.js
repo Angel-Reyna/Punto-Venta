@@ -16,6 +16,7 @@ const targets = [
   'apps/web/tsconfig.tsbuildinfo',
   'punta-venta-local-diagnostics-*.txt',
   'punta-venta-post-patches-diagnostics-*.txt',
+  'punta-venta-after-patch-*.txt',
   'npm',
   'playwright',
   'punta-venta@1.0.0',

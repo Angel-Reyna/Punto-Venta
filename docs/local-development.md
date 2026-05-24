@@ -4,7 +4,8 @@ Esta guía describe el flujo recomendado para trabajar en local con API y Web ej
 
 ## Requisitos
 
-- Node.js 22 LTS. El `package.json` raíz declara `node >=22`; usa la misma versión que CI y Docker para evitar diferencias de TypeScript, Vite, Prisma o Playwright.
+- Node.js 22 LTS recomendado. El `package.json` raíz acepta `>=22 <25`, pero CI y Docker están fijados en Node 22 para mantener reproducibilidad.
+- El repositorio incluye `.nvmrc` y `.node-version` con `22` para herramientas que respetan archivos de versión.
 - npm 10 o superior.
 - Docker Desktop activo, usado en local solo para PostgreSQL.
 - Git Bash, PowerShell o una terminal equivalente.
