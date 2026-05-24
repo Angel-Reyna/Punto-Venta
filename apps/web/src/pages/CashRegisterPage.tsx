@@ -13,8 +13,6 @@ import {
   Typography
 } from "@mui/material";
 
-import { GridColDef } from "@mui/x-data-grid";
-
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
@@ -24,80 +22,18 @@ import { LabelWithInfo } from "../components/InfoTooltip";
 import { PageHeader } from "../components/PageHeader";
 import { StatusFeedback } from "../components/StatusFeedback";
 import { getApiErrorMessage } from "../utils/apiError";
-
-type CashRegisterStatus = "OPEN" | "CLOSED";
-type CashMovementType =
-  | "OPENING"
-  | "CASH_IN"
-  | "CASH_OUT"
-  | "SALE_CASH"
-  | "RETURN_CASH";
-
-type CashMovement = {
-  id: string;
-  type: CashMovementType;
-  amount: number;
-  signedAmount?: number;
-  reason: string;
-  createdAt: string;
-};
-
-type CashRegisterSession = {
-  id: string;
-  status: CashRegisterStatus;
-  openingAmount: number;
-  expectedClosingAmount: number | null;
-  closingAmount: number | null;
-  difference: number | null;
-  expectedCash?: number;
-  openedAt: string;
-  closedAt: string | null;
-  notes: string | null;
-  cashier?: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  movements: CashMovement[];
-};
-
-function formatMoney(value: number | null | undefined) {
-  return `$${Number(value ?? 0).toFixed(2)}`;
-}
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return "—";
-
-  return new Date(value).toLocaleString();
-}
-
-function movementLabel(type: CashMovementType) {
-  switch (type) {
-    case "OPENING":
-      return "Apertura";
-    case "CASH_IN":
-      return "Entrada manual";
-    case "CASH_OUT":
-      return "Salida manual";
-    case "SALE_CASH":
-      return "Venta en efectivo";
-    case "RETURN_CASH":
-      return "Devolución en efectivo";
-    default:
-      return type;
-  }
-}
-
-const CASH_INFO_TEXT = {
-  expectedCash: "Efectivo calculado por el sistema: monto inicial más ventas y entradas en efectivo, menos salidas y devoluciones en efectivo.",
-  countedCash: "Dinero físico contado al cerrar caja. El sistema lo compara contra el efectivo esperado.",
-  cashDifference: "Diferencia entre el efectivo contado y el efectivo esperado. Ayuda a detectar sobrantes o faltantes.",
-  movementType: "Entrada aumenta el efectivo de caja; salida lo disminuye. Ambas requieren motivo para auditoría."
-};
-
-function renderHeaderWithInfo(label: string, info: string) {
-  return <LabelWithInfo label={label} info={info} ariaLabel={info} />;
-}
+import {
+  buildCurrentMovementsColumns,
+  buildSessionColumns,
+  CASH_INFO_TEXT,
+  type CashRegisterSession,
+  formatDate,
+  formatMoney,
+  getCloseRegisterDisabledReason,
+  getManualMovementDisabledReason,
+  getOpenRegisterDisabledReason,
+  isManualMovementSubmitDisabled
+} from "./cash-register/cashRegisterShared";
 
 export function CashRegisterPage() {
   const { can } = useAuth();
@@ -270,127 +206,37 @@ export function CashRegisterPage() {
     }
   }
 
-  const currentMovementsColumns = useMemo<GridColDef[]>(
-    () => [
-      {
-        field: "createdAt",
-        headerName: "Fecha",
-        width: 180,
-        valueFormatter: (value) => formatDate(value as string)
-      },
-      {
-        field: "type",
-        headerName: "Tipo",
-        renderHeader: () => renderHeaderWithInfo("Tipo", CASH_INFO_TEXT.movementType),
-        width: 180,
-        valueFormatter: (value) => movementLabel(value as CashMovementType)
-      },
-      {
-        field: "reason",
-        headerName: "Motivo",
-        flex: 1,
-        minWidth: 240
-      },
-      {
-        field: "signedAmount",
-        headerName: "Importe",
-        width: 140,
-        valueGetter: (_value, row) => row.signedAmount ?? row.amount,
-        valueFormatter: (value) => formatMoney(Number(value))
-      }
-    ],
-    []
-  );
+  const currentMovementsColumns = useMemo(buildCurrentMovementsColumns, []);
 
-  const openRegisterDisabledReason = (() => {
-    if (!canOperateCashRegister) return "No tienes permiso para operar caja.";
-    if (currentSession) return "Ya tienes una caja abierta.";
-    if (isLoading) return "Actualizando caja...";
+  const openRegisterDisabledReason = getOpenRegisterDisabledReason({
+    canOperateCashRegister,
+    currentSession,
+    isLoading
+  });
 
-    return "";
-  })();
+  const closeRegisterDisabledReason = getCloseRegisterDisabledReason({
+    canOperateCashRegister,
+    currentSession,
+    isLoading
+  });
 
-  const closeRegisterDisabledReason = (() => {
-    if (!canOperateCashRegister) return "No tienes permiso para operar caja.";
-    if (!currentSession) return "Primero abre caja.";
-    if (isLoading) return "Actualizando caja...";
+  const manualMovementDisabledReason = getManualMovementDisabledReason({
+    canOperateCashRegister,
+    currentSession,
+    isLoading,
+    movementAmount,
+    movementReason
+  });
 
-    return "";
-  })();
+  const manualMovementSubmitDisabled = isManualMovementSubmitDisabled({
+    canOperateCashRegister,
+    currentSession,
+    isLoading,
+    movementAmount,
+    movementReason
+  });
 
-  const manualMovementDisabledReason = (() => {
-    if (!canOperateCashRegister) return "No tienes permiso para operar caja.";
-    if (!currentSession) return "Primero abre caja.";
-    if (isLoading) return "Actualizando caja...";
-    if (!movementAmount || Number(movementAmount) <= 0) return "Captura un monto mayor a cero.";
-    if (movementReason.trim().length < 3) return "Captura un motivo de al menos 3 caracteres.";
-
-    return "";
-  })();
-
-  const sessionColumns = useMemo<GridColDef[]>(
-    () => [
-      {
-        field: "openedAt",
-        headerName: "Apertura",
-        width: 180,
-        valueFormatter: (value) => formatDate(value as string)
-      },
-      {
-        field: "closedAt",
-        headerName: "Cierre",
-        width: 180,
-        valueFormatter: (value) => formatDate(value as string | null)
-      },
-      {
-        field: "cashier",
-        headerName: "Vendedor",
-        flex: 1,
-        minWidth: 220,
-        valueGetter: (_value, row) =>
-          row.cashier ? `${row.cashier.name} (${row.cashier.email})` : "—"
-      },
-      {
-        field: "status",
-        headerName: "Estado",
-        width: 130,
-        renderCell: (params) => (
-          <Chip
-            size="small"
-            label={params.value === "OPEN" ? "Abierta" : "Cerrada"}
-            color={params.value === "OPEN" ? "success" : "default"}
-          />
-        )
-      },
-      {
-        field: "openingAmount",
-        headerName: "Inicial",
-        width: 130,
-        valueFormatter: (value) => formatMoney(Number(value))
-      },
-      {
-        field: "expectedClosingAmount",
-        headerName: "Esperado",
-        renderHeader: () => renderHeaderWithInfo("Esperado", CASH_INFO_TEXT.expectedCash),
-        width: 135,
-        valueFormatter: (value) => formatMoney(value as number | null)
-      },
-      {
-        field: "closingAmount",
-        headerName: "Contado",
-        width: 130,
-        valueFormatter: (value) => formatMoney(value as number | null)
-      },
-      {
-        field: "difference",
-        headerName: "Diferencia",
-        renderHeader: () => renderHeaderWithInfo("Diferencia", CASH_INFO_TEXT.cashDifference),
-        width: 140,
-        valueFormatter: (value) => formatMoney(value as number | null)
-      }
-    ],
-    []
-  );
+  const sessionColumns = useMemo(buildSessionColumns, []);
 
   return (
     <>
@@ -616,14 +462,7 @@ export function CashRegisterPage() {
                 <Button
                   fullWidth
                   onClick={addManualMovement}
-                  disabled={
-                    !canOperateCashRegister ||
-                    !currentSession ||
-                    isLoading ||
-                    !movementAmount ||
-                    Number(movementAmount) <= 0 ||
-                    movementReason.trim().length < 3
-                  }
+                  disabled={manualMovementSubmitDisabled}
                 >
                   Registrar
                 </Button>
