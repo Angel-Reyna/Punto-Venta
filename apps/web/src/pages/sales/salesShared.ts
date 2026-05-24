@@ -19,15 +19,18 @@ export type CartItem = {
 
 export type SaleItem = {
   id: string;
-  productId: string;
+  productId?: string | null;
+  productSku?: string;
+  productName?: string;
   quantity: number;
   unitPrice: number;
   discount: number;
   total: number;
   product?: {
-    id: string;
+    id?: string | null;
     sku: string;
     name: string;
+    deleted?: boolean;
   };
 };
 
@@ -40,7 +43,9 @@ export type SaleReturn = {
   items: Array<{
     id: string;
     saleItemId: string;
-    productId: string;
+    productId?: string | null;
+    productSku?: string;
+    productName?: string;
     quantity: number;
     total: number;
   }>;

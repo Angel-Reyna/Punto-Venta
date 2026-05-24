@@ -143,6 +143,8 @@ async function main() {
     data: {
       productId: product.id,
       warehouseId: warehouse.id,
+      productSku: product.sku,
+      productName: product.name,
       type: "IN",
       quantity: E2E_INITIAL_STOCK,
       reason: "Stock inicial de prueba integrada E2E",

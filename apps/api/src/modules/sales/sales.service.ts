@@ -164,6 +164,7 @@ type SaleForMutation = Prisma.SaleGetPayload<{
 type PreparedSaleItem = {
   product: {
     id: string;
+    sku: string;
     name: string;
     salePrice: Prisma.Decimal;
     promoPercent: Prisma.Decimal;
@@ -294,6 +295,7 @@ async function prepareSaleItems(
       },
       select: {
         id: true,
+        sku: true,
         name: true,
         salePrice: true,
         promoPercent: true,
@@ -335,6 +337,32 @@ async function prepareSaleItems(
   };
 }
 
+function mapSaleItemProduct(item: {
+  product: { id: string; sku: string; name: string; salePrice?: Prisma.Decimal; promoPercent?: Prisma.Decimal } | null;
+  productId: string | null;
+  productSku: string;
+  productName: string;
+}) {
+  if (item.product) {
+    return {
+      ...item.product,
+      ...(item.product.salePrice === undefined
+        ? {}
+        : { salePrice: Number(item.product.salePrice) }),
+      ...(item.product.promoPercent === undefined
+        ? {}
+        : { promoPercent: Number(item.product.promoPercent) })
+    };
+  }
+
+  return {
+    id: item.productId,
+    sku: item.productSku,
+    name: `${item.productName} (eliminado)`,
+    deleted: true
+  };
+}
+
 function mapSaleDetails(sale: SaleWithDetails) {
   return {
     ...sale,
@@ -347,11 +375,7 @@ function mapSaleDetails(sale: SaleWithDetails) {
       unitPrice: Number(item.unitPrice),
       discount: Number(item.discount),
       total: Number(item.total),
-      product: {
-        ...item.product,
-        salePrice: Number(item.product.salePrice),
-        promoPercent: Number(item.product.promoPercent)
-      }
+      product: mapSaleItemProduct(item)
     })),
     payments: sale.payments.map((payment) => ({
       ...payment,
@@ -364,7 +388,8 @@ function mapSaleDetails(sale: SaleWithDetails) {
         ...item,
         unitPrice: Number(item.unitPrice),
         discount: Number(item.discount),
-        total: Number(item.total)
+        total: Number(item.total),
+        product: mapSaleItemProduct(item)
       }))
     }))
   };
@@ -628,6 +653,8 @@ async function createSaleAttempt(
           items: {
             create: preparedItems.map((item) => ({
               productId: item.product.id,
+              productSku: item.product.sku,
+              productName: item.product.name,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               discount: item.discount,
@@ -749,6 +776,10 @@ export async function cancelSale(
       const warehouse = await getOrCreateDefaultWarehouse(tx);
 
       for (const item of sale.items) {
+        if (!item.productId) {
+          continue;
+        }
+
         await increaseStock(tx, {
           productId: item.productId,
           warehouseId: warehouse.id,
@@ -772,6 +803,8 @@ export async function cancelSale(
             create: sale.items.map((item) => ({
               saleItemId: item.id,
               productId: item.productId,
+              productSku: item.productSku,
+              productName: item.productName,
               quantity: item.quantity,
               unitPrice: Number(item.unitPrice),
               discount: Number(item.discount),
@@ -881,6 +914,10 @@ export async function returnSaleItems(
       });
 
       for (const item of returnItems) {
+        if (!item.saleItem.productId) {
+          continue;
+        }
+
         await increaseStock(tx, {
           productId: item.saleItem.productId,
           warehouseId: warehouse.id,
@@ -904,6 +941,8 @@ export async function returnSaleItems(
             create: returnItems.map((item) => ({
               saleItemId: item.saleItem.id,
               productId: item.saleItem.productId,
+              productSku: item.saleItem.productSku,
+              productName: item.saleItem.productName,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               discount: item.discount,

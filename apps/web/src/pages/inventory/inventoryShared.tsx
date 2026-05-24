@@ -46,12 +46,16 @@ export type Movement = {
   reason?: string | null;
   createdAt: string;
 
-  product: {
+  productId?: string | null;
+  productSku: string;
+  productName: string;
+
+  product?: {
     id: string;
     sku: string;
     barcode?: string | null;
     name: string;
-  };
+  } | null;
 
   warehouse?: {
     id: string;
@@ -122,10 +126,13 @@ export function buildMovementColumns(): GridColDef<Movement>[] {
       headerName: "Producto",
       flex: 1,
       minWidth: 240,
-      valueGetter: (_value, row) =>
-        row.product
-          ? `${row.product.sku}${row.product.barcode ? ` · ${row.product.barcode}` : ""} · ${row.product.name}`
-          : "N/A",
+      valueGetter: (_value, row) => {
+        const sku = row.product?.sku ?? row.productSku;
+        const name = row.product?.name ?? `${row.productName} (eliminado)`;
+        const barcode = row.product?.barcode ? ` · ${row.product.barcode}` : "";
+
+        return `${sku}${barcode} · ${name}`;
+      },
     },
     {
       field: "warehouse",

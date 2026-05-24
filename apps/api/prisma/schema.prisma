@@ -191,7 +191,9 @@ model InventoryBalance {
 
 model InventoryMovement {
   id          String        @id @default(uuid())
-  productId   String
+  productId   String?
+  productSku  String
+  productName String
   warehouseId String?
   type        InventoryType
   quantity    Int
@@ -199,7 +201,7 @@ model InventoryMovement {
   createdBy   String
   createdAt   DateTime      @default(now())
 
-  product   Product    @relation(fields: [productId], references: [id])
+  product   Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
   warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
 
   @@index([productId])
@@ -253,16 +255,18 @@ model Sale {
 }
 
 model SaleItem {
-  id        String  @id @default(uuid())
-  saleId    String
-  productId String
-  quantity  Int
-  unitPrice Decimal @db.Decimal(12, 2)
-  discount  Decimal @default(0) @db.Decimal(12, 2)
-  total     Decimal @db.Decimal(12, 2)
+  id          String  @id @default(uuid())
+  saleId      String
+  productId   String?
+  productSku  String
+  productName String
+  quantity    Int
+  unitPrice   Decimal @db.Decimal(12, 2)
+  discount    Decimal @default(0) @db.Decimal(12, 2)
+  total       Decimal @db.Decimal(12, 2)
 
-  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  product     Product          @relation(fields: [productId], references: [id])
+  sale        Sale             @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product     Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
   returnItems SaleReturnItem[]
 
   @@index([saleId])
@@ -305,18 +309,20 @@ model SaleReturn {
 }
 
 model SaleReturnItem {
-  id         String  @id @default(uuid())
-  returnId   String
-  saleItemId String
-  productId  String
-  quantity   Int
-  unitPrice  Decimal @db.Decimal(12, 2)
-  discount   Decimal @default(0) @db.Decimal(12, 2)
-  total      Decimal @db.Decimal(12, 2)
+  id          String  @id @default(uuid())
+  returnId    String
+  saleItemId  String
+  productId   String?
+  productSku  String
+  productName String
+  quantity    Int
+  unitPrice   Decimal @db.Decimal(12, 2)
+  discount    Decimal @default(0) @db.Decimal(12, 2)
+  total       Decimal @db.Decimal(12, 2)
 
   return   SaleReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
   saleItem SaleItem   @relation(fields: [saleItemId], references: [id])
-  product  Product    @relation(fields: [productId], references: [id])
+  product  Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([returnId])
   @@index([saleItemId])

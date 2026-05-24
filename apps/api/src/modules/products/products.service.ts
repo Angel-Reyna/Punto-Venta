@@ -49,14 +49,14 @@ export type CreateProductInput = {
 };
 
 export type DeleteProductResult = {
-  mode: "deleted" | "deactivated";
+  mode: "deleted";
   product: {
     id: string;
     sku: string;
     name: string;
     isActive: boolean;
   };
-  blockingReferences: {
+  preservedReferences: {
     saleItems: number;
     saleReturnItems: number;
     inventoryMovements: number;
@@ -164,37 +164,6 @@ export async function deleteProductSafely(
         tx.inventoryMovement.count({ where: { productId } })
       ]);
 
-      const blockingReferences = {
-        saleItems,
-        saleReturnItems,
-        inventoryMovements
-      };
-
-      if (saleItems > 0 || saleReturnItems > 0 || inventoryMovements > 0) {
-        const deactivatedProduct = product.isActive
-          ? await tx.product.update({
-              where: {
-                id: productId
-              },
-              data: {
-                isActive: false
-              },
-              select: {
-                id: true,
-                sku: true,
-                name: true,
-                isActive: true
-              }
-            })
-          : product;
-
-        return {
-          mode: "deactivated",
-          product: deactivatedProduct,
-          blockingReferences
-        };
-      }
-
       await tx.inventoryBalance.deleteMany({
         where: {
           productId
@@ -210,7 +179,11 @@ export async function deleteProductSafely(
       return {
         mode: "deleted",
         product,
-        blockingReferences
+        preservedReferences: {
+          saleItems,
+          saleReturnItems,
+          inventoryMovements
+        }
       };
     },
     {

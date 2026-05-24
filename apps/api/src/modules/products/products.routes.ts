@@ -386,7 +386,7 @@ productsRouter.delete(
 
     await auditLog({
       userId: req.user?.id,
-      action: result.mode === "deleted" ? "DELETE_PRODUCT" : "DEACTIVATE_PRODUCT_WITH_HISTORY",
+      action: "DELETE_PRODUCT",
       tableName: "Product",
       recordId: result.product.id,
       newData: result,
@@ -395,10 +395,7 @@ productsRouter.delete(
 
     res.json({
       ...result,
-      message:
-        result.mode === "deleted"
-          ? "Producto eliminado correctamente."
-          : "El producto tiene historial operativo y fue desactivado para conservar trazabilidad."
+      message: "Producto eliminado correctamente. El historial operativo conserva nombre y SKU como evidencia."
     });
   })
 );

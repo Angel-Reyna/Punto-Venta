@@ -12,10 +12,12 @@ const prismaMock = {
     findMany: jest.fn()
   },
   saleItem: {
-    groupBy: jest.fn()
+    groupBy: jest.fn(),
+    findMany: jest.fn()
   },
   saleReturnItem: {
-    groupBy: jest.fn()
+    groupBy: jest.fn(),
+    findMany: jest.fn()
   },
   product: {
     findMany: jest.fn()
@@ -176,22 +178,22 @@ describe("reports.service", () => {
         }
       }
     ]);
-    prismaMock.saleItem.groupBy.mockResolvedValue([
+    prismaMock.saleItem.findMany.mockResolvedValue([
       {
         productId: "product-1",
-        _sum: {
-          quantity: 5,
-          total: 200
-        }
+        productSku: "CAF-001",
+        productName: "Café",
+        quantity: 5,
+        total: 200
       }
     ]);
-    prismaMock.saleReturnItem.groupBy.mockResolvedValue([
+    prismaMock.saleReturnItem.findMany.mockResolvedValue([
       {
         productId: "product-1",
-        _sum: {
-          quantity: 1,
-          total: 50
-        }
+        productSku: "CAF-001",
+        productName: "Café",
+        quantity: 1,
+        total: 50
       }
     ]);
     prismaMock.product.findMany.mockResolvedValue([
@@ -204,7 +206,7 @@ describe("reports.service", () => {
 
     const report = await getOperationsReport(range);
 
-    expect(prismaMock.saleItem.groupBy).toHaveBeenCalledWith(
+    expect(prismaMock.saleItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           sale: expect.objectContaining({

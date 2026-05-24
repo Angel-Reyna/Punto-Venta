@@ -41,6 +41,7 @@ async function assertActiveProduct(
     },
     select: {
       id: true,
+      sku: true,
       name: true,
       isActive: true
     }
@@ -136,7 +137,7 @@ export async function increaseStock(
   tx: Prisma.TransactionClient,
   input: StockMovementInput
 ) {
-  await assertActiveProduct(tx, input.productId);
+  const product = await assertActiveProduct(tx, input.productId);
 
   const warehouse = await resolveWarehouse(tx, input.warehouseId);
 
@@ -162,6 +163,8 @@ export async function increaseStock(
   return tx.inventoryMovement.create({
     data: {
       productId: input.productId,
+      productSku: product.sku,
+      productName: product.name,
       warehouseId: warehouse.id,
       type: input.type,
       quantity: input.quantity,
@@ -219,6 +222,8 @@ export async function decreaseStock(
   return tx.inventoryMovement.create({
     data: {
       productId: input.productId,
+      productSku: product.sku,
+      productName: product.name,
       warehouseId: warehouse.id,
       type: input.type,
       quantity: input.quantity,

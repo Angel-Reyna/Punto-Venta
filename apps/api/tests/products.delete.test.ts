@@ -80,28 +80,30 @@ describe("deleteProductSafely", () => {
     expect(txMock.product.update).not.toHaveBeenCalled();
   });
 
-  it("deactivates products with sales instead of deleting history", async () => {
+  it("physically deletes products with operational history and relies on snapshots", async () => {
     txMock.saleItem.count.mockResolvedValue(2);
+    txMock.saleReturnItem.count.mockResolvedValue(1);
+    txMock.inventoryMovement.count.mockResolvedValue(3);
 
     const result = await deleteProductSafely("product-1");
 
-    expect(result.mode).toBe("deactivated");
-    expect(result.product.isActive).toBe(false);
-    expect(txMock.product.update).toHaveBeenCalledWith({
+    expect(result.mode).toBe("deleted");
+    expect(result.preservedReferences).toEqual({
+      saleItems: 2,
+      saleReturnItems: 1,
+      inventoryMovements: 3
+    });
+    expect(txMock.inventoryBalance.deleteMany).toHaveBeenCalledWith({
       where: {
-        id: "product-1"
-      },
-      data: {
-        isActive: false
-      },
-      select: {
-        id: true,
-        sku: true,
-        name: true,
-        isActive: true
+        productId: "product-1"
       }
     });
-    expect(txMock.product.delete).not.toHaveBeenCalled();
+    expect(txMock.product.delete).toHaveBeenCalledWith({
+      where: {
+        id: "product-1"
+      }
+    });
+    expect(txMock.product.update).not.toHaveBeenCalled();
   });
 
   it("throws a 404 when product does not exist", async () => {

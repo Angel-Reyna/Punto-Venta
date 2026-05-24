@@ -378,7 +378,7 @@ export function ProductsPage() {
           disableClose={Boolean(deletingProductId)}
           maxWidth="sm"
           title="Eliminar producto"
-          description="Si el producto no tiene historial se eliminará físicamente. Si ya tiene ventas, devoluciones o movimientos de inventario, se desactivará para conservar trazabilidad."
+          description="El producto se eliminará del catálogo. Las ventas, devoluciones y movimientos anteriores conservarán el nombre y SKU como evidencia histórica."
           actions={
             <>
               <Button
@@ -406,7 +406,7 @@ export function ProductsPage() {
               sx={{ justifySelf: "flex-start" }}
             />
             <Box component="p" sx={{ m: 0 }}>
-              ¿Quieres eliminar o desactivar “{productPendingDelete?.name}”?
+              ¿Quieres eliminar definitivamente “{productPendingDelete?.name}” del catálogo?
             </Box>
           </Box>
         </ResponsiveDialog>

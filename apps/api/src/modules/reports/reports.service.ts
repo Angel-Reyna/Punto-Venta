@@ -378,8 +378,7 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
         createdAt: "desc"
       }
     }),
-    prisma.saleItem.groupBy({
-      by: ["productId"],
+    prisma.saleItem.findMany({
       where: {
         sale: {
           status: {
@@ -391,13 +390,15 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
           }
         }
       },
-      _sum: {
+      select: {
+        productId: true,
+        productSku: true,
+        productName: true,
         quantity: true,
         total: true
       }
     }),
-    prisma.saleReturnItem.groupBy({
-      by: ["productId"],
+    prisma.saleReturnItem.findMany({
       where: {
         return: {
           createdAt: {
@@ -406,60 +407,88 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
           }
         }
       },
-      _sum: {
+      select: {
+        productId: true,
+        productSku: true,
+        productName: true,
         quantity: true,
         total: true
       }
     })
   ]);
 
-  const productTotals = new Map<string, { quantity: number; total: number }>();
+  const productTotals = new Map<
+    string,
+    {
+      product: {
+        id: string;
+        sku: string | null;
+        name: string;
+      };
+      quantity: number;
+      total: number;
+    }
+  >();
 
-  for (const item of soldProducts) {
-    productTotals.set(item.productId, {
-      quantity: Number(item._sum.quantity ?? 0),
-      total: toMoney(item._sum.total)
-    });
+  function productAggregateKey(item: {
+    productId: string | null;
+    productSku: string;
+    productName: string;
+  }) {
+    return item.productId ?? `deleted:${item.productSku}:${item.productName}`;
   }
 
-  for (const item of returnedProducts) {
-    const current = productTotals.get(item.productId) ?? {
+  function snapshotProduct(item: {
+    productId: string | null;
+    productSku: string;
+    productName: string;
+  }) {
+    return {
+      id: item.productId ?? productAggregateKey(item),
+      sku: item.productSku,
+      name: item.productId ? item.productName : `${item.productName} (eliminado)`
+    };
+  }
+
+  for (const item of soldProducts) {
+    const key = productAggregateKey(item);
+    const current = productTotals.get(key) ?? {
+      product: snapshotProduct(item),
       quantity: 0,
       total: 0
     };
 
-    productTotals.set(item.productId, {
-      quantity: current.quantity - Number(item._sum.quantity ?? 0),
-      total: roundMoney(current.total - Number(item._sum.total ?? 0))
+    productTotals.set(key, {
+      ...current,
+      quantity: current.quantity + Number(item.quantity),
+      total: roundMoney(current.total + Number(item.total))
     });
   }
 
-  const sortedTopProducts = [...productTotals.entries()]
-    .map(([productId, totals]) => ({
-      productId,
-      quantity: totals.quantity,
-      total: roundMoney(totals.total)
+  for (const item of returnedProducts) {
+    const key = productAggregateKey(item);
+    const current = productTotals.get(key) ?? {
+      product: snapshotProduct(item),
+      quantity: 0,
+      total: 0
+    };
+
+    productTotals.set(key, {
+      ...current,
+      quantity: current.quantity - Number(item.quantity),
+      total: roundMoney(current.total - Number(item.total))
+    });
+  }
+
+  const sortedTopProducts = [...productTotals.values()]
+    .map((item) => ({
+      product: item.product,
+      quantity: item.quantity,
+      total: roundMoney(item.total)
     }))
     .filter((item) => item.quantity > 0 || item.total > 0)
     .sort((a, b) => b.quantity - a.quantity || b.total - a.total)
     .slice(0, 10);
-
-  const productIds = sortedTopProducts.map((item) => item.productId);
-  const products = productIds.length
-    ? await prisma.product.findMany({
-        where: {
-          id: {
-            in: productIds
-          }
-        },
-        select: {
-          id: true,
-          sku: true,
-          name: true
-        }
-      })
-    : [];
-  const productById = new Map(products.map((product) => [product.id, product]));
 
   const salesByStatus = sales.reduce<Record<string, number>>((summary, sale) => {
     summary[sale.status] = (summary[sale.status] ?? 0) + 1;
@@ -611,11 +640,7 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
       }
     },
     topProducts: sortedTopProducts.map((item) => ({
-      product: productById.get(item.productId) ?? {
-        id: item.productId,
-        sku: null,
-        name: "Producto no encontrado"
-      },
+      product: item.product,
       quantity: item.quantity,
       total: item.total
     }))

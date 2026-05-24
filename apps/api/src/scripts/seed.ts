@@ -143,6 +143,8 @@ async function seedDemoData(adminId: string) {
       data: {
         productId: product.id,
         warehouseId: warehouse.id,
+        productSku: product.sku,
+        productName: product.name,
         type: "IN",
         quantity: 30,
         reason: "Stock inicial de datos demo",

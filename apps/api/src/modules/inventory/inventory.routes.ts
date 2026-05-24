@@ -120,19 +120,15 @@ inventoryRouter.get(
                 }
               },
               {
-                product: {
-                  sku: {
-                    contains: q,
-                    mode: "insensitive"
-                  }
+                productSku: {
+                  contains: q,
+                  mode: "insensitive"
                 }
               },
               {
-                product: {
-                  name: {
-                    contains: q,
-                    mode: "insensitive"
-                  }
+                productName: {
+                  contains: q,
+                  mode: "insensitive"
                 }
               },
               {
@@ -357,7 +353,7 @@ inventoryRouter.post(
       recordId: movement.id,
       newData: {
         productId: movement.productId,
-        productName: movement.product.name,
+        productName: movement.product?.name ?? movement.productName,
         warehouseId: movement.warehouseId,
         quantity: movement.quantity,
         reason: movement.reason
@@ -392,7 +388,7 @@ inventoryRouter.post(
       recordId: movement.id,
       newData: {
         productId: movement.productId,
-        productName: movement.product.name,
+        productName: movement.product?.name ?? movement.productName,
         warehouseId: movement.warehouseId,
         quantity: movement.quantity,
         reason: movement.reason
