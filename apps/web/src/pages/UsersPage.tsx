@@ -2,27 +2,22 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
   Alert,
-  Avatar,
   Box,
   Button,
   Card,
   CardContent,
-  Chip,
   Divider,
   FormHelperText,
   MenuItem,
   Stack,
   TextField,
-  Typography
+  Typography,
 } from "@mui/material";
 
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import KeyOutlinedIcon from "@mui/icons-material/KeyOutlined";
-import MailOutlineIcon from "@mui/icons-material/MailOutline";
-import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import PersonAddAlt1OutlinedIcon from "@mui/icons-material/PersonAddAlt1Outlined";
 
 import { api } from "../api/client";
@@ -33,302 +28,21 @@ import { ResponsiveDialog } from "../components/ResponsiveDialog";
 import { SearchToolbar } from "../components/SearchToolbar";
 import { StatusFeedback } from "../components/StatusFeedback";
 import { getApiErrorMessage } from "../utils/apiError";
-
-type UserRole = "ADMIN" | "CASHIER";
-type RoleFilter = "ALL" | UserRole;
-type StatusFilter = "ALL" | "ACTIVE" | "INACTIVE";
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  isActive: boolean;
-  createdAt: string;
-};
-
-const initialForm: {
-  name: string;
-  email: string;
-  password: string;
-  role: UserRole;
-} = {
-  name: "",
-  email: "",
-  password: "",
-  role: "CASHIER"
-};
-
-const initialResetPasswordForm = {
-  password: "",
-  confirmPassword: ""
-};
-
-function isPasswordValid(password: string) {
-  return (
-    password.length >= 8 &&
-    password.length <= 72 &&
-    /[A-Z]/.test(password) &&
-    /[a-z]/.test(password) &&
-    /[0-9]/.test(password)
-  );
-}
-
-function getRoleLabel(role: UserRole) {
-  return role === "ADMIN" ? "Administrador" : "Vendedor";
-}
-
-function getRoleDescription(role: UserRole) {
-  return role === "ADMIN"
-    ? "Gestiona catálogo, inventario, vendedores y reportes."
-    : "Registra ventas y consulta información operativa permitida.";
-}
-
-function normalizeSearch(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-}
-
-function formatCreatedAt(value: string) {
-  return new Date(value).toLocaleString("es-MX", {
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
-    year: "numeric"
-  });
-}
-
-function getInitials(name: string, email: string) {
-  const source = name.trim() || email.trim();
-  const parts = source.split(/\s+/).filter(Boolean);
-
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  }
-
-  return source.slice(0, 2).toUpperCase() || "US";
-}
-
-function getUserSearchText(user: User) {
-  return normalizeSearch(
-    [
-      user.name,
-      user.email,
-      getRoleLabel(user.role),
-      user.role,
-      user.isActive ? "activo" : "inactivo"
-    ].join(" ")
-  );
-}
-
-type SummaryCardProps = {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  helper: string;
-};
-
-function SummaryCard({ icon, label, value, helper }: SummaryCardProps) {
-  return (
-    <Card variant="outlined" sx={{ height: "100%" }}>
-      <CardContent>
-        <Stack direction="row" spacing={1.5} alignItems="flex-start">
-          <Avatar
-            variant="rounded"
-            sx={{
-              bgcolor: "action.hover",
-              color: "text.primary",
-              height: 40,
-              width: 40
-            }}
-          >
-            {icon}
-          </Avatar>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="body2" color="text.secondary">
-              {label}
-            </Typography>
-            <Typography variant="h5" fontWeight={800}>
-              {value}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {helper}
-            </Typography>
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
-
-type UserCardProps = {
-  currentUserId?: string;
-  isBusy: boolean;
-  onOpenResetPasswordDialog: (targetUser: User) => void;
-  onOpenRoleDialog: (targetUser: User) => void;
-  onToggleUser: (targetUser: User) => void;
-  targetUser: User;
-  togglingUserId: string | null;
-};
-
-function UserCard({
-  currentUserId,
-  isBusy,
-  onOpenResetPasswordDialog,
-  onOpenRoleDialog,
-  onToggleUser,
-  targetUser,
-  togglingUserId
-}: UserCardProps) {
-  const isSelf = targetUser.id === currentUserId;
-  const roleLabel = getRoleLabel(targetUser.role);
-  const statusLabel = targetUser.isActive ? "Activo" : "Inactivo";
-  const toggleLabel = targetUser.isActive ? "Desactivar" : "Activar";
-
-  return (
-    <Card
-      variant="outlined"
-      sx={{
-        borderColor: targetUser.isActive ? "divider" : "action.disabledBackground",
-        height: "100%",
-        opacity: targetUser.isActive ? 1 : 0.82
-      }}
-    >
-      <CardContent>
-        <Stack spacing={2}>
-          <Stack direction="row" spacing={1.5} alignItems="flex-start">
-            <Avatar
-              sx={{
-                bgcolor: targetUser.role === "ADMIN" ? "primary.main" : "success.main",
-                color: "primary.contrastText",
-                flex: "0 0 auto"
-              }}
-            >
-              {getInitials(targetUser.name, targetUser.email)}
-            </Avatar>
-
-            <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Stack
-                direction="row"
-                spacing={1}
-                alignItems="center"
-                sx={{ minWidth: 0 }}
-              >
-                <Typography variant="subtitle1" fontWeight={800} noWrap>
-                  {targetUser.name}
-                </Typography>
-                {isSelf && <Chip size="small" label="Tú" variant="outlined" />}
-              </Stack>
-
-              <Stack
-                direction="row"
-                spacing={0.75}
-                alignItems="center"
-                sx={{ color: "text.secondary", minWidth: 0 }}
-              >
-                <MailOutlineIcon sx={{ fontSize: 16, flex: "0 0 auto" }} />
-                <Typography variant="body2" noWrap title={targetUser.email}>
-                  {targetUser.email}
-                </Typography>
-              </Stack>
-            </Box>
-          </Stack>
-
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            <Chip
-              size="small"
-              icon={
-                targetUser.role === "ADMIN" ? (
-                  <AdminPanelSettingsIcon />
-                ) : (
-                  <BadgeOutlinedIcon />
-                )
-              }
-              label={roleLabel}
-              color={targetUser.role === "ADMIN" ? "primary" : "success"}
-              variant="outlined"
-            />
-            <Chip
-              size="small"
-              icon={
-                targetUser.isActive ? (
-                  <CheckCircleOutlineIcon />
-                ) : (
-                  <BlockOutlinedIcon />
-                )
-              }
-              label={statusLabel}
-              color={targetUser.isActive ? "success" : "default"}
-              variant={targetUser.isActive ? "outlined" : "filled"}
-            />
-          </Stack>
-
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              {getRoleDescription(targetUser.role)}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Creado: {formatCreatedAt(targetUser.createdAt)}
-            </Typography>
-          </Box>
-
-          {isSelf && (
-            <Alert severity="info" variant="outlined">
-              Este es tu usuario actual. No puedes desactivar tu propio acceso.
-            </Alert>
-          )}
-
-          <Divider />
-
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            useFlexGap
-            flexWrap="wrap"
-            sx={{
-              "& .MuiButton-root": {
-                justifyContent: "center"
-              }
-            }}
-          >
-            <Button
-              size="small"
-              variant="outlined"
-              disabled={isSelf || isBusy}
-              onClick={() => onToggleUser(targetUser)}
-            >
-              {togglingUserId === targetUser.id ? "Guardando..." : toggleLabel}
-            </Button>
-
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<ManageAccountsOutlinedIcon />}
-              disabled={isBusy}
-              onClick={() => onOpenRoleDialog(targetUser)}
-            >
-              Cambiar rol
-            </Button>
-
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<KeyOutlinedIcon />}
-              disabled={isBusy}
-              onClick={() => onOpenResetPasswordDialog(targetUser)}
-            >
-              Nueva contraseña
-            </Button>
-          </Stack>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
+import {
+  filterUsers,
+  initialForm,
+  initialResetPasswordForm,
+  isPasswordValid,
+  SummaryCard,
+  summarizeUsers,
+  UserCard,
+} from "./users/userShared";
+import type {
+  RoleFilter,
+  StatusFilter,
+  User,
+  UserRole,
+} from "./users/userShared";
 
 export function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -351,7 +65,7 @@ export function UsersPage() {
 
   const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
   const [resetPasswordForm, setResetPasswordForm] = useState(
-    initialResetPasswordForm
+    initialResetPasswordForm,
   );
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
@@ -387,13 +101,13 @@ export function UsersPage() {
         name: form.name.trim(),
         email: form.email.trim().toLowerCase(),
         password: form.password,
-        role: form.role
+        role: form.role,
       });
 
       setMessage(
         form.role === "CASHIER"
           ? "Vendedor creado correctamente. Ya puede iniciar sesión."
-          : "Administrador creado correctamente."
+          : "Administrador creado correctamente.",
       );
 
       setForm(initialForm);
@@ -403,8 +117,8 @@ export function UsersPage() {
       setError(
         getApiErrorMessage(
           err,
-          "No se pudo crear el usuario. Revisa nombre, correo, contraseña y rol."
-        )
+          "No se pudo crear el usuario. Revisa nombre, correo, contraseña y rol.",
+        ),
       );
     } finally {
       setIsCreating(false);
@@ -428,7 +142,7 @@ export function UsersPage() {
       setMessage(
         targetUser.isActive
           ? `El acceso de ${targetUser.name} fue desactivado.`
-          : `El acceso de ${targetUser.name} fue activado.`
+          : `El acceso de ${targetUser.name} fue activado.`,
       );
 
       await load();
@@ -461,7 +175,7 @@ export function UsersPage() {
       setIsUpdatingRole(true);
 
       await api.patch(`/users/${roleDialogUser.id}/role`, {
-        role: selectedRole
+        role: selectedRole,
       });
 
       setMessage(`Rol actualizado para ${roleDialogUser.name}.`);
@@ -498,7 +212,7 @@ export function UsersPage() {
       setIsResettingPassword(true);
 
       await api.patch(`/users/${resetPasswordUser.id}/password`, {
-        password: resetPasswordForm.password
+        password: resetPasswordForm.password,
       });
 
       setMessage(`Contraseña actualizada para ${resetPasswordUser.name}.`);
@@ -528,48 +242,20 @@ export function UsersPage() {
   const createUserDisabledReason = (() => {
     if (!form.name.trim()) return "Captura el nombre completo.";
     if (!form.email.trim()) return "Captura el correo electrónico.";
-    if (!passwordIsValid) return "La contraseña debe tener mayúscula, minúscula, número y 8 a 72 caracteres.";
+    if (!passwordIsValid)
+      return "La contraseña debe tener mayúscula, minúscula, número y 8 a 72 caracteres.";
     if (!form.role) return "Selecciona un rol.";
     if (isCreating) return "Creando usuario...";
 
     return "";
   })();
 
-  const activeUsers = useMemo(
-    () => rows.filter((item) => item.isActive).length,
-    [rows]
+  const userSummary = useMemo(() => summarizeUsers(rows), [rows]);
+
+  const filteredRows = useMemo(
+    () => filterUsers(rows, query, roleFilter, statusFilter),
+    [query, roleFilter, rows, statusFilter],
   );
-
-  const inactiveUsers = useMemo(
-    () => rows.filter((item) => !item.isActive).length,
-    [rows]
-  );
-
-  const sellerUsers = useMemo(
-    () => rows.filter((item) => item.role === "CASHIER").length,
-    [rows]
-  );
-
-  const adminUsers = useMemo(
-    () => rows.filter((item) => item.role === "ADMIN").length,
-    [rows]
-  );
-
-  const filteredRows = useMemo(() => {
-    const normalizedQuery = normalizeSearch(query);
-
-    return rows.filter((item) => {
-      const matchesQuery = normalizedQuery
-        ? getUserSearchText(item).includes(normalizedQuery)
-        : true;
-      const matchesRole = roleFilter === "ALL" || item.role === roleFilter;
-      const matchesStatus =
-        statusFilter === "ALL" ||
-        (statusFilter === "ACTIVE" ? item.isActive : !item.isActive);
-
-      return matchesQuery && matchesRole && matchesStatus;
-    });
-  }, [query, roleFilter, rows, statusFilter]);
 
   const anyFilterActive =
     Boolean(query.trim()) || roleFilter !== "ALL" || statusFilter !== "ALL";
@@ -591,33 +277,33 @@ export function UsersPage() {
           gridTemplateColumns: {
             xs: "1fr",
             sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(4, minmax(0, 1fr))"
+            lg: "repeat(4, minmax(0, 1fr))",
           },
-          mb: 2
+          mb: 2,
         }}
       >
         <SummaryCard
           icon={<CheckCircleOutlineIcon />}
           label="Usuarios activos"
-          value={activeUsers}
+          value={userSummary.activeUsers}
           helper="Pueden iniciar sesión."
         />
         <SummaryCard
           icon={<BadgeOutlinedIcon />}
           label="Vendedores"
-          value={sellerUsers}
+          value={userSummary.sellerUsers}
           helper="Registran ventas."
         />
         <SummaryCard
           icon={<AdminPanelSettingsIcon />}
           label="Administradores"
-          value={adminUsers}
+          value={userSummary.adminUsers}
           helper="Gestionan la operación."
         />
         <SummaryCard
           icon={<BlockOutlinedIcon />}
           label="Inactivos"
-          value={inactiveUsers}
+          value={userSummary.inactiveUsers}
           helper="Acceso bloqueado."
         />
       </Box>
@@ -648,10 +334,10 @@ export function UsersPage() {
                 gridTemplateColumns: {
                   xs: "1fr",
                   md: "1.2fr 1.4fr",
-                  lg: "1.2fr 1.4fr 1.2fr 1fr auto"
+                  lg: "1.2fr 1.4fr 1.2fr 1fr auto",
                 },
                 gap: 2,
-                alignItems: "start"
+                alignItems: "start",
               }}
             >
               <TextField
@@ -663,7 +349,7 @@ export function UsersPage() {
                 onChange={(event) =>
                   setForm({
                     ...form,
-                    name: event.target.value
+                    name: event.target.value,
                   })
                 }
               />
@@ -678,7 +364,7 @@ export function UsersPage() {
                 onChange={(event) =>
                   setForm({
                     ...form,
-                    email: event.target.value
+                    email: event.target.value,
                   })
                 }
               />
@@ -693,7 +379,7 @@ export function UsersPage() {
                 onChange={(event) =>
                   setForm({
                     ...form,
-                    password: event.target.value
+                    password: event.target.value,
                   })
                 }
               />
@@ -706,7 +392,7 @@ export function UsersPage() {
                 onChange={(event) =>
                   setForm({
                     ...form,
-                    role: event.target.value as UserRole
+                    role: event.target.value as UserRole,
                   })
                 }
               >
@@ -754,7 +440,9 @@ export function UsersPage() {
               select
               label="Rol"
               value={roleFilter}
-              onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}
+              onChange={(event) =>
+                setRoleFilter(event.target.value as RoleFilter)
+              }
               sx={{ minWidth: { md: 220 } }}
             >
               <MenuItem value="ALL">Todos los roles</MenuItem>
@@ -796,8 +484,8 @@ export function UsersPage() {
       <Stack spacing={1} sx={{ mb: 2 }}>
         <Typography variant="h6">Usuarios registrados</Typography>
         <Typography variant="body2" color="text.secondary">
-          Desactiva accesos que ya no se usen. Al desactivar un usuario,
-          sus sesiones activas quedan revocadas.
+          Desactiva accesos que ya no se usen. Al desactivar un usuario, sus
+          sesiones activas quedan revocadas.
         </Typography>
       </Stack>
 
@@ -840,8 +528,8 @@ export function UsersPage() {
             gridTemplateColumns: {
               xs: "1fr",
               lg: "repeat(2, minmax(0, 1fr))",
-              xl: "repeat(3, minmax(0, 1fr))"
-            }
+              xl: "repeat(3, minmax(0, 1fr))",
+            },
           }}
         >
           {filteredRows.map((targetUser) => (
@@ -888,19 +576,21 @@ export function UsersPage() {
         }
       >
         <Stack spacing={2}>
-            <Alert severity="warning">
-              Cambiar el rol afecta los permisos disponibles para este usuario.
-            </Alert>
+          <Alert severity="warning">
+            Cambiar el rol afecta los permisos disponibles para este usuario.
+          </Alert>
 
-            <TextField
-              select
-              label="Rol"
-              value={selectedRole}
-              onChange={(event) => setSelectedRole(event.target.value as UserRole)}
-            >
-              <MenuItem value="CASHIER">Vendedor</MenuItem>
-              <MenuItem value="ADMIN">Administrador</MenuItem>
-            </TextField>
+          <TextField
+            select
+            label="Rol"
+            value={selectedRole}
+            onChange={(event) =>
+              setSelectedRole(event.target.value as UserRole)
+            }
+          >
+            <MenuItem value="CASHIER">Vendedor</MenuItem>
+            <MenuItem value="ADMIN">Administrador</MenuItem>
+          </TextField>
         </Stack>
       </ResponsiveDialog>
 
@@ -926,47 +616,46 @@ export function UsersPage() {
         }
       >
         <Stack spacing={2}>
-            <Alert severity="info">
-              Usa una contraseña temporal y compártela por un canal seguro. El
-              usuario debe cambiarla después si habilitamos ese flujo.
-            </Alert>
+          <Alert severity="info">
+            Usa una contraseña temporal y compártela por un canal seguro. El
+            usuario debe cambiarla después si habilitamos ese flujo.
+          </Alert>
 
-            <TextField
-              label="Nueva contraseña"
-              type="password"
-              autoComplete="new-password"
-              value={resetPasswordForm.password}
-              error={Boolean(resetPasswordForm.password) && !resetPasswordIsValid}
-              helperText="8 a 72 caracteres, con mayúscula, minúscula y número."
-              onChange={(event) =>
-                setResetPasswordForm({
-                  ...resetPasswordForm,
-                  password: event.target.value
-                })
-              }
-            />
+          <TextField
+            label="Nueva contraseña"
+            type="password"
+            autoComplete="new-password"
+            value={resetPasswordForm.password}
+            error={Boolean(resetPasswordForm.password) && !resetPasswordIsValid}
+            helperText="8 a 72 caracteres, con mayúscula, minúscula y número."
+            onChange={(event) =>
+              setResetPasswordForm({
+                ...resetPasswordForm,
+                password: event.target.value,
+              })
+            }
+          />
 
-            <TextField
-              label="Confirmar contraseña"
-              type="password"
-              autoComplete="new-password"
-              value={resetPasswordForm.confirmPassword}
-              error={
-                Boolean(resetPasswordForm.confirmPassword) && !resetPasswordMatches
-              }
-              onChange={(event) =>
-                setResetPasswordForm({
-                  ...resetPasswordForm,
-                  confirmPassword: event.target.value
-                })
-              }
-            />
+          <TextField
+            label="Confirmar contraseña"
+            type="password"
+            autoComplete="new-password"
+            value={resetPasswordForm.confirmPassword}
+            error={
+              Boolean(resetPasswordForm.confirmPassword) &&
+              !resetPasswordMatches
+            }
+            onChange={(event) =>
+              setResetPasswordForm({
+                ...resetPasswordForm,
+                confirmPassword: event.target.value,
+              })
+            }
+          />
 
-            {!resetPasswordMatches && resetPasswordForm.confirmPassword && (
-              <FormHelperText error>
-                Las contraseñas no coinciden.
-              </FormHelperText>
-            )}
+          {!resetPasswordMatches && resetPasswordForm.confirmPassword && (
+            <FormHelperText error>Las contraseñas no coinciden.</FormHelperText>
+          )}
         </Stack>
       </ResponsiveDialog>
     </>
