@@ -32,151 +32,27 @@ import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
 import { getApiErrorMessage } from "../utils/apiError";
 
-type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "MIXED";
-type SaleStatus = "COMPLETED" | "CANCELLED" | "PARTIALLY_REFUNDED" | "REFUNDED";
-
-type Product = {
-  id: string;
-  sku: string;
-  barcode?: string | null;
-  name: string;
-  salePrice: number;
-  stock: number;
-  promoPercent: number;
-  finalPrice?: number;
-};
-
-type CartItem = {
-  productId: string;
-  quantity: number;
-};
-
-type SaleItem = {
-  id: string;
-  productId: string;
-  quantity: number;
-  unitPrice: number;
-  discount: number;
-  total: number;
-  product?: {
-    id: string;
-    sku: string;
-    name: string;
-  };
-};
-
-type SaleReturn = {
-  id: string;
-  reason: string;
-  refundMethod: PaymentMethod;
-  refundTotal: number;
-  createdAt: string;
-  items: Array<{
-    id: string;
-    saleItemId: string;
-    productId: string;
-    quantity: number;
-    total: number;
-  }>;
-};
-
-type Sale = {
-  id: string;
-  folio: string;
-  customerId?: string | null;
-  subtotal: number;
-  discount: number;
-  tax: number;
-  total: number;
-  status: SaleStatus;
-  createdAt: string;
-
-  customer?: {
-    id: string;
-    name: string;
-    phone?: string | null;
-    email?: string | null;
-  } | null;
-
-  cashier?: {
-    id: string;
-    name: string;
-    email: string;
-  };
-
-  items?: SaleItem[];
-  returns?: SaleReturn[];
-
-  payments?: Array<{
-    id: string;
-    method: PaymentMethod;
-    amount: number;
-    createdAt: string;
-  }>;
-};
-
-function formatMoney(value: number | null | undefined) {
-  return `$${Number(value ?? 0).toFixed(2)}`;
-}
-
-function statusLabel(status: SaleStatus) {
-  switch (status) {
-    case "COMPLETED":
-      return "Completada";
-    case "CANCELLED":
-      return "Cancelada";
-    case "PARTIALLY_REFUNDED":
-      return "Devolución parcial";
-    case "REFUNDED":
-      return "Devuelta";
-    default:
-      return status;
-  }
-}
-
-function statusColor(status: SaleStatus) {
-  switch (status) {
-    case "COMPLETED":
-      return "success" as const;
-    case "PARTIALLY_REFUNDED":
-      return "warning" as const;
-    case "REFUNDED":
-      return "info" as const;
-    case "CANCELLED":
-    default:
-      return "default" as const;
-  }
-}
-
-function paymentMethodLabel(method: PaymentMethod) {
-  switch (method) {
-    case "CASH":
-      return "Efectivo";
-    case "CARD":
-      return "Tarjeta";
-    case "TRANSFER":
-      return "Transferencia";
-    case "MIXED":
-      return "Mixto";
-    default:
-      return method;
-  }
-}
-
-function getReturnedQuantity(sale: Sale, saleItemId: string) {
-  return (sale.returns ?? []).reduce((sum, saleReturn) => {
-    return (
-      sum +
-      saleReturn.items.reduce((itemSum, item) => {
-        return item.saleItemId === saleItemId ? itemSum + item.quantity : itemSum;
-      }, 0)
-    );
-  }, 0);
-}
-
-function getReturnableQuantity(sale: Sale, saleItem: SaleItem) {
-  return Math.max(saleItem.quantity - getReturnedQuantity(sale, saleItem.id), 0);
-}
+import {
+  buildCartRows,
+  calculateCartTotal,
+  formatMoney,
+  getFilteredProducts,
+  getFilteredSales,
+  getProductById,
+  getProductFinalPrice,
+  getReturnableQuantity,
+  isCartInvalid,
+  saleItemsSummary,
+  salePaymentSummary,
+  statusColor,
+  statusLabel,
+  summarizeSales,
+  type CartItem,
+  type PaymentMethod,
+  type Product,
+  type Sale,
+  type SaleStatus
+} from "./sales/salesShared";
 
 export function SalesPage() {
   const { can } = useAuth();
@@ -241,35 +117,8 @@ export function SalesPage() {
     void load();
   }, []);
 
-  function getProduct(productId: string) {
-    return products.find((product) => product.id === productId);
-  }
-
-  const total = useMemo(() => {
-    return cart.reduce((sum, item) => {
-      const product = getProduct(item.productId);
-
-      if (!product) return sum;
-
-      const finalPrice =
-        product.finalPrice ?? product.salePrice * (1 - product.promoPercent / 100);
-
-      return sum + finalPrice * item.quantity;
-    }, 0);
-  }, [cart, products]);
-
-  const cartIsInvalid =
-    cart.length === 0 ||
-    cart.some((item) => {
-      const product = getProduct(item.productId);
-
-      return (
-        !item.productId ||
-        !product ||
-        item.quantity <= 0 ||
-        item.quantity > product.stock
-      );
-    });
+  const total = useMemo(() => calculateCartTotal(cart, products), [cart, products]);
+  const cartIsInvalid = useMemo(() => isCartInvalid(cart, products), [cart, products]);
 
   const paid = Number(paidAmount || 0);
   const change = Math.max((Number.isFinite(paid) ? paid : 0) - total, 0);
@@ -291,44 +140,15 @@ export function SalesPage() {
     return "";
   })();
 
-  function normalizeSearch(value: string) {
-    return value.trim().toLowerCase();
-  }
+  const filteredProducts = useMemo(
+    () => getFilteredProducts(products, productSearch),
+    [productSearch, products]
+  );
 
-  const filteredProducts = useMemo(() => {
-    const query = normalizeSearch(productSearch);
-    const activeProducts = products.filter((product) => product.stock > 0);
-
-    if (!query) {
-      return activeProducts.slice(0, 8);
-    }
-
-    return activeProducts
-      .filter((product) => {
-        return [product.sku, product.barcode ?? "", product.name, product.id]
-          .some((value) => value.toLowerCase().includes(query));
-      })
-      .slice(0, 8);
-  }, [productSearch, products]);
-
-  const cartRows = useMemo(() => {
-    return cart.map((item) => {
-      const product = getProduct(item.productId);
-      const unitPrice = product
-        ? product.finalPrice ?? product.salePrice * (1 - product.promoPercent / 100)
-        : 0;
-
-      return {
-        ...item,
-        product,
-        unitPrice,
-        total: unitPrice * item.quantity
-      };
-    });
-  }, [cart, products]);
+  const cartRows = useMemo(() => buildCartRows(cart, products), [cart, products]);
 
   function addProductToCart(productId: string) {
-    const product = getProduct(productId);
+    const product = getProductById(products, productId);
 
     if (!product || product.stock <= 0) {
       setError("Producto sin stock disponible para vender.");
@@ -375,7 +195,7 @@ export function SalesPage() {
   }
 
   function updateCartQuantity(productId: string, quantity: number) {
-    const product = getProduct(productId);
+    const product = getProductById(products, productId);
 
     if (!product) return;
 
@@ -616,85 +436,12 @@ export function SalesPage() {
     returnQuantityNumber > selectedReturnItemAvailable ||
     returnReason.trim().length < 5;
 
-  const filteredSales = useMemo(() => {
-    const query = normalizeSearch(saleSearch);
+  const filteredSales = useMemo(
+    () => getFilteredSales(sales, saleSearch, saleStatusFilter, salePaymentFilter),
+    [salePaymentFilter, saleSearch, saleStatusFilter, sales]
+  );
 
-    return sales.filter((sale) => {
-      const salePaymentMethods = sale.payments?.map((payment) => payment.method) ?? [];
-      const matchesStatus =
-        saleStatusFilter === "ALL" || sale.status === saleStatusFilter;
-      const matchesPayment =
-        salePaymentFilter === "ALL" || salePaymentMethods.includes(salePaymentFilter);
-
-      if (!matchesStatus || !matchesPayment) {
-        return false;
-      }
-
-      if (!query) {
-        return true;
-      }
-
-      return [
-        sale.folio,
-        sale.customer?.name ?? "Sin cliente",
-        sale.cashier?.name ?? "",
-        sale.cashier?.email ?? "",
-        statusLabel(sale.status),
-        ...salePaymentMethods.map(paymentMethodLabel)
-      ].some((value) => value.toLowerCase().includes(query));
-    });
-  }, [saleSearch, saleStatusFilter, salePaymentFilter, sales]);
-
-  const salesSummary = useMemo(() => {
-    const completedSales = sales.filter((sale) => sale.status === "COMPLETED");
-    const totalSold = completedSales.reduce(
-      (sum, sale) => sum + Number(sale.total ?? 0),
-      0
-    );
-    const cancelledOrReturned = sales.filter(
-      (sale) => sale.status === "CANCELLED" || sale.status === "REFUNDED"
-    ).length;
-
-    return {
-      totalCount: sales.length,
-      completedCount: completedSales.length,
-      totalSold,
-      cancelledOrReturned
-    };
-  }, [sales]);
-
-  function salePaymentSummary(sale: Sale) {
-    const payments = sale.payments ?? [];
-
-    if (payments.length === 0) {
-      return "Sin pago registrado";
-    }
-
-    return payments
-      .map(
-        (payment) =>
-          `${paymentMethodLabel(payment.method)} · ${formatMoney(payment.amount)}`
-      )
-      .join(" · ");
-  }
-
-  function saleItemsSummary(sale: Sale) {
-    const items = sale.items ?? [];
-
-    if (items.length === 0) {
-      return "Sin detalle de productos";
-    }
-
-    const visibleItems = items
-      .slice(0, 3)
-      .map((item) => `${item.quantity}× ${item.product?.name ?? item.productId}`);
-
-    if (items.length > visibleItems.length) {
-      visibleItems.push(`+${items.length - visibleItems.length} más`);
-    }
-
-    return visibleItems.join(" · ");
-  }
+  const salesSummary = useMemo(() => summarizeSales(sales), [sales]);
 
   return (
     <>
@@ -791,7 +538,7 @@ export function SalesPage() {
                 }}
               >
                 {filteredProducts.map((product) => {
-                  const finalPrice = product.finalPrice ?? product.salePrice;
+                  const finalPrice = getProductFinalPrice(product);
 
                   return (
                     <Button
