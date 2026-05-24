@@ -65,8 +65,15 @@ function normalizeEnv(env) {
   return normalized;
 }
 
-function shouldUseShell(command) {
-  return isWindows && /\.cmd$/i.test(command);
+function resolveCommand(command, args) {
+  if (isWindows && /\.(cmd|bat)$/i.test(command)) {
+    return {
+      command: 'cmd.exe',
+      args: ['/d', '/s', '/c', command, ...args],
+    };
+  }
+
+  return { command, args };
 }
 
 function log(message) {
@@ -185,11 +192,11 @@ function assertSafeE2EDatabaseReset(connectionUrl) {
 }
 
 function runBestEffort(command, args, options = {}) {
-  const result = spawnSync(command, args, {
+  const resolved = resolveCommand(command, args);
+  const result = spawnSync(resolved.command, resolved.args, {
     cwd: options.cwd || repoRoot,
     env: normalizeEnv(options.env || process.env),
     encoding: 'utf8',
-    shell: shouldUseShell(command),
     windowsHide: true,
   });
 
@@ -235,15 +242,15 @@ async function cleanupPreviousE2EProcesses() {
 function run(command, args, options = {}) {
   const cwd = options.cwd || repoRoot;
   const env = options.env || process.env;
+  const resolved = resolveCommand(command, args);
 
   log(`${command} ${args.join(' ')}`);
 
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const child = spawn(resolved.command, resolved.args, {
       cwd,
       env: normalizeEnv(env),
       stdio: 'inherit',
-      shell: shouldUseShell(command),
       windowsHide: true,
     });
 
@@ -264,11 +271,11 @@ function run(command, args, options = {}) {
 }
 
 function start(command, args, options = {}) {
-  const child = spawn(command, args, {
+  const resolved = resolveCommand(command, args);
+  const child = spawn(resolved.command, resolved.args, {
     cwd: options.cwd || repoRoot,
     env: normalizeEnv(options.env || process.env),
     stdio: 'inherit',
-    shell: shouldUseShell(command),
     windowsHide: true,
   });
 
