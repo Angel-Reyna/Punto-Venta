@@ -26,6 +26,7 @@ export const saleSchema = z.object({
     customerId: z.string().uuid().optional().nullable(),
     customerName: z.string().trim().max(120).optional().nullable(),
     paymentMethod: z.nativeEnum(PaymentMethod).default(PaymentMethod.CASH),
+    paidAmount: z.coerce.number().min(0).optional(),
     items: z
       .array(
         z.object({
@@ -603,6 +604,16 @@ async function createSaleAttempt(
         tx,
         input.items
       );
+
+      const paidAmount =
+        input.paidAmount === undefined ? total : roundMoney(input.paidAmount);
+
+      if (paidAmount < total) {
+        throw new AppError(
+          400,
+          `Pago insuficiente. Total: $${total.toFixed(2)}, recibido: $${paidAmount.toFixed(2)}.`
+        );
+      }
 
       const createdSale = await tx.sale.create({
         data: {

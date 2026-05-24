@@ -284,6 +284,68 @@ describe("sales.service", () => {
     expect(sale.total).toBe(100);
   });
 
+
+  it("rejects sales when the paid amount is lower than the total", async () => {
+    const tx = {
+      customer: {
+        findUnique: jest.fn(),
+        create: jest.fn()
+      },
+      product: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "product-1",
+          name: "Café",
+          salePrice: 100,
+          promoPercent: 0,
+          isActive: true
+        })
+      },
+      sale: {
+        create: jest.fn()
+      },
+      sellerActivityLog: {
+        create: jest.fn()
+      }
+    };
+
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
+    inventoryServiceMock.getOrCreateDefaultWarehouse.mockResolvedValue({
+      id: "warehouse-1"
+    });
+
+    await expect(
+      createSale(
+        {
+          id: "cashier-1",
+          email: "cashier@pos.local",
+          role: Role.CASHIER
+        },
+        {
+          paymentMethod: "CASH",
+          paidAmount: 50,
+          customerId: null,
+          customerName: null,
+          items: [
+            {
+              productId: "product-1",
+              quantity: 1
+            }
+          ]
+        },
+        {
+          ipAddress: "127.0.0.1",
+          userAgent: "jest"
+        }
+      )
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Pago insuficiente. Total: $100.00, recibido: $50.00."
+    });
+
+    expect(tx.sale.create).not.toHaveBeenCalled();
+    expect(inventoryServiceMock.decreaseStock).not.toHaveBeenCalled();
+  });
+
   it("requires admin role to cancel sales", async () => {
     await expect(
       cancelSale(

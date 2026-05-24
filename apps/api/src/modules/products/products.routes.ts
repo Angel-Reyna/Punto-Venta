@@ -377,6 +377,32 @@ productsRouter.patch(
   })
 );
 
+productsRouter.delete(
+  "/:id",
+  requirePermission(PERMISSIONS.ProductsDelete),
+  asyncHandler(async (req, res) => {
+    const productId = getRouteId(req);
+    const result = await deleteProductSafely(productId);
+
+    await auditLog({
+      userId: req.user?.id,
+      action: result.mode === "deleted" ? "DELETE_PRODUCT" : "DEACTIVATE_PRODUCT_WITH_HISTORY",
+      tableName: "Product",
+      recordId: result.product.id,
+      newData: result,
+      ipAddress: req.ip
+    });
+
+    res.json({
+      ...result,
+      message:
+        result.mode === "deleted"
+          ? "Producto eliminado correctamente."
+          : "El producto tiene historial operativo y fue desactivado para conservar trazabilidad."
+    });
+  })
+);
+
 productsRouter.get(
   "/template/excel",
   requirePermission(PERMISSIONS.ProductsImport),

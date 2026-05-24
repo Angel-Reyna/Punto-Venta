@@ -121,12 +121,15 @@ export function SalesPage() {
   const cartIsInvalid = useMemo(() => isCartInvalid(cart, products), [cart, products]);
 
   const paid = Number(paidAmount || 0);
-  const change = Math.max((Number.isFinite(paid) ? paid : 0) - total, 0);
+  const normalizedPaid = Number.isFinite(paid) ? paid : 0;
+  const isPaymentInsufficient = cart.length > 0 && normalizedPaid < total;
+  const change = Math.max(normalizedPaid - total, 0);
   const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const saleDialogIsOpen = cancelDialogOpen || returnDialogOpen;
   const checkoutIsDisabled =
     !canCreateSales ||
     cartIsInvalid ||
+    isPaymentInsufficient ||
     isSubmitting ||
     saleDialogIsOpen;
 
@@ -136,6 +139,9 @@ export function SalesPage() {
     if (isSubmitting) return "Procesando operación...";
     if (cart.length === 0) return "Agrega al menos un producto al ticket.";
     if (cartIsInvalid) return "Revisa cantidades: no deben superar el stock disponible.";
+    if (isPaymentInsufficient) {
+      return `Pago insuficiente. Falta ${formatMoney(total - normalizedPaid)} para completar la venta.`;
+    }
 
     return "";
   })();
@@ -235,6 +241,10 @@ export function SalesPage() {
       return;
     }
 
+    if (isPaymentInsufficient) {
+      setError(`Pago insuficiente. Falta ${formatMoney(total - normalizedPaid)} para completar la venta.`);
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -245,6 +255,7 @@ export function SalesPage() {
             ? customerName.trim()
             : undefined,
         paymentMethod,
+        paidAmount: normalizedPaid,
         items: cart
       });
 
@@ -293,7 +304,7 @@ export function SalesPage() {
     return () => {
       window.removeEventListener("keydown", handleGlobalShortcuts);
     };
-  }, [canCreateSales, checkoutIsDisabled, cart, customerName, paymentMethod]);
+  }, [canCreateSales, checkoutIsDisabled, cart, customerName, paymentMethod, normalizedPaid]);
 
   useEffect(() => {
     function refreshCatalogWhenVisible() {
@@ -744,7 +755,12 @@ export function SalesPage() {
                     type="number"
                     value={paidAmount}
                     inputProps={{ min: 0, step: 0.01 }}
-                    helperText="Solo cálculo visual de cambio; backend registra el método de pago."
+                    error={isPaymentInsufficient}
+                    helperText={
+                      isPaymentInsufficient
+                        ? `Pago insuficiente. Falta ${formatMoney(total - normalizedPaid)}.`
+                        : "Debe cubrir el total para poder cobrar. El cambio se calcula arriba."
+                    }
                     onChange={(event) => setPaidAmount(event.target.value)}
                   />
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 const { spawn, spawnSync } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 
 const repoRoot = path.resolve(__dirname, '../..');
@@ -362,7 +363,25 @@ function stopChildren() {
   }
 }
 
+function hasGeneratedPrismaClient() {
+  const generatedClientEntry = path.join(apiRoot, 'node_modules', '.prisma', 'client', 'index.js');
+  const packageClientEntry = path.join(apiRoot, 'node_modules', '@prisma', 'client', 'index.js');
+
+  return fs.existsSync(generatedClientEntry) && fs.existsSync(packageClientEntry);
+}
+
 async function generatePrismaClient() {
+  const forceGenerate = isTruthy(process.env.E2E_FORCE_PRISMA_GENERATE);
+
+  if (!forceGenerate && hasGeneratedPrismaClient()) {
+    log('Prisma Client already exists. Skipping prisma generate for integrated E2E.');
+    return;
+  }
+
+  if (forceGenerate) {
+    log('E2E_FORCE_PRISMA_GENERATE=true. Regenerating Prisma Client before integrated E2E.');
+  }
+
   try {
     await run(npmCmd, ['--prefix', 'apps/api', 'run', 'prisma:generate'], {
       cwd: repoRoot,
