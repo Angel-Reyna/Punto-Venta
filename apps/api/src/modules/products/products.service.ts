@@ -48,6 +48,21 @@ export type CreateProductInput = {
   initialStock: number;
 };
 
+export type DeleteProductResult = {
+  mode: "deleted" | "deactivated";
+  product: {
+    id: string;
+    sku: string;
+    name: string;
+    isActive: boolean;
+  };
+  blockingReferences: {
+    saleItems: number;
+    saleReturnItems: number;
+    inventoryMovements: number;
+  };
+};
+
 async function assertActiveCategory(
   tx: Prisma.TransactionClient,
   categoryId?: string | null
@@ -113,6 +128,90 @@ export async function createProduct(
       }
 
       return product;
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5_000,
+      timeout: 15_000
+    }
+  );
+}
+
+export async function deleteProductSafely(
+  productId: string
+): Promise<DeleteProductResult> {
+  return prisma.$transaction(
+    async (tx) => {
+      const product = await tx.product.findUnique({
+        where: {
+          id: productId
+        },
+        select: {
+          id: true,
+          sku: true,
+          name: true,
+          isActive: true
+        }
+      });
+
+      if (!product) {
+        throw new AppError(404, "Producto no encontrado");
+      }
+
+      const [saleItems, saleReturnItems, inventoryMovements] = await Promise.all([
+        tx.saleItem.count({ where: { productId } }),
+        tx.saleReturnItem.count({ where: { productId } }),
+        tx.inventoryMovement.count({ where: { productId } })
+      ]);
+
+      const blockingReferences = {
+        saleItems,
+        saleReturnItems,
+        inventoryMovements
+      };
+
+      if (saleItems > 0 || saleReturnItems > 0 || inventoryMovements > 0) {
+        const deactivatedProduct = product.isActive
+          ? await tx.product.update({
+              where: {
+                id: productId
+              },
+              data: {
+                isActive: false
+              },
+              select: {
+                id: true,
+                sku: true,
+                name: true,
+                isActive: true
+              }
+            })
+          : product;
+
+        return {
+          mode: "deactivated",
+          product: deactivatedProduct,
+          blockingReferences
+        };
+      }
+
+      await tx.inventoryBalance.deleteMany({
+        where: {
+          productId
+        }
+      });
+
+      await tx.product.delete({
+        where: {
+          id: productId
+        }
+      });
+
+      return {
+        mode: "deleted",
+        product,
+        blockingReferences
+      };
     },
     {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,

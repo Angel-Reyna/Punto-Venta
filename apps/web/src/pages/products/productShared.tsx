@@ -11,6 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 
+import DeleteIcon from "@mui/icons-material/Delete";
 import ToggleOffIcon from "@mui/icons-material/ToggleOff";
 
 import { InfoTooltip } from "../../components/InfoTooltip";
@@ -193,8 +194,11 @@ function ProductField({
 }
 
 type ProductCatalogProps = {
+  canDeleteProducts: boolean;
   canToggleProducts: boolean;
   canViewAdminColumns: boolean;
+  deletingProductId: string | null;
+  onDeleteProduct: (product: Product) => void;
   onToggleProduct: (productId: string) => void;
   rows: Product[];
   searchQuery: string;
@@ -202,8 +206,11 @@ type ProductCatalogProps = {
 };
 
 export function ProductCatalog({
+  canDeleteProducts,
   canToggleProducts,
   canViewAdminColumns,
+  deletingProductId,
+  onDeleteProduct,
   onToggleProduct,
   rows,
   searchQuery,
@@ -267,6 +274,7 @@ export function ProductCatalog({
             const stockChip = getStockChip(product);
             const hasPromo = Number(product.promoPercent ?? 0) > 0;
             const isToggleInProgress = togglingProductId === product.id;
+            const isDeleteInProgress = deletingProductId === product.id;
 
             return (
               <Box
@@ -276,7 +284,7 @@ export function ProductCatalog({
                   gap: 2,
                   gridTemplateColumns: {
                     xs: "1fr",
-                    md: canToggleProducts
+                    md: canToggleProducts || canDeleteProducts
                       ? "minmax(0, 1.6fr) minmax(190px, 0.85fr) minmax(190px, 0.85fr) auto"
                       : "minmax(0, 1.6fr) minmax(190px, 0.85fr) minmax(190px, 0.85fr)",
                   },
@@ -453,26 +461,47 @@ export function ProductCatalog({
                   )}
                 </Stack>
 
-                {canToggleProducts && (
+                {(canToggleProducts || canDeleteProducts) && (
                   <Stack
+                    spacing={1}
                     alignItems={{ xs: "stretch", md: "flex-end" }}
                     justifyContent="center"
                   >
-                    <IconButton
-                      onClick={() => onToggleProduct(product.id)}
-                      disabled={Boolean(togglingProductId)}
-                      title="Activar/desactivar producto"
-                      aria-label={`Activar o desactivar ${product.name}`}
-                      sx={{
-                        border: 1,
-                        borderColor: "divider",
-                        borderRadius: 2,
-                      }}
-                    >
-                      <ToggleOffIcon
-                        color={isToggleInProgress ? "disabled" : "action"}
-                      />
-                    </IconButton>
+                    {canToggleProducts && (
+                      <IconButton
+                        onClick={() => onToggleProduct(product.id)}
+                        disabled={Boolean(togglingProductId) || Boolean(deletingProductId)}
+                        title="Activar/desactivar producto"
+                        aria-label={`Activar o desactivar ${product.name}`}
+                        sx={{
+                          border: 1,
+                          borderColor: "divider",
+                          borderRadius: 2,
+                        }}
+                      >
+                        <ToggleOffIcon
+                          color={isToggleInProgress ? "disabled" : "action"}
+                        />
+                      </IconButton>
+                    )}
+
+                    {canDeleteProducts && (
+                      <IconButton
+                        onClick={() => onDeleteProduct(product)}
+                        disabled={Boolean(deletingProductId) || Boolean(togglingProductId)}
+                        title="Eliminar producto"
+                        aria-label={`Eliminar ${product.name}`}
+                        sx={{
+                          border: 1,
+                          borderColor: "error.light",
+                          borderRadius: 2,
+                        }}
+                      >
+                        <DeleteIcon
+                          color={isDeleteInProgress ? "disabled" : "error"}
+                        />
+                      </IconButton>
+                    )}
                   </Stack>
                 )}
               </Box>

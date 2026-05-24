@@ -39,8 +39,9 @@ export function ProductsPage() {
   const canCreateProduct = can(PERMISSIONS.ProductsCreate);
   const canImportProducts = can(PERMISSIONS.ProductsImport);
   const canToggleProducts = can(PERMISSIONS.ProductsToggleActive);
+  const canDeleteProducts = can(PERMISSIONS.ProductsDelete);
   const canViewAdminColumns =
-    canCreateProduct || canImportProducts || canToggleProducts;
+    canCreateProduct || canImportProducts || canToggleProducts || canDeleteProducts;
 
   const [rows, setRows] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,6 +58,10 @@ export function ProductsPage() {
   const [togglingProductId, setTogglingProductId] = useState<string | null>(
     null,
   );
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(
+    null,
+  );
+  const [productPendingDelete, setProductPendingDelete] = useState<Product | null>(null);
 
   async function load(query = searchQuery) {
     try {
@@ -198,6 +203,29 @@ export function ProductsPage() {
     }
   }
 
+  async function deleteProduct() {
+    if (!productPendingDelete || deletingProductId) return;
+
+    setMessage("");
+    setError("");
+    setDeletingProductId(productPendingDelete.id);
+
+    try {
+      const response = await api.delete<{ message?: string }>(
+        `/products/${productPendingDelete.id}`
+      );
+
+      setMessage(response.data.message ?? "Producto eliminado correctamente.");
+      setProductPendingDelete(null);
+
+      await load();
+    } catch (err: any) {
+      setError(getApiErrorMessage(err, "No se pudo eliminar el producto."));
+    } finally {
+      setDeletingProductId(null);
+    }
+  }
+
   const normalizedSearchQuery = searchQuery.trim();
 
   const productSearchHelper = useMemo(() => {
@@ -336,9 +364,53 @@ export function ProductsPage() {
         searchQuery={searchQuery}
         canViewAdminColumns={canViewAdminColumns}
         canToggleProducts={canToggleProducts}
+        canDeleteProducts={canDeleteProducts}
         togglingProductId={togglingProductId}
+        deletingProductId={deletingProductId}
         onToggleProduct={toggleProduct}
+        onDeleteProduct={setProductPendingDelete}
       />
+
+      {canDeleteProducts && (
+        <ResponsiveDialog
+          open={Boolean(productPendingDelete)}
+          onClose={() => setProductPendingDelete(null)}
+          disableClose={Boolean(deletingProductId)}
+          maxWidth="sm"
+          title="Eliminar producto"
+          description="Si el producto no tiene historial se eliminará físicamente. Si ya tiene ventas, devoluciones o movimientos de inventario, se desactivará para conservar trazabilidad."
+          actions={
+            <>
+              <Button
+                variant="outlined"
+                onClick={() => setProductPendingDelete(null)}
+                disabled={Boolean(deletingProductId)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                color="error"
+                onClick={deleteProduct}
+                disabled={Boolean(deletingProductId)}
+              >
+                {deletingProductId ? "Eliminando..." : "Eliminar producto"}
+              </Button>
+            </>
+          }
+        >
+          <Box sx={{ display: "grid", gap: 1 }}>
+            <Chip
+              color="warning"
+              variant="outlined"
+              label={productPendingDelete?.sku ?? "Producto seleccionado"}
+              sx={{ justifySelf: "flex-start" }}
+            />
+            <Box component="p" sx={{ m: 0 }}>
+              ¿Quieres eliminar o desactivar “{productPendingDelete?.name}”?
+            </Box>
+          </Box>
+        </ResponsiveDialog>
+      )}
 
       {canCreateProduct && (
         <ResponsiveDialog

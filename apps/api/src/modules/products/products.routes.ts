@@ -29,6 +29,7 @@ import {
   calculateFinalPrice,
   calculateMargin,
   createProduct,
+  deleteProductSafely,
   importProducts,
   productTemplateBuffer
 } from "./products.service";

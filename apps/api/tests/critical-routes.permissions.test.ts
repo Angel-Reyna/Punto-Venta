@@ -105,6 +105,7 @@ describe("critical route permissions", () => {
     ["crear producto", "post", "/api/products", { sku: "SKU-1", name: "Producto", costPrice: 1, salePrice: 2 }],
     ["importar productos", "post", "/api/products/import/excel", undefined],
     ["activar/desactivar producto", "patch", "/api/products/00000000-0000-4000-8000-000000000001/toggle", undefined],
+    ["eliminar producto", "delete", "/api/products/00000000-0000-4000-8000-000000000001", undefined],
     ["consultar caja actual", "get", "/api/cash-register/current", undefined],
     ["movimiento manual de caja", "post", "/api/cash-register/movements", { type: "IN", amount: 10, reason: "Ajuste manual" }],
     ["cancelar venta", "post", "/api/sales/00000000-0000-4000-8000-000000000002/cancel", { reason: "Prueba de permiso" }],
