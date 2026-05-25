@@ -13,13 +13,22 @@ import {
 } from "../../utils/pagination";
 import {
   decreaseStock,
-  getOrCreateDefaultWarehouse,
-  increaseStock
+  getOrCreateDefaultWarehouse
 } from "../inventory/inventory.service";
 import {
   tryRecordReturnCashMovement,
   tryRecordSaleCashMovement
 } from "../cash-register/cash-register.service";
+import {
+  createdSaleInclude,
+  mapCreatedSale,
+  mapSaleDetails,
+  saleDetailsInclude,
+  saleMutationInclude,
+  type SaleForMutation,
+  type SaleWithItemsAndPayments
+} from "./sales.mappers";
+import { restoreStockForExistingProducts } from "./sales.stock";
 
 export const saleSchema = z.object({
   body: z.object({
@@ -76,90 +85,6 @@ type ClientMeta = {
   ipAddress?: string;
   userAgent?: string;
 };
-
-const saleDetailsInclude = {
-  cashier: {
-    select: {
-      id: true,
-      name: true,
-      email: true
-    }
-  },
-  customer: {
-    select: {
-      id: true,
-      name: true,
-      phone: true,
-      email: true
-    }
-  },
-  items: {
-    include: {
-      product: {
-        select: {
-          id: true,
-          sku: true,
-          name: true,
-          salePrice: true,
-          promoPercent: true
-        }
-      }
-    }
-  },
-  payments: true,
-  returns: {
-    include: {
-      cashier: {
-        select: {
-          id: true,
-          name: true,
-          email: true
-        }
-      },
-      items: {
-        include: {
-          product: {
-            select: {
-              id: true,
-              sku: true,
-              name: true
-            }
-          }
-        }
-      }
-    },
-    orderBy: {
-      createdAt: "desc"
-    }
-  }
-} satisfies Prisma.SaleInclude;
-
-const createdSaleInclude = {
-  items: true,
-  payments: true
-} satisfies Prisma.SaleInclude;
-
-const saleMutationInclude = {
-  items: true,
-  payments: true,
-  returns: {
-    include: {
-      items: true
-    }
-  }
-} satisfies Prisma.SaleInclude;
-
-type SaleWithDetails = Prisma.SaleGetPayload<{
-  include: typeof saleDetailsInclude;
-}>;
-
-type SaleWithItemsAndPayments = Prisma.SaleGetPayload<{
-  include: typeof createdSaleInclude;
-}>;
-
-type SaleForMutation = Prisma.SaleGetPayload<{
-  include: typeof saleMutationInclude;
-}>;
 
 type PreparedSaleItem = {
   product: {
@@ -334,120 +259,6 @@ async function prepareSaleItems(
     subtotal,
     discount,
     total: roundMoney(subtotal - discount)
-  };
-}
-
-function mapSaleItemProduct(item: {
-  product: { id: string; sku: string; name: string; salePrice?: Prisma.Decimal; promoPercent?: Prisma.Decimal } | null;
-  productId: string | null;
-  productSku: string;
-  productName: string;
-}) {
-  if (item.product) {
-    return {
-      ...item.product,
-      ...(item.product.salePrice === undefined
-        ? {}
-        : { salePrice: Number(item.product.salePrice) }),
-      ...(item.product.promoPercent === undefined
-        ? {}
-        : { promoPercent: Number(item.product.promoPercent) })
-    };
-  }
-
-  return {
-    id: item.productId,
-    sku: item.productSku,
-    name: `${item.productName} (eliminado)`,
-    deleted: true
-  };
-}
-
-type RestockableSaleItem = {
-  productId: string | null;
-  quantity: number;
-};
-
-async function restoreStockForExistingProducts(
-  tx: Prisma.TransactionClient,
-  items: RestockableSaleItem[],
-  options: {
-    reason: string;
-    createdBy: string;
-  }
-) {
-  const restockableItems = items.filter(
-    (item): item is { productId: string; quantity: number } =>
-      Boolean(item.productId)
-  );
-
-  if (restockableItems.length === 0) {
-    return;
-  }
-
-  const warehouse = await getOrCreateDefaultWarehouse(tx);
-
-  for (const item of restockableItems) {
-    await increaseStock(tx, {
-      productId: item.productId,
-      warehouseId: warehouse.id,
-      quantity: item.quantity,
-      type: "RETURN",
-      reason: options.reason,
-      createdBy: options.createdBy
-    });
-  }
-}
-
-function mapSaleDetails(sale: SaleWithDetails) {
-  return {
-    ...sale,
-    subtotal: Number(sale.subtotal),
-    discount: Number(sale.discount),
-    tax: Number(sale.tax),
-    total: Number(sale.total),
-    items: sale.items.map((item) => ({
-      ...item,
-      unitPrice: Number(item.unitPrice),
-      discount: Number(item.discount),
-      total: Number(item.total),
-      product: mapSaleItemProduct(item)
-    })),
-    payments: sale.payments.map((payment) => ({
-      ...payment,
-      amount: Number(payment.amount)
-    })),
-    returns: sale.returns.map((saleReturn) => ({
-      ...saleReturn,
-      refundTotal: Number(saleReturn.refundTotal),
-      items: saleReturn.items.map((item) => ({
-        ...item,
-        unitPrice: Number(item.unitPrice),
-        discount: Number(item.discount),
-        total: Number(item.total),
-        product: mapSaleItemProduct(item)
-      }))
-    }))
-  };
-}
-
-function mapCreatedSale(sale: SaleWithItemsAndPayments) {
-  return {
-    ...sale,
-    subtotal: Number(sale.subtotal),
-    discount: Number(sale.discount),
-    tax: Number(sale.tax),
-    total: Number(sale.total),
-    items: sale.items.map((item) => ({
-      ...item,
-      unitPrice: Number(item.unitPrice),
-      discount: Number(item.discount),
-      total: Number(item.total)
-    })),
-    payments: sale.payments.map((payment) => ({
-      ...payment,
-      amount: Number(payment.amount)
-    }))
   };
 }
 
