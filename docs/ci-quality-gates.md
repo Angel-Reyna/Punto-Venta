@@ -24,8 +24,9 @@ El repositorio valida tres niveles: guardrails del monorepo, calidad de API/Web 
 ### Web quality gate
 
 - Instala con `npm ci`.
-- Ejecuta pruebas críticas de permisos y navegación.
+- Ejecuta la suite completa de Vitest frontend.
 - Compila TypeScript y Vite.
+- Ejecuta auditoría estricta del bundle web después del build.
 
 ### Web E2E smoke gate
 
@@ -81,3 +82,4 @@ git rm --cached <ruta-del-artefacto>
 - `web:e2e` lista specs de `e2e/integration`.
 - Docker Compose resuelve `DATABASE_URL` de API con `localhost` dentro del contenedor.
 - Docker build falla.
+- Bundle web excede umbrales `FAIL` en modo estricto de CI.

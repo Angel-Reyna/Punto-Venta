@@ -10,6 +10,12 @@ Después de generar el build web:
 
 ```bash
 npm run web:build
+npm run web:bundle:audit
+```
+
+El script también acepta ejecución directa:
+
+```bash
 node scripts/web/audit-bundle.js
 ```
 
@@ -23,9 +29,9 @@ El script analiza `apps/web/dist/assets`, calcula tamaño raw y gzip de chunks `
 
 ## 2. Modo no bloqueante por defecto
 
-Por defecto, `node scripts/web/audit-bundle.js` es informativo. Puede mostrar `WARN` o `FAIL`, pero solo falla el proceso si se activa modo estricto.
+Por defecto, `node scripts/web/audit-bundle.js` y `npm run web:bundle:audit` son informativos. Pueden mostrar `WARN` o `FAIL`, pero solo fallan el proceso si se activa modo estricto.
 
-Esto evita romper el flujo actual mientras todavía no existe un presupuesto definitivo de performance.
+CI ejecuta el modo estricto con `--strict`, por lo que solo bloquea cuando se cruza un umbral `FAIL`. Los `WARN` siguen siendo visibles sin romper el flujo.
 
 ## 3. Umbrales iniciales
 
@@ -54,6 +60,14 @@ Para convertir fallos de presupuesto en error de proceso:
 
 ```bash
 BUNDLE_AUDIT_STRICT=true node scripts/web/audit-bundle.js
+```
+
+También existe una forma portable para Windows/Git Bash/CI:
+
+```bash
+npm run ci:web-bundle-audit
+# equivalente directo:
+node scripts/web/audit-bundle.js --strict
 ```
 
 En Windows PowerShell:

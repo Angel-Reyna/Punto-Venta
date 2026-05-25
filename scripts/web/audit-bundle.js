@@ -17,7 +17,7 @@ const warnChunkKb = readPositiveNumber('BUNDLE_AUDIT_WARN_CHUNK_KB', DEFAULT_WAR
 const failChunkKb = readPositiveNumber('BUNDLE_AUDIT_FAIL_CHUNK_KB', DEFAULT_FAIL_CHUNK_KB);
 const warnTotalJsKb = readPositiveNumber('BUNDLE_AUDIT_WARN_TOTAL_JS_KB', DEFAULT_WARN_TOTAL_JS_KB);
 const failTotalJsKb = readPositiveNumber('BUNDLE_AUDIT_FAIL_TOTAL_JS_KB', DEFAULT_FAIL_TOTAL_JS_KB);
-const strict = readBoolean('BUNDLE_AUDIT_STRICT');
+const strict = readBoolean('BUNDLE_AUDIT_STRICT') || process.argv.includes('--strict');
 
 function readPositiveNumber(name, fallback) {
   const raw = process.env[name];
