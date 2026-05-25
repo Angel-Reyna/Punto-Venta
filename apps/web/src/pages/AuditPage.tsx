@@ -24,7 +24,9 @@ import {
   AuditLogCard,
   AuditMetricCard,
   buildAuditQuery,
+  filterAuditLogsBySeverity,
   formatDate,
+  getAuditSeverity,
   initialFilters,
   type AuditFilters,
   type AuditLog
@@ -79,12 +81,22 @@ export function AuditPage() {
     [rows]
   );
 
-  const uniqueUsers = useMemo(
-    () => new Set(rows.map((row) => row.user?.id ?? "system")).size,
-    [rows]
+  const visibleRows = useMemo(
+    () => filterAuditLogsBySeverity(rows, filters.severity),
+    [rows, filters.severity]
   );
 
-  const latestEvent = rows[0]?.createdAt ? formatDate(rows[0].createdAt) : "Sin actividad";
+  const uniqueUsers = useMemo(
+    () => new Set(visibleRows.map((row) => row.user?.id ?? "system")).size,
+    [visibleRows]
+  );
+
+  const criticalEvents = useMemo(
+    () => visibleRows.filter((row) => getAuditSeverity(row).level === "critical").length,
+    [visibleRows]
+  );
+
+  const latestEvent = visibleRows[0]?.createdAt ? formatDate(visibleRows[0].createdAt) : "Sin actividad";
 
   return (
     <>
@@ -113,13 +125,13 @@ export function AuditPage() {
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid item xs={12} sm={6} lg={3}>
-          <AuditMetricCard label="Eventos cargados" value={rows.length} helper="Últimos resultados del filtro" />
+          <AuditMetricCard label="Eventos visibles" value={visibleRows.length} helper="Resultados después de filtros operativos" />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <AuditMetricCard label="Usuarios involucrados" value={uniqueUsers} helper="Incluye acciones de sistema" />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
-          <AuditMetricCard label="Entidades afectadas" value={tableOptions.length} helper="Tablas o módulos con cambios" />
+          <AuditMetricCard label="Eventos críticos" value={criticalEvents} helper="Acciones destructivas o de acceso" />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <AuditMetricCard label="Último evento" value={latestEvent} helper="Actividad más reciente" />
@@ -136,13 +148,13 @@ export function AuditPage() {
                   Filtros de auditoría
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Busca por acción, entidad, registro, usuario o correo.
+                  Busca por acción, entidad, severidad, registro, usuario o correo.
                 </Typography>
               </Box>
             </Stack>
 
             <Grid container spacing={2}>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={3}>
                 <TextField
                   fullWidth
                   label="Buscar"
@@ -191,6 +203,23 @@ export function AuditPage() {
 
               <Grid item xs={12} sm={6} md={2}>
                 <TextField
+                  select
+                  fullWidth
+                  label="Severidad"
+                  value={filters.severity}
+                  inputProps={{ "data-testid": "audit-severity" }}
+                  onChange={(event) => updateFilter("severity", event.target.value as AuditFilters["severity"])}
+                >
+                  <MenuItem value="">Todas</MenuItem>
+                  <MenuItem value="critical">Crítica</MenuItem>
+                  <MenuItem value="high">Alta</MenuItem>
+                  <MenuItem value="medium">Media</MenuItem>
+                  <MenuItem value="low">Baja</MenuItem>
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={1.5}>
+                <TextField
                   fullWidth
                   label="Desde"
                   type="date"
@@ -201,7 +230,7 @@ export function AuditPage() {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6} md={2}>
+              <Grid item xs={12} sm={6} md={1.5}>
                 <TextField
                   fullWidth
                   label="Hasta"
@@ -226,18 +255,18 @@ export function AuditPage() {
         </CardContent>
       </Card>
 
-      {rows.length === 0 ? (
+      {visibleRows.length === 0 ? (
         <Card>
           <CardContent>
             <Typography fontWeight={800}>No hay eventos de auditoría.</Typography>
             <Typography variant="body2" color="text.secondary">
-              Ajusta los filtros o registra una acción administrativa para generar actividad.
+              Ajusta los filtros o registra una acción administrativa para generar actividad auditable.
             </Typography>
           </CardContent>
         </Card>
       ) : (
         <Grid container spacing={2}>
-          {rows.map((log) => (
+          {visibleRows.map((log) => (
             <Grid item xs={12} lg={6} key={log.id}>
               <AuditLogCard log={log} />
             </Grid>

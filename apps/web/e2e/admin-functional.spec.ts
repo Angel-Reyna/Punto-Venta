@@ -85,13 +85,23 @@ test.describe("cobertura funcional administrativa", () => {
     await page.goto("/audit");
 
     await expect(page.getByRole("heading", { name: "Auditoría", level: 1 })).toBeVisible();
-    await expect(byTestId(page, "audit-log-audit-1")).toContainText("PRODUCT_DELETE");
+    await expect(byTestId(page, "audit-log-audit-1")).toContainText("Producto eliminado");
+    await expect(byTestId(page, "audit-log-audit-1")).toContainText("Severidad Crítica");
     await expect(byTestId(page, "audit-log-audit-1")).toContainText("product-deleted-snapshot");
+    await expect(byTestId(page, "audit-after-audit-1")).toContainText("e2e");
+
+    await page.getByRole("combobox", { name: "Severidad" }).click();
+    await page.getByRole("option", { name: "Media" }).click();
+
+    await expect(byTestId(page, "audit-log-audit-2")).toContainText("Venta registrada");
+    await expect(byTestId(page, "audit-log-audit-1")).toHaveCount(0);
+
+    await clickByTestId(page, "audit-clear-button");
 
     await fillByTestId(page, "audit-search", "password");
     await clickByTestId(page, "audit-consult-button");
 
-    await expect(byTestId(page, "audit-log-audit-3")).toContainText("USER_PASSWORD_RESET");
+    await expect(byTestId(page, "audit-log-audit-3")).toContainText("Contraseña restablecida");
     await expect(byTestId(page, "audit-log-audit-1")).toHaveCount(0);
 
     await clickByTestId(page, "audit-clear-button");
