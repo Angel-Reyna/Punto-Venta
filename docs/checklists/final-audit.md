@@ -28,6 +28,25 @@ Criterios:
 - Docker Desktop debe estar activo si el patch toca PostgreSQL, Docker o E2E integrado.
 - Los lockfiles deben coincidir con sus `package.json`.
 
+## Preflight obligatorio al generar patches
+
+Antes de entregar o aplicar un patch generado fuera del repositorio local, verifica el paquete completo del cambio:
+
+```bash
+git diff --name-status
+git diff --check
+git apply --check --whitespace=error RUTA/AL/PATCH.patch
+```
+
+Criterios:
+
+- `git diff --name-status` debe incluir todos los archivos nuevos (`A`) y modificados (`M`).
+- Los archivos nuevos deben aparecer físicamente en el patch; no basta con cambiar imports.
+- `git diff --check` y `git apply --check --whitespace=error` no deben reportar trailing whitespace ni errores de formato.
+- Si el patch agrega imports relativos, valida que cada archivo importado exista y esté incluido.
+- Si el patch mueve schemas, mappers o helpers, valida que las rutas sigan importando desde el nuevo origen.
+- No uses `--ignore-whitespace` para aprobar la calidad del patch; úsalo solo como compatibilidad de aplicación cuando el archivo ya fue validado con `--whitespace=error`.
+
 ## Validación rápida por tipo de cambio
 
 ### Solo documentación
@@ -73,6 +92,8 @@ Si cambias servicios críticos, permisos, auth, ventas, inventario, importación
 ```bash
 npm run api:test
 ```
+
+Si el cambio es un refactor backend por dominio, revisa además `docs/architecture/backend-modules.md` y valida que la documentación siga describiendo la estructura real del módulo.
 
 ### Prisma o migraciones
 
@@ -199,6 +220,7 @@ Docker build API/Web OK.
 ```bash
 npm run clean:generated
 git status --short
+git diff --name-status
 git diff --check
 git diff --stat
 ```
@@ -206,6 +228,7 @@ git diff --stat
 Verifica:
 
 - El commit incluye solo archivos relacionados con el patch.
+- Los archivos nuevos aparecen como `A` en `git diff --name-status` o en `git status --short`.
 - No hay `.env`, logs, screenshots, videos, traces, `dist`, `*.tsbuildinfo`, carpetas de resultados ni notas personales versionadas.
 - Si eliminaste archivos generados ya trackeados, usa `git add -A`.
 - El mensaje de commit usa un scope claro: `fix`, `test`, `docs`, `chore`, `refactor`.

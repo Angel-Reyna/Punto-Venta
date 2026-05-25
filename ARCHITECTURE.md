@@ -20,6 +20,7 @@ El modelo funcional actual no obliga a abrir caja para vender. El flujo principa
 - Express + TypeScript.
 - Prisma como ORM sobre PostgreSQL.
 - Módulos por dominio: auth, usuarios, productos, inventario, ventas, reportes, dashboard, auditoría, actividad de vendedores y caja.
+- Estructura modular documentada en `docs/architecture/backend-modules.md`: rutas para transporte HTTP, servicios para casos de uso, archivos `shared` para schemas/tipos, `mappers` para DTOs y archivos especializados cuando el dominio lo justifica.
 - Validación de entrada con Zod en rutas críticas.
 - Middleware centralizado de autenticación, autorización, CSRF, rate limit, request id y errores.
 - Transacciones Prisma para operaciones sensibles de venta, inventario, devolución y caja.
@@ -84,9 +85,23 @@ La autorización usa permisos por acción para los módulos principales: usuario
 - Docker y documentación operativa están separados entre modo local y modo contenedor.
 - Los scripts `qa:local` y `qa:full` reducen errores manuales al validar patches.
 
+## Arquitectura backend modular
+
+Después de los refactors por dominio, el backend usa una convención explícita por módulo:
+
+```txt
+<module>.routes.ts   -> transporte HTTP, middlewares, permisos, validación y respuestas.
+<module>.service.ts  -> casos de uso, transacciones, reglas de dominio y coordinación Prisma.
+<module>.shared.ts   -> schemas Zod, tipos, constantes y helpers puros.
+<module>.mappers.ts  -> includes/selects Prisma, tipos derivados y transformación a DTOs.
+<module>.<area>.ts   -> subflujos especializados como importación, cookies, stock u operaciones.
+```
+
+La referencia operativa está en `docs/architecture/backend-modules.md`. Ese documento debe actualizarse cuando se agregue un módulo, se mueva un schema Zod, cambie un mapper público o se modifique una regla transversal de transacciones, auditoría, permisos o snapshots históricos.
+
 ## Riesgos actuales y siguientes mejoras
 
-1. **Archivos grandes de UI**: páginas como ventas, productos, reportes y usuarios concentran demasiada lógica de estado, render y handlers. Conviene extraer hooks y subcomponentes por dominio antes de añadir más funciones.
+1. **Archivos grandes de UI**: páginas como ventas, productos, reportes y usuarios aún concentran bastante lógica de estado, render y handlers. Conviene extraer hooks y subcomponentes por dominio antes de añadir más funciones.
 2. **Caja sigue siendo módulo secundario**: el dominio existe, pero el modelo de negocio actual prioriza ventas por vendedor. Si se requiere control de efectivo real, debería evolucionar hacia liquidaciones/entregas de efectivo, no forzar caja abierta para vender.
 3. **RBAC editable**: los permisos aún se derivan del rol en código. Para producción multiempresa o administración granular, conviene persistir permisos/roles en base de datos.
 4. **Paginación server-side**: algunas pantallas aún pueden crecer en memoria si el volumen de ventas/productos aumenta. Hay utilidades de paginación en API, pero falta extenderlas uniformemente al frontend.

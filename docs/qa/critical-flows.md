@@ -64,6 +64,23 @@ Variables esperadas en desarrollo local:
 - Eliminación física de productos preserva historial en reportes integrados.
 - Cancelaciones/devoluciones de ventas con productos eliminados no recrean inventario y conservan snapshots.
 
+## Cobertura funcional E2E esperada
+
+La suite Playwright mockeada debe cubrir, como mínimo:
+
+- navegación por rol y bloqueo de rutas administrativas para vendedores;
+- venta en efectivo sin caja abierta;
+- bloqueo visual de pago insuficiente;
+- alta, desactivación y eliminación de productos desde UI;
+- entrada/salida de inventario e historial operativo;
+- usuarios: crear, cambiar rol, resetear contraseña y desactivar;
+- reportes: ventas por vendedor, snapshots históricos y descarga PDF mockeada;
+- auditoría: búsqueda, severidad operativa y snapshots resumidos;
+- actividad de vendedores: filtros, auto-refresh, pausa/reanudación y preservación de búsqueda;
+- caja: apertura, movimiento manual, cierre y permisos.
+
+La suite integrada debe cubrir al menos venta real con PostgreSQL y eliminación física de producto con historial preservado.
+
 ## Verificaciones manuales pendientes
 
 Aunque ya existe Playwright mockeado e integrado, estas verificaciones siguen requiriendo revisión manual o nuevos casos automatizados específicos:
