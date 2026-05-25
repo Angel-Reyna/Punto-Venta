@@ -344,6 +344,7 @@ export function UsersPage() {
                 label="Nombre completo"
                 placeholder="Ej. Ana López"
                 value={form.name}
+                inputProps={{ "data-testid": "users-form-name" }}
                 error={Boolean(form.name) && form.name.trim().length < 2}
                 helperText="Mínimo 2 caracteres."
                 onChange={(event) =>
@@ -360,6 +361,7 @@ export function UsersPage() {
                 type="email"
                 autoComplete="email"
                 value={form.email}
+                inputProps={{ "data-testid": "users-form-email" }}
                 helperText="Será usado para iniciar sesión."
                 onChange={(event) =>
                   setForm({
@@ -374,6 +376,7 @@ export function UsersPage() {
                 type="password"
                 autoComplete="new-password"
                 value={form.password}
+                inputProps={{ "data-testid": "users-form-password" }}
                 error={Boolean(form.password) && !passwordIsValid}
                 helperText="8 a 72 caracteres, con mayúscula, minúscula y número."
                 onChange={(event) =>
@@ -389,6 +392,7 @@ export function UsersPage() {
                 label="Rol"
                 value={form.role}
                 helperText="Vendedor no administra usuarios."
+                inputProps={{ "data-testid": "users-form-role" }}
                 onChange={(event) =>
                   setForm({
                     ...form,
@@ -404,6 +408,7 @@ export function UsersPage() {
                 <Button
                   fullWidth
                   type="submit"
+                  data-testid="users-form-submit"
                   disabled={formIsInvalid}
                   startIcon={<PersonAddAlt1OutlinedIcon />}
                   sx={{ mt: 0.25 }}
@@ -563,6 +568,7 @@ export function UsersPage() {
               Cancelar
             </Button>
             <Button
+              data-testid="users-role-save"
               disabled={
                 isUpdatingRole ||
                 !roleDialogUser ||
@@ -584,6 +590,7 @@ export function UsersPage() {
             select
             label="Rol"
             value={selectedRole}
+            inputProps={{ "data-testid": "users-role-select" }}
             onChange={(event) =>
               setSelectedRole(event.target.value as UserRole)
             }
@@ -609,7 +616,7 @@ export function UsersPage() {
             >
               Cancelar
             </Button>
-            <Button disabled={resetPasswordIsInvalid} onClick={resetPassword}>
+            <Button data-testid="users-reset-password-save" disabled={resetPasswordIsInvalid} onClick={resetPassword}>
               {isResettingPassword ? "Guardando..." : "Guardar contraseña"}
             </Button>
           </>
@@ -626,6 +633,7 @@ export function UsersPage() {
             type="password"
             autoComplete="new-password"
             value={resetPasswordForm.password}
+            inputProps={{ "data-testid": "users-reset-password" }}
             error={Boolean(resetPasswordForm.password) && !resetPasswordIsValid}
             helperText="8 a 72 caracteres, con mayúscula, minúscula y número."
             onChange={(event) =>
@@ -641,6 +649,7 @@ export function UsersPage() {
             type="password"
             autoComplete="new-password"
             value={resetPasswordForm.confirmPassword}
+            inputProps={{ "data-testid": "users-reset-password-confirm" }}
             error={
               Boolean(resetPasswordForm.confirmPassword) &&
               !resetPasswordMatches

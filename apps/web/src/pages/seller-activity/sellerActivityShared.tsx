@@ -184,7 +184,7 @@ export function ActivityMetricCard({
 
 export function SellerActivityCard({ log }: { log: SellerActivityLog }) {
   return (
-    <Card variant="outlined" sx={{ height: "100%" }}>
+    <Card variant="outlined" data-testid={`seller-activity-log-${log.id}`} sx={{ height: "100%" }}>
       <CardActionArea
         component="div"
         disableRipple

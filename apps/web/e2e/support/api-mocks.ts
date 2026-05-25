@@ -56,6 +56,47 @@ type MockInventoryMovement = {
   } | null;
 };
 
+type MockManagedUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  isActive: boolean;
+  createdAt: string;
+};
+
+type MockAuditLog = {
+  id: string;
+  action: string;
+  tableName: string;
+  recordId?: string | null;
+  oldData?: unknown;
+  newData?: unknown;
+  ipAddress?: string | null;
+  createdAt: string;
+  user?: MockManagedUser | null;
+};
+
+type MockSellerActivityLog = {
+  id: string;
+  sellerId: string;
+  action:
+    | "SELLER_LOGIN"
+    | "SELLER_LOGOUT"
+    | "SALE_CREATED"
+    | "SALE_VIEWED"
+    | "PRODUCT_VIEWED"
+    | "FAILED_ACCESS_ATTEMPT";
+  entityType: string;
+  entityId?: string | null;
+  description: string;
+  metadata?: unknown;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  createdAt: string;
+  seller: MockManagedUser;
+};
+
 export const ADMIN_PERMISSIONS = [
   "users:read",
   "users:create",
@@ -119,6 +160,9 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
   const sales = salesResponse(role);
   const inventoryMovements = inventoryMovementsResponse(products[0]);
   const warehouses = [{ id: "warehouse-1", name: "Principal", isActive: true }];
+  const managedUsers = usersResponse();
+  const auditLogs = auditLogsResponse(managedUsers);
+  const sellerActivityLogs = sellerActivityResponse(managedUsers);
 
   await page.route(REQUEST_PATTERN, async (route) => {
     const request = route.request();
@@ -156,6 +200,88 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
 
     if (pathname.endsWith("/dashboard")) {
       return json(route, dashboardResponse(role));
+    }
+
+    if (pathname === "/users" && method === "GET") {
+      return json(route, managedUsers);
+    }
+
+    if (pathname === "/users" && method === "POST") {
+      const payload = readJsonPayload(request) as Partial<MockManagedUser> & {
+        password?: string;
+      };
+      const createdUser = buildCreatedUser(payload, managedUsers.length + 1);
+
+      managedUsers.push(createdUser);
+      auditLogs.unshift(buildAuditLog({
+        id: `audit-user-create-${createdUser.id}`,
+        action: "USER_CREATE",
+        tableName: "User",
+        recordId: createdUser.id,
+        user: managedUsers[0],
+      }));
+
+      return json(route, createdUser, 201);
+    }
+
+    const userToggleMatch = pathname.match(/^\/users\/([^/]+)\/toggle$/);
+    if (userToggleMatch && method === "PATCH") {
+      const targetUser = managedUsers.find((item) => item.id === userToggleMatch[1]);
+
+      if (!targetUser) {
+        return json(route, { message: "Usuario no encontrado" }, 404);
+      }
+
+      targetUser.isActive = !targetUser.isActive;
+      auditLogs.unshift(buildAuditLog({
+        id: `audit-user-toggle-${targetUser.id}`,
+        action: targetUser.isActive ? "USER_ACTIVATE" : "USER_DEACTIVATE",
+        tableName: "User",
+        recordId: targetUser.id,
+        user: managedUsers[0],
+      }));
+
+      return json(route, targetUser);
+    }
+
+    const userRoleMatch = pathname.match(/^\/users\/([^/]+)\/role$/);
+    if (userRoleMatch && method === "PATCH") {
+      const targetUser = managedUsers.find((item) => item.id === userRoleMatch[1]);
+      const payload = readJsonPayload(request) as { role?: Role };
+
+      if (!targetUser) {
+        return json(route, { message: "Usuario no encontrado" }, 404);
+      }
+
+      targetUser.role = payload.role ?? targetUser.role;
+      auditLogs.unshift(buildAuditLog({
+        id: `audit-user-role-${targetUser.id}`,
+        action: "USER_ROLE_UPDATE",
+        tableName: "User",
+        recordId: targetUser.id,
+        user: managedUsers[0],
+      }));
+
+      return json(route, targetUser);
+    }
+
+    const userPasswordMatch = pathname.match(/^\/users\/([^/]+)\/password$/);
+    if (userPasswordMatch && method === "PATCH") {
+      const targetUser = managedUsers.find((item) => item.id === userPasswordMatch[1]);
+
+      if (!targetUser) {
+        return json(route, { message: "Usuario no encontrado" }, 404);
+      }
+
+      auditLogs.unshift(buildAuditLog({
+        id: `audit-user-password-${targetUser.id}`,
+        action: "USER_PASSWORD_RESET",
+        tableName: "User",
+        recordId: targetUser.id,
+        user: managedUsers[0],
+      }));
+
+      return json(route, { ok: true });
     }
 
     if (pathname.endsWith("/products/categories")) {
@@ -271,6 +397,30 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
       inventoryMovements.unshift(movement);
 
       return json(route, movement, 201);
+    }
+
+    if (pathname.endsWith("/reports/operations/pdf") && method === "GET") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/pdf",
+        body: "%PDF-1.4 punta-venta-e2e",
+      });
+    }
+
+    if (pathname.endsWith("/reports/operations") && method === "GET") {
+      return json(route, operationsReportResponse());
+    }
+
+    if (pathname.endsWith("/audit") && method === "GET") {
+      return json(route, filterAuditLogs(auditLogs, url.searchParams));
+    }
+
+    if (pathname.endsWith("/seller-activity/summary") && method === "GET") {
+      return json(route, summarizeSellerActivity(filterSellerActivity(sellerActivityLogs, url.searchParams)));
+    }
+
+    if (pathname.endsWith("/seller-activity") && method === "GET") {
+      return json(route, filterSellerActivity(sellerActivityLogs, url.searchParams));
     }
 
     if (pathname.endsWith("/sales") && method === "GET") {
@@ -557,6 +707,293 @@ function filterMovements(movements: MockInventoryMovement[], query: string | nul
   );
 }
 
+
+function usersResponse(): MockManagedUser[] {
+  return [
+    {
+      id: "admin-e2e",
+      name: "Admin E2E",
+      email: "admin@puntaventa.test",
+      role: "ADMIN",
+      isActive: true,
+      createdAt: "2026-05-20T09:00:00.000Z",
+    },
+    {
+      id: "seller-e2e",
+      name: "Vendedor E2E",
+      email: "vendedor@puntaventa.test",
+      role: "CASHIER",
+      isActive: true,
+      createdAt: "2026-05-21T10:00:00.000Z",
+    },
+    {
+      id: "seller-inactive-e2e",
+      name: "Vendedor Inactivo E2E",
+      email: "inactivo@puntaventa.test",
+      role: "CASHIER",
+      isActive: false,
+      createdAt: "2026-05-21T11:00:00.000Z",
+    },
+  ];
+}
+
+function buildCreatedUser(
+  payload: Partial<MockManagedUser>,
+  sequence: number,
+): MockManagedUser {
+  return {
+    id: `user-created-${sequence}`,
+    name: String(payload.name ?? `Usuario ${sequence}`),
+    email: String(payload.email ?? `usuario-${sequence}@puntaventa.test`).toLowerCase(),
+    role: payload.role ?? "CASHIER",
+    isActive: true,
+    createdAt: "2026-05-22T13:00:00.000Z",
+  };
+}
+
+function buildAuditLog(input: {
+  id: string;
+  action: string;
+  tableName: string;
+  recordId?: string | null;
+  user?: MockManagedUser | null;
+}): MockAuditLog {
+  return {
+    id: input.id,
+    action: input.action,
+    tableName: input.tableName,
+    recordId: input.recordId ?? null,
+    oldData: null,
+    newData: { e2e: true },
+    ipAddress: "127.0.0.1",
+    createdAt: "2026-05-22T13:30:00.000Z",
+    user: input.user ?? null,
+  };
+}
+
+function auditLogsResponse(users: MockManagedUser[]): MockAuditLog[] {
+  const admin = users.find((item) => item.role === "ADMIN") ?? users[0];
+  const seller = users.find((item) => item.role === "CASHIER") ?? users[0];
+
+  return [
+    buildAuditLog({
+      id: "audit-1",
+      action: "PRODUCT_DELETE",
+      tableName: "Product",
+      recordId: "product-deleted-snapshot",
+      user: admin,
+    }),
+    buildAuditLog({
+      id: "audit-2",
+      action: "SALE_CREATE",
+      tableName: "Sale",
+      recordId: "sale-1",
+      user: seller,
+    }),
+    buildAuditLog({
+      id: "audit-3",
+      action: "USER_PASSWORD_RESET",
+      tableName: "User",
+      recordId: "seller-e2e",
+      user: admin,
+    }),
+  ];
+}
+
+function filterAuditLogs(logs: MockAuditLog[], params: URLSearchParams) {
+  const query = normalize(params.get("q"));
+  const action = normalize(params.get("action"));
+  const tableName = normalize(params.get("tableName"));
+
+  return logs.filter((log) => {
+    const matchesQuery = query
+      ? [
+          log.action,
+          log.tableName,
+          log.recordId,
+          log.user?.name,
+          log.user?.email,
+          log.ipAddress,
+        ].some((value) => normalize(value).includes(query))
+      : true;
+    const matchesAction = action ? normalize(log.action) === action : true;
+    const matchesTableName = tableName ? normalize(log.tableName) === tableName : true;
+
+    return matchesQuery && matchesAction && matchesTableName;
+  });
+}
+
+function sellerActivityResponse(users: MockManagedUser[]): MockSellerActivityLog[] {
+  const seller = users.find((item) => item.id === "seller-e2e") ?? users[0];
+  const inactiveSeller = users.find((item) => item.id === "seller-inactive-e2e") ?? seller;
+
+  return [
+    {
+      id: "seller-activity-1",
+      sellerId: seller.id,
+      action: "SALE_CREATED",
+      entityType: "Sale",
+      entityId: "PV-0001",
+      description: "Venta registrada por Vendedor E2E por $320.00",
+      metadata: { total: 320 },
+      ipAddress: "127.0.0.1",
+      userAgent: "Playwright Chromium",
+      createdAt: "2026-05-22T10:00:00.000Z",
+      seller,
+    },
+    {
+      id: "seller-activity-2",
+      sellerId: seller.id,
+      action: "SELLER_LOGIN",
+      entityType: "AuthSession",
+      entityId: "session-e2e",
+      description: "Inicio de sesión de vendedor autorizado",
+      ipAddress: "127.0.0.1",
+      userAgent: "Playwright Chromium",
+      createdAt: "2026-05-22T09:50:00.000Z",
+      seller,
+    },
+    {
+      id: "seller-activity-3",
+      sellerId: inactiveSeller.id,
+      action: "FAILED_ACCESS_ATTEMPT",
+      entityType: "Permission",
+      entityId: "reports:read",
+      description: "Acceso bloqueado a Reportes para vendedor sin permiso",
+      ipAddress: "127.0.0.2",
+      userAgent: "Playwright Chromium",
+      createdAt: "2026-05-22T09:45:00.000Z",
+      seller: inactiveSeller,
+    },
+  ];
+}
+
+function filterSellerActivity(logs: MockSellerActivityLog[], params: URLSearchParams) {
+  const sellerId = params.get("sellerId") ?? "";
+  const action = params.get("action") ?? "";
+  const limit = Number(params.get("limit") ?? 200);
+
+  return logs
+    .filter((log) => (sellerId ? log.sellerId === sellerId : true))
+    .filter((log) => (action ? log.action === action : true))
+    .slice(0, Number.isFinite(limit) && limit > 0 ? limit : 200);
+}
+
+function summarizeSellerActivity(logs: MockSellerActivityLog[]) {
+  const counts = new Map<MockSellerActivityLog["action"], number>();
+
+  for (const log of logs) {
+    counts.set(log.action, (counts.get(log.action) ?? 0) + 1);
+  }
+
+  return Array.from(counts.entries()).map(([action, count]) => ({ action, count }));
+}
+
+function operationsReportResponse() {
+  return {
+    from: "2026-05-22",
+    to: "2026-05-22",
+    fromLabel: "22 may 2026",
+    toLabel: "22 may 2026",
+    sales: {
+      count: 2,
+      byStatus: {
+        COMPLETED: 1,
+        PARTIALLY_REFUNDED: 1,
+      },
+      gross: 520,
+      refunded: 50,
+      net: 470,
+      paymentSummary: {
+        CASH: 320,
+        CARD: 200,
+      },
+      bySeller: [
+        {
+          seller: {
+            id: "seller-e2e",
+            name: "Vendedor E2E",
+            email: "vendedor@puntaventa.test",
+          },
+          count: 2,
+          gross: 520,
+          refunded: 50,
+          net: 470,
+        },
+      ],
+      recent: [
+        {
+          id: "sale-1",
+          folio: "PV-0001",
+          status: "COMPLETED",
+          total: 320,
+          createdAt: "2026-05-22T10:00:00.000Z",
+          cashier: {
+            id: "seller-e2e",
+            name: "Vendedor E2E",
+            email: "vendedor@puntaventa.test",
+          },
+          payments: [
+            {
+              id: "payment-1",
+              method: "CASH",
+              amount: 320,
+            },
+          ],
+        },
+      ],
+    },
+    returns: {
+      count: 1,
+      total: 50,
+      byMethod: {
+        CASH: 50,
+      },
+      latest: [
+        {
+          id: "return-1",
+          reason: "Devolución parcial E2E",
+          refundMethod: "CASH",
+          refundTotal: 50,
+          createdAt: "2026-05-22T10:30:00.000Z",
+          cashier: {
+            id: "seller-e2e",
+            name: "Vendedor E2E",
+            email: "vendedor@puntaventa.test",
+          },
+        },
+      ],
+    },
+    cashRegister: {
+      sessions: [],
+      movements: {
+        count: 0,
+        summary: {},
+      },
+    },
+    topProducts: [
+      {
+        product: {
+          id: "deleted-product-e2e",
+          sku: "SNAP-DEL",
+          name: "Producto eliminado snapshot E2E",
+        },
+        quantity: 3,
+        total: 270,
+      },
+      {
+        product: {
+          id: "product-1",
+          sku: "COCA-600",
+          name: "Coca-Cola 600 ml",
+        },
+        quantity: 2,
+        total: 200,
+      },
+    ],
+  };
+}
+
 function salesResponse(role: Role) {
   return [
     {
@@ -629,6 +1066,8 @@ function buildCreatedSale(
     tax: 0,
     total,
     status: "COMPLETED",
+    paymentMethod: payload.paymentMethod ?? "CASH",
+    customerName: payload.customerName ?? "Cliente E2E",
     createdAt,
     customer: payload.customerName
       ? { id: `customer-${sequence}`, name: payload.customerName }

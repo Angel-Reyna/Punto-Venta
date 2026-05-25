@@ -234,6 +234,7 @@ export function UserCard({
   return (
     <Card
       variant="outlined"
+      data-testid={`user-card-${targetUser.id}`}
       sx={{
         borderColor: targetUser.isActive
           ? "divider"
@@ -343,6 +344,7 @@ export function UserCard({
             <Button
               size="small"
               variant="outlined"
+              data-testid={`user-toggle-${targetUser.id}`}
               disabled={isSelf || isBusy}
               onClick={() => onToggleUser(targetUser)}
             >
@@ -352,6 +354,7 @@ export function UserCard({
             <Button
               size="small"
               variant="outlined"
+              data-testid={`user-role-${targetUser.id}`}
               startIcon={<ManageAccountsOutlinedIcon />}
               disabled={isBusy}
               onClick={() => onOpenRoleDialog(targetUser)}
@@ -362,6 +365,7 @@ export function UserCard({
             <Button
               size="small"
               variant="outlined"
+              data-testid={`user-reset-password-${targetUser.id}`}
               startIcon={<KeyOutlinedIcon />}
               disabled={isBusy}
               onClick={() => onOpenResetPasswordDialog(targetUser)}

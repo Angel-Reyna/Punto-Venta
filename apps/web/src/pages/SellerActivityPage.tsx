@@ -198,6 +198,7 @@ export function SellerActivityPage() {
                   label="Buscar en resultados"
                   placeholder="Vendedor, correo, acción, descripción o IP"
                   value={search}
+                  inputProps={{ "data-testid": "seller-activity-search" }}
                   onChange={(event) => setSearch(event.target.value)}
                 />
               </Grid>
@@ -208,6 +209,7 @@ export function SellerActivityPage() {
                   fullWidth
                   label="Vendedor"
                   value={sellerId}
+                  inputProps={{ "data-testid": "seller-activity-seller" }}
                   onChange={(event) => setSellerId(event.target.value)}
                 >
                   <MenuItem value="">Todos los vendedores</MenuItem>
@@ -225,6 +227,7 @@ export function SellerActivityPage() {
                   fullWidth
                   label="Acción"
                   value={action}
+                  inputProps={{ "data-testid": "seller-activity-action" }}
                   onChange={(event) => setAction(event.target.value)}
                 >
                   <MenuItem value="">Todas las acciones</MenuItem>
@@ -242,7 +245,7 @@ export function SellerActivityPage() {
                   label="Límite"
                   type="number"
                   value={limit}
-                  inputProps={{ min: 1, max: 500 }}
+                  inputProps={{ min: 1, max: 500, "data-testid": "seller-activity-limit" }}
                   error={limit < 1 || limit > 500}
                   helperText="1 a 500"
                   onChange={(event) => setLimit(Number(event.target.value))}
@@ -255,6 +258,7 @@ export function SellerActivityPage() {
                   label="Desde"
                   type="date"
                   value={from}
+                  inputProps={{ "data-testid": "seller-activity-date-from" }}
                   onChange={(event) => setFrom(event.target.value)}
                   InputLabelProps={{ shrink: true }}
                 />
@@ -266,6 +270,7 @@ export function SellerActivityPage() {
                   label="Hasta"
                   type="date"
                   value={to}
+                  inputProps={{ "data-testid": "seller-activity-date-to" }}
                   onChange={(event) => setTo(event.target.value)}
                   InputLabelProps={{ shrink: true }}
                 />
@@ -278,6 +283,7 @@ export function SellerActivityPage() {
               justifyContent="flex-end"
             >
               <Button
+                data-testid="seller-activity-clear-button"
                 onClick={() => {
                   setSellerId("");
                   setAction("");
@@ -292,6 +298,7 @@ export function SellerActivityPage() {
               </Button>
               <Button
                 variant="contained"
+                data-testid="seller-activity-consult-button"
                 onClick={loadActivity}
                 disabled={filtersAreInvalid({ from, to, limit }) || isLoading}
               >

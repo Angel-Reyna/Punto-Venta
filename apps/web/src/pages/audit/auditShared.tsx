@@ -146,7 +146,7 @@ export function AuditMetricCard({
 
 export function AuditLogCard({ log }: { log: AuditLog }) {
   return (
-    <Card variant="outlined" sx={{ height: "100%" }}>
+    <Card variant="outlined" data-testid={`audit-log-${log.id}`} sx={{ height: "100%" }}>
       <CardActionArea component="div" disableRipple sx={{ height: "100%", cursor: "default" }}>
         <CardContent>
           <Stack spacing={1.5}>

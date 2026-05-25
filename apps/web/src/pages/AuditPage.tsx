@@ -148,6 +148,7 @@ export function AuditPage() {
                   label="Buscar"
                   placeholder="Producto, usuario, acción o registro"
                   value={filters.q}
+                  inputProps={{ "data-testid": "audit-search" }}
                   onChange={(event) => updateFilter("q", event.target.value)}
                 />
               </Grid>
@@ -158,6 +159,7 @@ export function AuditPage() {
                   fullWidth
                   label="Acción"
                   value={filters.action}
+                  inputProps={{ "data-testid": "audit-action" }}
                   onChange={(event) => updateFilter("action", event.target.value)}
                 >
                   <MenuItem value="">Todas</MenuItem>
@@ -175,6 +177,7 @@ export function AuditPage() {
                   fullWidth
                   label="Entidad"
                   value={filters.tableName}
+                  inputProps={{ "data-testid": "audit-entity" }}
                   onChange={(event) => updateFilter("tableName", event.target.value)}
                 >
                   <MenuItem value="">Todas</MenuItem>
@@ -192,6 +195,7 @@ export function AuditPage() {
                   label="Desde"
                   type="date"
                   value={filters.dateFrom}
+                  inputProps={{ "data-testid": "audit-date-from" }}
                   onChange={(event) => updateFilter("dateFrom", event.target.value)}
                   InputLabelProps={{ shrink: true }}
                 />
@@ -203,6 +207,7 @@ export function AuditPage() {
                   label="Hasta"
                   type="date"
                   value={filters.dateTo}
+                  inputProps={{ "data-testid": "audit-date-to" }}
                   onChange={(event) => updateFilter("dateTo", event.target.value)}
                   InputLabelProps={{ shrink: true }}
                 />
@@ -210,10 +215,10 @@ export function AuditPage() {
             </Grid>
 
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="flex-end">
-              <Button onClick={clearFilters} disabled={isLoading}>
+              <Button data-testid="audit-clear-button" onClick={clearFilters} disabled={isLoading}>
                 Limpiar
               </Button>
-              <Button variant="contained" onClick={() => load()} disabled={isLoading}>
+              <Button data-testid="audit-consult-button" variant="contained" onClick={() => load()} disabled={isLoading}>
                 {isLoading ? "Consultando..." : "Consultar"}
               </Button>
             </Stack>

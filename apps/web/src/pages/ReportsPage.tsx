@@ -226,6 +226,7 @@ export function ReportsPage() {
               label="Desde"
               type="date"
               value={from}
+              inputProps={{ "data-testid": "reports-date-from" }}
               onChange={(event) => setFrom(event.target.value)}
               InputLabelProps={{ shrink: true }}
               error={dateRangeIsInvalid}
@@ -236,6 +237,7 @@ export function ReportsPage() {
               label="Hasta"
               type="date"
               value={to}
+              inputProps={{ "data-testid": "reports-date-to" }}
               onChange={(event) => setTo(event.target.value)}
               InputLabelProps={{ shrink: true }}
               error={dateRangeIsInvalid}
@@ -245,6 +247,7 @@ export function ReportsPage() {
             <Button
               fullWidth
               variant="contained"
+              data-testid="reports-consult-button"
               onClick={consult}
               disabled={dateRangeIsInvalid || isLoading || isDownloadingPdf}
             >
@@ -254,6 +257,7 @@ export function ReportsPage() {
             <Button
               fullWidth
               variant="outlined"
+              data-testid="reports-download-pdf-button"
               onClick={downloadPdf}
               disabled={dateRangeIsInvalid || isLoading || isDownloadingPdf}
             >
@@ -271,6 +275,7 @@ export function ReportsPage() {
               label="Buscar dentro del reporte"
               placeholder="Folio, vendedor, producto, método de pago, estado..."
               value={search}
+              inputProps={{ "data-testid": "reports-search" }}
               onChange={(event) => setSearch(event.target.value)}
             />
           </CardContent>
