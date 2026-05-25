@@ -45,6 +45,31 @@ export type SummaryItem = {
   count: number;
 };
 
+export const SELLER_ACTIVITY_AUTO_REFRESH_INTERVAL_MS = 30_000;
+
+export function formatRelativeLastUpdated(value: Date | null, now = new Date()) {
+  if (!value) return "Sin actualización todavía";
+
+  const diffSeconds = Math.max(
+    0,
+    Math.floor((now.getTime() - value.getTime()) / 1000),
+  );
+
+  if (diffSeconds < 5) return "Actualizado hace unos segundos";
+  if (diffSeconds < 60) return `Actualizado hace ${diffSeconds} segundos`;
+
+  const diffMinutes = Math.floor(diffSeconds / 60);
+
+  if (diffMinutes === 1) return "Actualizado hace 1 minuto";
+  if (diffMinutes < 60) return `Actualizado hace ${diffMinutes} minutos`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+
+  if (diffHours === 1) return "Actualizado hace 1 hora";
+
+  return `Actualizado hace ${diffHours} horas`;
+}
+
 export const sellerActions: SellerAction[] = [
   "SELLER_LOGIN",
   "SELLER_LOGOUT",

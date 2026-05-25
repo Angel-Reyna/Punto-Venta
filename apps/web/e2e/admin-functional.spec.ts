@@ -115,6 +115,11 @@ test.describe("cobertura funcional administrativa", () => {
     await page.goto("/seller-activity");
 
     await expect(page.getByRole("heading", { name: "Historial de vendedores", level: 1 })).toBeVisible();
+    await expect(byTestId(page, "seller-activity-refresh-status")).toContainText("Auto-refresh activo");
+    await expect(byTestId(page, "seller-activity-refresh-helper")).toContainText(
+      "sin reiniciar búsqueda ni filtros",
+    );
+    await expect(byTestId(page, "seller-activity-last-updated")).toContainText("Actualizado");
     await expect(byTestId(page, "seller-activity-log-seller-activity-1")).toContainText(
       "Venta registrada por Vendedor E2E",
     );
@@ -133,5 +138,19 @@ test.describe("cobertura funcional administrativa", () => {
 
     await expect(byTestId(page, "seller-activity-log-seller-activity-3")).toContainText("127.0.0.2");
     await expect(byTestId(page, "seller-activity-search")).toHaveValue("127.0.0.2");
+
+    await clickByTestId(page, "seller-activity-toggle-refresh-button");
+    await expect(byTestId(page, "seller-activity-refresh-status")).toContainText("Auto-refresh pausado");
+    await expect(byTestId(page, "seller-activity-refresh-helper")).toContainText(
+      "sin perder filtros",
+    );
+
+    await clickByTestId(page, "seller-activity-refresh-now-button");
+
+    await expect(byTestId(page, "seller-activity-search")).toHaveValue("127.0.0.2");
+    await expect(byTestId(page, "seller-activity-log-seller-activity-3")).toBeVisible();
+
+    await clickByTestId(page, "seller-activity-toggle-refresh-button");
+    await expect(byTestId(page, "seller-activity-refresh-status")).toContainText("Auto-refresh activo");
   });
 });

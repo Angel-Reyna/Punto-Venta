@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   Alert,
@@ -27,10 +27,12 @@ import {
   EmptyActivityMessage,
   EmptySummaryMessage,
   filtersAreInvalid,
+  formatRelativeLastUpdated,
   matchesSearch,
   Seller,
   SellerActivityCard,
   SellerActivityLog,
+  SELLER_ACTIVITY_AUTO_REFRESH_INTERVAL_MS,
   sellerActions,
   SummaryCard,
   SummaryItem,
@@ -52,6 +54,9 @@ export function SellerActivityPage() {
   const [search, setSearch] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isAutoRefreshPaused, setIsAutoRefreshPaused] = useState(false);
+  const [lastLoadedAt, setLastLoadedAt] = useState<Date | null>(null);
+  const [now, setNow] = useState(() => new Date());
   const [error, setError] = useState("");
 
   async function loadSellers() {
@@ -66,7 +71,7 @@ export function SellerActivityPage() {
     }
   }
 
-  async function loadActivity() {
+  const loadActivity = useCallback(async () => {
     setError("");
 
     if (filtersAreInvalid({ from, to, limit })) {
@@ -85,6 +90,8 @@ export function SellerActivityPage() {
 
       setRows(activityResponse.data);
       setSummary(summaryResponse.data);
+      setLastLoadedAt(new Date());
+      setNow(new Date());
     } catch (err) {
       setError(
         getApiErrorMessage(
@@ -95,7 +102,7 @@ export function SellerActivityPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [action, from, limit, sellerId, to]);
 
   useEffect(() => {
     loadSellers();
@@ -103,9 +110,27 @@ export function SellerActivityPage() {
   }, []);
 
   useEffect(() => {
-    loadActivity();
+    void loadActivity();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 5_000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (isAutoRefreshPaused || filtersAreInvalid({ from, to, limit })) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      void loadActivity();
+    }, SELLER_ACTIVITY_AUTO_REFRESH_INTERVAL_MS);
+
+    return () => window.clearInterval(timer);
+  }, [from, isAutoRefreshPaused, limit, loadActivity, to]);
 
   const visibleRows = useMemo(
     () => rows.filter((row) => matchesSearch(row, search)),
@@ -113,6 +138,10 @@ export function SellerActivityPage() {
   );
 
   const activitySummary = useMemo(() => summarizeActivity(rows), [rows]);
+  const relativeLastUpdated = formatRelativeLastUpdated(lastLoadedAt, now);
+  const autoRefreshIntervalSeconds = Math.round(
+    SELLER_ACTIVITY_AUTO_REFRESH_INTERVAL_MS / 1000,
+  );
 
   return (
     <>
@@ -135,6 +164,21 @@ export function SellerActivityPage() {
         <Typography variant="body2" color="text.secondary">
           Este historial ayuda a revisar operación diaria y detectar intentos de
           acceso no permitidos.
+        </Typography>
+        <Chip
+          color={isAutoRefreshPaused ? "warning" : "success"}
+          variant="outlined"
+          data-testid="seller-activity-refresh-status"
+          label={
+            isAutoRefreshPaused ? "Auto-refresh pausado" : "Auto-refresh activo"
+          }
+        />
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          data-testid="seller-activity-last-updated"
+        >
+          {relativeLastUpdated}
         </Typography>
       </Stack>
 
@@ -280,30 +324,61 @@ export function SellerActivityPage() {
             <Stack
               direction={{ xs: "column", sm: "row" }}
               spacing={1}
-              justifyContent="flex-end"
+              justifyContent="space-between"
+              alignItems={{ xs: "stretch", sm: "center" }}
             >
-              <Button
-                data-testid="seller-activity-clear-button"
-                onClick={() => {
-                  setSellerId("");
-                  setAction("");
-                  setFrom(today);
-                  setTo(today);
-                  setLimit(200);
-                  setSearch("");
-                }}
-                disabled={isLoading}
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                data-testid="seller-activity-refresh-helper"
               >
-                Limpiar
-              </Button>
-              <Button
-                variant="contained"
-                data-testid="seller-activity-consult-button"
-                onClick={loadActivity}
-                disabled={filtersAreInvalid({ from, to, limit }) || isLoading}
-              >
-                {isLoading ? "Consultando..." : "Consultar"}
-              </Button>
+                {isAutoRefreshPaused
+                  ? "Actualización automática detenida. Usa Actualizar ahora para consultar sin perder filtros."
+                  : `Actualización automática cada ${autoRefreshIntervalSeconds} segundos sin reiniciar búsqueda ni filtros.`}
+              </Typography>
+
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                <Button
+                  data-testid="seller-activity-clear-button"
+                  onClick={() => {
+                    setSellerId("");
+                    setAction("");
+                    setFrom(today);
+                    setTo(today);
+                    setLimit(200);
+                    setSearch("");
+                  }}
+                  disabled={isLoading}
+                >
+                  Limpiar
+                </Button>
+                <Button
+                  variant="outlined"
+                  data-testid="seller-activity-toggle-refresh-button"
+                  onClick={() => setIsAutoRefreshPaused((current) => !current)}
+                  disabled={isLoading}
+                >
+                  {isAutoRefreshPaused
+                    ? "Reanudar auto-refresh"
+                    : "Pausar auto-refresh"}
+                </Button>
+                <Button
+                  variant="outlined"
+                  data-testid="seller-activity-refresh-now-button"
+                  onClick={() => void loadActivity()}
+                  disabled={filtersAreInvalid({ from, to, limit }) || isLoading}
+                >
+                  Actualizar ahora
+                </Button>
+                <Button
+                  variant="contained"
+                  data-testid="seller-activity-consult-button"
+                  onClick={() => void loadActivity()}
+                  disabled={filtersAreInvalid({ from, to, limit }) || isLoading}
+                >
+                  {isLoading ? "Consultando..." : "Consultar"}
+                </Button>
+              </Stack>
             </Stack>
           </Stack>
         </CardContent>
