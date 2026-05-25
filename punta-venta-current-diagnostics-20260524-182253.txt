@@ -1,0 +1,530 @@
+PUNTA VENTA CURRENT DIAGNOSTICS
+DATE: Sun, May 24, 2026  6:22:54 PM
+PWD: /c/Users/drago/Proyectos/Punta_Venta
+
+
+============================================================
+$ git status --short
+============================================================
+?? punta-venta-current-diagnostics-20260524-182253.txt
+
+EXIT_CODE=0
+
+
+============================================================
+$ git log --oneline -30
+============================================================
+1ffeb6e refactor(inventory): split inventory into scalable workspace
+93930ac feat(products): delete products while preserving history
+1ff5ae6 fix(sales): block checkout with insufficient payment
+3cab416 feat(products): delete products safely
+90990a9 feat(web): select editable input text on focus
+1f8db02 docs: add app flow and database diagrams
+aebd9b0 chore: add runtime and cleanup guardrails
+28c7f4a refactor(dashboard): extract dashboard sections
+d67d9ac refactor(audit): extract shared audit primitives
+3bc3181 refactor(cash-register): extract shared cash primitives
+d24c366 refactor(seller-activity): extract shared activity primitives
+fb633a0 refactor(inventory): extract shared inventory primitives
+52a767c refactor(users): extract shared user primitives
+5028f8d refactor(products): extract catalog primitives
+4f4bcbb chore(e2e): avoid shell option in integrated runner
+6600f74 refactor(sales): extract shared sales logic
+a1efb55 refactor(reports): extract shared report primitives
+29354f6 chore: clean project docs and generated artifacts
+d401505 chore: add final validation scripts
+6ab6717 docs: add final audit checklist
+235a59e docs: add docker operations runbook
+c6be284 docs: add local development runbook
+9b6393e chore(repo): ignore generated test artifacts
+1b2e4e8 fix(docker): isolate compose database url
+a707dd2 test(e2e): validate integrated sale in reports
+6277303 test(e2e): harden integrated runner database reset
+bae1f74 test(e2e): add integrated real seller sale flow
+a7776e5 test(web): cover seller cash sale e2e flow
+73e5e00 fix(e2e): remove remaining strict locator ambiguities
+e29f255 test(web): add playwright e2e smoke coverage
+
+EXIT_CODE=0
+
+
+============================================================
+$ git diff --stat
+============================================================
+
+EXIT_CODE=0
+
+
+============================================================
+$ git diff --check
+============================================================
+
+EXIT_CODE=0
+
+
+============================================================
+$ node -v
+============================================================
+v24.16.0
+
+EXIT_CODE=0
+
+
+============================================================
+$ npm -v
+============================================================
+11.13.0
+
+EXIT_CODE=0
+
+
+============================================================
+$ docker --version
+============================================================
+Docker version 27.3.1, build ce12230
+
+EXIT_CODE=0
+
+
+============================================================
+$ docker compose version
+============================================================
+Docker Compose version v2.30.3-desktop.1
+
+EXIT_CODE=0
+
+
+============================================================
+$ npm run ci:validate-lockfiles
+============================================================
+
+> punta-venta@1.0.0 ci:validate-lockfiles
+> node scripts/ci/validate-lockfiles.js
+
+Lockfiles válidos para CI/Docker.
+
+EXIT_CODE=0
+
+
+============================================================
+$ npm run api:prisma:validate
+============================================================
+
+> punta-venta@1.0.0 api:prisma:validate
+> npm --prefix apps/api run prisma:validate
+
+
+> punta-venta-api@1.0.0 prisma:validate
+> prisma validate
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+The schema at prisma\schema.prisma is valid 🚀
+
+EXIT_CODE=0
+
+
+============================================================
+$ npm run api:build
+============================================================
+
+> punta-venta@1.0.0 api:build
+> npm --prefix apps/api run build
+
+
+> punta-venta-api@1.0.0 build
+> tsc
+
+
+EXIT_CODE=0
+
+
+============================================================
+$ npm run api:test:critical
+============================================================
+
+> punta-venta@1.0.0 api:test:critical
+> npm --prefix apps/api test -- critical-routes.permissions.test.ts auth.middleware.test.ts sales.service.test.ts products.import.test.ts products.delete.test.ts reports.service.test.ts --runInBand
+
+
+> punta-venta-api@1.0.0 test
+> jest critical-routes.permissions.test.ts auth.middleware.test.ts sales.service.test.ts products.import.test.ts products.delete.test.ts reports.service.test.ts --runInBand
+
+PASS tests/critical-routes.permissions.test.ts
+PASS tests/products.import.test.ts
+PASS tests/products.delete.test.ts
+PASS tests/auth.middleware.test.ts
+PASS tests/reports.service.test.ts
+PASS tests/sales.service.test.ts
+
+Test Suites: 6 passed, 6 total
+Tests:       46 passed, 46 total
+Snapshots:   0 total
+Time:        6.316 s
+Ran all test suites matching /critical-routes.permissions.test.ts|auth.middleware.test.ts|sales.service.test.ts|products.import.test.ts|products.delete.test.ts|reports.service.test.ts/i.
+
+EXIT_CODE=0
+
+
+============================================================
+$ npm run web:build
+============================================================
+
+> punta-venta@1.0.0 web:build
+> npm --prefix apps/web run build
+
+
+> punta-venta-web@1.0.0 build
+> tsc -b && vite build
+
+[36mvite v6.4.2 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 1641 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                               [39m[1m[2m  0.29 kB[22m[1m[22m[2m │ gzip:   0.23 kB[22m
+[2mdist/[22m[36massets/Delete-BJ5MAY_6.js                [39m[1m[2m  0.18 kB[22m[1m[22m[2m │ gzip:   0.17 kB[22m
+[2mdist/[22m[36massets/Security-BeVK191B.js              [39m[1m[2m  0.22 kB[22m[1m[22m[2m │ gzip:   0.21 kB[22m
+[2mdist/[22m[36massets/downloadBlob-BpylYqX6.js          [39m[1m[2m  0.24 kB[22m[1m[22m[2m │ gzip:   0.20 kB[22m
+[2mdist/[22m[36massets/Refresh-B6e2cBvE.js               [39m[1m[2m  0.30 kB[22m[1m[22m[2m │ gzip:   0.24 kB[22m
+[2mdist/[22m[36massets/Search-DP1sVuqp.js                [39m[1m[2m  0.33 kB[22m[1m[22m[2m │ gzip:   0.24 kB[22m
+[2mdist/[22m[36massets/StatusFeedback-DY6S1Ay9.js        [39m[1m[2m  0.41 kB[22m[1m[22m[2m │ gzip:   0.28 kB[22m
+[2mdist/[22m[36massets/InfoTooltip-CQRzcupg.js           [39m[1m[2m  1.08 kB[22m[1m[22m[2m │ gzip:   0.64 kB[22m
+[2mdist/[22m[36massets/SearchToolbar-CPywfXe5.js         [39m[1m[2m  1.46 kB[22m[1m[22m[2m │ gzip:   0.82 kB[22m
+[2mdist/[22m[36massets/CardActionArea-CJ9UMfkC.js        [39m[1m[2m  1.64 kB[22m[1m[22m[2m │ gzip:   0.79 kB[22m
+[2mdist/[22m[36massets/ActionDisabledReason-CtbuN0gx.js  [39m[1m[2m  2.05 kB[22m[1m[22m[2m │ gzip:   1.03 kB[22m
+[2mdist/[22m[36massets/LoginPage-d5HV09Jx.js             [39m[1m[2m  2.39 kB[22m[1m[22m[2m │ gzip:   1.27 kB[22m
+[2mdist/[22m[36massets/MenuItem-4-t5YHDg.js              [39m[1m[2m  3.52 kB[22m[1m[22m[2m │ gzip:   1.36 kB[22m
+[2mdist/[22m[36massets/Grid-C-c3nyLP.js                  [39m[1m[2m  4.84 kB[22m[1m[22m[2m │ gzip:   1.90 kB[22m
+[2mdist/[22m[36massets/AuditPage-QY1jabh0.js             [39m[1m[2m  7.21 kB[22m[1m[22m[2m │ gzip:   2.42 kB[22m
+[2mdist/[22m[36massets/apiError-0se7iobO.js              [39m[1m[2m  7.72 kB[22m[1m[22m[2m │ gzip:   2.95 kB[22m
+[2mdist/[22m[36massets/ResponsiveDialog-Bqa5JZmj.js      [39m[1m[2m  8.25 kB[22m[1m[22m[2m │ gzip:   2.86 kB[22m
+[2mdist/[22m[36massets/Skeleton-DSka58_0.js              [39m[1m[2m  9.35 kB[22m[1m[22m[2m │ gzip:   2.75 kB[22m
+[2mdist/[22m[36massets/SellerActivityPage-Bsi4lxUw.js    [39m[1m[2m  9.53 kB[22m[1m[22m[2m │ gzip:   3.18 kB[22m
+[2mdist/[22m[36massets/CashRegisterPage-BWZ6zL2r.js      [39m[1m[2m  9.90 kB[22m[1m[22m[2m │ gzip:   3.28 kB[22m
+[2mdist/[22m[36massets/PageHeader-FRYgwErT.js            [39m[1m[2m 10.00 kB[22m[1m[22m[2m │ gzip:   3.01 kB[22m
+[2mdist/[22m[36massets/ReportsPage-CEx8Jgv0.js           [39m[1m[2m 14.18 kB[22m[1m[22m[2m │ gzip:   4.14 kB[22m
+[2mdist/[22m[36massets/DashboardPage-DQu4B4V3.js         [39m[1m[2m 15.30 kB[22m[1m[22m[2m │ gzip:   5.39 kB[22m
+[2mdist/[22m[36massets/ProductsPage-Dk6GaJfr.js          [39m[1m[2m 16.20 kB[22m[1m[22m[2m │ gzip:   5.79 kB[22m
+[2mdist/[22m[36massets/UsersPage-BX-7tjRW.js             [39m[1m[2m 16.24 kB[22m[1m[22m[2m │ gzip:   5.92 kB[22m
+[2mdist/[22m[36massets/SalesPage-BbTsluLK.js             [39m[1m[2m 21.33 kB[22m[1m[22m[2m │ gzip:   7.05 kB[22m
+[2mdist/[22m[36massets/InventoryPage-Dt6zIw5W.js         [39m[1m[2m 28.83 kB[22m[1m[22m[2m │ gzip:   9.75 kB[22m
+[2mdist/[22m[36massets/TextField-B7hjc3xB.js             [39m[1m[2m 51.25 kB[22m[1m[22m[2m │ gzip:  14.97 kB[22m
+[2mdist/[22m[36massets/DataGridCard-Smz9GtQO.js          [39m[1m[2m403.91 kB[22m[1m[22m[2m │ gzip: 122.66 kB[22m
+[2mdist/[22m[36massets/index-4Cj6wkEv.js                 [39m[1m[2m508.83 kB[22m[1m[22m[2m │ gzip: 167.51 kB[22m
+[32m✓ built in 6.21s[39m
+
+EXIT_CODE=0
+
+
+============================================================
+$ npm run web:test
+============================================================
+
+> punta-venta@1.0.0 web:test
+> npm --prefix apps/web test -- --run --passWithNoTests
+
+
+> punta-venta-web@1.0.0 test
+> vitest --run --passWithNoTests
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/drago/Proyectos/Punta_Venta/apps/web[39m
+
+ [32m✓[39m src/auth/permissions.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/layout/navigation.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m9 passed[39m[22m[90m (9)[39m
+[2m   Start at [22m 18:23:30
+[2m   Duration [22m 1.09s[2m (transform 124ms, setup 0ms, collect 597ms, tests 14ms, environment 0ms, prepare 430ms)[22m
+
+
+EXIT_CODE=0
+
+
+============================================================
+$ npm run web:e2e
+============================================================
+
+> punta-venta@1.0.0 web:e2e
+> npm --prefix apps/web run e2e
+
+
+> punta-venta-web@1.0.0 e2e
+> playwright test
+
+
+Running 6 tests using 1 worker
+
+  ✓  1 [chromium] › e2e\auth-navigation.spec.ts:6:3 › autenticación y navegación principal › admin inicia sesión y ve módulos administrativos (1.9s)
+  ✓  2 [chromium] › e2e\auth-navigation.spec.ts:21:3 › autenticación y navegación principal › vendedor no ve módulos administrativos ni puede entrar por ruta directa (1.2s)
+  ✓  3 [chromium] › e2e\auth-navigation.spec.ts:34:3 › autenticación y navegación principal › navegación móvil conserva accesos operativos sin depender solo del drawer (1.2s)
+  ✓  4 [chromium] › e2e\catalog-smoke.spec.ts:6:3 › catálogo e inventario responsive › productos carga catálogo y permite buscar por SKU (1.5s)
+  ✓  5 [chromium] › e2e\catalog-smoke.spec.ts:20:3 › catálogo e inventario responsive › inventario muestra existencias sin tabla horizontal obligatoria (1.7s)
+  ✓  6 [chromium] › e2e\sales-flow.spec.ts:6:3 › flujo crítico de ventas › vendedor registra venta en efectivo sin depender de caja abierta (2.1s)
+
+  6 passed (12.0s)
+
+EXIT_CODE=0
+
+
+============================================================
+$ npm run docker:config
+============================================================
+
+> punta-venta@1.0.0 docker:config
+> docker compose config
+
+name: punta_venta
+services:
+  api:
+    build:
+      context: C:\Users\drago\Proyectos\Punta_Venta\apps\api
+      dockerfile: Dockerfile
+    container_name: punta_venta_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: true
+    environment:
+      BCRYPT_ROUNDS: "10"
+      COOKIE_DOMAIN: ""
+      COOKIE_SAME_SITE: ""
+      COOKIE_SECURE: ""
+      CORS_ORIGIN: http://localhost:8080
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/pos_senior_db?schema=public
+      JWT_ACCESS_EXPIRES_IN_SECONDS: "900"
+      JWT_ACCESS_SECRET: dev_access_secret_change_me_min_32_chars
+      JWT_REFRESH_SECRET: dev_refresh_secret_change_me_min_32_chars
+      LOG_LEVEL: info
+      NODE_ENV: development
+      PORT: "4000"
+      REFRESH_TOKEN_TTL_DAYS: "7"
+      SEED_ADMIN_EMAIL: admin@pos.local
+      SEED_ADMIN_NAME: Administrador
+      SEED_ADMIN_PASSWORD: ""
+      SEED_DEMO_DATA: "false"
+      TOKEN_HASH_PEPPER: dev_token_pepper_change_me_min_32_chars
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'node -e "fetch(''http://localhost:4000/health'').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"'
+      timeout: 5s
+      interval: 30s
+      retries: 5
+      start_period: 20s
+    init: true
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 4000
+        published: "4000"
+        protocol: tcp
+    restart: unless-stopped
+  postgres:
+    container_name: punta_venta_postgres
+    environment:
+      POSTGRES_DB: pos_senior_db
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+      timeout: 5s
+      interval: 10s
+      retries: 10
+    image: postgres:16
+    init: true
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 5432
+        published: "5432"
+        protocol: tcp
+    restart: unless-stopped
+    volumes:
+      - type: volume
+        source: punta_venta_pg_data
+        target: /var/lib/postgresql/data
+        volume: {}
+  web:
+    build:
+      context: C:\Users\drago\Proyectos\Punta_Venta\apps\web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+    container_name: punta_venta_web
+    depends_on:
+      api:
+        condition: service_healthy
+        required: true
+    init: true
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 80
+        published: "8080"
+        protocol: tcp
+    restart: unless-stopped
+networks:
+  default:
+    name: punta_venta_default
+volumes:
+  punta_venta_pg_data:
+    name: punta_venta_punta_venta_pg_data
+
+EXIT_CODE=0
+
+
+============================================================
+API HEALTH CHECK
+============================================================
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    66  100    66    0     0  26655      0 --:--:-- --:--:-- --:--:-- 33000HTTP/1.1 200 OK
+X-Request-Id: a9bbbff0-59d8-4a4b-ba6e-67de51654694
+Content-Security-Policy: default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'none';img-src 'self' data:;object-src 'none';script-src 'self';style-src 'self' https: 'unsafe-inline';script-src-attr 'none'
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: cross-origin
+Origin-Agent-Cluster: ?1
+Referrer-Policy: no-referrer
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-DNS-Prefetch-Control: off
+X-Download-Options: noopen
+X-Frame-Options: SAMEORIGIN
+X-Permitted-Cross-Domain-Policies: none
+X-XSS-Protection: 0
+Access-Control-Allow-Origin: http://localhost:5173
+Vary: Origin, Accept-Encoding
+Access-Control-Allow-Credentials: true
+Access-Control-Expose-Headers: X-Request-Id,X-Total-Count,X-Page,X-Page-Size,X-Total-Pages
+RateLimit-Policy: 300;w=900
+RateLimit-Limit: 300
+RateLimit-Remaining: 255
+RateLimit-Reset: 493
+Content-Type: application/json; charset=utf-8
+Content-Length: 66
+ETag: W/"42-46tTBzKdMI3ZkOtTB7XzKVhaixA"
+Date: Mon, 25 May 2026 00:23:46 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"status":"ok","requestId":"a9bbbff0-59d8-4a4b-ba6e-67de51654694"}
+
+============================================================
+PROJECT STRUCTURE
+============================================================
+apps/api/src/app.ts
+apps/api/src/config/cookieSecurity.ts
+apps/api/src/config/env.ts
+apps/api/src/config/prisma.ts
+apps/api/src/middlewares/auth.ts
+apps/api/src/middlewares/csrf.ts
+apps/api/src/middlewares/errorHandler.ts
+apps/api/src/middlewares/rateLimit.ts
+apps/api/src/middlewares/requestContext.ts
+apps/api/src/middlewares/validate.ts
+apps/api/src/modules/audit/audit.routes.ts
+apps/api/src/modules/audit/audit.service.ts
+apps/api/src/modules/auth/auth.routes.ts
+apps/api/src/modules/auth/auth.schemas.ts
+apps/api/src/modules/auth/auth.service.ts
+apps/api/src/modules/auth/auth.tokens.ts
+apps/api/src/modules/auth/csrf.ts
+apps/api/src/modules/auth/permissions.ts
+apps/api/src/modules/auth/token-hash.ts
+apps/api/src/modules/cash-register/cash-register.routes.ts
+apps/api/src/modules/cash-register/cash-register.service.ts
+apps/api/src/modules/dashboard/dashboard.routes.ts
+apps/api/src/modules/dashboard/dashboard.service.ts
+apps/api/src/modules/inventory/inventory.routes.ts
+apps/api/src/modules/inventory/inventory.service.ts
+apps/api/src/modules/products/products.routes.ts
+apps/api/src/modules/products/products.service.ts
+apps/api/src/modules/reports/reports.routes.ts
+apps/api/src/modules/reports/reports.service.ts
+apps/api/src/modules/sales/sales.routes.ts
+apps/api/src/modules/sales/sales.service.ts
+apps/api/src/modules/seller-activity/seller-activity.routes.ts
+apps/api/src/modules/seller-activity/seller-activity.service.ts
+apps/api/src/modules/users/users.routes.ts
+apps/api/src/scripts/seed.ts
+apps/api/src/scripts/seed-e2e.ts
+apps/api/src/server.ts
+apps/api/src/types.ts
+apps/api/src/types/express.d.ts
+apps/api/src/utils/AppError.ts
+apps/api/src/utils/asyncHandler.ts
+apps/api/src/utils/logger.ts
+apps/api/src/utils/pagination.ts
+
+apps/web/src/api/client.ts
+apps/web/src/App.tsx
+apps/web/src/auth/AuthContext.tsx
+apps/web/src/auth/permissions.test.ts
+apps/web/src/auth/permissions.ts
+apps/web/src/auth/ProtectedRoute.tsx
+apps/web/src/auth/tokenStore.ts
+apps/web/src/components/ActionDisabledReason.tsx
+apps/web/src/components/AppDataGrid.tsx
+apps/web/src/components/DataGridCard.tsx
+apps/web/src/components/InfoTooltip.tsx
+apps/web/src/components/PageHeader.tsx
+apps/web/src/components/ResponsiveDialog.tsx
+apps/web/src/components/SearchToolbar.tsx
+apps/web/src/components/StatusFeedback.tsx
+apps/web/src/hooks/useReplaceInputTextOnFocus.ts
+apps/web/src/layout/AppLayout.tsx
+apps/web/src/layout/navigation.test.tsx
+apps/web/src/layout/navigation.tsx
+apps/web/src/main.tsx
+apps/web/src/pages/audit/auditShared.tsx
+apps/web/src/pages/AuditPage.tsx
+apps/web/src/pages/cash-register/cashRegisterShared.tsx
+apps/web/src/pages/CashRegisterPage.tsx
+apps/web/src/pages/dashboard/dashboard.formatters.ts
+apps/web/src/pages/dashboard/dashboard.navigation.ts
+apps/web/src/pages/dashboard/dashboard.sections.tsx
+apps/web/src/pages/dashboard/dashboard.types.ts
+apps/web/src/pages/dashboard/DashboardEmptyPanel.tsx
+apps/web/src/pages/dashboard/DashboardMetricCard.tsx
+apps/web/src/pages/dashboard/DashboardPanelCard.tsx
+apps/web/src/pages/DashboardPage.tsx
+apps/web/src/pages/inventory/inventoryShared.tsx
+apps/web/src/pages/InventoryPage.tsx
+apps/web/src/pages/LoginPage.tsx
+apps/web/src/pages/products/productShared.tsx
+apps/web/src/pages/ProductsPage.tsx
+apps/web/src/pages/reports/reportShared.tsx
+apps/web/src/pages/ReportsPage.tsx
+apps/web/src/pages/sales/salesShared.ts
+apps/web/src/pages/SalesPage.tsx
+apps/web/src/pages/seller-activity/sellerActivityShared.tsx
+apps/web/src/pages/SellerActivityPage.tsx
+apps/web/src/pages/users/userShared.tsx
+apps/web/src/pages/UsersPage.tsx
+apps/web/src/theme/theme.ts
+apps/web/src/utils/apiError.ts
+apps/web/src/utils/downloadBlob.ts
+
+docs/architecture/flow-diagrams.md
+docs/checklists/final-audit.md
+docs/ci-quality-gates.md
+docs/docker-operations.md
+docs/e2e-integration.md
+docs/e2e-playwright.md
+docs/local-development.md
+docs/production/backup-restore.md
+docs/production/checklist.md
+docs/qa/critical-flows.md
+
+============================================================
+GIT STATUS AFTER CHECKS
+============================================================
+?? punta-venta-current-diagnostics-20260524-182253.txt
