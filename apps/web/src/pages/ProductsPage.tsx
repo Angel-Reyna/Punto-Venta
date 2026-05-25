@@ -283,6 +283,7 @@ export function ProductsPage() {
               fullWidth
               startIcon={<AddIcon />}
               onClick={() => setOpen(true)}
+              data-testid="products-create-button"
             >
               Nuevo producto
             </Button>
@@ -392,6 +393,7 @@ export function ProductsPage() {
                 color="error"
                 onClick={deleteProduct}
                 disabled={Boolean(deletingProductId)}
+                data-testid="products-delete-confirm-button"
               >
                 {deletingProductId ? "Eliminando..." : "Eliminar producto"}
               </Button>
@@ -433,6 +435,7 @@ export function ProductsPage() {
                 type="submit"
                 form="product-create-form"
                 disabled={formIsInvalid}
+                data-testid="product-form-submit"
               >
                 {isCreatingProduct ? "Guardando..." : "Guardar producto"}
               </Button>
@@ -458,6 +461,9 @@ export function ProductsPage() {
                   }
                   value={form.sku}
                   helperText="Identificador interno único. Ejemplo: COCA-600 o SAB-ACE-1KG."
+                  inputProps={{
+                    "data-testid": "product-form-sku",
+                  }}
                   onChange={(event) =>
                     setForm({
                       ...form,
@@ -498,6 +504,9 @@ export function ProductsPage() {
                   }
                   value={form.barcode}
                   helperText="Puede ser código de barras, código interno o código generado."
+                  inputProps={{
+                    "data-testid": "product-form-barcode",
+                  }}
                   onChange={(event) =>
                     setForm({
                       ...form,
@@ -535,6 +544,9 @@ export function ProductsPage() {
                   fullWidth
                   label="Nombre del producto"
                   value={form.name}
+                  inputProps={{
+                    "data-testid": "product-form-name",
+                  }}
                   onChange={(event) =>
                     setForm({
                       ...form,
@@ -567,6 +579,7 @@ export function ProductsPage() {
                   type="number"
                   value={form.costPrice}
                   inputProps={{
+                    "data-testid": "product-form-cost-price",
                     min: 0,
                     step: 0.01,
                   }}
@@ -586,6 +599,7 @@ export function ProductsPage() {
                   type="number"
                   value={form.salePrice}
                   inputProps={{
+                    "data-testid": "product-form-sale-price",
                     min: 0,
                     step: 0.01,
                   }}
@@ -638,6 +652,7 @@ export function ProductsPage() {
                   value={form.initialStock}
                   helperText="Crea inventario real en el almacén principal."
                   inputProps={{
+                    "data-testid": "product-form-initial-stock",
                     min: 0,
                     step: 1,
                   }}
@@ -663,6 +678,7 @@ export function ProductsPage() {
                   type="number"
                   value={form.minStock}
                   inputProps={{
+                    "data-testid": "product-form-min-stock",
                     min: 0,
                     step: 1,
                   }}

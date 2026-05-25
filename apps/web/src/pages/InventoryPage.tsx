@@ -293,6 +293,9 @@ export function InventoryPage() {
                       fullWidth
                       label="Producto"
                       value={form.productId}
+                      inputProps={{
+                        "data-testid": "inventory-form-product",
+                      }}
                       onChange={(event) =>
                         setForm({
                           ...form,
@@ -345,6 +348,7 @@ export function InventoryPage() {
                       type="number"
                       value={form.quantity}
                       inputProps={{
+                        "data-testid": "inventory-form-quantity",
                         min: 1,
                       }}
                       onChange={(event) =>
@@ -362,6 +366,9 @@ export function InventoryPage() {
                       label="Motivo del movimiento"
                       value={form.reason}
                       helperText="Mínimo 3 caracteres"
+                      inputProps={{
+                        "data-testid": "inventory-form-reason",
+                      }}
                       onChange={(event) =>
                         setForm({
                           ...form,
@@ -383,6 +390,7 @@ export function InventoryPage() {
                       <Button
                         onClick={() => submit("in")}
                         disabled={formIsInvalid}
+                        data-testid="inventory-submit-in"
                       >
                         Registrar entrada
                       </Button>
@@ -391,6 +399,7 @@ export function InventoryPage() {
                         color="warning"
                         onClick={() => submit("out")}
                         disabled={formIsInvalid}
+                        data-testid="inventory-submit-out"
                       >
                         Registrar salida
                       </Button>

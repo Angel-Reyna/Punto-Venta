@@ -279,6 +279,7 @@ export function ProductCatalog({
             return (
               <Box
                 key={product.id}
+                data-testid={`product-row-${product.sku}`}
                 sx={{
                   display: "grid",
                   gap: 2,
@@ -473,6 +474,7 @@ export function ProductCatalog({
                         disabled={Boolean(togglingProductId) || Boolean(deletingProductId)}
                         title="Activar/desactivar producto"
                         aria-label={`Activar o desactivar ${product.name}`}
+                        data-testid={`product-toggle-${product.sku}`}
                         sx={{
                           border: 1,
                           borderColor: "divider",
@@ -491,6 +493,7 @@ export function ProductCatalog({
                         disabled={Boolean(deletingProductId) || Boolean(togglingProductId)}
                         title="Eliminar producto"
                         aria-label={`Eliminar ${product.name}`}
+                        data-testid={`product-delete-${product.sku}`}
                         sx={{
                           border: 1,
                           borderColor: "error.light",

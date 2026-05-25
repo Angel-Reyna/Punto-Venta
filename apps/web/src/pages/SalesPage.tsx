@@ -521,6 +521,9 @@ export function SalesPage() {
                   value={productSearch}
                   autoFocus
                   placeholder="Escanea código de barras o escribe para buscar"
+                  inputProps={{
+                    "data-testid": "sales-product-search",
+                  }}
                   onKeyDown={handleProductSearchKeyDown}
                   onChange={(event) => setProductSearch(event.target.value)}
                   disabled={isSubmitting || saleDialogIsOpen}
@@ -754,7 +757,11 @@ export function SalesPage() {
                     label="Pago con"
                     type="number"
                     value={paidAmount}
-                    inputProps={{ min: 0, step: 0.01 }}
+                    inputProps={{
+                      "data-testid": "sales-paid-amount",
+                      min: 0,
+                      step: 0.01,
+                    }}
                     error={isPaymentInsufficient}
                     helperText={
                       isPaymentInsufficient
@@ -772,6 +779,7 @@ export function SalesPage() {
                       onClick={createSale}
                       disabled={checkoutIsDisabled}
                       title={checkoutIsDisabled ? checkoutDisabledReason : "Registrar venta"}
+                      data-testid="sales-checkout-button"
                       sx={{ minHeight: 58, fontSize: "1rem" }}
                     >
                       F12 · Cobrar venta
