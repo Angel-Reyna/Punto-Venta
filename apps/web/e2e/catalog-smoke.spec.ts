@@ -24,6 +24,9 @@ test.describe("catálogo e inventario responsive", () => {
 
     await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();
     await expect(page.getByText("Coca-Cola 600 ml")).toBeVisible();
-    await expect(page.getByText("Principal")).toBeVisible();
+    await expect(page.getByText("Existencias actuales")).toBeVisible();
+    await expect(page.getByText("Stock actual")).toBeVisible();
+    await expect(page.getByText("24 unidades")).toBeVisible();
+    await expect(page.getByText("Disponible", { exact: true })).toBeVisible();
   });
 });

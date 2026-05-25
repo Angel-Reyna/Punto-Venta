@@ -9,7 +9,10 @@ import {
   Grid,
   MenuItem,
   Stack,
+  Tab,
+  Tabs,
   TextField,
+  Typography,
 } from "@mui/material";
 
 import { api } from "../api/client";
@@ -24,9 +27,12 @@ import { PERMISSIONS } from "../auth/permissions";
 import { getApiErrorMessage } from "../utils/apiError";
 import {
   buildMovementColumns,
+  filterStockRowsByStatus,
   getInventoryFormDisabledReason,
   initialInventoryMovementForm,
+  InventoryStatusFilterBar,
   InventoryStockOverview,
+  InventorySummaryCards,
   isInventoryFormInvalid,
   WAREHOUSE_INFO_TEXT,
 } from "./inventory/inventoryShared";
@@ -34,8 +40,11 @@ import type {
   Movement,
   Product,
   StockItem,
+  StockStatusFilter,
   Warehouse,
 } from "./inventory/inventoryShared";
+
+type InventoryView = "stock" | "adjustments" | "movements";
 
 export function InventoryPage() {
   const { can } = useAuth();
@@ -46,6 +55,9 @@ export function InventoryPage() {
   const [stockRows, setStockRows] = useState<StockItem[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
 
+  const [activeView, setActiveView] = useState<InventoryView>("stock");
+  const [stockStatusFilter, setStockStatusFilter] =
+    useState<StockStatusFilter>("all");
   const [stockSearch, setStockSearch] = useState("");
   const [movementSearch, setMovementSearch] = useState("");
 
@@ -143,11 +155,8 @@ export function InventoryPage() {
     try {
       await api.post(`/inventory/${type}`, {
         productId: form.productId,
-
         warehouseId: form.warehouseId || undefined,
-
         quantity: form.quantity,
-
         reason: form.reason.trim(),
       });
 
@@ -158,6 +167,7 @@ export function InventoryPage() {
       );
 
       setForm(initialInventoryMovementForm);
+      setActiveView("stock");
 
       await reloadInventoryViews();
     } catch (err: any) {
@@ -171,6 +181,10 @@ export function InventoryPage() {
   }
 
   const columns = buildMovementColumns();
+  const filteredStockRows = filterStockRowsByStatus(
+    stockRows,
+    stockStatusFilter,
+  );
 
   const inventoryFormDisabledReason = getInventoryFormDisabledReason(form);
   const formIsInvalid = isInventoryFormInvalid(form);
@@ -181,8 +195,8 @@ export function InventoryPage() {
         title="Inventario"
         subtitle={
           canAdjustInventory
-            ? "Consulta movimientos y registra entradas o salidas manuales con validación de stock."
-            : "Consulta movimientos, almacenes y stock disponible. Los ajustes manuales requieren permiso administrativo."
+            ? "Consulta stock, divide productos por estado y registra entradas o salidas manuales con trazabilidad."
+            : "Consulta stock disponible, alertas de reposición y movimientos. Los ajustes manuales requieren permiso administrativo."
         }
       />
 
@@ -204,152 +218,219 @@ export function InventoryPage() {
         onErrorClose={() => setError("")}
       />
 
-      <SearchToolbar
-        label="Buscar existencias"
-        placeholder="Ej. COCA-600, refresco, 750..., bebidas"
-        query={stockSearch}
-        onQueryChange={setStockSearch}
-        resultCount={stockRows.length}
-        helperText="Busca productos por nombre, clave interna/SKU, código o categoría para revisar su stock real."
-      />
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <Stack spacing={2}>
+            <Box>
+              <Typography variant="h6" fontWeight={900}>
+                Centro de control de inventario
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Separa existencias, ajustes e historial para que el módulo siga siendo usable cuando el catálogo crezca.
+              </Typography>
+            </Box>
 
-      <InventoryStockOverview rows={stockRows} searchQuery={stockSearch} />
+            <Tabs
+              value={activeView}
+              onChange={(_event, value: InventoryView) => setActiveView(value)}
+              variant="scrollable"
+              allowScrollButtonsMobile
+              aria-label="Secciones de inventario"
+            >
+              <Tab value="stock" label="Existencias" />
+              <Tab value="adjustments" label="Entradas y salidas" />
+              <Tab value="movements" label="Historial" />
+            </Tabs>
+          </Stack>
+        </CardContent>
+      </Card>
 
-      {canAdjustInventory && (
+      {activeView === "stock" && (
+        <>
+          <SearchToolbar
+            label="Buscar existencias"
+            placeholder="Ej. COCA-600, refresco, 750..., bebidas"
+            query={stockSearch}
+            onQueryChange={setStockSearch}
+            resultCount={filteredStockRows.length}
+            helperText="Busca productos por nombre, clave interna/SKU, código o categoría para revisar su stock real."
+          />
+
+          <InventorySummaryCards rows={stockRows} />
+
+          <InventoryStatusFilterBar
+            rows={stockRows}
+            value={stockStatusFilter}
+            onChange={setStockStatusFilter}
+          />
+
+          <InventoryStockOverview
+            rows={filteredStockRows}
+            searchQuery={stockSearch}
+            statusFilter={stockStatusFilter}
+          />
+        </>
+      )}
+
+      {activeView === "adjustments" && (
         <Card sx={{ mb: 2 }}>
           <CardContent>
-            <Grid container spacing={2} alignItems="flex-start">
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Producto"
-                  value={form.productId}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      productId: event.target.value,
-                    })
-                  }
-                >
-                  {products.map((product) => (
-                    <MenuItem key={product.id} value={product.id}>
-                      {product.sku} · {product.name} · stock {product.stock}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="h6" fontWeight={900}>
+                  Registrar entrada o salida manual
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Usa esta sección para ajustes operativos justificados. Las ventas y devoluciones generan movimientos automáticamente.
+                </Typography>
+              </Box>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label={
-                    <LabelWithInfo
-                      label="Almacén"
-                      info={WAREHOUSE_INFO_TEXT}
-                      ariaLabel={WAREHOUSE_INFO_TEXT}
+              {canAdjustInventory ? (
+                <Grid container spacing={2} alignItems="flex-start">
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      select
+                      fullWidth
+                      label="Producto"
+                      value={form.productId}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          productId: event.target.value,
+                        })
+                      }
+                    >
+                      {products.map((product) => (
+                        <MenuItem key={product.id} value={product.id}>
+                          {product.sku} · {product.name} · stock {product.stock}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      select
+                      fullWidth
+                      label={
+                        <LabelWithInfo
+                          label="Almacén"
+                          info={WAREHOUSE_INFO_TEXT}
+                          ariaLabel={WAREHOUSE_INFO_TEXT}
+                        />
+                      }
+                      value={form.warehouseId}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          warehouseId: event.target.value,
+                        })
+                      }
+                      helperText="Si no eliges almacén, se usará el principal"
+                    >
+                      <MenuItem value="">Almacén principal automático</MenuItem>
+
+                      {warehouses.map((warehouse) => (
+                        <MenuItem key={warehouse.id} value={warehouse.id}>
+                          {warehouse.name}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="Cantidad"
+                      type="number"
+                      value={form.quantity}
+                      inputProps={{
+                        min: 1,
+                      }}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          quantity: Number(event.target.value),
+                        })
+                      }
                     />
-                  }
-                  value={form.warehouseId}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      warehouseId: event.target.value,
-                    })
-                  }
-                  helperText="Si no eliges almacén, se usará el principal"
-                >
-                  <MenuItem value="">Almacén principal automático</MenuItem>
+                  </Grid>
 
-                  {warehouses.map((warehouse) => (
-                    <MenuItem key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
+                  <Grid item xs={12} sm={8}>
+                    <TextField
+                      fullWidth
+                      label="Motivo del movimiento"
+                      value={form.reason}
+                      helperText="Mínimo 3 caracteres"
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          reason: event.target.value,
+                        })
+                      }
+                    />
+                  </Grid>
 
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Cantidad"
-                  type="number"
-                  value={form.quantity}
-                  inputProps={{
-                    min: 1,
-                  }}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      quantity: Number(event.target.value),
-                    })
-                  }
-                />
-              </Grid>
+                  <Grid item xs={12}>
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      spacing={1.5}
+                      sx={{
+                        alignItems: { xs: "stretch", sm: "flex-start" },
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <Button
+                        onClick={() => submit("in")}
+                        disabled={formIsInvalid}
+                      >
+                        Registrar entrada
+                      </Button>
 
-              <Grid item xs={12} sm={8}>
-                <TextField
-                  fullWidth
-                  label="Motivo del movimiento"
-                  value={form.reason}
-                  helperText="Mínimo 3 caracteres"
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      reason: event.target.value,
-                    })
-                  }
-                />
-              </Grid>
+                      <Button
+                        color="warning"
+                        onClick={() => submit("out")}
+                        disabled={formIsInvalid}
+                      >
+                        Registrar salida
+                      </Button>
+                    </Stack>
 
-              <Grid item xs={12}>
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={1.5}
-                  sx={{
-                    alignItems: { xs: "stretch", sm: "flex-start" },
-                    justifyContent: "flex-end",
-                  }}
-                >
-                  <Button onClick={() => submit("in")} disabled={formIsInvalid}>
-                    Registrar entrada
-                  </Button>
-
-                  <Button
-                    color="warning"
-                    onClick={() => submit("out")}
-                    disabled={formIsInvalid}
-                  >
-                    Registrar salida
-                  </Button>
-                </Stack>
-
-                <ActionDisabledReason
-                  message={formIsInvalid ? inventoryFormDisabledReason : ""}
-                />
-              </Grid>
-            </Grid>
+                    <ActionDisabledReason
+                      message={formIsInvalid ? inventoryFormDisabledReason : ""}
+                    />
+                  </Grid>
+                </Grid>
+              ) : (
+                <Typography color="text.secondary">
+                  Tu usuario puede consultar inventario, pero no registrar ajustes manuales.
+                </Typography>
+              )}
+            </Stack>
           </CardContent>
         </Card>
       )}
 
-      <SearchToolbar
-        label="Buscar movimientos"
-        placeholder="Ej. entrada, salida, venta, producto, almacén o motivo"
-        query={movementSearch}
-        onQueryChange={setMovementSearch}
-        resultCount={movements.length}
-        helperText="Filtra movimientos recientes por producto, clave interna/SKU, código, almacén, tipo o motivo."
-      />
+      {activeView === "movements" && (
+        <>
+          <SearchToolbar
+            label="Buscar movimientos"
+            placeholder="Ej. entrada, salida, venta, producto, almacén o motivo"
+            query={movementSearch}
+            onQueryChange={setMovementSearch}
+            resultCount={movements.length}
+            helperText="Filtra movimientos recientes por producto, clave interna/SKU, código, almacén, tipo o motivo."
+          />
 
-      <DataGridCard
-        rows={movements}
-        columns={columns}
-        minWidth={980}
-        noRowsLabel="No hay movimientos de inventario registrados."
-        tableLabel="Movimientos de inventario"
-      />
+          <DataGridCard
+            rows={movements}
+            columns={columns}
+            minWidth={980}
+            noRowsLabel="No hay movimientos de inventario registrados."
+            tableLabel="Movimientos de inventario"
+          />
+        </>
+      )}
     </>
   );
 }

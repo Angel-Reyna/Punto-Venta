@@ -269,15 +269,19 @@ function productsResponse(role: Role) {
 function inventoryStockResponse() {
   return [
     {
+      id: "product-1",
       productId: "product-1",
       sku: "COCA-600",
       barcode: "7501055300075",
       name: "Coca-Cola 600 ml",
+      category: { id: "category-1", name: "Bebidas" },
       categoryName: "Bebidas",
       warehouseId: "warehouse-1",
       warehouseName: "Principal",
+      stock: 24,
       currentStock: 24,
       minStock: 6,
+      lowStock: false,
       severity: "normal",
     },
   ];

@@ -1,11 +1,11 @@
 import {
+  Box,
   Card,
   CardContent,
   Chip,
   Divider,
   Stack,
   Typography,
-  Box,
 } from "@mui/material";
 import { GridColDef } from "@mui/x-data-grid";
 
@@ -70,6 +70,8 @@ export type InventoryMovementForm = {
   reason: string;
 };
 
+export type StockStatusFilter = "all" | "available" | "low" | "out";
+
 export const initialInventoryMovementForm: InventoryMovementForm = {
   productId: "",
   warehouseId: "",
@@ -82,6 +84,13 @@ export const WAREHOUSE_INFO_TEXT =
 
 const MOVEMENT_TYPE_INFO_TEXT =
   "IN es entrada, OUT salida manual, SALE venta, RETURN devolución y ADJUSTMENT ajuste de inventario.";
+
+const STOCK_FILTER_LABELS: Record<StockStatusFilter, string> = {
+  all: "Todos",
+  available: "Disponibles",
+  low: "Bajo stock",
+  out: "Sin stock",
+};
 
 function renderHeaderWithInfo(label: string, info: string) {
   return <LabelWithInfo label={label} info={info} ariaLabel={info} />;
@@ -111,6 +120,156 @@ export function getInventoryFormDisabledReason(form: InventoryMovementForm) {
 
 export function isInventoryFormInvalid(form: InventoryMovementForm) {
   return Boolean(getInventoryFormDisabledReason(form));
+}
+
+function getInventoryStockSummary(rows: StockItem[]) {
+  const outOfStock = rows.filter((item) => item.stock <= 0).length;
+  const lowStock = rows.filter((item) => item.stock > 0 && item.lowStock).length;
+  const available = rows.filter((item) => item.stock > 0 && !item.lowStock).length;
+  const units = rows.reduce((total, item) => total + item.stock, 0);
+
+  return {
+    total: rows.length,
+    available,
+    lowStock,
+    outOfStock,
+    units,
+  };
+}
+
+export function filterStockRowsByStatus(
+  rows: StockItem[],
+  status: StockStatusFilter,
+) {
+  if (status === "available") {
+    return rows.filter((item) => item.stock > 0 && !item.lowStock);
+  }
+
+  if (status === "low") {
+    return rows.filter((item) => item.stock > 0 && item.lowStock);
+  }
+
+  if (status === "out") {
+    return rows.filter((item) => item.stock <= 0);
+  }
+
+  return rows;
+}
+
+export function InventorySummaryCards({ rows }: { rows: StockItem[] }) {
+  const summary = getInventoryStockSummary(rows);
+  const cards = [
+    {
+      label: "Productos monitoreados",
+      value: summary.total,
+      description: "Registros de stock visibles con los filtros actuales.",
+      color: "primary" as const,
+    },
+    {
+      label: "Disponibles",
+      value: summary.available,
+      description: "Productos con stock suficiente.",
+      color: "success" as const,
+    },
+    {
+      label: "Requieren atención",
+      value: summary.lowStock + summary.outOfStock,
+      description: `${summary.lowStock} bajo stock · ${summary.outOfStock} sin stock`,
+      color: summary.lowStock + summary.outOfStock > 0 ? ("warning" as const) : ("default" as const),
+    },
+    {
+      label: "Unidades totales",
+      value: summary.units,
+      description: "Suma de unidades disponibles en inventario.",
+      color: "info" as const,
+    },
+  ];
+
+  return (
+    <Box
+      sx={{
+        display: "grid",
+        gap: 2,
+        gridTemplateColumns: {
+          xs: "1fr",
+          sm: "repeat(2, minmax(0, 1fr))",
+          lg: "repeat(4, minmax(0, 1fr))",
+        },
+        mb: 2,
+      }}
+    >
+      {cards.map((card) => (
+        <Card key={card.label} sx={{ height: "100%" }}>
+          <CardContent>
+            <Stack spacing={1}>
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                justifyContent="space-between"
+              >
+                <Typography variant="body2" color="text.secondary" fontWeight={800}>
+                  {card.label}
+                </Typography>
+                <Chip size="small" color={card.color} label={card.value} />
+              </Stack>
+              <Typography variant="body2" color="text.secondary">
+                {card.description}
+              </Typography>
+            </Stack>
+          </CardContent>
+        </Card>
+      ))}
+    </Box>
+  );
+}
+
+export function InventoryStatusFilterBar({
+  rows,
+  value,
+  onChange,
+}: {
+  rows: StockItem[];
+  value: StockStatusFilter;
+  onChange: (value: StockStatusFilter) => void;
+}) {
+  const summary = getInventoryStockSummary(rows);
+  const options: Array<{ value: StockStatusFilter; count: number; color: "default" | "success" | "warning" | "error" }> = [
+    { value: "all", count: summary.total, color: "default" },
+    { value: "available", count: summary.available, color: "success" },
+    { value: "low", count: summary.lowStock, color: "warning" },
+    { value: "out", count: summary.outOfStock, color: "error" },
+  ];
+
+  return (
+    <Card sx={{ mb: 2 }}>
+      <CardContent>
+        <Stack spacing={1.5}>
+          <Box>
+            <Typography variant="subtitle1" fontWeight={900}>
+              Dividir existencias por estado
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Usa estos filtros para revisar catálogos grandes sin mezclar productos normales con alertas de reposición.
+            </Typography>
+          </Box>
+
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            {options.map((option) => (
+              <Chip
+                key={option.value}
+                clickable
+                color={option.color}
+                variant={value === option.value ? "filled" : "outlined"}
+                label={`${STOCK_FILTER_LABELS[option.value]} · ${option.count}`}
+                onClick={() => onChange(option.value)}
+              />
+            ))}
+          </Stack>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function buildMovementColumns(): GridColDef<Movement>[] {
@@ -178,9 +337,11 @@ export function buildMovementColumns(): GridColDef<Movement>[] {
 export function InventoryStockOverview({
   rows,
   searchQuery,
+  statusFilter = "all",
 }: {
   rows: StockItem[];
   searchQuery: string;
+  statusFilter?: StockStatusFilter;
 }) {
   if (rows.length === 0) {
     return (
@@ -194,12 +355,16 @@ export function InventoryStockOverview({
             <Typography variant="h6" fontWeight={800}>
               {searchQuery.trim()
                 ? "No hay existencias que coincidan con la búsqueda"
-                : "No hay existencias registradas"}
+                : statusFilter === "all"
+                  ? "No hay existencias registradas"
+                  : "No hay productos en esta división"}
             </Typography>
             <Typography color="text.secondary">
               {searchQuery.trim()
                 ? "Intenta buscar por nombre, clave interna/SKU, código o categoría."
-                : "Cuando crees productos con stock inicial o registres entradas, aparecerán aquí."}
+                : statusFilter === "all"
+                  ? "Cuando crees productos con stock inicial o registres entradas, aparecerán aquí."
+                  : "Cambia el filtro de estado para revisar otros grupos de inventario."}
             </Typography>
           </Stack>
         </CardContent>
@@ -222,8 +387,7 @@ export function InventoryStockOverview({
                 Existencias actuales
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Control rápido del stock real por producto, con estado visual
-                para reposición.
+                Control rápido del stock real por producto, con estado visual para reposición.
               </Typography>
             </Box>
 
