@@ -171,6 +171,30 @@ docker compose logs api
 docker compose down
 ```
 
+## Cierre de ronda y cambio de chat
+
+Cuando una ronda de patches llega a un cierre estable o el chat empieza a degradarse, genera un paquete de continuidad antes de continuar en otro hilo.
+
+```bash
+npm run clean:generated
+bash scripts/project/create-continuity-snapshot.sh --with-qa
+```
+
+Adjunta en el nuevo chat los archivos generados dentro de `.puntaventa_diagnostics/`:
+
+- `Punta_Venta_current_YYYYMMDD-HHMMSS.tar.gz`
+- `punta-venta-current-diagnostics-YYYYMMDD-HHMMSS.txt`
+- `punta-venta-continuity-YYYYMMDD-HHMMSS.md`
+
+Criterios de cierre:
+
+- `git diff --check` no reporta errores.
+- Los artefactos generados fueron limpiados con `npm run clean:generated`.
+- Los cambios fuente quedaron commiteados o explícitamente documentados como pendientes.
+- El nuevo chat debe reconstruir el estado desde el snapshot, no desde memoria ni desde patches viejos.
+
+Consulta también `docs/continuity/next-chat-handoff.md`.
+
 ## Validación completa de cierre
 
 Para un patch común, ejecuta:

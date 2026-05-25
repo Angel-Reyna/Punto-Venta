@@ -1,0 +1,223 @@
+# Punta Venta — Continuidad para nuevo chat
+
+Fecha de corte recomendada: generar al cerrar una ronda de patches.
+Ruta local habitual: `C:\Users\drago\Proyectos\Punta_Venta`.
+Shell habitual: Git Bash en Windows.
+
+Este archivo sirve para cambiar a un chat nuevo sin perder contexto técnico. El repositorio Git y el snapshot generado son la fuente de verdad; el chat solo debe reconstruir el estado desde esos archivos.
+
+## 1. Cuándo abrir un nuevo chat
+
+Abre un chat nuevo cuando ocurra cualquiera de estas condiciones:
+
+- El chat actual empieza a responder lento.
+- Ya hay muchos patches/logs en el hilo.
+- Se cerró una ronda grande de trabajo.
+- Se aplicaron refactors importantes.
+- Vas a iniciar una etapa distinta del proyecto.
+- Vas a adjuntar un snapshot nuevo del repo.
+
+No sigas acumulando patches largos en un chat degradado si vas a tocar Auth, Prisma, ventas, inventario, reportes, Docker o E2E integrado.
+
+## 2. Estado funcional que debe preservarse
+
+Punta Venta no debe tratarse como POS clásico con caja obligatoria.
+
+Modelo correcto:
+
+- Admin/dueño gestiona productos, inventario, usuarios, reportes, auditoría y actividad.
+- Vendedores registran ventas físicas en la app.
+- La venta en efectivo no debe depender de caja abierta.
+- `CASHIER` se conserva como enum técnico, pero en UI/documentación debe tratarse como `Vendedor`.
+- Caja queda como módulo secundario; no debe bloquear ventas.
+
+## 3. Estado de patches al cierre de esta ronda
+
+Aplicados y validados durante la ronda:
+
+- Patch 50a: cobertura funcional E2E inicial para Ventas, Productos e Inventario.
+- Fixes Patch 50a: selectores estables, diálogos, campos numéricos y stock.
+- Patch 50b: hardening permanente de selectores E2E con `data-testid` y helpers.
+- Patch 50c: cobertura funcional administrativa E2E.
+- Patch 50d: cobertura funcional E2E de Caja/permisos.
+- Patch 50e: E2E integrado real de eliminación física con historial preservado.
+- Patch 51: Auditoría más clara y estándar operativo en UI.
+- Patch 52: Actividad de vendedores con auto-refresh, pausar/reanudar y filtros preservados.
+- Patch 53: contrato API para eliminación física con historial preservado.
+- Patch 54: refactor backend de Ventas.
+- Patch 55: refactor backend de Productos/importación Excel + fix.
+- Patch 56: refactor backend de Reportes.
+- Patch 57: refactor backend de Dashboard.
+- Patch 58: refactor backend de Caja.
+- Patch 59: refactor backend de Inventario.
+- Patch 60: refactor backend de Usuarios.
+- Patch 61: refactor backend de Actividad de vendedores.
+- Patch 62: refactor backend de Auth.
+- Patch 63: refactor backend de Auditoría + fix de `audit.shared.ts`.
+- Patch 64: documentación de arquitectura backend modular.
+- Patch 65: enlaces de arquitectura y checklist QA.
+- Patch 66: diagnóstico frontend post-cobertura.
+- Patch 67: guardrail informativo de bundle frontend.
+- Patch 68: code splitting seguro de vendors en Vite.
+- Patch 69: guardrail final de calidad para patches.
+- Patch 70: continuidad, snapshot y cierre para migrar a chat nuevo.
+
+## 4. Validación final recomendada antes de migrar
+
+Desde la raíz:
+
+```bash
+cd "/c/Users/drago/Proyectos/Punta_Venta"
+
+npm run clean:generated
+npm run ci:validate-lockfiles
+npm run api:prisma:validate
+npm run api:build
+npm run api:test:critical
+npm run web:build
+node scripts/web/audit-bundle.js
+npm run web:test
+npm run web:e2e
+npm run web:e2e:integration
+npm run docker:config
+npm run docker:build
+```
+
+Si Docker Desktop no está listo, al menos deja registrado el fallo de `docker ps` o valida Docker después.
+
+## 5. Generar snapshot para el próximo chat
+
+Usa el script agregado en Patch 70:
+
+```bash
+cd "/c/Users/drago/Proyectos/Punta_Venta"
+
+bash scripts/project/create-continuity-snapshot.sh --with-qa
+```
+
+Si quieres un snapshot rápido sin correr QA completa:
+
+```bash
+bash scripts/project/create-continuity-snapshot.sh
+```
+
+El script genera, dentro de `.puntaventa_diagnostics/`, archivos con timestamp:
+
+- `punta-venta-continuity-YYYYMMDD-HHMMSS.md`
+- `punta-venta-current-diagnostics-YYYYMMDD-HHMMSS.txt`
+- `Punta_Venta_current_YYYYMMDD-HHMMSS.tar.gz`
+
+Adjunta esos archivos en el chat nuevo.
+
+## 6. Mensaje inicial para pegar en el nuevo chat
+
+Copia y pega este mensaje, reemplazando los datos de validación si aplica:
+
+```text
+Estoy continuando el proyecto Punta Venta desde un snapshot actual del repo.
+
+Quiero que reconstruyas el estado real desde los archivos adjuntos, sin asumir código viejo ni generar cambios a ciegas.
+
+Adjunto:
+- Punta_Venta_current_YYYYMMDD-HHMMSS.tar.gz
+- punta-venta-current-diagnostics-YYYYMMDD-HHMMSS.txt
+- punta-venta-continuity-YYYYMMDD-HHMMSS.md
+
+Ruta local:
+C:\Users\drago\Proyectos\Punta_Venta
+
+Stack:
+- Monorepo apps/api + apps/web
+- API: Node.js + Express + TypeScript + Prisma + PostgreSQL
+- Web: React + Vite + TypeScript + Material UI
+- Auth: JWT access/refresh, cookies httpOnly, CSRF
+- Tests: Jest API, Vitest web, Playwright mockeado, Playwright integrado real con PostgreSQL
+- Docker Compose para Postgres/API/Web
+
+Modelo funcional obligatorio:
+Punta Venta no es un POS clásico dependiente de caja abierta. El flujo correcto es admin/dueño + vendedores. La venta en efectivo no debe depender de caja abierta. CASHIER se conserva como enum técnico, pero en UI/documentación debe tratarse como Vendedor.
+
+Estado esperado:
+Ya quedaron aplicados los patches 50a–70. La ronda incluyó cobertura E2E/API, auditoría operativa, actividad de vendedores con auto-refresh, eliminación física de productos con historial preservado, refactor backend modular, documentación de arquitectura, guardrails de bundle y guardrails de calidad para patches.
+
+Reglas obligatorias:
+- Responde en español.
+- Prioriza precisión sobre velocidad.
+- Patches pequeños, numerados y con objetivo único.
+- No mezcles refactor con features.
+- No cambies contratos HTTP sin advertirlo.
+- No generes patches contra código viejo.
+- Antes de entregar patches valida con:
+  git apply --check --whitespace=error
+  git diff --check
+  git diff --name-status
+- Verifica explícitamente que archivos nuevos estén incluidos en el patch.
+- Evita trailing whitespace.
+- Mantén compatibilidad Windows/Git Bash.
+- Para E2E usa data-testid en controles críticos, locators scoped por diálogo/sección/fila y evita force:true salvo justificación fuerte.
+
+Comandos base:
+cd "/c/Users/drago/Proyectos/Punta_Venta"
+
+npm run ci:validate-lockfiles
+npm run api:prisma:validate
+npm run api:build
+npm run api:test:critical
+npm run web:build
+node scripts/web/audit-bundle.js
+npm run web:test
+npm run web:e2e
+
+Validación completa:
+npm run web:e2e:integration
+npm run docker:config
+npm run docker:build
+
+Siguiente etapa recomendada:
+No continuar refactorizando por inercia. Primero analizar el snapshot actual y proponer el siguiente objetivo con bajo riesgo. Prioridades probables:
+1. QA/release local.
+2. Revisión visual responsive real.
+3. Optimización frontend puntual si el audit de bundle lo justifica.
+4. Preparación de entorno producción/CI/CD.
+5. Mejoras funcionales nuevas solo si están bien delimitadas.
+```
+
+## 7. Reglas para el próximo asistente
+
+El próximo chat debe empezar con auditoría, no con patch inmediato.
+
+Orden correcto:
+
+1. Leer snapshot y diagnóstico.
+2. Confirmar estado Git y validaciones.
+3. Identificar si hay cambios sin commit.
+4. Proponer el siguiente patch pequeño.
+5. Generar patch solo si el estado lo permite.
+6. Validar el patch con whitespace estricto y lista de archivos.
+
+## 8. Señales para detener patches y validar
+
+Detén la generación de patches y valida si aparece cualquiera de estos casos:
+
+- `api:build` falla.
+- `api:test:critical` falla.
+- `web:e2e` falla por selector ambiguo.
+- `web:e2e:integration` falla por datos reales.
+- `git diff --check` muestra whitespace.
+- `git apply --check --whitespace=error` falla.
+- Un import apunta a un archivo nuevo no incluido.
+- El patch modifica varias capas sin justificación.
+
+## 9. Commits recomendados al cerrar
+
+Antes de cambiar de chat, deja un commit por patch o por grupo coherente. No mezcles validaciones locales ni snapshots con código fuente.
+
+Verifica:
+
+```bash
+git status --short
+git log --oneline -20
+git diff --check
+```
+
+Si todo está commiteado, el snapshot nuevo será mucho más confiable para el siguiente chat.
