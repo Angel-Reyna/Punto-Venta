@@ -269,4 +269,46 @@ describe("reports.service", () => {
       })
     ]);
   });
+
+  it("uses historical snapshots for physically deleted products in top products", async () => {
+    const range = parseReportDateRange("2026-05-20", "2026-05-20");
+
+    prismaMock.sale.findMany.mockResolvedValue([]);
+    prismaMock.saleReturn.findMany.mockResolvedValue([]);
+    prismaMock.cashRegisterSession.findMany.mockResolvedValue([]);
+    prismaMock.cashMovement.findMany.mockResolvedValue([]);
+    prismaMock.saleItem.findMany.mockResolvedValue([
+      {
+        productId: null,
+        productSku: "DEL-001",
+        productName: "Producto eliminado",
+        quantity: 2,
+        total: 120
+      }
+    ]);
+    prismaMock.saleReturnItem.findMany.mockResolvedValue([
+      {
+        productId: null,
+        productSku: "DEL-001",
+        productName: "Producto eliminado",
+        quantity: 1,
+        total: 60
+      }
+    ]);
+
+    const report = await getOperationsReport(range);
+
+    expect(report.topProducts).toEqual([
+      {
+        product: {
+          id: "deleted:DEL-001:Producto eliminado",
+          sku: "DEL-001",
+          name: "Producto eliminado (eliminado)"
+        },
+        quantity: 1,
+        total: 60
+      }
+    ]);
+  });
+
 });

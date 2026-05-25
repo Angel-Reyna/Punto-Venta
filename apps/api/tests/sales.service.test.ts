@@ -429,4 +429,290 @@ describe("sales.service", () => {
       message: "Cantidad a devolver inválida. Disponible para devolver: 1."
     });
   });
+
+  it("cancels sales with physically deleted products without restocking and preserves snapshots", async () => {
+    const deletedSaleItem = {
+      id: "item-1",
+      saleId: "sale-1",
+      productId: null,
+      productSku: "DEL-001",
+      productName: "Producto eliminado",
+      product: null,
+      quantity: 2,
+      unitPrice: 60,
+      discount: 0,
+      total: 120
+    };
+    const tx = {
+      sale: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260518-ABC123",
+          cashierId: "cashier-1",
+          status: "COMPLETED",
+          total: 120,
+          items: [deletedSaleItem],
+          payments: [
+            {
+              method: "CARD",
+              amount: 120
+            }
+          ],
+          returns: []
+        }),
+        update: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260518-ABC123",
+          cashierId: "cashier-1",
+          customerId: null,
+          status: "CANCELLED",
+          subtotal: 120,
+          discount: 0,
+          tax: 0,
+          total: 120,
+          createdAt: new Date("2026-05-18T00:00:00.000Z"),
+          updatedAt: new Date("2026-05-18T00:00:00.000Z"),
+          cashier: {
+            id: "cashier-1",
+            name: "Vendedor",
+            email: "cashier@pos.local"
+          },
+          customer: null,
+          items: [deletedSaleItem],
+          payments: [
+            {
+              id: "payment-1",
+              saleId: "sale-1",
+              method: "CARD",
+              amount: 120,
+              createdAt: new Date("2026-05-18T00:00:00.000Z")
+            }
+          ],
+          returns: [
+            {
+              id: "return-1",
+              saleId: "sale-1",
+              cashierId: "admin-1",
+              reason: "Cliente pidió cancelación",
+              refundMethod: "CARD",
+              refundTotal: 120,
+              createdAt: new Date("2026-05-18T01:00:00.000Z"),
+              updatedAt: new Date("2026-05-18T01:00:00.000Z"),
+              cashier: {
+                id: "admin-1",
+                name: "Admin",
+                email: "admin@pos.local"
+              },
+              items: [
+                {
+                  id: "return-item-1",
+                  saleReturnId: "return-1",
+                  saleItemId: "item-1",
+                  productId: null,
+                  productSku: "DEL-001",
+                  productName: "Producto eliminado",
+                  product: null,
+                  quantity: 2,
+                  unitPrice: 60,
+                  discount: 0,
+                  total: 120
+                }
+              ]
+            }
+          ]
+        })
+      },
+      saleReturn: {
+        create: jest.fn().mockResolvedValue({
+          id: "return-1"
+        })
+      }
+    };
+
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
+
+    const sale = await cancelSale(
+      {
+        id: "admin-1",
+        email: "admin@pos.local",
+        role: Role.ADMIN
+      },
+      "sale-1",
+      {
+        reason: "Cliente pidió cancelación"
+      }
+    );
+
+    expect(inventoryServiceMock.getOrCreateDefaultWarehouse).not.toHaveBeenCalled();
+    expect(inventoryServiceMock.increaseStock).not.toHaveBeenCalled();
+    expect(tx.saleReturn.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          items: {
+            create: [
+              expect.objectContaining({
+                productId: null,
+                productSku: "DEL-001",
+                productName: "Producto eliminado"
+              })
+            ]
+          }
+        })
+      })
+    );
+    expect(sale.items[0].product).toEqual({
+      id: null,
+      sku: "DEL-001",
+      name: "Producto eliminado (eliminado)",
+      deleted: true
+    });
+  });
+
+  it("returns sale items with physically deleted products without restocking and preserves snapshots", async () => {
+    const deletedSaleItem = {
+      id: "item-1",
+      saleId: "sale-1",
+      productId: null,
+      productSku: "DEL-001",
+      productName: "Producto eliminado",
+      product: null,
+      quantity: 2,
+      unitPrice: 60,
+      discount: 0,
+      total: 120
+    };
+    const tx = {
+      sale: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260518-ABC123",
+          cashierId: "cashier-1",
+          status: "COMPLETED",
+          total: 120,
+          items: [deletedSaleItem],
+          payments: [
+            {
+              method: "CARD",
+              amount: 120
+            }
+          ],
+          returns: []
+        }),
+        update: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260518-ABC123",
+          cashierId: "cashier-1",
+          customerId: null,
+          status: "PARTIALLY_REFUNDED",
+          subtotal: 120,
+          discount: 0,
+          tax: 0,
+          total: 120,
+          createdAt: new Date("2026-05-18T00:00:00.000Z"),
+          updatedAt: new Date("2026-05-18T00:00:00.000Z"),
+          cashier: {
+            id: "cashier-1",
+            name: "Vendedor",
+            email: "cashier@pos.local"
+          },
+          customer: null,
+          items: [deletedSaleItem],
+          payments: [
+            {
+              id: "payment-1",
+              saleId: "sale-1",
+              method: "CARD",
+              amount: 120,
+              createdAt: new Date("2026-05-18T00:00:00.000Z")
+            }
+          ],
+          returns: [
+            {
+              id: "return-1",
+              saleId: "sale-1",
+              cashierId: "admin-1",
+              reason: "Cliente devolvió una pieza",
+              refundMethod: "CARD",
+              refundTotal: 60,
+              createdAt: new Date("2026-05-18T01:00:00.000Z"),
+              updatedAt: new Date("2026-05-18T01:00:00.000Z"),
+              cashier: {
+                id: "admin-1",
+                name: "Admin",
+                email: "admin@pos.local"
+              },
+              items: [
+                {
+                  id: "return-item-1",
+                  saleReturnId: "return-1",
+                  saleItemId: "item-1",
+                  productId: null,
+                  productSku: "DEL-001",
+                  productName: "Producto eliminado",
+                  product: null,
+                  quantity: 1,
+                  unitPrice: 60,
+                  discount: 0,
+                  total: 60
+                }
+              ]
+            }
+          ]
+        })
+      },
+      saleReturn: {
+        create: jest.fn().mockResolvedValue({
+          id: "return-1"
+        })
+      }
+    };
+
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
+
+    const sale = await returnSaleItems(
+      {
+        id: "admin-1",
+        email: "admin@pos.local",
+        role: Role.ADMIN
+      },
+      "sale-1",
+      {
+        reason: "Cliente devolvió una pieza",
+        items: [
+          {
+            saleItemId: "item-1",
+            quantity: 1
+          }
+        ]
+      }
+    );
+
+    expect(inventoryServiceMock.getOrCreateDefaultWarehouse).not.toHaveBeenCalled();
+    expect(inventoryServiceMock.increaseStock).not.toHaveBeenCalled();
+    expect(tx.saleReturn.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          refundTotal: 60,
+          items: {
+            create: [
+              expect.objectContaining({
+                productId: null,
+                productSku: "DEL-001",
+                productName: "Producto eliminado",
+                quantity: 1,
+                total: 60
+              })
+            ]
+          }
+        })
+      })
+    );
+    expect(sale.returns[0].items[0].product).toEqual({
+      id: null,
+      sku: "DEL-001",
+      name: "Producto eliminado (eliminado)",
+      deleted: true
+    });
+  });
+
 });

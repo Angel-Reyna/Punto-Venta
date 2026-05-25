@@ -29,9 +29,10 @@ Variables esperadas en desarrollo local:
 | Descargar formato Excel | Descarga `.xlsx` con columnas actuales, incluida categoría y stock inicial. |
 | Importar Excel | Crea productos válidos con inventario real; rechaza filas inválidas con mensaje accionable. |
 | Activar/desactivar producto | Cambia estado; producto inactivo no aparece para vendedor. |
+| Eliminar producto con historial | El producto desaparece de catálogo/nueva venta, pero ventas, devoluciones, inventario y reportes conservan SKU/nombre snapshot. |
 | Crear venta | Valida stock, descuenta inventario y registra pago sin exigir caja abierta. |
-| Cancelar venta | Solo admin; revierte inventario y registra salida/devolución cuando aplique. |
-| Registrar devolución | Solo admin; respeta cantidades máximas, restaura inventario y registra el método de devolución. |
+| Cancelar venta | Solo admin; revierte inventario si el producto todavía existe; si fue eliminado físicamente, conserva snapshots sin recrear stock. |
+| Registrar devolución | Solo admin; respeta cantidades máximas, restaura inventario si el producto existe y conserva snapshots si fue eliminado. |
 | Consultar reporte | Muestra venta bruta, devoluciones, venta neta, pagos y productos vendidos netos. |
 | Descargar PDF | Exporta el mismo criterio operativo visible en pantalla. |
 | Crear usuario | Crea usuario activo con rol correcto. |
@@ -60,6 +61,8 @@ Variables esperadas en desarrollo local:
 - Vendedor no puede acceder a caja por ruta directa.
 - Vendedor puede crear ventas válidas por ruta autorizada.
 - ADMIN puede alcanzar reportes protegidos por `ReportsRead`.
+- Eliminación física de productos preserva historial en reportes integrados.
+- Cancelaciones/devoluciones de ventas con productos eliminados no recrean inventario y conservan snapshots.
 
 ## Verificaciones manuales pendientes
 

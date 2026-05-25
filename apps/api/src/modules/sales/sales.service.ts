@@ -363,6 +363,42 @@ function mapSaleItemProduct(item: {
   };
 }
 
+type RestockableSaleItem = {
+  productId: string | null;
+  quantity: number;
+};
+
+async function restoreStockForExistingProducts(
+  tx: Prisma.TransactionClient,
+  items: RestockableSaleItem[],
+  options: {
+    reason: string;
+    createdBy: string;
+  }
+) {
+  const restockableItems = items.filter(
+    (item): item is { productId: string; quantity: number } =>
+      Boolean(item.productId)
+  );
+
+  if (restockableItems.length === 0) {
+    return;
+  }
+
+  const warehouse = await getOrCreateDefaultWarehouse(tx);
+
+  for (const item of restockableItems) {
+    await increaseStock(tx, {
+      productId: item.productId,
+      warehouseId: warehouse.id,
+      quantity: item.quantity,
+      type: "RETURN",
+      reason: options.reason,
+      createdBy: options.createdBy
+    });
+  }
+}
+
 function mapSaleDetails(sale: SaleWithDetails) {
   return {
     ...sale,
@@ -773,22 +809,10 @@ export async function cancelSale(
         throw new AppError(409, "Solo se pueden cancelar ventas completadas sin devoluciones");
       }
 
-      const warehouse = await getOrCreateDefaultWarehouse(tx);
-
-      for (const item of sale.items) {
-        if (!item.productId) {
-          continue;
-        }
-
-        await increaseStock(tx, {
-          productId: item.productId,
-          warehouseId: warehouse.id,
-          quantity: item.quantity,
-          type: "RETURN",
-          reason: `Cancelación de venta ${sale.folio}: ${input.reason}`,
-          createdBy: user.id
-        });
-      }
+      await restoreStockForExistingProducts(tx, sale.items, {
+        reason: `Cancelación de venta ${sale.folio}: ${input.reason}`,
+        createdBy: user.id
+      });
 
       const refundMethod = resolveRefundMethod(input.refundMethod, sale.payments);
 
@@ -875,7 +899,6 @@ export async function returnSaleItems(
       const previouslyReturned = getReturnedQuantities(sale);
       const requestedItems = aggregateReturnItems(input.items);
       const requestedQuantities = new Map<string, number>();
-      const warehouse = await getOrCreateDefaultWarehouse(tx);
       let refundTotal = 0;
 
       const returnItems = requestedItems.map((requestedItem) => {
@@ -913,20 +936,17 @@ export async function returnSaleItems(
         };
       });
 
-      for (const item of returnItems) {
-        if (!item.saleItem.productId) {
-          continue;
-        }
-
-        await increaseStock(tx, {
+      await restoreStockForExistingProducts(
+        tx,
+        returnItems.map((item) => ({
           productId: item.saleItem.productId,
-          warehouseId: warehouse.id,
-          quantity: item.quantity,
-          type: "RETURN",
+          quantity: item.quantity
+        })),
+        {
           reason: `Devolución de venta ${sale.folio}: ${input.reason}`,
           createdBy: user.id
-        });
-      }
+        }
+      );
 
       const refundMethod = resolveRefundMethod(input.refundMethod, sale.payments);
 
