@@ -78,19 +78,27 @@ Si aparecen chunks grandes como `DataGridCard` o `index`, revisar primero:
 - DataGrid usado en vistas simples donde una tabla/tarjeta ligera sea suficiente;
 - imports de iconos agregados desde barrels amplios.
 
-## 6. Criterio para Patch 68
+## 6. Code splitting aplicado en Patch 68
 
-Patch 68 solo debería tocar code splitting si la auditoría confirma chunks grandes o crecimiento relevante.
+La app ya usa `React.lazy` por página en `apps/web/src/App.tsx`. Por eso Patch 68 no debe duplicar lazy loading de rutas. La optimización segura aplicada está en `apps/web/vite.config.ts` mediante `manualChunks` de Rollup/Vite para separar dependencias pesadas de terceros:
 
-Prioridad sugerida:
+- `vendor-react`: React, React DOM, React Router y Scheduler.
+- `vendor-mui-core`: Material UI, MUI System, MUI Utils y Emotion.
+- `vendor-mui-datagrid`: MUI X DataGrid.
+- `vendor-mui-icons`: iconos MUI.
+- `vendor-http`: Axios.
+- `vendor`: resto de dependencias de `node_modules`.
 
-1. lazy loading de páginas por ruta;
-2. fallback de carga simple;
-3. conservar protección de rutas y permisos;
-4. validar navegación directa por URL;
-5. no mezclar code splitting con rediseños de pantalla.
+Objetivo:
 
-Validación mínima para Patch 68:
+- reducir concentración de peso en `index`;
+- hacer más estable el cache del navegador para dependencias de terceros;
+- aislar `DataGrid` como dependencia pesada visible;
+- mantener intactos contratos de rutas, auth y permisos.
+
+Este cambio no sustituye refactors de UI. Si un chunk de página sigue grande después del split de vendors, el siguiente paso debe ser extraer componentes/hooks específicos, no seguir partiendo dependencias a ciegas.
+
+Validación mínima para cambios de bundle/code splitting:
 
 ```bash
 npm run web:e2e

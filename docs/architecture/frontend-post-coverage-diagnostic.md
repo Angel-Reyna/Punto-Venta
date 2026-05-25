@@ -82,20 +82,18 @@ Objetivo:
 - ejecutar `npm run web:build && node scripts/web/audit-bundle.js` después de cambios frontend relevantes;
 - preparar una futura decisión de code splitting.
 
-### Patch 68 — Code splitting de páginas
+### Patch 68 — Code splitting seguro de vendors
 
-Si Patch 67 confirma chunks grandes, aplicar lazy loading en rutas principales:
+Las rutas principales ya usan `React.lazy` en `apps/web/src/App.tsx`. Por eso el siguiente paso seguro no es duplicar lazy loading, sino separar vendors pesados en `apps/web/vite.config.ts`:
 
-- `ProductsPage`;
-- `InventoryPage`;
-- `SalesPage`;
-- `ReportsPage`;
-- `UsersPage`;
-- `AuditPage`;
-- `SellerActivityPage`;
-- `CashRegisterPage`.
+- React/React Router;
+- Material UI y Emotion;
+- MUI X DataGrid;
+- iconos MUI;
+- Axios;
+- resto de dependencias.
 
-Debe conservar protección de rutas y navegación por permisos. Validar especialmente login, refresh y rutas directas.
+Debe conservar protección de rutas y navegación por permisos. Validar especialmente login, refresh, rutas directas y salida de `node scripts/web/audit-bundle.js`.
 
 ### Patch 69 — Refactor frontend puntual
 
