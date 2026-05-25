@@ -73,12 +73,13 @@ Todo refactor frontend debe cumplir:
 
 ### Patch 67 — Medición y guardrail de bundle
 
-Agregar un script no bloqueante o documentación operativa para medir tamaño de build y detectar chunks grandes. No debe fallar CI todavía si no hay acuerdo de presupuesto.
+Agregar un script no bloqueante para medir tamaño de build y detectar chunks grandes. No debe fallar CI todavía si no hay acuerdo de presupuesto.
 
 Objetivo:
 
 - obtener una salida legible de chunks generados por Vite;
-- documentar umbrales iniciales;
+- documentar umbrales iniciales en `docs/architecture/frontend-bundle-guardrails.md`;
+- ejecutar `npm run web:build && node scripts/web/audit-bundle.js` después de cambios frontend relevantes;
 - preparar una futura decisión de code splitting.
 
 ### Patch 68 — Code splitting de páginas

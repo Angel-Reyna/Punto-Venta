@@ -63,6 +63,7 @@ Si la documentación cambia comandos, variables o rutas críticas, ejecuta tambi
 npm run web:test
 npm run web:test:critical
 npm run web:build
+node scripts/web/audit-bundle.js
 npm run web:e2e
 ```
 
@@ -70,6 +71,7 @@ Criterios:
 
 - `web:test` ejecuta Vitest y no debe recoger archivos `apps/web/e2e/**`.
 - `web:e2e` ejecuta solo la suite mockeada.
+- `node scripts/web/audit-bundle.js` es informativo por defecto; úsalo para detectar crecimiento de chunks antes de optimizar.
 - El listado esperado de la suite mockeada debe excluir `e2e/integration/**`.
 
 Validación explícita del listado:
