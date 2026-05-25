@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { InventoryType, Prisma } from "@prisma/client";
-import { z } from "zod";
 
 import { prisma } from "../../config/prisma";
 
@@ -26,34 +25,16 @@ import { auditLog } from "../audit/audit.service";
 import { PERMISSIONS } from "../auth/permissions";
 
 import {
+  mapInventoryMovementAuditData,
+  mapProductStock,
+  productStockInclude
+} from "./inventory.mappers";
+import {
   decreaseStock,
   getProductStocks,
   increaseStock
 } from "./inventory.service";
-
-const movementSchema = z.object({
-  body: z.object({
-    productId: z.string().uuid(),
-
-    warehouseId: z
-      .string()
-      .uuid()
-      .optional()
-      .nullable(),
-
-    quantity: z.coerce
-      .number()
-      .int()
-      .positive()
-      .max(1_000_000),
-
-    reason: z
-      .string()
-      .trim()
-      .min(3)
-      .max(255)
-  })
-});
+import { movementSchema } from "./inventory.shared";
 
 export const inventoryRouter = Router();
 
@@ -243,14 +224,7 @@ inventoryRouter.get(
         prisma.product.count({ where }),
         prisma.product.findMany({
           where,
-          include: {
-            category: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          },
+          include: productStockInclude,
           orderBy: {
             name: "asc"
           },
@@ -266,33 +240,13 @@ inventoryRouter.get(
       setPaginationHeaders(res, buildPaginationMeta(pagination, total));
 
       return res.json(
-        products.map((product) => {
-          const quantity = stocks.get(product.id) ?? 0;
-
-          return {
-            id: product.id,
-            sku: product.sku,
-            barcode: product.barcode,
-            name: product.name,
-            category: product.category,
-            minStock: product.minStock,
-            stock: quantity,
-            lowStock: quantity <= product.minStock
-          };
-        })
+        products.map((product) => mapProductStock(product, stocks))
       );
     }
 
     const products = await prisma.product.findMany({
       where,
-      include: {
-        category: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      },
+      include: productStockInclude,
       orderBy: {
         name: "asc"
       }
@@ -300,20 +254,7 @@ inventoryRouter.get(
 
     const stocks = await getProductStocks(products.map((product) => product.id));
     const lowStockProducts = products
-      .map((product) => {
-        const quantity = stocks.get(product.id) ?? 0;
-
-        return {
-          id: product.id,
-          sku: product.sku,
-          barcode: product.barcode,
-          name: product.name,
-          category: product.category,
-          minStock: product.minStock,
-          stock: quantity,
-          lowStock: quantity <= product.minStock
-        };
-      })
+      .map((product) => mapProductStock(product, stocks))
       .filter((product) => product.lowStock);
 
     const pageItems = lowStockProducts.slice(
@@ -351,13 +292,7 @@ inventoryRouter.post(
       action: "INVENTORY_IN",
       tableName: "InventoryMovement",
       recordId: movement.id,
-      newData: {
-        productId: movement.productId,
-        productName: movement.product?.name ?? movement.productName,
-        warehouseId: movement.warehouseId,
-        quantity: movement.quantity,
-        reason: movement.reason
-      },
+      newData: mapInventoryMovementAuditData(movement),
       ipAddress: req.ip
     });
 
@@ -386,13 +321,7 @@ inventoryRouter.post(
       action: "INVENTORY_OUT",
       tableName: "InventoryMovement",
       recordId: movement.id,
-      newData: {
-        productId: movement.productId,
-        productName: movement.product?.name ?? movement.productName,
-        warehouseId: movement.warehouseId,
-        quantity: movement.quantity,
-        reason: movement.reason
-      },
+      newData: mapInventoryMovementAuditData(movement),
       ipAddress: req.ip
     });
 

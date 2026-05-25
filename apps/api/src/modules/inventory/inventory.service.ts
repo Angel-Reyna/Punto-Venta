@@ -1,35 +1,15 @@
-import { Prisma, type InventoryType } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
 
-export const DEFAULT_WAREHOUSE_NAME = "Principal";
+import { movementInclude } from "./inventory.mappers";
+import {
+  DEFAULT_WAREHOUSE_NAME,
+  type StockMovementInput
+} from "./inventory.shared";
 
-type StockMovementInput = {
-  productId: string;
-  warehouseId?: string | null;
-  quantity: number;
-  reason?: string | null;
-  createdBy: string;
-  type: InventoryType;
-  insufficientStockMessage?: string;
-};
-
-const movementInclude = {
-  product: {
-    select: {
-      id: true,
-      sku: true,
-      name: true
-    }
-  },
-  warehouse: {
-    select: {
-      id: true,
-      name: true
-    }
-  }
-} satisfies Prisma.InventoryMovementInclude;
+export { DEFAULT_WAREHOUSE_NAME } from "./inventory.shared";
 
 async function assertActiveProduct(
   tx: Prisma.TransactionClient,
