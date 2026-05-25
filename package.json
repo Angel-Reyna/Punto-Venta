@@ -27,10 +27,11 @@
     "docker:up": "docker compose up -d postgres api web",
     "docker:logs:api": "docker compose logs -f api",
     "ci:validate-lockfiles": "node scripts/ci/validate-lockfiles.js",
+    "ci:check-generated-artifacts": "node scripts/ci/check-generated-artifacts.js",
     "clean:generated": "node scripts/clean-generated.js",
     "web:e2e:integration": "node scripts/e2e/run-integration.js",
     "web:e2e:integration:list": "npm --prefix apps/web run e2e:integration -- --list",
-    "qa:local": "npm run ci:validate-lockfiles && npm run api:prisma:generate && npm run api:prisma:validate && npm run api:build && npm run api:test:critical && npm run web:test && npm run web:test:critical && npm run web:build && npm run web:e2e:list && npm run web:e2e",
+    "qa:local": "npm run ci:validate-lockfiles && npm run ci:check-generated-artifacts && npm run api:prisma:generate && npm run api:prisma:validate && npm run api:build && npm run api:test:critical && npm run web:test && npm run web:test:critical && npm run web:build && npm run web:e2e:list && npm run web:e2e",
     "qa:full": "npm run qa:local && npm run web:e2e:integration:list && npm run web:e2e:integration && npm run docker:config && npm run docker:build"
   },
   "engines": {

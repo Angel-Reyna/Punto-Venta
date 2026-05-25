@@ -32,6 +32,9 @@ jobs:
       - name: Validate lockfiles and dependency boundaries
         run: npm run ci:validate-lockfiles
 
+      - name: Check tracked generated artifacts
+        run: npm run ci:check-generated-artifacts
+
       - name: Validate Docker Compose configuration
         run: docker compose config >/dev/null
 

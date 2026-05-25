@@ -8,6 +8,7 @@ El repositorio valida tres niveles: guardrails del monorepo, calidad de API/Web 
 
 - Usa Node.js 22.
 - Valida lockfiles y límites de dependencias.
+- Falla si hay artefactos generados versionados por accidente.
 - Valida que `docker compose config` sea resoluble.
 
 ### API quality gate
@@ -52,6 +53,18 @@ npm run qa:full
 ```
 
 `qa:full` agrega E2E integrado real y Docker build. Es el equivalente operativo más cercano a una validación completa local.
+
+
+## Guardrail de artefactos generados
+
+`npm run ci:check-generated-artifacts` revisa únicamente archivos ya versionados con `git ls-files`. Su objetivo es bloquear commits que hayan incluido por accidente outputs locales como `dist`, `build`, `.vite`, `.cache`, `coverage`, `test-results`, `playwright-report`, `.puntaventa_diagnostics`, `*.tsbuildinfo`, snapshots `Punta_Venta_current_*.tar.gz` y diagnósticos `punta-venta-current-diagnostics-*.txt`.
+
+Si falla, limpia el árbol y desversiona el archivo afectado:
+
+```bash
+npm run clean:generated
+git rm --cached <ruta-del-artefacto>
+```
 
 ## Reglas de dependencias
 
