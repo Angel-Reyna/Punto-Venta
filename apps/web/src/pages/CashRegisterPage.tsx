@@ -248,6 +248,7 @@ export function CashRegisterPage() {
       <Box sx={{ mb: 2 }}>
         <Chip
           color={currentSession ? "success" : "default"}
+          data-testid="cash-status-chip"
           label={currentSession ? "Caja abierta" : "Sin caja abierta"}
         />
         {canReadCashRegisterSessions && (
@@ -317,7 +318,7 @@ export function CashRegisterPage() {
                   type="number"
                   value={openingAmount}
                   disabled={!canOperateCashRegister || Boolean(currentSession)}
-                  inputProps={{ min: 0, step: "0.01" }}
+                  inputProps={{ "data-testid": "cash-opening-amount", min: 0, step: "0.01" }}
                   onChange={(event) => setOpeningAmount(event.target.value)}
                 />
 
@@ -327,12 +328,14 @@ export function CashRegisterPage() {
                   disabled={!canOperateCashRegister || Boolean(currentSession)}
                   multiline
                   minRows={2}
+                  inputProps={{ "data-testid": "cash-opening-notes" }}
                   onChange={(event) => setOpeningNotes(event.target.value)}
                 />
 
                 <Box>
                   <Button
                     fullWidth
+                    data-testid="cash-open-button"
                     onClick={openRegister}
                     disabled={!canOperateCashRegister || Boolean(currentSession) || isLoading}
                   >
@@ -366,7 +369,7 @@ export function CashRegisterPage() {
                   type="number"
                   value={closingAmount}
                   disabled={!canOperateCashRegister || !currentSession}
-                  inputProps={{ min: 0, step: "0.01" }}
+                  inputProps={{ "data-testid": "cash-closing-amount", min: 0, step: "0.01" }}
                   helperText={
                     currentSession
                       ? `Esperado: ${formatMoney(currentSession.expectedCash)}`
@@ -381,6 +384,7 @@ export function CashRegisterPage() {
                   disabled={!canOperateCashRegister || !currentSession}
                   multiline
                   minRows={2}
+                  inputProps={{ "data-testid": "cash-closing-notes" }}
                   onChange={(event) => setClosingNotes(event.target.value)}
                 />
 
@@ -388,6 +392,7 @@ export function CashRegisterPage() {
                   <Button
                     fullWidth
                     color="warning"
+                    data-testid="cash-close-button"
                     onClick={closeRegister}
                     disabled={!canOperateCashRegister || !currentSession || isLoading}
                   >
@@ -434,6 +439,7 @@ export function CashRegisterPage() {
                 }
                 value={movementType}
                 disabled={!canOperateCashRegister || !currentSession}
+                inputProps={{ "data-testid": "cash-movement-type" }}
                 onChange={(event) =>
                   setMovementType(event.target.value as "CASH_IN" | "CASH_OUT")
                 }
@@ -447,7 +453,7 @@ export function CashRegisterPage() {
                 type="number"
                 value={movementAmount}
                 disabled={!canOperateCashRegister || !currentSession}
-                inputProps={{ min: 0.01, step: "0.01" }}
+                inputProps={{ "data-testid": "cash-manual-amount", min: 0.01, step: "0.01" }}
                 onChange={(event) => setMovementAmount(event.target.value)}
               />
 
@@ -455,12 +461,14 @@ export function CashRegisterPage() {
                 label="Motivo"
                 value={movementReason}
                 disabled={!canOperateCashRegister || !currentSession}
+                inputProps={{ "data-testid": "cash-manual-reason" }}
                 onChange={(event) => setMovementReason(event.target.value)}
               />
 
               <Box>
                 <Button
                   fullWidth
+                  data-testid="cash-manual-submit"
                   onClick={addManualMovement}
                   disabled={manualMovementSubmitDisabled}
                 >

@@ -97,6 +97,39 @@ type MockSellerActivityLog = {
   seller: MockManagedUser;
 };
 
+type MockCashMovement = {
+  id: string;
+  type: "OPENING" | "CASH_IN" | "CASH_OUT" | "SALE_CASH" | "RETURN_CASH";
+  amount: number;
+  signedAmount?: number;
+  reason: string;
+  createdAt: string;
+};
+
+type MockCashRegisterSession = {
+  id: string;
+  status: "OPEN" | "CLOSED";
+  openingAmount: number;
+  expectedClosingAmount: number | null;
+  closingAmount: number | null;
+  difference: number | null;
+  expectedCash: number;
+  openedAt: string;
+  closedAt: string | null;
+  notes: string | null;
+  cashier: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  movements: MockCashMovement[];
+};
+
+type MockCashRegisterState = {
+  currentSession: MockCashRegisterSession | null;
+  sessions: MockCashRegisterSession[];
+};
+
 export const ADMIN_PERMISSIONS = [
   "users:read",
   "users:create",
@@ -163,6 +196,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
   const managedUsers = usersResponse();
   const auditLogs = auditLogsResponse(managedUsers);
   const sellerActivityLogs = sellerActivityResponse(managedUsers);
+  const cashRegisterState = cashRegisterResponse(managedUsers);
 
   await page.route(REQUEST_PATTERN, async (route) => {
     const request = route.request();
@@ -421,6 +455,90 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
 
     if (pathname.endsWith("/seller-activity") && method === "GET") {
       return json(route, filterSellerActivity(sellerActivityLogs, url.searchParams));
+    }
+
+    if (pathname.endsWith("/cash-register/current") && method === "GET") {
+      return json(route, { session: cashRegisterState.currentSession });
+    }
+
+    if (pathname.endsWith("/cash-register/sessions") && method === "GET") {
+      return json(route, cashRegisterState.sessions);
+    }
+
+    if (pathname.endsWith("/cash-register/open") && method === "POST") {
+      if (cashRegisterState.currentSession) {
+        return json(route, { message: "Ya existe una caja abierta." }, 409);
+      }
+
+      const payload = readJsonPayload(request) as {
+        openingAmount?: number;
+        notes?: string;
+      };
+      const session = buildOpenedCashRegisterSession({
+        amount: Number(payload.openingAmount ?? 0),
+        notes: payload.notes ?? null,
+        cashier: managedUsers[0],
+      });
+
+      cashRegisterState.currentSession = session;
+
+      return json(route, session, 201);
+    }
+
+    if (pathname.endsWith("/cash-register/movements") && method === "POST") {
+      if (!cashRegisterState.currentSession) {
+        return json(route, { message: "Primero abre caja." }, 409);
+      }
+
+      const payload = readJsonPayload(request) as {
+        type?: "CASH_IN" | "CASH_OUT";
+        amount?: number;
+        reason?: string;
+      };
+      const amount = Number(payload.amount ?? 0);
+      const type = payload.type ?? "CASH_IN";
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return json(route, { message: "Monto inválido." }, 400);
+      }
+
+      const movement = buildCashMovement({
+        id: `cash-movement-${cashRegisterState.currentSession.movements.length + 1}`,
+        type,
+        amount,
+        reason: payload.reason ?? "Movimiento manual E2E",
+      });
+
+      cashRegisterState.currentSession.movements.unshift(movement);
+      cashRegisterState.currentSession.expectedCash += movement.signedAmount ?? amount;
+      cashRegisterState.currentSession.expectedClosingAmount = cashRegisterState.currentSession.expectedCash;
+
+      return json(route, movement, 201);
+    }
+
+    if (pathname.endsWith("/cash-register/close") && method === "POST") {
+      if (!cashRegisterState.currentSession) {
+        return json(route, { message: "Primero abre caja." }, 409);
+      }
+
+      const payload = readJsonPayload(request) as {
+        closingAmount?: number;
+        notes?: string;
+      };
+      const session = cashRegisterState.currentSession;
+      const closingAmount = Number(payload.closingAmount ?? session.expectedCash);
+
+      session.status = "CLOSED";
+      session.closingAmount = closingAmount;
+      session.expectedClosingAmount = session.expectedCash;
+      session.difference = Number((closingAmount - session.expectedCash).toFixed(2));
+      session.closedAt = "2026-05-22T18:00:00.000Z";
+      session.notes = payload.notes ?? session.notes;
+
+      cashRegisterState.sessions.unshift(session);
+      cashRegisterState.currentSession = null;
+
+      return json(route, session);
     }
 
     if (pathname.endsWith("/sales") && method === "GET") {
@@ -887,6 +1005,99 @@ function summarizeSellerActivity(logs: MockSellerActivityLog[]) {
   }
 
   return Array.from(counts.entries()).map(([action, count]) => ({ action, count }));
+}
+
+function cashRegisterResponse(users: MockManagedUser[]): MockCashRegisterState {
+  const admin = users.find((item) => item.role === "ADMIN") ?? users[0];
+
+  return {
+    currentSession: null,
+    sessions: [
+      {
+        id: "cash-session-closed-e2e",
+        status: "CLOSED",
+        openingAmount: 50,
+        expectedClosingAmount: 85,
+        closingAmount: 85,
+        difference: 0,
+        expectedCash: 85,
+        openedAt: "2026-05-21T09:00:00.000Z",
+        closedAt: "2026-05-21T18:00:00.000Z",
+        notes: "Corte histórico E2E",
+        cashier: {
+          id: admin.id,
+          name: admin.name,
+          email: admin.email,
+        },
+        movements: [
+          buildCashMovement({
+            id: "cash-movement-historic-1",
+            type: "OPENING",
+            amount: 50,
+            reason: "Apertura histórica E2E",
+          }),
+          buildCashMovement({
+            id: "cash-movement-historic-2",
+            type: "CASH_IN",
+            amount: 35,
+            reason: "Entrada histórica E2E",
+          }),
+        ],
+      },
+    ],
+  };
+}
+
+function buildOpenedCashRegisterSession(input: {
+  amount: number;
+  notes: string | null;
+  cashier: MockManagedUser;
+}): MockCashRegisterSession {
+  return {
+    id: "cash-session-open-e2e",
+    status: "OPEN",
+    openingAmount: input.amount,
+    expectedClosingAmount: input.amount,
+    closingAmount: null,
+    difference: null,
+    expectedCash: input.amount,
+    openedAt: "2026-05-22T09:00:00.000Z",
+    closedAt: null,
+    notes: input.notes,
+    cashier: {
+      id: input.cashier.id,
+      name: input.cashier.name,
+      email: input.cashier.email,
+    },
+    movements: [
+      buildCashMovement({
+        id: "cash-movement-opening-e2e",
+        type: "OPENING",
+        amount: input.amount,
+        reason: "Apertura de caja",
+      }),
+    ],
+  };
+}
+
+function buildCashMovement(input: {
+  id: string;
+  type: MockCashMovement["type"];
+  amount: number;
+  reason: string;
+}): MockCashMovement {
+  const signedAmount = input.type === "CASH_OUT" || input.type === "RETURN_CASH"
+    ? -input.amount
+    : input.amount;
+
+  return {
+    id: input.id,
+    type: input.type,
+    amount: input.amount,
+    signedAmount,
+    reason: input.reason,
+    createdAt: "2026-05-22T12:00:00.000Z",
+  };
 }
 
 function operationsReportResponse() {
