@@ -1,7 +1,5 @@
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-import { Role } from "@prisma/client";
-
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
 import { env } from "../../config/env";
@@ -11,62 +9,26 @@ import {
   verifyRefreshToken
 } from "./auth.tokens";
 import { hashToken, safeCompareHash } from "./token-hash";
-import { getPermissionsForRole, type Permission } from "./permissions";
 import {
   logSellerActivity,
   shouldLogSellerActivity
 } from "../seller-activity/seller-activity.service";
+import {
+  getRefreshExpiresAt,
+  normalizeEmail,
+  toPublicUser,
+  type AuthResult,
+  type ClientMeta,
+  type LoginInput
+} from "./auth.shared";
 
-type ClientMeta = {
-  userAgent?: string;
-  ipAddress?: string;
-};
-
-type LoginInput = {
-  email: string;
-  password: string;
-};
-
-export type PublicAuthUser = {
-  id: string;
-  name: string;
-  email: string;
-  role: Role;
-  permissions: Permission[];
-};
-
-type AuthResult = {
-  user: PublicAuthUser;
-  accessToken: string;
-  refreshToken: string;
-};
-
-function getRefreshExpiresAt(): Date {
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + env.REFRESH_TOKEN_TTL_DAYS);
-  return expiresAt;
-}
-
-export function toPublicUser(user: {
-  id: string;
-  name: string;
-  email: string;
-  role: Role;
-}): PublicAuthUser {
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    permissions: [...getPermissionsForRole(user.role)]
-  };
-}
+export { toPublicUser, type PublicAuthUser } from "./auth.shared";
 
 export async function login(
   input: LoginInput,
   meta: ClientMeta
 ): Promise<AuthResult> {
-  const email = input.email.trim().toLowerCase();
+  const email = normalizeEmail(input.email);
 
   const user = await prisma.user.findUnique({
     where: { email }
@@ -293,7 +255,7 @@ export async function registerCashier(
   password: string
 ) {
   const cleanName = name.trim();
-  const cleanEmail = email.trim().toLowerCase();
+  const cleanEmail = normalizeEmail(email);
 
   const existingUser = await prisma.user.findUnique({
     where: { email: cleanEmail }
