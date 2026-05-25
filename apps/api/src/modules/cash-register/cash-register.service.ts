@@ -1,10 +1,4 @@
-import {
-  CashMovementType,
-  CashRegisterStatus,
-  Prisma,
-  Role
-} from "@prisma/client";
-import { z } from "zod";
+import { CashMovementType, CashRegisterStatus, Prisma } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
@@ -14,128 +8,31 @@ import {
   getOptionalString,
   getPagination
 } from "../../utils/pagination";
+import {
+  calculateExpectedCash,
+  cashSessionInclude,
+  mapCashMovement,
+  mapCashRegisterSession
+} from "./cash-register.mappers";
+import { roundMoney } from "./cash-register.shared";
+import type {
+  CloseCashRegisterInput,
+  CurrentUser,
+  ManualCashMovementInput,
+  OpenCashRegisterInput
+} from "./cash-register.shared";
 
-const moneySchema = z.coerce
-  .number()
-  .finite()
-  .min(0)
-  .max(99_999_999)
-  .transform((value) => roundMoney(value));
-
-export const openCashRegisterSchema = z.object({
-  body: z.object({
-    openingAmount: moneySchema,
-    notes: z.string().trim().max(500).optional().nullable()
-  })
-});
-
-export const closeCashRegisterSchema = z.object({
-  body: z.object({
-    closingAmount: moneySchema,
-    notes: z.string().trim().max(500).optional().nullable()
-  })
-});
-
-export const manualCashMovementSchema = z.object({
-  body: z.object({
-    type: z.enum([CashMovementType.CASH_IN, CashMovementType.CASH_OUT]),
-    amount: moneySchema.refine((value) => value > 0, {
-      message: "El monto debe ser mayor a cero"
-    }),
-    reason: z.string().trim().min(3).max(255)
-  })
-});
-
-export type OpenCashRegisterInput = z.infer<
-  typeof openCashRegisterSchema
->["body"];
-export type CloseCashRegisterInput = z.infer<
-  typeof closeCashRegisterSchema
->["body"];
-export type ManualCashMovementInput = z.infer<
-  typeof manualCashMovementSchema
->["body"];
-
-export type CurrentUser = {
-  id: string;
-  email: string;
-  role: Role;
-};
-
-const cashSessionInclude = {
-  cashier: {
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true
-    }
-  },
-  movements: {
-    orderBy: {
-      createdAt: "asc"
-    }
-  }
-} satisfies Prisma.CashRegisterSessionInclude;
-
-type CashRegisterSessionWithMovements = Prisma.CashRegisterSessionGetPayload<{
-  include: typeof cashSessionInclude;
-}>;
-
-function roundMoney(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
-}
-
-function signedCashMovementAmount(type: CashMovementType, amount: number) {
-  switch (type) {
-    case CashMovementType.OPENING:
-    case CashMovementType.CASH_IN:
-    case CashMovementType.SALE_CASH:
-      return amount;
-    case CashMovementType.CASH_OUT:
-    case CashMovementType.RETURN_CASH:
-      return -amount;
-    default:
-      return 0;
-  }
-}
-
-function calculateExpectedCash(
-  movements: Array<{
-    type: CashMovementType;
-    amount: Prisma.Decimal | number;
-  }>
-) {
-  return roundMoney(
-    movements.reduce(
-      (sum, movement) =>
-        sum + signedCashMovementAmount(movement.type, Number(movement.amount)),
-      0
-    )
-  );
-}
-
-function mapCashRegisterSession(session: CashRegisterSessionWithMovements) {
-  const expectedCash = calculateExpectedCash(session.movements);
-
-  return {
-    ...session,
-    openingAmount: Number(session.openingAmount),
-    expectedClosingAmount:
-      session.expectedClosingAmount === null
-        ? null
-        : Number(session.expectedClosingAmount),
-    closingAmount:
-      session.closingAmount === null ? null : Number(session.closingAmount),
-    difference: session.difference === null ? null : Number(session.difference),
-    expectedCash,
-    movements: session.movements.map((movement) => ({
-      ...movement,
-      amount: Number(movement.amount),
-      signedAmount: signedCashMovementAmount(movement.type, Number(movement.amount))
-    }))
-  };
-}
+export {
+  closeCashRegisterSchema,
+  manualCashMovementSchema,
+  openCashRegisterSchema
+} from "./cash-register.shared";
+export type {
+  CloseCashRegisterInput,
+  CurrentUser,
+  ManualCashMovementInput,
+  OpenCashRegisterInput
+} from "./cash-register.shared";
 
 async function findOpenSession(
   tx: Prisma.TransactionClient,
@@ -229,11 +126,7 @@ export async function addManualCashMovement(
         }
       });
 
-      return {
-        ...movement,
-        amount: Number(movement.amount),
-        signedAmount: signedCashMovementAmount(movement.type, Number(movement.amount))
-      };
+      return mapCashMovement(movement);
     },
     {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
