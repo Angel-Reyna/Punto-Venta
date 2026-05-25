@@ -1,8 +1,4 @@
 import { Router } from "express";
-import { Prisma, SellerAction } from "@prisma/client";
-import { z } from "zod";
-
-import { prisma } from "../../config/prisma";
 
 import {
   requireAuth,
@@ -17,6 +13,11 @@ import {
   getPagination,
   setPaginationHeaders
 } from "../../utils/pagination";
+import {
+  getSellerActivitySummary,
+  listSellerActivity
+} from "./seller-activity.service";
+import { sellerActivityQuerySchema } from "./seller-activity.shared";
 
 export const sellerActivityRouter = Router();
 
@@ -25,83 +26,19 @@ sellerActivityRouter.use(
   requirePermission(PERMISSIONS.SellerActivityRead)
 );
 
-const querySchema = z.object({
-  sellerId: z.string().uuid().optional(),
-
-  action: z.nativeEnum(SellerAction).optional(),
-
-  from: z.string().optional(),
-
-  to: z.string().optional(),
-
-  limit: z.coerce.number().int().min(1).max(500).optional()
-});
-
-function parseDateFilter(from?: string, to?: string) {
-  if (!from && !to) {
-    return undefined;
-  }
-
-  const createdAt: {
-    gte?: Date;
-    lte?: Date;
-  } = {};
-
-  if (from) {
-    const start = new Date(from);
-
-    if (Number.isNaN(start.getTime())) {
-      throw new AppError(400, "Fecha inicial inválida");
-    }
-
-    start.setHours(0, 0, 0, 0);
-
-    createdAt.gte = start;
-  }
-
-  if (to) {
-    const end = new Date(to);
-
-    if (Number.isNaN(end.getTime())) {
-      throw new AppError(400, "Fecha final inválida");
-    }
-
-    end.setHours(23, 59, 59, 999);
-
-    createdAt.lte = end;
-  }
-
-  if (createdAt.gte && createdAt.lte && createdAt.gte > createdAt.lte) {
-    throw new AppError(
-      400,
-      "La fecha inicial no puede ser mayor que la fecha final"
-    );
-  }
-
-  return createdAt;
-}
-
 sellerActivityRouter.get(
   "/",
   asyncHandler(async (req, res) => {
-    const parsed = querySchema.safeParse(req.query);
+    const parsed = sellerActivityQuerySchema.safeParse(req.query);
 
     if (!parsed.success) {
       throw new AppError(400, "Filtros inválidos");
     }
 
-    const {
-      sellerId,
-      action,
-      from,
-      to,
-      limit
-    } = parsed.data;
-
     const pagination = getPagination(
       {
         ...req.query,
-        ...(limit ? { pageSize: limit } : {})
+        ...(parsed.data.limit ? { pageSize: parsed.data.limit } : {})
       } as Record<string, unknown>,
       {
         defaultPageSize: 50,
@@ -109,101 +46,28 @@ sellerActivityRouter.get(
       }
     );
 
-    const createdAt = parseDateFilter(from, to);
+    const result = await listSellerActivity(parsed.data, pagination);
 
-    const where: Prisma.SellerActivityLogWhereInput = {
-      ...(sellerId
-        ? {
-            sellerId
-          }
-        : {}),
+    setPaginationHeaders(
+      res,
+      buildPaginationMeta(pagination, result.total)
+    );
 
-      ...(action
-        ? {
-            action
-          }
-        : {}),
-
-      ...(createdAt
-        ? {
-            createdAt
-          }
-        : {})
-    };
-
-    const [total, logs] = await Promise.all([
-      prisma.sellerActivityLog.count({ where }),
-      prisma.sellerActivityLog.findMany({
-        where,
-        include: {
-          seller: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-              isActive: true
-            }
-          }
-        },
-        orderBy: {
-          createdAt: "desc"
-        },
-        skip: pagination.skip,
-        take: pagination.take
-      })
-    ]);
-
-    setPaginationHeaders(res, buildPaginationMeta(pagination, total));
-
-    res.json(logs);
+    res.json(result.logs);
   })
 );
 
 sellerActivityRouter.get(
   "/summary",
   asyncHandler(async (req, res) => {
-    const parsed = querySchema.safeParse(req.query);
+    const parsed = sellerActivityQuerySchema.safeParse(req.query);
 
     if (!parsed.success) {
       throw new AppError(400, "Filtros inválidos");
     }
 
-    const {
-      sellerId,
-      from,
-      to
-    } = parsed.data;
+    const summary = await getSellerActivitySummary(parsed.data);
 
-    const createdAt = parseDateFilter(from, to);
-
-    const logs = await prisma.sellerActivityLog.groupBy({
-      by: ["action"],
-
-      where: {
-        ...(sellerId
-          ? {
-              sellerId
-            }
-          : {}),
-
-        ...(createdAt
-          ? {
-              createdAt
-            }
-          : {})
-      },
-
-      _count: {
-        action: true
-      }
-    });
-
-    res.json(
-      logs.map((item) => ({
-        action: item.action,
-        count: item._count.action
-      }))
-    );
+    res.json(summary);
   })
 );
