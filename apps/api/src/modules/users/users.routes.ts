@@ -1,10 +1,5 @@
 import { Router } from "express";
-import bcrypt from "bcrypt";
-import { Prisma, Role } from "@prisma/client";
-import { z } from "zod";
-
-import { prisma } from "../../config/prisma";
-import { env } from "../../config/env";
+import { Role } from "@prisma/client";
 
 import { requireAuth, requirePermission } from "../../middlewares/auth";
 import { validate } from "../../middlewares/validate";
@@ -17,50 +12,20 @@ import {
   getPagination,
   setPaginationHeaders
 } from "../../utils/pagination";
-import { auditLog } from "../audit/audit.service";
 import { PERMISSIONS } from "../auth/permissions";
-import { logoutAll } from "../auth/auth.service";
-
-const passwordSchema = z
-  .string()
-  .min(8, "La contraseña debe tener al menos 8 caracteres")
-  .max(72, "La contraseña no debe superar 72 caracteres")
-  .regex(/[A-Z]/, "La contraseña debe incluir una mayúscula")
-  .regex(/[a-z]/, "La contraseña debe incluir una minúscula")
-  .regex(/[0-9]/, "La contraseña debe incluir un número");
-
-const createUserSchema = z.object({
-  body: z.object({
-    name: z.string().trim().min(2).max(80),
-    email: z.string().trim().toLowerCase().email().max(255),
-    password: passwordSchema,
-    role: z.nativeEnum(Role)
-  })
-});
-
-const userIdParamsSchema = z.object({
-  params: z.object({
-    id: z.string().uuid()
-  })
-});
-
-const updateUserRoleSchema = z.object({
-  params: z.object({
-    id: z.string().uuid()
-  }),
-  body: z.object({
-    role: z.nativeEnum(Role)
-  })
-});
-
-const resetUserPasswordSchema = z.object({
-  params: z.object({
-    id: z.string().uuid()
-  }),
-  body: z.object({
-    password: passwordSchema
-  })
-});
+import {
+  createUser,
+  listUsers,
+  resetUserPassword,
+  toggleUserActive,
+  updateUserRole
+} from "./users.service";
+import {
+  createUserSchema,
+  resetUserPasswordSchema,
+  updateUserRoleSchema,
+  userIdParamsSchema
+} from "./users.shared";
 
 export const usersRouter = Router();
 
@@ -82,52 +47,17 @@ usersRouter.get(
       throw new AppError(400, "role inválido");
     }
 
-    const where: Prisma.UserWhereInput = {
-      ...(role ? { role: role as Role } : {}),
-      ...(active === undefined ? {} : { isActive: active }),
-      ...(q
-        ? {
-            OR: [
-              {
-                name: {
-                  contains: q,
-                  mode: "insensitive"
-                }
-              },
-              {
-                email: {
-                  contains: q,
-                  mode: "insensitive"
-                }
-              }
-            ]
-          }
-        : {})
-    };
+    const result = await listUsers({
+      q,
+      role: role as Role | undefined,
+      active,
+      skip: pagination.skip,
+      take: pagination.take
+    });
 
-    const [total, users] = await Promise.all([
-      prisma.user.count({ where }),
-      prisma.user.findMany({
-        where,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          isActive: true,
-          createdAt: true
-        },
-        orderBy: {
-          createdAt: "desc"
-        },
-        skip: pagination.skip,
-        take: pagination.take
-      })
-    ]);
+    setPaginationHeaders(res, buildPaginationMeta(pagination, result.total));
 
-    setPaginationHeaders(res, buildPaginationMeta(pagination, total));
-
-    return res.status(200).json(users);
+    return res.status(200).json(result.users);
   })
 );
 
@@ -136,41 +66,9 @@ usersRouter.post(
   requirePermission(PERMISSIONS.UsersCreate),
   validate(createUserSchema),
   asyncHandler(async (req, res) => {
-    const existingUser = await prisma.user.findUnique({
-      where: {
-        email: req.body.email
-      }
-    });
-
-    if (existingUser) {
-      throw new AppError(409, "El correo ya está registrado");
-    }
-
-    const passwordHash = await bcrypt.hash(req.body.password, env.BCRYPT_ROUNDS);
-
-    const user = await prisma.user.create({
-      data: {
-        name: req.body.name,
-        email: req.body.email,
-        passwordHash,
-        role: req.body.role
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true
-      }
-    });
-
-    await auditLog({
-      userId: req.user?.id,
-      action: "CREATE_USER",
-      tableName: "User",
-      recordId: user.id,
-      newData: user,
+    const user = await createUser({
+      input: req.body,
+      actorUserId: req.user?.id,
       ipAddress: req.ip
     });
 
@@ -183,50 +81,9 @@ usersRouter.patch(
   requirePermission(PERMISSIONS.UsersToggleActive),
   validate(userIdParamsSchema),
   asyncHandler(async (req, res) => {
-    const targetUserId = String(req.params.id);
-
-    if (targetUserId === req.user?.id) {
-      throw new AppError(400, "No puedes desactivar tu propio usuario");
-    }
-
-    const oldData = await prisma.user.findUnique({
-      where: {
-        id: targetUserId
-      }
-    });
-
-    if (!oldData) {
-      throw new AppError(404, "Usuario no encontrado");
-    }
-
-    const user = await prisma.user.update({
-      where: {
-        id: targetUserId
-      },
-      data: {
-        isActive: !oldData.isActive
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true
-      }
-    });
-
-    if (!user.isActive) {
-      await logoutAll(user.id);
-    }
-
-    await auditLog({
-      userId: req.user?.id,
-      action: "TOGGLE_ACTIVE",
-      tableName: "User",
-      recordId: user.id,
-      oldData,
-      newData: user,
+    const user = await toggleUserActive({
+      targetUserId: String(req.params.id),
+      actorUserId: req.user?.id,
       ipAddress: req.ip
     });
 
@@ -239,51 +96,10 @@ usersRouter.patch(
   requirePermission(PERMISSIONS.UsersUpdateRole),
   validate(updateUserRoleSchema),
   asyncHandler(async (req, res) => {
-    const targetUserId = String(req.params.id);
-    const nextRole = req.body.role as Role;
-
-    const oldData = await prisma.user.findUnique({
-      where: {
-        id: targetUserId
-      }
-    });
-
-    if (!oldData) {
-      throw new AppError(404, "Usuario no encontrado");
-    }
-
-    if (targetUserId === req.user?.id && nextRole !== Role.ADMIN) {
-      throw new AppError(400, "No puedes quitarte tu propio rol de administrador");
-    }
-
-    const user = await prisma.user.update({
-      where: {
-        id: targetUserId
-      },
-      data: {
-        role: nextRole
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true
-      }
-    });
-
-    if (oldData.role !== user.role) {
-      await logoutAll(user.id);
-    }
-
-    await auditLog({
-      userId: req.user?.id,
-      action: "UPDATE_USER_ROLE",
-      tableName: "User",
-      recordId: user.id,
-      oldData,
-      newData: user,
+    const user = await updateUserRole({
+      targetUserId: String(req.params.id),
+      input: req.body,
+      actorUserId: req.user?.id,
       ipAddress: req.ip
     });
 
@@ -296,54 +112,10 @@ usersRouter.patch(
   requirePermission(PERMISSIONS.UsersResetPassword),
   validate(resetUserPasswordSchema),
   asyncHandler(async (req, res) => {
-    const targetUserId = String(req.params.id);
-
-    const oldData = await prisma.user.findUnique({
-      where: {
-        id: targetUserId
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true
-      }
-    });
-
-    if (!oldData) {
-      throw new AppError(404, "Usuario no encontrado");
-    }
-
-    const passwordHash = await bcrypt.hash(req.body.password, env.BCRYPT_ROUNDS);
-
-    const user = await prisma.user.update({
-      where: {
-        id: targetUserId
-      },
-      data: {
-        passwordHash
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true
-      }
-    });
-
-    await logoutAll(user.id);
-
-    await auditLog({
-      userId: req.user?.id,
-      action: "RESET_USER_PASSWORD",
-      tableName: "User",
-      recordId: user.id,
-      oldData,
-      newData: user,
+    const user = await resetUserPassword({
+      targetUserId: String(req.params.id),
+      input: req.body,
+      actorUserId: req.user?.id,
       ipAddress: req.ip
     });
 
