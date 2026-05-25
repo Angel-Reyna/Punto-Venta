@@ -36,13 +36,15 @@ Antes de entregar o aplicar un patch generado fuera del repositorio local, verif
 git diff --name-status
 git diff --check
 git apply --check --whitespace=error RUTA/AL/PATCH.patch
+node scripts/patch/validate-patch.js RUTA/AL/PATCH.patch
 ```
 
 Criterios:
 
 - `git diff --name-status` debe incluir todos los archivos nuevos (`A`) y modificados (`M`).
 - Los archivos nuevos deben aparecer físicamente en el patch; no basta con cambiar imports.
-- `git diff --check` y `git apply --check --whitespace=error` no deben reportar trailing whitespace ni errores de formato.
+- `git diff --check`, `git apply --check --whitespace=error` y `node scripts/patch/validate-patch.js RUTA/AL/PATCH.patch` no deben reportar trailing whitespace ni errores de formato.
+- `node scripts/patch/validate-patch.js` imprime los archivos detectados dentro del patch; revisa esa lista antes de aplicarlo.
 - Si el patch agrega imports relativos, valida que cada archivo importado exista y esté incluido.
 - Si el patch mueve schemas, mappers o helpers, valida que las rutas sigan importando desde el nuevo origen.
 - No uses `--ignore-whitespace` para aprobar la calidad del patch; úsalo solo como compatibilidad de aplicación cuando el archivo ya fue validado con `--whitespace=error`.
@@ -318,6 +320,29 @@ docker compose logs api
 ```
 
 El servicio `api` debe usar `@postgres:5432`, no `@localhost:5432`.
+
+
+### Patch falla por archivo nuevo faltante
+
+Síntoma:
+
+```txt
+Cannot find module './modulo.shared' or its corresponding type declarations.
+```
+
+Acción:
+
+```bash
+git diff --name-status
+node scripts/patch/validate-patch.js RUTA/AL/PATCH.patch
+find apps/api/src apps/web/src -path '*modulo.shared.ts' -o -path '*modulo.shared.tsx'
+```
+
+Criterio:
+
+- Si un import nuevo apunta a un archivo nuevo, el patch debe mostrar ese archivo como `A`.
+- No aceptes un patch que solo modifica imports sin incluir el archivo destino.
+- Después del fix, ejecuta `npm run api:build` o `npm run web:build`, según aplique.
 
 ### Prisma Client desactualizado
 
