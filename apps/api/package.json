@@ -9,6 +9,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest",
+    "test:critical": "jest critical-routes.permissions.test.ts auth.middleware.test.ts sales.service.test.ts products.import.test.ts products.delete.test.ts reports.service.test.ts --runInBand",
     "seed": "ts-node-dev --transpile-only --exit-child src/scripts/seed.ts",
     "seed:prod": "node dist/scripts/seed.js",
     "prisma:generate": "prisma generate",

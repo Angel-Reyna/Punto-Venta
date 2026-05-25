@@ -97,7 +97,7 @@ jobs:
         run: npm run prisma:migrate:deploy
 
       - name: Run critical API tests
-        run: npm test -- critical-routes.permissions.test.ts auth.middleware.test.ts sales.service.test.ts products.import.test.ts reports.service.test.ts --runInBand
+        run: npm run test:critical
 
       - name: Run full API test suite
         run: npm test -- --runInBand

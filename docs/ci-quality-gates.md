@@ -39,6 +39,13 @@ El repositorio valida tres niveles: guardrails del monorepo, calidad de API/Web 
 - Valida Compose.
 - Construye imágenes `api` y `web`.
 
+## Scripts de tests críticos
+
+Las listas de tests críticos viven en los `package.json` de cada app. El root y CI deben delegar en esos scripts para evitar divergencias entre `qa:local`, ejecución manual y GitHub Actions.
+
+- API: `apps/api/package.json` -> `npm run test:critical`.
+- Web: `apps/web/package.json` -> `npm run test:critical`.
+
 ## Validación local equivalente
 
 Para cambios comunes:
