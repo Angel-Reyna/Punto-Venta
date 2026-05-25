@@ -130,12 +130,15 @@ playwright-report/
 test-results/
 **/test-results/
 
-# Punta Venta local diagnostics
+# Punta Venta local diagnostics / continuity snapshots
 .puntaventa_diagnostics/
 punta-venta-local-diagnostics-*.txt
 punta-venta-post-patches-diagnostics-*.txt
 punta-venta-after-patch-*.txt
+punta-venta-current-diagnostics-*.txt
+punta-venta-continuity-*.md
 Punta_Venta_after_patch_*.tar.gz
+Punta_Venta_current_*.tar.gz
 
 # Accidental shell/output files created from malformed commands
 /npm

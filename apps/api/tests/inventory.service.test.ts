@@ -87,6 +87,7 @@ describe("inventory.service", () => {
       const tx = createTransactionMock();
       tx.product.findUnique.mockResolvedValue({
         id: "product-1",
+        sku: "CAFE-250",
         name: "Café",
         isActive: true
       });
@@ -128,14 +129,17 @@ describe("inventory.service", () => {
       });
       expect(tx.inventoryMovement.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: {
+          data: expect.objectContaining({
             productId: "product-1",
+            productSku: "CAFE-250",
+            productName: "Café",
             warehouseId: "warehouse-1",
             type: "IN",
             quantity: 5,
             reason: "Compra inicial",
             createdBy: "admin-1"
-          }
+          }),
+          include: expect.any(Object)
         })
       );
       expect(result).toEqual({ id: "movement-1" });
@@ -147,6 +151,7 @@ describe("inventory.service", () => {
       const tx = createTransactionMock();
       tx.product.findUnique.mockResolvedValue({
         id: "product-1",
+        sku: "CAFE-250",
         name: "Café",
         isActive: true
       });
@@ -185,7 +190,21 @@ describe("inventory.service", () => {
           }
         }
       });
-      expect(tx.inventoryMovement.create).toHaveBeenCalled();
+      expect(tx.inventoryMovement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            productId: "product-1",
+            productSku: "CAFE-250",
+            productName: "Café",
+            warehouseId: "warehouse-1",
+            type: "SALE",
+            quantity: 3,
+            reason: "Venta",
+            createdBy: "cashier-1"
+          }),
+          include: expect.any(Object)
+        })
+      );
     });
 
     it("throws 409 with current stock when the atomic decrement fails", async () => {

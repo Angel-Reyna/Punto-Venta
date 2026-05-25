@@ -158,6 +158,24 @@ export function getProductById(products: Product[], productId: string) {
   return products.find((product) => product.id === productId);
 }
 
+export function getExactSearchProduct(products: Product[], search: string) {
+  const query = normalizeSearch(search);
+
+  if (!query) {
+    return undefined;
+  }
+
+  return products.find((product) => {
+    if (product.stock <= 0) {
+      return false;
+    }
+
+    return [product.sku, product.barcode ?? ""].some((value) =>
+      normalizeSearch(value) === query
+    );
+  });
+}
+
 export function getReturnedQuantity(sale: Sale, saleItemId: string) {
   return (sale.returns ?? []).reduce((sum, saleReturn) => {
     return (

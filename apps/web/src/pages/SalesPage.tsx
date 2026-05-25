@@ -36,6 +36,7 @@ import {
   buildCartRows,
   calculateCartTotal,
   formatMoney,
+  getExactSearchProduct,
   getFilteredProducts,
   getFilteredSales,
   getProductById,
@@ -150,6 +151,12 @@ export function SalesPage() {
     () => getFilteredProducts(products, productSearch),
     [productSearch, products]
   );
+  const exactProductSearchMatch = useMemo(
+    () => getExactSearchProduct(products, productSearch),
+    [productSearch, products]
+  );
+  const canAddExactSearchMatch =
+    Boolean(exactProductSearchMatch) && !isSubmitting && !saleDialogIsOpen;
 
   const cartRows = useMemo(() => buildCartRows(cart, products), [cart, products]);
 
@@ -185,19 +192,23 @@ export function SalesPage() {
     searchInputRef.current?.focus();
   }
 
-  function addFirstSearchResult() {
+  function addExactSearchMatchToCart() {
     if (!canCreateSales || saleDialogIsOpen || isSubmitting) {
       return;
     }
 
-    const firstProduct = filteredProducts[0];
-
-    if (!firstProduct) {
-      setError("No hay coincidencias con stock disponible.");
+    if (!productSearch.trim()) {
       return;
     }
 
-    addProductToCart(firstProduct.id);
+    if (!exactProductSearchMatch) {
+      setError(
+        "Enter solo agrega coincidencias exactas de SKU o código. Para búsquedas parciales, selecciona el producto de la lista."
+      );
+      return;
+    }
+
+    addProductToCart(exactProductSearchMatch.id);
   }
 
   function updateCartQuantity(productId: string, quantity: number) {
@@ -227,7 +238,7 @@ export function SalesPage() {
       event.preventDefault();
 
       if (!saleDialogIsOpen && !isSubmitting) {
-        addFirstSearchResult();
+        addExactSearchMatchToCart();
       }
     }
   }
@@ -524,6 +535,7 @@ export function SalesPage() {
                   inputProps={{
                     "data-testid": "sales-product-search",
                   }}
+                  helperText="Enter agrega solo SKU o código exacto; para búsquedas parciales selecciona una tarjeta."
                   onKeyDown={handleProductSearchKeyDown}
                   onChange={(event) => setProductSearch(event.target.value)}
                   disabled={isSubmitting || saleDialogIsOpen}
@@ -534,8 +546,14 @@ export function SalesPage() {
 
                 <Button
                   startIcon={<AddShoppingCartIcon />}
-                  onClick={addFirstSearchResult}
-                  disabled={filteredProducts.length === 0 || isSubmitting || saleDialogIsOpen}
+                  onClick={addExactSearchMatchToCart}
+                  disabled={!canAddExactSearchMatch}
+                  data-testid="sales-add-search-match"
+                  title={
+                    canAddExactSearchMatch
+                      ? "Agregar coincidencia exacta"
+                      : "Busca por SKU o código exacto para agregar con Enter."
+                  }
                 >
                   Enter · Agregar
                 </Button>
@@ -590,6 +608,7 @@ export function SalesPage() {
 
                 {cartRows.length === 0 ? (
                   <Box
+                    data-testid="sales-ticket-empty"
                     sx={{
                       py: 6,
                       textAlign: "center",
@@ -601,7 +620,7 @@ export function SalesPage() {
                     Escanea o busca un producto para iniciar la venta.
                   </Box>
                 ) : (
-                  <Box sx={{ display: "grid", gap: 1 }}>
+                  <Box data-testid="sales-cart-items" sx={{ display: "grid", gap: 1 }}>
                     {cartRows.map((item) => (
                       <Card key={item.productId} variant="outlined" sx={{ boxShadow: "none" }}>
                         <CardContent

@@ -33,6 +33,37 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(page.getByText("Venta registrada correctamente.")).toHaveCount(0);
   });
 
+  test("ventas no agrega automáticamente el primer producto con Enter o botón Agregar", async ({ page }) => {
+    await mockApi(page, { role: "CASHIER" });
+
+    await page.goto("/sales");
+
+    await expect(page.getByRole("heading", { name: "Ventas", level: 1 })).toBeVisible();
+
+    const emptyTicket = byTestId(page, "sales-ticket-empty");
+    const addSearchMatchButton = byTestId(page, "sales-add-search-match");
+    const searchInput = byTestId(page, "sales-product-search");
+
+    await expect(emptyTicket).toBeVisible();
+    await expect(addSearchMatchButton).toBeDisabled();
+
+    await fillByTestId(page, "sales-product-search", "CO");
+    await expect(addSearchMatchButton).toBeDisabled();
+    await searchInput.press("Enter");
+
+    await expect(emptyTicket).toBeVisible();
+    await expect(
+      page.getByText("Enter solo agrega coincidencias exactas de SKU o código."),
+    ).toBeVisible();
+
+    await fillByTestId(page, "sales-product-search", "COCA-600");
+    await expect(addSearchMatchButton).toBeEnabled();
+    await searchInput.press("Enter");
+
+    await expect(emptyTicket).toHaveCount(0);
+    await expect(byTestId(page, "sales-cart-items")).toContainText("COCA-600");
+  });
+
   test("productos permite crear, desactivar y eliminar físicamente sin dejarlo disponible para venta", async ({ page }) => {
     await mockApi(page, { role: "ADMIN" });
 
