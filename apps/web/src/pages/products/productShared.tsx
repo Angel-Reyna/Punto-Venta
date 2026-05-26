@@ -10,6 +10,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
 import DeleteIcon from "@mui/icons-material/Delete";
 import ToggleOffIcon from "@mui/icons-material/ToggleOff";
@@ -242,9 +243,26 @@ export function ProductCatalog({
   }
 
   return (
-    <Card>
+    <Card
+      sx={(theme) => ({
+        overflow: "hidden",
+        border: 1,
+        borderColor: alpha(theme.palette.primary.main, 0.16),
+      })}
+    >
       <CardContent sx={{ p: 0, "&:last-child": { pb: 0 } }}>
-        <Box sx={{ px: 2.5, py: 2, borderBottom: 1, borderColor: "divider" }}>
+        <Box
+          sx={(theme) => ({
+            px: 2.5,
+            py: 2,
+            borderBottom: 1,
+            borderColor: "divider",
+            background: `linear-gradient(135deg, ${alpha(
+              theme.palette.primary.main,
+              0.08,
+            )}, ${alpha(theme.palette.background.paper, 0.94)})`,
+          })}
+        >
           <Stack
             direction={{ xs: "column", sm: "row" }}
             spacing={1}
@@ -280,22 +298,35 @@ export function ProductCatalog({
               <Box
                 key={product.id}
                 data-testid={`product-row-${product.sku}`}
-                sx={{
+                sx={(theme) => ({
                   display: "grid",
                   gap: 2,
                   gridTemplateColumns: {
                     xs: "1fr",
-                    md: canToggleProducts || canDeleteProducts
-                      ? "minmax(0, 1.6fr) minmax(190px, 0.85fr) minmax(190px, 0.85fr) auto"
-                      : "minmax(0, 1.6fr) minmax(190px, 0.85fr) minmax(190px, 0.85fr)",
+                    md:
+                      canToggleProducts || canDeleteProducts
+                        ? "minmax(0, 1.6fr) minmax(190px, 0.85fr) minmax(190px, 0.85fr) auto"
+                        : "minmax(0, 1.6fr) minmax(190px, 0.85fr) minmax(190px, 0.85fr)",
                   },
                   px: 2.5,
                   py: 2.25,
-                  transition: "background-color 120ms ease",
+                  borderLeft: 4,
+                  borderLeftColor: `${stockChip.color}.main`,
+                  backgroundColor:
+                    product.isActive === false
+                      ? alpha(theme.palette.action.disabledBackground, 0.7)
+                      : "background.paper",
+                  transition:
+                    "background-color 120ms ease, box-shadow 120ms ease, transform 120ms ease",
                   "&:hover": {
-                    backgroundColor: "action.hover",
+                    backgroundColor:
+                      product.isActive === false
+                        ? alpha(theme.palette.action.disabledBackground, 0.85)
+                        : "action.hover",
+                    boxShadow: theme.shadows[1],
+                    transform: "translateY(-1px)",
                   },
-                }}
+                })}
               >
                 <Stack spacing={1.25} sx={{ minWidth: 0 }}>
                   <Stack spacing={0.5} sx={{ minWidth: 0 }}>
@@ -471,7 +502,10 @@ export function ProductCatalog({
                     {canToggleProducts && (
                       <IconButton
                         onClick={() => onToggleProduct(product.id)}
-                        disabled={Boolean(togglingProductId) || Boolean(deletingProductId)}
+                        disabled={
+                          Boolean(togglingProductId) ||
+                          Boolean(deletingProductId)
+                        }
                         title="Activar/desactivar producto"
                         aria-label={`Activar o desactivar ${product.name}`}
                         data-testid={`product-toggle-${product.sku}`}
@@ -490,7 +524,10 @@ export function ProductCatalog({
                     {canDeleteProducts && (
                       <IconButton
                         onClick={() => onDeleteProduct(product)}
-                        disabled={Boolean(deletingProductId) || Boolean(togglingProductId)}
+                        disabled={
+                          Boolean(deletingProductId) ||
+                          Boolean(togglingProductId)
+                        }
                         title="Eliminar producto"
                         aria-label={`Eliminar ${product.name}`}
                         data-testid={`product-delete-${product.sku}`}

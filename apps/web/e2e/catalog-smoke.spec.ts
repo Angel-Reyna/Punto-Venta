@@ -3,12 +3,19 @@ import { expect, test } from "@playwright/test";
 import { mockApi } from "./support/api-mocks";
 
 test.describe("catálogo e inventario responsive", () => {
-  test("productos carga catálogo y permite buscar por SKU", async ({ page }) => {
+  test("productos carga catálogo y permite buscar por SKU", async ({
+    page,
+  }) => {
     await mockApi(page, { role: "ADMIN" });
 
     await page.goto("/products");
 
-    await expect(page.getByRole("heading", { name: "Productos", level: 1 })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Productos", level: 1 }),
+    ).toBeVisible();
+    await expect(page.getByTestId("products-visual-dashboard")).toBeVisible();
+    await expect(page.getByText("Control del catálogo")).toBeVisible();
+    await expect(page.getByText("Atención de stock")).toBeVisible();
     await expect(page.getByText("Coca-Cola 600 ml")).toBeVisible();
 
     await page.getByLabel("Buscar productos").fill("COCA-600");
@@ -17,12 +24,16 @@ test.describe("catálogo e inventario responsive", () => {
     await expect(page.getByText("Coca-Cola 600 ml")).toBeVisible();
   });
 
-  test("inventario muestra existencias sin tabla horizontal obligatoria", async ({ page }) => {
+  test("inventario muestra existencias sin tabla horizontal obligatoria", async ({
+    page,
+  }) => {
     await mockApi(page, { role: "ADMIN" });
 
     await page.goto("/inventory");
 
-    await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Inventario", level: 1 }),
+    ).toBeVisible();
     await expect(page.getByText("Coca-Cola 600 ml")).toBeVisible();
     await expect(page.getByText("Existencias actuales")).toBeVisible();
     await expect(page.getByText("Stock actual")).toBeVisible();
