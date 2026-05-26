@@ -6,7 +6,7 @@ El repositorio valida tres niveles: guardrails del monorepo, calidad de API/Web 
 
 ### Repository guardrails
 
-- Usa Node.js 22.
+- Usa la versión definida en `.node-version`.
 - Valida que la versión mayor de Node sea consistente en `.node-version`, `.nvmrc`, `package.json`, GitHub Actions y Dockerfiles.
 - Valida lockfiles, límites de dependencias y que la raíz del monorepo no tenga dependencias accidentales.
 - Falla si hay artefactos generados versionados por accidente.
@@ -72,10 +72,10 @@ npm run qa:full
 
 - `.nvmrc`.
 - `package.json` en `engines.node`.
-- `node-version` dentro de GitHub Actions.
+- `node-version-file: .node-version` dentro de GitHub Actions, o `node-version` explícito si se usa excepcionalmente.
 - Imágenes `FROM node:<major>` en Dockerfiles versionados.
 
-Si se actualiza Node, cambia todos esos archivos en el mismo patch. Esto evita falsos positivos donde local, CI y Docker ejecutan majors distintos.
+GitHub Actions debe preferir `node-version-file: .node-version` para no duplicar el major en cada job. Si se actualiza Node, cambia todos los puntos restantes en el mismo patch. Esto evita falsos positivos donde local, CI y Docker ejecutan majors distintos.
 
 ## Guardrail de lockfiles y dependencias
 

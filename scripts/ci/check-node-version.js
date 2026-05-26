@@ -70,14 +70,23 @@ function checkWorkflowNodeVersions(expectedMajor, trackedFiles, failures) {
     const lines = readText(workflowFile).split(/\r?\n/u);
 
     lines.forEach((line, index) => {
-      const match = line.match(/^\s*node-version:\s*["']?([^"'\s#]+)["']?/u);
-      if (!match) {
+      const nodeVersionMatch = line.match(/^\s*node-version:\s*["']?([^"'\s#]+)["']?/u);
+      if (nodeVersionMatch) {
+        const actualMajor = parseNodeMajor(nodeVersionMatch[1], `${workflowFile}:${index + 1}`);
+        if (actualMajor !== expectedMajor) {
+          fail(failures, `${workflowFile}:${index + 1} node-version`, expectedMajor, nodeVersionMatch[1]);
+        }
         return;
       }
 
-      const actualMajor = parseNodeMajor(match[1], `${workflowFile}:${index + 1}`);
-      if (actualMajor !== expectedMajor) {
-        fail(failures, `${workflowFile}:${index + 1} node-version`, expectedMajor, match[1]);
+      const nodeVersionFileMatch = line.match(/^\s*node-version-file:\s*["']?([^"'\s#]+)["']?/u);
+      if (!nodeVersionFileMatch) {
+        return;
+      }
+
+      const actualFile = normalizePath(nodeVersionFileMatch[1]);
+      if (actualFile !== '.node-version') {
+        fail(failures, `${workflowFile}:${index + 1} node-version-file`, '.node-version', nodeVersionFileMatch[1]);
       }
     });
   }
