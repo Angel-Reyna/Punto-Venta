@@ -5,6 +5,8 @@ const path = require("node:path");
 
 const root = path.resolve(__dirname, "../..");
 const apps = ["apps/api", "apps/web"];
+const rootPackageJsonPath = "package.json";
+const rootPackageLockPath = "package-lock.json";
 const dependencySections = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"];
 const forbiddenLocalSpecifiers = [/^file:\.\.\/?/, /^file:\.\.\/\.\./];
 
@@ -68,29 +70,56 @@ function assertNoInvalidLocalDependencies(appDir, pkg, lock) {
   }
 }
 
+function formatProjectLabel(projectDir) {
+  return projectDir === "." ? "root" : projectDir;
+}
+
+function assertRootHasNoDependencies(pkg, lock) {
+  const packageDependencies = collectDependencies(pkg);
+  if (packageDependencies.length > 0) {
+    const details = packageDependencies
+      .map(({ section, name, specifier }) => `package.json ${section}.${name}=${specifier}`)
+      .join("\n");
+    throw new Error(
+      `El package.json raíz no debe declarar dependencias de runtime/desarrollo. Instala dependencias en la app correspondiente.\n${details}`,
+    );
+  }
+
+  const packages = lock.packages ?? {};
+  const nonRootPackages = Object.keys(packages).filter((packagePath) => packagePath !== "");
+  if (nonRootPackages.length > 0) {
+    throw new Error(
+      `El package-lock.json raíz contiene paquetes instalados en la raíz del monorepo. ` +
+        `Ejecuta npm install dentro de apps/api o apps/web según corresponda. Entradas: ${nonRootPackages.join(", ")}`,
+    );
+  }
+}
+
 function assertLockMatchesPackage(appDir, pkg, lock) {
+  const projectLabel = formatProjectLabel(appDir);
+
   if (lock.name !== pkg.name) {
-    throw new Error(`${appDir}/package-lock.json name=${lock.name} no coincide con package.json name=${pkg.name}`);
+    throw new Error(`${projectLabel}/package-lock.json name=${lock.name} no coincide con package.json name=${pkg.name}`);
   }
 
   if (lock.version !== pkg.version) {
-    throw new Error(`${appDir}/package-lock.json version=${lock.version} no coincide con package.json version=${pkg.version}`);
+    throw new Error(`${projectLabel}/package-lock.json version=${lock.version} no coincide con package.json version=${pkg.version}`);
   }
 
   if (!Number.isInteger(lock.lockfileVersion) || lock.lockfileVersion < 1) {
-    throw new Error(`${appDir}/package-lock.json debe tener lockfileVersion >= 1`);
+    throw new Error(`${projectLabel}/package-lock.json debe tener lockfileVersion >= 1`);
   }
 
   const rootPackage = lock.packages?.[""];
   if (!rootPackage) {
-    throw new Error(`${appDir}/package-lock.json no contiene packages[""]. Regenera el lockfile con npm install.`);
+    throw new Error(`${projectLabel}/package-lock.json no contiene packages[""]. Regenera el lockfile con npm install.`);
   }
 
   for (const { section, name, specifier } of collectDependencies(pkg)) {
     const lockedSpecifier = rootPackage[section]?.[name];
     if (lockedSpecifier !== specifier) {
       throw new Error(
-        `${appDir}/package-lock.json no coincide con package.json para ${section}.${name}. ` +
+        `${projectLabel}/package-lock.json no coincide con package.json para ${section}.${name}. ` +
           `package.json=${specifier}, lockfile=${lockedSpecifier ?? "<faltante>"}`,
       );
     }
@@ -98,6 +127,14 @@ function assertLockMatchesPackage(appDir, pkg, lock) {
 }
 
 try {
+  assertFile(rootPackageJsonPath);
+  assertFile(rootPackageLockPath);
+
+  const rootPkg = readJson(rootPackageJsonPath);
+  const rootLock = readJson(rootPackageLockPath);
+  assertLockMatchesPackage(".", rootPkg, rootLock);
+  assertRootHasNoDependencies(rootPkg, rootLock);
+
   for (const appDir of apps) {
     const packageJsonPath = `${appDir}/package.json`;
     const packageLockPath = `${appDir}/package-lock.json`;
@@ -112,7 +149,7 @@ try {
     assertNoInvalidLocalDependencies(appDir, pkg, lock);
   }
 
-  console.log("Lockfiles válidos para CI/Docker.");
+  console.log("Lockfiles válidos para CI/Docker y raíz del monorepo sin dependencias accidentales.");
 } catch (error) {
   console.error(error.message);
   process.exit(1);

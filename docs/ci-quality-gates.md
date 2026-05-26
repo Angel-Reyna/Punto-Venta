@@ -7,7 +7,7 @@ El repositorio valida tres niveles: guardrails del monorepo, calidad de API/Web 
 ### Repository guardrails
 
 - Usa Node.js 22.
-- Valida lockfiles y límites de dependencias.
+- Valida lockfiles, límites de dependencias y que la raíz del monorepo no tenga dependencias accidentales.
 - Falla si hay artefactos generados versionados por accidente.
 - Falla si hay archivos locales sensibles versionados por accidente.
 - Falla si hay tests enfocados/omitidos, `debugger` o `force: true` en E2E.
@@ -65,6 +65,25 @@ npm run qa:full
 
 `qa:full` agrega E2E integrado real y Docker build. Es el equivalente operativo más cercano a una validación completa local.
 
+## Guardrail de lockfiles y dependencias
+
+`npm run ci:validate-lockfiles` valida los límites de dependencias del monorepo:
+
+- `apps/api/package-lock.json` y `apps/web/package-lock.json` deben existir porque Docker usa `npm ci` dentro de cada build context.
+- Los lockfiles de cada app deben coincidir con su `package.json` en nombre, versión y dependencias declaradas.
+- Las apps no deben usar dependencias locales tipo `file:../..`, porque rompen los build contexts de Docker.
+- El `package-lock.json` raíz debe coincidir con el `package.json` raíz.
+- La raíz del monorepo no debe declarar dependencias ni contener paquetes instalados en el lockfile raíz. Instala dependencias dentro de `apps/api` o `apps/web` según corresponda.
+
+Si falla por dependencias en raíz, elimina la instalación accidental y reinstala desde la app correcta:
+
+```bash
+rm -rf node_modules package-lock.json
+npm install --package-lock-only
+npm --prefix apps/api install <paquete>
+# o
+npm --prefix apps/web install <paquete>
+```
 
 ## Guardrail de artefactos generados
 
@@ -118,10 +137,12 @@ Si un test necesita desactivarse temporalmente, no uses `.skip` silencioso. Elig
 - Cada app conserva su propio `package-lock.json`.
 - Los Dockerfiles usan `npm ci`, no `npm install`.
 - Si cambias dependencias, actualiza solo el lockfile de la app afectada.
+- No instales dependencias en la raíz del monorepo; la raíz solo coordina scripts.
 - Evita dependencias locales tipo `file:../..`, porque rompen los build contexts de Docker.
 
 ## Criterios de fallo que sí deben bloquear
 
+- Lockfiles no coinciden, faltan o la raíz del monorepo contiene dependencias accidentales.
 - Prisma no valida o no genera client.
 - Tests críticos API fallan.
 - Vitest ejecuta specs Playwright.
