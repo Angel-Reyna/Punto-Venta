@@ -503,8 +503,62 @@ export function SalesPage() {
         onErrorClose={() => setError("")}
       />
 
+      <Card
+        data-testid="sales-visual-hero"
+        sx={{
+          mb: 2,
+          border: "1px solid",
+          borderColor: "divider",
+          background:
+            "linear-gradient(135deg, rgba(25, 118, 210, 0.10), rgba(46, 125, 50, 0.08))"
+        }}
+      >
+        <CardContent>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={2}
+            justifyContent="space-between"
+            alignItems={{ xs: "stretch", md: "center" }}
+          >
+            <Box>
+              <Typography variant="overline" color="text.secondary" fontWeight={900}>
+                Flujo de venta operativo
+              </Typography>
+              <Typography variant="h5" fontWeight={900}>
+                Ticket, catálogo y cobro en una sola vista
+              </Typography>
+              <Typography color="text.secondary">
+                Escanea o busca productos, revisa el ticket y confirma que el pago cubra el total antes de cobrar.
+              </Typography>
+            </Box>
+
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <Chip color={cart.length > 0 ? "primary" : "default"} label={`${cartItemsCount} artículos`} />
+              <Chip
+                color={cart.length === 0 ? "default" : isPaymentInsufficient ? "warning" : "success"}
+                label={
+                  cart.length === 0
+                    ? "Sin ticket"
+                    : isPaymentInsufficient
+                      ? `Falta ${formatMoney(total - normalizedPaid)}`
+                      : "Listo para cobrar"
+                }
+              />
+              <Chip variant="outlined" label={`${filteredProducts.length} productos visibles`} />
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
       {canCreateSales && (
-        <Card sx={{ mb: 2 }}>
+        <Card
+          sx={{
+            mb: 2,
+            border: "1px solid",
+            borderColor: "divider",
+            overflow: "hidden"
+          }}
+        >
           <CardContent>
           <Box
             sx={{
