@@ -7,6 +7,7 @@ El repositorio valida tres niveles: guardrails del monorepo, calidad de API/Web 
 ### Repository guardrails
 
 - Usa Node.js 22.
+- Valida que la versión mayor de Node sea consistente en `.node-version`, `.nvmrc`, `package.json`, GitHub Actions y Dockerfiles.
 - Valida lockfiles, límites de dependencias y que la raíz del monorepo no tenga dependencias accidentales.
 - Falla si hay artefactos generados versionados por accidente.
 - Falla si hay archivos locales sensibles versionados por accidente.
@@ -64,6 +65,17 @@ npm run qa:full
 ```
 
 `qa:full` agrega E2E integrado real y Docker build. Es el equivalente operativo más cercano a una validación completa local.
+
+## Guardrail de versión de Node
+
+`npm run ci:check-node-version` usa `.node-version` como fuente principal y verifica que los demás puntos de ejecución usen la misma versión mayor de Node:
+
+- `.nvmrc`.
+- `package.json` en `engines.node`.
+- `node-version` dentro de GitHub Actions.
+- Imágenes `FROM node:<major>` en Dockerfiles versionados.
+
+Si se actualiza Node, cambia todos esos archivos en el mismo patch. Esto evita falsos positivos donde local, CI y Docker ejecutan majors distintos.
 
 ## Guardrail de lockfiles y dependencias
 
@@ -146,6 +158,7 @@ Si un test necesita desactivarse temporalmente, no uses `.skip` silencioso. Elig
 - Prisma no valida o no genera client.
 - Tests críticos API fallan.
 - Vitest ejecuta specs Playwright.
+- La versión mayor de Node no coincide entre local, CI o Docker.
 - Hay archivos sensibles o locales versionados por accidente.
 - Hay tests enfocados/omitidos, `debugger` o `force: true` en E2E.
 - Un script de automatización JavaScript o shell tiene sintaxis inválida.

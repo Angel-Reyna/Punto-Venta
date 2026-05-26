@@ -29,6 +29,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Check Node version consistency
+        run: npm run ci:check-node-version
+
       - name: Validate lockfiles and dependency boundaries
         run: npm run ci:validate-lockfiles
 
