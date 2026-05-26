@@ -5,19 +5,15 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   Grid,
   MenuItem,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
 
 import { api } from "../api/client";
 import { ActionDisabledReason } from "../components/ActionDisabledReason";
-import { DataGridCard } from "../components/DataGridCard";
 import { LabelWithInfo } from "../components/InfoTooltip";
 import { PageHeader } from "../components/PageHeader";
 import { SearchToolbar } from "../components/SearchToolbar";
@@ -26,11 +22,12 @@ import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
 import { getApiErrorMessage } from "../utils/apiError";
 import {
-  buildMovementColumns,
+  InventoryControlHero,
   filterStockRowsByStatus,
   getInventoryFormDisabledReason,
   initialInventoryMovementForm,
   InventoryStatusFilterBar,
+  InventoryMovementTimeline,
   InventoryStockOverview,
   InventorySummaryCards,
   isInventoryFormInvalid,
@@ -180,7 +177,6 @@ export function InventoryPage() {
     }
   }
 
-  const columns = buildMovementColumns();
   const filteredStockRows = filterStockRowsByStatus(
     stockRows,
     stockStatusFilter,
@@ -200,17 +196,6 @@ export function InventoryPage() {
         }
       />
 
-      <Box sx={{ mb: 2 }}>
-        <Chip
-          color={canAdjustInventory ? "primary" : "success"}
-          label={
-            canAdjustInventory
-              ? "Permiso: lectura y ajuste de inventario"
-              : "Permiso: consulta de inventario"
-          }
-        />
-      </Box>
-
       <StatusFeedback
         success={message}
         error={error}
@@ -218,32 +203,13 @@ export function InventoryPage() {
         onErrorClose={() => setError("")}
       />
 
-      <Card sx={{ mb: 2 }}>
-        <CardContent>
-          <Stack spacing={2}>
-            <Box>
-              <Typography variant="h6" fontWeight={900}>
-                Centro de control de inventario
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Separa existencias, ajustes e historial para que el módulo siga siendo usable cuando el catálogo crezca.
-              </Typography>
-            </Box>
-
-            <Tabs
-              value={activeView}
-              onChange={(_event, value: InventoryView) => setActiveView(value)}
-              variant="scrollable"
-              allowScrollButtonsMobile
-              aria-label="Secciones de inventario"
-            >
-              <Tab value="stock" label="Existencias" />
-              <Tab value="adjustments" label="Entradas y salidas" />
-              <Tab value="movements" label="Historial" />
-            </Tabs>
-          </Stack>
-        </CardContent>
-      </Card>
+      <InventoryControlHero
+        activeView={activeView}
+        canAdjustInventory={canAdjustInventory}
+        movementsCount={movements.length}
+        onViewChange={setActiveView}
+        stockRows={stockRows}
+      />
 
       {activeView === "stock" && (
         <>
@@ -281,7 +247,8 @@ export function InventoryPage() {
                   Registrar entrada o salida manual
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Usa esta sección para ajustes operativos justificados. Las ventas y devoluciones generan movimientos automáticamente.
+                  Usa esta sección para ajustes operativos justificados. Las
+                  ventas y devoluciones generan movimientos automáticamente.
                 </Typography>
               </Box>
 
@@ -412,7 +379,8 @@ export function InventoryPage() {
                 </Grid>
               ) : (
                 <Typography color="text.secondary">
-                  Tu usuario puede consultar inventario, pero no registrar ajustes manuales.
+                  Tu usuario puede consultar inventario, pero no registrar
+                  ajustes manuales.
                 </Typography>
               )}
             </Stack>
@@ -431,12 +399,9 @@ export function InventoryPage() {
             helperText="Filtra movimientos recientes por producto, clave interna/SKU, código, almacén, tipo o motivo."
           />
 
-          <DataGridCard
-            rows={movements}
-            columns={columns}
-            minWidth={980}
-            noRowsLabel="No hay movimientos de inventario registrados."
-            tableLabel="Movimientos de inventario"
+          <InventoryMovementTimeline
+            movements={movements}
+            searchQuery={movementSearch}
           />
         </>
       )}

@@ -1,3 +1,5 @@
+import type { ReactElement, ReactNode } from "react";
+
 import {
   Box,
   Card,
@@ -5,9 +7,22 @@ import {
   Chip,
   Divider,
   Stack,
+  Tab,
+  Tabs,
   Typography,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { GridColDef } from "@mui/x-data-grid";
+
+import AddCircleIcon from "@mui/icons-material/AddCircle";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import HistoryIcon from "@mui/icons-material/History";
+import Inventory2Icon from "@mui/icons-material/Inventory2";
+import LocalShippingIcon from "@mui/icons-material/LocalShipping";
+import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
+import ReplayIcon from "@mui/icons-material/Replay";
+import TuneIcon from "@mui/icons-material/Tune";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 import { LabelWithInfo } from "../../components/InfoTooltip";
 
@@ -72,6 +87,14 @@ export type InventoryMovementForm = {
 
 export type StockStatusFilter = "all" | "available" | "low" | "out";
 
+type InventoryMetricColor =
+  | "primary"
+  | "success"
+  | "warning"
+  | "error"
+  | "info";
+type InventoryView = "stock" | "adjustments" | "movements";
+
 export const initialInventoryMovementForm: InventoryMovementForm = {
   productId: "",
   warehouseId: "",
@@ -98,14 +121,65 @@ function renderHeaderWithInfo(label: string, info: string) {
 
 function getStockStatus(item: StockItem) {
   if (item.stock <= 0) {
-    return { color: "error" as const, label: "Sin stock" };
+    return {
+      color: "error" as const,
+      helper: "Producto sin unidades disponibles.",
+      label: "Sin stock",
+    };
   }
 
   if (item.lowStock) {
-    return { color: "warning" as const, label: "Bajo inventario" };
+    return {
+      color: "warning" as const,
+      helper: "Está en el umbral de reposición.",
+      label: "Bajo inventario",
+    };
   }
 
-  return { color: "success" as const, label: "Disponible" };
+  return {
+    color: "success" as const,
+    helper: "Inventario suficiente para venta.",
+    label: "Disponible",
+  };
+}
+
+function getMovementTypeMeta(type: Movement["type"]) {
+  const meta: Record<
+    Movement["type"],
+    {
+      color: InventoryMetricColor;
+      icon: ReactElement;
+      label: string;
+    }
+  > = {
+    ADJUSTMENT: {
+      color: "info",
+      icon: <TuneIcon fontSize="small" />,
+      label: "Ajuste",
+    },
+    IN: {
+      color: "success",
+      icon: <AddCircleIcon fontSize="small" />,
+      label: "Entrada",
+    },
+    OUT: {
+      color: "warning",
+      icon: <RemoveCircleIcon fontSize="small" />,
+      label: "Salida",
+    },
+    RETURN: {
+      color: "success",
+      icon: <ReplayIcon fontSize="small" />,
+      label: "Devolución",
+    },
+    SALE: {
+      color: "warning",
+      icon: <LocalShippingIcon fontSize="small" />,
+      label: "Venta",
+    },
+  };
+
+  return meta[type];
 }
 
 export function getInventoryFormDisabledReason(form: InventoryMovementForm) {
@@ -122,17 +196,26 @@ export function isInventoryFormInvalid(form: InventoryMovementForm) {
   return Boolean(getInventoryFormDisabledReason(form));
 }
 
-function getInventoryStockSummary(rows: StockItem[]) {
+export function getInventoryStockSummary(rows: StockItem[]) {
   const outOfStock = rows.filter((item) => item.stock <= 0).length;
-  const lowStock = rows.filter((item) => item.stock > 0 && item.lowStock).length;
-  const available = rows.filter((item) => item.stock > 0 && !item.lowStock).length;
+  const lowStock = rows.filter(
+    (item) => item.stock > 0 && item.lowStock,
+  ).length;
+  const available = rows.filter(
+    (item) => item.stock > 0 && !item.lowStock,
+  ).length;
   const units = rows.reduce((total, item) => total + item.stock, 0);
+  const categories = new Set(
+    rows.map((item) => item.category?.name).filter(Boolean),
+  ).size;
 
   return {
     total: rows.length,
     available,
     lowStock,
     outOfStock,
+    attention: lowStock + outOfStock,
+    categories,
     units,
   };
 }
@@ -156,32 +239,219 @@ export function filterStockRowsByStatus(
   return rows;
 }
 
+function InventoryMetricCard({
+  color,
+  helper,
+  icon,
+  label,
+  value,
+}: {
+  color: InventoryMetricColor;
+  helper: string;
+  icon: ReactNode;
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <Card
+      variant="outlined"
+      sx={(theme) => ({
+        height: "100%",
+        borderColor: alpha(theme.palette[color].main, 0.28),
+        background: `linear-gradient(135deg, ${alpha(
+          theme.palette[color].main,
+          0.1,
+        )}, ${alpha(theme.palette.background.paper, 0.94)})`,
+      })}
+    >
+      <CardContent>
+        <Stack direction="row" spacing={1.5} alignItems="flex-start">
+          <Box
+            sx={(theme) => ({
+              display: "grid",
+              placeItems: "center",
+              width: 42,
+              height: 42,
+              borderRadius: 2,
+              color: theme.palette[color].main,
+              bgcolor: alpha(theme.palette[color].main, 0.12),
+              flexShrink: 0,
+            })}
+          >
+            {icon}
+          </Box>
+
+          <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+            <Typography variant="h5" fontWeight={900} lineHeight={1.1}>
+              {value}
+            </Typography>
+            <Typography variant="body2" fontWeight={800}>
+              {label}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {helper}
+            </Typography>
+          </Stack>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function InventoryControlHero({
+  activeView,
+  canAdjustInventory,
+  movementsCount,
+  onViewChange,
+  stockRows,
+}: {
+  activeView: InventoryView;
+  canAdjustInventory: boolean;
+  movementsCount: number;
+  onViewChange: (value: InventoryView) => void;
+  stockRows: StockItem[];
+}) {
+  const summary = getInventoryStockSummary(stockRows);
+
+  return (
+    <Card
+      data-testid="inventory-visual-dashboard"
+      sx={(theme) => ({
+        mb: 2,
+        overflow: "hidden",
+        border: 1,
+        borderColor: alpha(theme.palette.primary.main, 0.18),
+        background: `linear-gradient(135deg, ${alpha(
+          theme.palette.primary.main,
+          0.14,
+        )}, ${alpha(theme.palette.background.paper, 0.96)} 48%, ${alpha(
+          theme.palette.warning.main,
+          summary.attention > 0 ? 0.1 : 0.03,
+        )})`,
+      })}
+    >
+      <CardContent>
+        <Stack spacing={2.5}>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={2}
+            alignItems={{ xs: "flex-start", md: "center" }}
+            justifyContent="space-between"
+          >
+            <Stack spacing={1} sx={{ maxWidth: 720 }}>
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <Chip
+                  color={canAdjustInventory ? "primary" : "success"}
+                  label={
+                    canAdjustInventory
+                      ? "Permiso: lectura y ajuste"
+                      : "Permiso: solo consulta"
+                  }
+                />
+                <Chip
+                  color={summary.attention > 0 ? "warning" : "success"}
+                  variant="outlined"
+                  label={
+                    summary.attention > 0
+                      ? `${summary.attention} alerta${summary.attention === 1 ? "" : "s"} de stock`
+                      : "Stock operativo estable"
+                  }
+                />
+              </Stack>
+
+              <Box>
+                <Typography variant="h5" fontWeight={900}>
+                  Control de inventario
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Revisa existencias, detecta reposición y consulta movimientos
+                  con una lectura más visual antes de registrar ajustes
+                  manuales.
+                </Typography>
+              </Box>
+            </Stack>
+
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              flexWrap="wrap"
+              sx={{ justifyContent: { xs: "flex-start", md: "flex-end" } }}
+            >
+              <Chip
+                icon={<Inventory2Icon />}
+                label={`${summary.total} productos`}
+              />
+              <Chip
+                icon={<HistoryIcon />}
+                label={`${movementsCount} movimientos`}
+              />
+            </Stack>
+          </Stack>
+
+          <Tabs
+            value={activeView}
+            onChange={(_event, value: InventoryView) => onViewChange(value)}
+            variant="scrollable"
+            allowScrollButtonsMobile
+            aria-label="Secciones de inventario"
+            sx={(theme) => ({
+              minHeight: 44,
+              "& .MuiTabs-flexContainer": {
+                gap: 1,
+              },
+              "& .MuiTab-root": {
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 999,
+                minHeight: 40,
+                textTransform: "none",
+              },
+              "& .Mui-selected": {
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+              },
+            })}
+          >
+            <Tab value="stock" label="Existencias" />
+            <Tab value="adjustments" label="Entradas y salidas" />
+            <Tab value="movements" label="Historial" />
+          </Tabs>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function InventorySummaryCards({ rows }: { rows: StockItem[] }) {
   const summary = getInventoryStockSummary(rows);
   const cards = [
     {
       label: "Productos monitoreados",
       value: summary.total,
-      description: "Registros de stock visibles con los filtros actuales.",
+      description: "Registros de stock visibles en inventario.",
       color: "primary" as const,
+      icon: <Inventory2Icon />,
     },
     {
-      label: "Disponibles",
+      label: "Stock saludable",
       value: summary.available,
-      description: "Productos con stock suficiente.",
+      description: "Productos con unidades por encima del mínimo.",
       color: "success" as const,
+      icon: <CheckCircleIcon />,
     },
     {
       label: "Requieren atención",
-      value: summary.lowStock + summary.outOfStock,
+      value: summary.attention,
       description: `${summary.lowStock} bajo stock · ${summary.outOfStock} sin stock`,
-      color: summary.lowStock + summary.outOfStock > 0 ? ("warning" as const) : ("default" as const),
+      color: summary.attention > 0 ? ("warning" as const) : ("info" as const),
+      icon: <WarningAmberIcon />,
     },
     {
       label: "Unidades totales",
       value: summary.units,
-      description: "Suma de unidades disponibles en inventario.",
+      description: `${summary.categories} categoría${summary.categories === 1 ? "" : "s"} visible${summary.categories === 1 ? "" : "s"}`,
       color: "info" as const,
+      icon: <LocalShippingIcon />,
     },
   ];
 
@@ -199,26 +469,14 @@ export function InventorySummaryCards({ rows }: { rows: StockItem[] }) {
       }}
     >
       {cards.map((card) => (
-        <Card key={card.label} sx={{ height: "100%" }}>
-          <CardContent>
-            <Stack spacing={1}>
-              <Stack
-                direction="row"
-                spacing={1}
-                alignItems="center"
-                justifyContent="space-between"
-              >
-                <Typography variant="body2" color="text.secondary" fontWeight={800}>
-                  {card.label}
-                </Typography>
-                <Chip size="small" color={card.color} label={card.value} />
-              </Stack>
-              <Typography variant="body2" color="text.secondary">
-                {card.description}
-              </Typography>
-            </Stack>
-          </CardContent>
-        </Card>
+        <InventoryMetricCard
+          key={card.label}
+          color={card.color}
+          helper={card.description}
+          icon={card.icon}
+          label={card.label}
+          value={card.value}
+        />
       ))}
     </Box>
   );
@@ -234,7 +492,11 @@ export function InventoryStatusFilterBar({
   onChange: (value: StockStatusFilter) => void;
 }) {
   const summary = getInventoryStockSummary(rows);
-  const options: Array<{ value: StockStatusFilter; count: number; color: "default" | "success" | "warning" | "error" }> = [
+  const options: Array<{
+    value: StockStatusFilter;
+    count: number;
+    color: "default" | "success" | "warning" | "error";
+  }> = [
     { value: "all", count: summary.total, color: "default" },
     { value: "available", count: summary.available, color: "success" },
     { value: "low", count: summary.lowStock, color: "warning" },
@@ -242,15 +504,27 @@ export function InventoryStatusFilterBar({
   ];
 
   return (
-    <Card sx={{ mb: 2 }}>
+    <Card
+      variant="outlined"
+      sx={(theme) => ({
+        mb: 2,
+        borderColor: alpha(theme.palette.primary.main, 0.16),
+      })}
+    >
       <CardContent>
-        <Stack spacing={1.5}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          alignItems={{ xs: "flex-start", md: "center" }}
+          justifyContent="space-between"
+        >
           <Box>
             <Typography variant="subtitle1" fontWeight={900}>
-              Dividir existencias por estado
+              Vista rápida de existencias
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Usa estos filtros para revisar catálogos grandes sin mezclar productos normales con alertas de reposición.
+              Divide el catálogo por salud de stock para priorizar reposición,
+              merma o revisión de productos sin unidades.
             </Typography>
           </Box>
 
@@ -305,19 +579,18 @@ export function buildMovementColumns(): GridColDef<Movement>[] {
       headerName: "Tipo",
       renderHeader: () => renderHeaderWithInfo("Tipo", MOVEMENT_TYPE_INFO_TEXT),
       width: 130,
-      renderCell: (params) => (
-        <Chip
-          size="small"
-          label={params.value}
-          color={
-            params.value === "IN" || params.value === "RETURN"
-              ? "success"
-              : params.value === "OUT" || params.value === "SALE"
-                ? "warning"
-                : "default"
-          }
-        />
-      ),
+      renderCell: (params) => {
+        const meta = getMovementTypeMeta(params.value);
+
+        return (
+          <Chip
+            size="small"
+            icon={meta.icon}
+            label={meta.label}
+            color={meta.color}
+          />
+        );
+      },
     },
     {
       field: "quantity",
@@ -387,7 +660,8 @@ export function InventoryStockOverview({
                 Existencias actuales
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Control rápido del stock real por producto, con estado visual para reposición.
+                Control rápido del stock real por producto, con estado visual
+                para reposición.
               </Typography>
             </Box>
 
@@ -406,7 +680,7 @@ export function InventoryStockOverview({
             return (
               <Box
                 key={item.id}
-                sx={{
+                sx={(theme) => ({
                   display: "grid",
                   gap: 2,
                   gridTemplateColumns: {
@@ -415,10 +689,19 @@ export function InventoryStockOverview({
                   },
                   px: 2.5,
                   py: 2.25,
+                  borderLeft: 4,
+                  borderColor: `${stockStatus.color}.main`,
+                  background: alpha(
+                    theme.palette[stockStatus.color].main,
+                    0.035,
+                  ),
                   "&:hover": {
-                    backgroundColor: "action.hover",
+                    backgroundColor: alpha(
+                      theme.palette[stockStatus.color].main,
+                      0.07,
+                    ),
                   },
-                }}
+                })}
               >
                 <Stack spacing={0.75} sx={{ minWidth: 0 }}>
                   <Typography
@@ -471,6 +754,9 @@ export function InventoryStockOverview({
                       label={stockStatus.label}
                     />
                   </Stack>
+                  <Typography variant="caption" color="text.secondary">
+                    {stockStatus.helper}
+                  </Typography>
                 </Stack>
 
                 <Stack spacing={0.75}>
@@ -490,6 +776,199 @@ export function InventoryStockOverview({
                     </Typography>
                   )}
                 </Stack>
+              </Box>
+            );
+          })}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function InventoryMovementTimeline({
+  movements,
+  searchQuery,
+}: {
+  movements: Movement[];
+  searchQuery: string;
+}) {
+  if (movements.length === 0) {
+    return (
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <Stack
+            spacing={1}
+            alignItems="center"
+            sx={{ py: 4, textAlign: "center" }}
+          >
+            <Typography variant="h6" fontWeight={900}>
+              {searchQuery.trim()
+                ? "No hay movimientos que coincidan con la búsqueda"
+                : "No hay movimientos de inventario registrados"}
+            </Typography>
+            <Typography color="text.secondary">
+              {searchQuery.trim()
+                ? "Busca por tipo, producto, SKU, almacén o motivo."
+                : "Las entradas, salidas, ventas y devoluciones aparecerán aquí con trazabilidad."}
+            </Typography>
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card sx={{ mb: 2 }}>
+      <CardContent sx={{ p: 0, "&:last-child": { pb: 0 } }}>
+        <Box sx={{ px: 2.5, py: 2, borderBottom: 1, borderColor: "divider" }}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            justifyContent="space-between"
+          >
+            <Box>
+              <Typography variant="h6" fontWeight={900}>
+                Historial operativo
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Línea de tiempo de entradas, salidas, ventas y devoluciones que
+                afectan stock.
+              </Typography>
+            </Box>
+
+            <Chip
+              color="primary"
+              variant="outlined"
+              label={`${movements.length} movimiento${movements.length === 1 ? "" : "s"}`}
+            />
+          </Stack>
+        </Box>
+
+        <Stack sx={{ p: 2.5 }} spacing={1.5}>
+          {movements.map((movement, index) => {
+            const meta = getMovementTypeMeta(movement.type);
+            const productSku = movement.product?.sku ?? movement.productSku;
+            const productName =
+              movement.product?.name ?? `${movement.productName} (eliminado)`;
+            const barcode = movement.product?.barcode;
+
+            return (
+              <Box
+                key={movement.id}
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "auto minmax(0, 1fr)",
+                  gap: 1.5,
+                }}
+              >
+                <Stack alignItems="center" sx={{ pt: 0.25 }}>
+                  <Box
+                    sx={(theme) => ({
+                      display: "grid",
+                      placeItems: "center",
+                      width: 36,
+                      height: 36,
+                      borderRadius: "50%",
+                      color: theme.palette[meta.color].main,
+                      bgcolor: alpha(theme.palette[meta.color].main, 0.12),
+                      border: `1px solid ${alpha(theme.palette[meta.color].main, 0.28)}`,
+                    })}
+                  >
+                    {meta.icon}
+                  </Box>
+                  {index < movements.length - 1 && (
+                    <Box
+                      sx={{ width: 2, flex: 1, bgcolor: "divider", my: 0.75 }}
+                    />
+                  )}
+                </Stack>
+
+                <Card
+                  variant="outlined"
+                  sx={(theme) => ({
+                    borderColor: alpha(theme.palette[meta.color].main, 0.24),
+                    backgroundColor: alpha(
+                      theme.palette[meta.color].main,
+                      0.035,
+                    ),
+                  })}
+                >
+                  <CardContent>
+                    <Stack spacing={1.25}>
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1}
+                        alignItems={{ xs: "flex-start", sm: "center" }}
+                        justifyContent="space-between"
+                      >
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          useFlexGap
+                          flexWrap="wrap"
+                        >
+                          <Chip
+                            color={meta.color}
+                            icon={meta.icon}
+                            label={meta.label}
+                          />
+                          <Chip
+                            variant="outlined"
+                            label={`${movement.quantity} unidad${movement.quantity === 1 ? "" : "es"}`}
+                          />
+                        </Stack>
+
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          fontWeight={800}
+                        >
+                          {new Date(movement.createdAt).toLocaleString()}
+                        </Typography>
+                      </Stack>
+
+                      <Box>
+                        <Typography
+                          variant="subtitle1"
+                          fontWeight={900}
+                          sx={{ overflowWrap: "anywhere" }}
+                        >
+                          {productName}
+                        </Typography>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          useFlexGap
+                          flexWrap="wrap"
+                          sx={{ mt: 0.75 }}
+                        >
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={productSku}
+                          />
+                          {barcode && (
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              label={barcode}
+                            />
+                          )}
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={movement.warehouse?.name ?? "Sin almacén"}
+                          />
+                        </Stack>
+                      </Box>
+
+                      <Typography variant="body2" color="text.secondary">
+                        {movement.reason || "Sin motivo capturado."}
+                      </Typography>
+                    </Stack>
+                  </CardContent>
+                </Card>
               </Box>
             );
           })}
