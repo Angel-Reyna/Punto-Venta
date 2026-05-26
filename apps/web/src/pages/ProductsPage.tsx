@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
   Box,
@@ -29,6 +29,7 @@ import { LabelWithInfo } from "../components/InfoTooltip";
 import { ResponsiveDialog } from "../components/ResponsiveDialog";
 import { SearchToolbar } from "../components/SearchToolbar";
 import { StatusFeedback } from "../components/StatusFeedback";
+import { VisualMetricCard } from "../components/VisualMetricCard";
 import { useAuth } from "../auth/AuthContext";
 import { PERMISSIONS } from "../auth/permissions";
 import { getApiErrorMessage } from "../utils/apiError";
@@ -49,69 +50,6 @@ import {
   safeTrim,
   toNonNegativeNumber,
 } from "./products/productShared";
-
-type ProductMetricColor = "primary" | "success" | "warning" | "info" | "error";
-
-type ProductMetricCardProps = {
-  color: ProductMetricColor;
-  helper: string;
-  icon: ReactNode;
-  label: string;
-  value: number | string;
-};
-
-function ProductMetricCard({
-  color,
-  helper,
-  icon,
-  label,
-  value,
-}: ProductMetricCardProps) {
-  return (
-    <Card
-      variant="outlined"
-      sx={(theme) => ({
-        height: "100%",
-        borderColor: alpha(theme.palette[color].main, 0.28),
-        background: `linear-gradient(135deg, ${alpha(
-          theme.palette[color].main,
-          0.1,
-        )}, ${alpha(theme.palette.background.paper, 0.92)})`,
-      })}
-    >
-      <CardContent>
-        <Stack direction="row" spacing={1.5} alignItems="flex-start">
-          <Box
-            sx={(theme) => ({
-              display: "grid",
-              placeItems: "center",
-              width: 40,
-              height: 40,
-              borderRadius: 2,
-              color: theme.palette[color].main,
-              bgcolor: alpha(theme.palette[color].main, 0.12),
-              flexShrink: 0,
-            })}
-          >
-            {icon}
-          </Box>
-
-          <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-            <Typography variant="h5" fontWeight={900} lineHeight={1.1}>
-              {value}
-            </Typography>
-            <Typography variant="body2" fontWeight={800}>
-              {label}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {helper}
-            </Typography>
-          </Stack>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
 
 export function ProductsPage() {
   const { can } = useAuth();
@@ -461,8 +399,8 @@ export function ProductsPage() {
 
             <Grid container spacing={1.5}>
               <Grid item xs={12} sm={6} lg={3}>
-                <ProductMetricCard
-                  color="primary"
+                <VisualMetricCard
+                  tone="primary"
                   icon={<Inventory2Icon />}
                   label="Productos visibles"
                   value={productStats.totalProducts}
@@ -474,8 +412,8 @@ export function ProductsPage() {
                 />
               </Grid>
               <Grid item xs={12} sm={6} lg={3}>
-                <ProductMetricCard
-                  color={
+                <VisualMetricCard
+                  tone={
                     productStats.lowStockProducts ||
                     productStats.outOfStockProducts
                       ? "warning"
@@ -491,8 +429,8 @@ export function ProductsPage() {
                 />
               </Grid>
               <Grid item xs={12} sm={6} lg={3}>
-                <ProductMetricCard
-                  color="info"
+                <VisualMetricCard
+                  tone="info"
                   icon={<CategoryIcon />}
                   label="Categorías visibles"
                   value={productStats.categoryCount}
@@ -500,8 +438,8 @@ export function ProductsPage() {
                 />
               </Grid>
               <Grid item xs={12} sm={6} lg={3}>
-                <ProductMetricCard
-                  color={productStats.promotedProducts ? "success" : "info"}
+                <VisualMetricCard
+                  tone={productStats.promotedProducts ? "success" : "info"}
                   icon={<LocalOfferIcon />}
                   label="Con promoción"
                   value={productStats.promotedProducts}

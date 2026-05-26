@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 
 import {
   Box,
@@ -25,6 +25,7 @@ import TuneIcon from "@mui/icons-material/Tune";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 import { LabelWithInfo } from "../../components/InfoTooltip";
+import { VisualMetricCard } from "../../components/VisualMetricCard";
 
 export type Product = {
   id: string;
@@ -239,65 +240,6 @@ export function filterStockRowsByStatus(
   return rows;
 }
 
-function InventoryMetricCard({
-  color,
-  helper,
-  icon,
-  label,
-  value,
-}: {
-  color: InventoryMetricColor;
-  helper: string;
-  icon: ReactNode;
-  label: string;
-  value: number | string;
-}) {
-  return (
-    <Card
-      variant="outlined"
-      sx={(theme) => ({
-        height: "100%",
-        borderColor: alpha(theme.palette[color].main, 0.28),
-        background: `linear-gradient(135deg, ${alpha(
-          theme.palette[color].main,
-          0.1,
-        )}, ${alpha(theme.palette.background.paper, 0.94)})`,
-      })}
-    >
-      <CardContent>
-        <Stack direction="row" spacing={1.5} alignItems="flex-start">
-          <Box
-            sx={(theme) => ({
-              display: "grid",
-              placeItems: "center",
-              width: 42,
-              height: 42,
-              borderRadius: 2,
-              color: theme.palette[color].main,
-              bgcolor: alpha(theme.palette[color].main, 0.12),
-              flexShrink: 0,
-            })}
-          >
-            {icon}
-          </Box>
-
-          <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-            <Typography variant="h5" fontWeight={900} lineHeight={1.1}>
-              {value}
-            </Typography>
-            <Typography variant="body2" fontWeight={800}>
-              {label}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {helper}
-            </Typography>
-          </Stack>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function InventoryControlHero({
   activeView,
   canAdjustInventory,
@@ -469,9 +411,9 @@ export function InventorySummaryCards({ rows }: { rows: StockItem[] }) {
       }}
     >
       {cards.map((card) => (
-        <InventoryMetricCard
+        <VisualMetricCard
           key={card.label}
-          color={card.color}
+          tone={card.color}
           helper={card.description}
           icon={card.icon}
           label={card.label}
