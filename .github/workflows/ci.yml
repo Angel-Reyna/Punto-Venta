@@ -35,6 +35,9 @@ jobs:
       - name: Check tracked generated artifacts
         run: npm run ci:check-generated-artifacts
 
+      - name: Check sensitive local files
+        run: npm run ci:check-sensitive-files
+
       - name: Check test shortcuts and unsafe E2E overrides
         run: npm run ci:check-test-guardrails
 

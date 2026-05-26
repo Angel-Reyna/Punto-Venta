@@ -9,6 +9,7 @@ El repositorio valida tres niveles: guardrails del monorepo, calidad de API/Web 
 - Usa Node.js 22.
 - Valida lockfiles y límites de dependencias.
 - Falla si hay artefactos generados versionados por accidente.
+- Falla si hay archivos locales sensibles versionados por accidente.
 - Falla si hay tests enfocados/omitidos, `debugger` o `force: true` en E2E.
 - Valida sintaxis de scripts de automatización JavaScript y shell.
 - Valida que `docker compose config` sea resoluble.
@@ -76,6 +77,18 @@ npm run clean:generated
 git rm --cached <ruta-del-artefacto>
 ```
 
+## Guardrail de archivos sensibles locales
+
+`npm run ci:check-sensitive-files` revisa únicamente archivos ya versionados con `git ls-files`. Su objetivo es bloquear commits que hayan incluido por accidente archivos privados o locales, por ejemplo:
+
+- `.env`, `.env.local`, `.env.production` y variantes no sanitizadas.
+- Llaves privadas o bundles de certificados: `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.jks`, `*.keystore`.
+- Llaves SSH como `id_rsa` o `id_ed25519`.
+- Credenciales cloud comunes como `service-account*.json`, `credentials*.json` o `firebase-adminsdk*.json`.
+- Bases de datos locales y backups: `*.sqlite`, `*.db`, `*.dump`, `*.backup`, `*.bak` y contenido real dentro de `backups/`.
+
+Se permiten ejemplos sanitizados como `.env.example`, `.env.test.example`, `docker.env.example` y `docker.env.production.example`. Si falla, desversiona el archivo sensible y conserva solo una plantilla sin secretos reales.
+
 ## Guardrail de scripts de automatización
 
 `npm run ci:check-scripts` valida los scripts versionados antes de que CI dependa de ellos:
@@ -112,6 +125,7 @@ Si un test necesita desactivarse temporalmente, no uses `.skip` silencioso. Elig
 - Prisma no valida o no genera client.
 - Tests críticos API fallan.
 - Vitest ejecuta specs Playwright.
+- Hay archivos sensibles o locales versionados por accidente.
 - Hay tests enfocados/omitidos, `debugger` o `force: true` en E2E.
 - Un script de automatización JavaScript o shell tiene sintaxis inválida.
 - `web:e2e` lista specs de `e2e/integration`.
