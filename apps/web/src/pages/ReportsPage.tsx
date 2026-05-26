@@ -251,7 +251,12 @@ export function ReportsPage() {
                   label={data ? "Datos consultados" : "Pendiente de consulta"}
                 />
               </Stack>
-              <Typography variant="h4" fontWeight={900} sx={{ letterSpacing: -0.4 }}>
+              <Typography
+                component="h1"
+                variant="h4"
+                fontWeight={900}
+                sx={{ letterSpacing: -0.4 }}
+              >
                 Reportes
               </Typography>
               <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 760 }}>

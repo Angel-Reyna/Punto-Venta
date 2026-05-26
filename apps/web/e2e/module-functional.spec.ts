@@ -7,7 +7,6 @@ import {
   clickByTestId,
   dialogByName,
   fillByTestId,
-  rowContaining,
 } from "./support/e2e-locators";
 
 test.describe("cobertura funcional por módulos críticos", () => {
@@ -91,7 +90,7 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await clickByTestId(page, "product-toggle-AGUA-1L");
 
     await expect(page.getByText("Estado del producto actualizado.")).toBeVisible();
-    await expect(page.getByText("Inactivo")).toBeVisible();
+    await expect(byTestId(page, "product-row-AGUA-1L")).toContainText("Inactivo");
 
     await clickByTestId(page, "product-delete-AGUA-1L");
     const deleteDialog = dialogByName(page, "Eliminar producto");
@@ -143,8 +142,14 @@ test.describe("cobertura funcional por módulos críticos", () => {
 
     await expect(page.getByText("Compra proveedor E2E")).toBeVisible();
     await expect(page.getByText("Merma controlada E2E")).toBeVisible();
-    await expect(
-      rowContaining(page, "Compra proveedor E2E"),
-    ).toContainText("COCA-600 · 7501055300075 · Coca-Cola 600 ml");
+    await expect(byTestId(page, "inventory-movement-movement-2")).toContainText(
+      "COCA-600",
+    );
+    await expect(byTestId(page, "inventory-movement-movement-2")).toContainText(
+      "7501055300075",
+    );
+    await expect(byTestId(page, "inventory-movement-movement-2")).toContainText(
+      "Coca-Cola 600 ml",
+    );
   });
 });

@@ -886,6 +886,7 @@ export function InventoryMovementTimeline({
 
                 <Card
                   variant="outlined"
+                  data-testid={`inventory-movement-${movement.id}`}
                   sx={(theme) => ({
                     borderColor: alpha(theme.palette[meta.color].main, 0.24),
                     backgroundColor: alpha(
