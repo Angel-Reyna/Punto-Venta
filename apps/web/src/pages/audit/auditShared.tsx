@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import {
   Box,
   Card,
@@ -112,6 +114,7 @@ export function formatEntityLabel(tableName: string) {
 }
 
 type ChipColor = "default" | "primary" | "secondary" | "success" | "warning" | "error" | "info";
+type AuditMetricTone = "primary" | "success" | "warning" | "error" | "info";
 
 export function getAuditSeverity(log: Pick<AuditLog, "action" | "tableName">): {
   level: Exclude<AuditSeverity, "">;
@@ -261,29 +264,70 @@ export function buildAuditQuery(filters: AuditFilters) {
 export function AuditMetricCard({
   label,
   value,
-  helper
+  helper,
+  icon,
+  tone = "primary"
 }: {
   label: string;
   value: string | number;
   helper: string;
+  icon?: ReactNode;
+  tone?: AuditMetricTone;
 }) {
   return (
-    <Card sx={{ height: "100%" }}>
+    <Card
+      sx={{
+        height: "100%",
+        border: 1,
+        borderColor: `${tone}.light`,
+        boxShadow: "0 10px 28px rgba(15, 23, 42, 0.06)"
+      }}
+    >
       <CardContent>
-        <Typography variant="body2" color="text.secondary">
-          {label}
-        </Typography>
+        <Stack direction="row" spacing={1.25} alignItems="flex-start">
+          <Box
+            sx={{
+              display: "grid",
+              placeItems: "center",
+              width: 38,
+              height: 38,
+              borderRadius: 2,
+              color: `${tone}.main`,
+              bgcolor: "background.default",
+              border: 1,
+              borderColor: `${tone}.light`
+            }}
+          >
+            {icon}
+          </Box>
 
-        <Typography variant="h5" fontWeight={900} sx={{ mt: 0.5 }}>
-          {value}
-        </Typography>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" color="text.secondary">
+              {label}
+            </Typography>
 
-        <Typography variant="caption" color="text.secondary">
-          {helper}
-        </Typography>
+            <Typography variant="h5" fontWeight={950} sx={{ mt: 0.5, overflowWrap: "anywhere" }}>
+              {value}
+            </Typography>
+
+            <Typography variant="caption" color="text.secondary">
+              {helper}
+            </Typography>
+          </Box>
+        </Stack>
       </CardContent>
     </Card>
   );
+}
+
+function getSeverityBorderColor(color: ChipColor) {
+  if (color === "default") return "divider";
+  return `${color}.light`;
+}
+
+function getSeverityMainColor(color: ChipColor) {
+  if (color === "default") return "text.secondary";
+  return `${color}.main`;
 }
 
 export function AuditLogCard({ log }: { log: AuditLog }) {
@@ -295,132 +339,176 @@ export function AuditLogCard({ log }: { log: AuditLog }) {
   const afterSummary = summarizeAuditData(log.newData);
 
   return (
-    <Card variant="outlined" data-testid={`audit-log-${log.id}`} sx={{ height: "100%" }}>
+    <Card
+      variant="outlined"
+      data-testid={`audit-log-${log.id}`}
+      sx={{
+        height: "100%",
+        borderColor: getSeverityBorderColor(severity.color),
+        boxShadow: "0 12px 30px rgba(15, 23, 42, 0.05)"
+      }}
+    >
       <CardActionArea component="div" disableRipple sx={{ height: "100%", cursor: "default" }}>
         <CardContent>
-          <Stack spacing={1.5}>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1}
-              alignItems={{ xs: "flex-start", sm: "center" }}
-              justifyContent="space-between"
+          <Stack direction="row" spacing={2} alignItems="stretch">
+            <Box
+              aria-hidden
+              sx={{
+                display: { xs: "none", sm: "flex" },
+                flexDirection: "column",
+                alignItems: "center",
+                pt: 0.5
+              }}
             >
-              <Box>
-                <Typography variant="subtitle1" fontWeight={900} sx={{ overflowWrap: "anywhere" }}>
-                  {actionLabel}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {formatDate(log.createdAt)}
-                </Typography>
-              </Box>
+              <Box
+                sx={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  bgcolor: getSeverityMainColor(severity.color),
+                  boxShadow: 2
+                }}
+              />
+              <Box sx={{ width: 2, flex: 1, bgcolor: getSeverityBorderColor(severity.color), mt: 1 }} />
+            </Box>
 
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                <Chip size="small" label={`Severidad ${severity.label}`} color={severity.color} />
-                <Chip size="small" label={result.label} color={result.color} variant="outlined" />
-              </Stack>
-            </Stack>
-
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-              <Chip size="small" label={log.action} color="default" variant="outlined" />
-              <Chip size="small" label={entityLabel} color="primary" variant="outlined" />
-            </Stack>
-
-            <Typography variant="caption" color="text.secondary">
-              {severity.helper}
-            </Typography>
-
-            <Divider />
-
-            <Grid container spacing={1.5}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Actor
-                </Typography>
+            <Stack spacing={1.5} sx={{ minWidth: 0, flex: 1 }}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                alignItems={{ xs: "flex-start", sm: "center" }}
+                justifyContent="space-between"
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="subtitle1" fontWeight={950} sx={{ overflowWrap: "anywhere" }}>
+                    {actionLabel}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {formatDate(log.createdAt)}
+                  </Typography>
+                </Box>
 
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                  <Typography fontWeight={800} sx={{ overflowWrap: "anywhere" }}>
-                    {log.user?.name ?? "Sistema"}
-                  </Typography>
-
-                  <Chip
-                    size="small"
-                    label={formatRole(log.user?.role)}
-                    color={log.user?.role === "ADMIN" ? "primary" : "success"}
-                    variant="outlined"
-                  />
+                  <Chip size="small" label={`Severidad ${severity.label}`} color={severity.color} />
+                  <Chip size="small" label={result.label} color={result.color} variant="outlined" />
                 </Stack>
+              </Stack>
 
-                {log.user?.email && (
-                  <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
-                    {log.user.email}
-                  </Typography>
-                )}
-              </Grid>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Chip size="small" label={log.action} color="default" variant="outlined" />
+                <Chip size="small" label={entityLabel} color="primary" variant="outlined" />
+              </Stack>
 
-              <Grid item xs={12} md={6}>
+              <Box
+                sx={{
+                  border: 1,
+                  borderColor: getSeverityBorderColor(severity.color),
+                  borderRadius: 2,
+                  p: 1,
+                  bgcolor: "background.default"
+                }}
+              >
                 <Typography variant="caption" color="text.secondary">
-                  Entidad afectada
+                  Criterio de prioridad
                 </Typography>
-                <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
-                  {entityLabel} · {log.recordId || "sin registro específico"}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  IP: {log.ipAddress || "No disponible"}
-                </Typography>
+                <Typography variant="body2">{severity.helper}</Typography>
+              </Box>
+
+              <Grid container spacing={1.5}>
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, height: "100%" }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Actor
+                    </Typography>
+
+                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                      <Typography fontWeight={850} sx={{ overflowWrap: "anywhere" }}>
+                        {log.user?.name ?? "Sistema"}
+                      </Typography>
+
+                      <Chip
+                        size="small"
+                        label={formatRole(log.user?.role)}
+                        color={log.user?.role === "ADMIN" ? "primary" : "success"}
+                        variant="outlined"
+                      />
+                    </Stack>
+
+                    {log.user?.email && (
+                      <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
+                        {log.user.email}
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, height: "100%" }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Entidad afectada
+                    </Typography>
+                    <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
+                      {entityLabel} · {log.recordId || "sin registro específico"}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      IP: {log.ipAddress || "No disponible"}
+                    </Typography>
+                  </Box>
+                </Grid>
               </Grid>
-            </Grid>
 
-            <Divider />
+              <Divider />
 
-            <Grid container spacing={1.5}>
-              <Grid item xs={12} md={6}>
-                <Box
-                  data-testid={`audit-before-${log.id}`}
-                  sx={{
-                    border: 1,
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    p: 1,
-                    bgcolor: "background.default"
-                  }}
-                >
-                  <Typography variant="caption" color="text.secondary">
-                    Antes
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    component="pre"
-                    sx={{ m: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "monospace" }}
+              <Grid container spacing={1.5}>
+                <Grid item xs={12} md={6}>
+                  <Box
+                    data-testid={`audit-before-${log.id}`}
+                    sx={{
+                      border: 1,
+                      borderColor: "divider",
+                      borderRadius: 2,
+                      p: 1.25,
+                      bgcolor: "background.default"
+                    }}
                   >
-                    {beforeSummary}
-                  </Typography>
-                </Box>
-              </Grid>
+                    <Typography variant="caption" color="text.secondary">
+                      Antes
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      component="pre"
+                      sx={{ m: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "monospace" }}
+                    >
+                      {beforeSummary}
+                    </Typography>
+                  </Box>
+                </Grid>
 
-              <Grid item xs={12} md={6}>
-                <Box
-                  data-testid={`audit-after-${log.id}`}
-                  sx={{
-                    border: 1,
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    p: 1,
-                    bgcolor: "background.default"
-                  }}
-                >
-                  <Typography variant="caption" color="text.secondary">
-                    Después
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    component="pre"
-                    sx={{ m: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "monospace" }}
+                <Grid item xs={12} md={6}>
+                  <Box
+                    data-testid={`audit-after-${log.id}`}
+                    sx={{
+                      border: 1,
+                      borderColor: "divider",
+                      borderRadius: 2,
+                      p: 1.25,
+                      bgcolor: "background.default"
+                    }}
                   >
-                    {afterSummary}
-                  </Typography>
-                </Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Después
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      component="pre"
+                      sx={{ m: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "monospace" }}
+                    >
+                      {afterSummary}
+                    </Typography>
+                  </Box>
+                </Grid>
               </Grid>
-            </Grid>
+            </Stack>
           </Stack>
         </CardContent>
       </CardActionArea>
