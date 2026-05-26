@@ -7,6 +7,7 @@ import {
   Card,
   CardContent,
   Chip,
+  Divider,
   Grid,
   MenuItem,
   Stack,
@@ -30,6 +31,7 @@ import {
   formatRelativeLastUpdated,
   matchesSearch,
   Seller,
+  SellerAction,
   SellerActivityCard,
   SellerActivityLog,
   SELLER_ACTIVITY_AUTO_REFRESH_INTERVAL_MS,
@@ -39,8 +41,36 @@ import {
   summarizeActivity,
 } from "./seller-activity/sellerActivityShared";
 
+const DEFAULT_LIMIT = 200;
+
+function toDateInputValue(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function getRelativeDateInputValue(daysBack: number) {
+  const value = new Date();
+  value.setDate(value.getDate() - daysBack);
+
+  return toDateInputValue(value);
+}
+
+function getActionLabel(value: string) {
+  if (!value) return "Todas las acciones";
+
+  return sellerActions.includes(value as SellerAction)
+    ? actionLabels[value as SellerAction]
+    : value;
+}
+
+function getDateRangeLabel(from: string, to: string) {
+  if (!from || !to) return "Periodo inválido";
+  if (from === to) return from;
+
+  return `${from} → ${to}`;
+}
+
 export function SellerActivityPage() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toDateInputValue(new Date());
 
   const [rows, setRows] = useState<SellerActivityLog[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
@@ -50,7 +80,7 @@ export function SellerActivityPage() {
   const [action, setAction] = useState("");
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(today);
-  const [limit, setLimit] = useState(200);
+  const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [search, setSearch] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
@@ -142,12 +172,29 @@ export function SellerActivityPage() {
   const autoRefreshIntervalSeconds = Math.round(
     SELLER_ACTIVITY_AUTO_REFRESH_INTERVAL_MS / 1000,
   );
+  const selectedSeller = sellers.find((seller) => seller.id === sellerId);
+  const activeFilterLabels = [
+    `Periodo: ${getDateRangeLabel(from, to)}`,
+    `Vendedor: ${selectedSeller ? selectedSeller.name : "Todos"}`,
+    `Acción: ${getActionLabel(action)}`,
+    search.trim() ? `Texto: ${search.trim()}` : "Texto: sin búsqueda local",
+    `Límite: ${limit}`,
+  ];
+
+  function resetFilters() {
+    setSellerId("");
+    setAction("");
+    setFrom(today);
+    setTo(today);
+    setLimit(DEFAULT_LIMIT);
+    setSearch("");
+  }
 
   return (
     <>
       <PageHeader
-        title="Historial de vendedores"
-        subtitle="Consulta actividad operativa, ventas registradas y accesos bloqueados por vendedor."
+        title="Actividad de vendedores"
+        subtitle="Revisa ventas, consultas operativas e intentos de acceso por vendedor con una vista clara de filtros y eventos."
       />
 
       <Stack
@@ -162,8 +209,8 @@ export function SellerActivityPage() {
           icon={<SecurityIcon />}
         />
         <Typography variant="body2" color="text.secondary">
-          Este historial ayuda a revisar operación diaria y detectar intentos de
-          acceso no permitidos.
+          Usa esta vista para supervisar la operación diaria, investigar ventas
+          específicas y detectar accesos no permitidos.
         </Typography>
         <Chip
           color={isAutoRefreshPaused ? "warning" : "success"}
@@ -181,6 +228,40 @@ export function SellerActivityPage() {
           {relativeLastUpdated}
         </Typography>
       </Stack>
+
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={4}>
+              <Typography variant="overline" color="text.secondary">
+                1. Enfoca
+              </Typography>
+              <Typography fontWeight={900}>Vendedor, acción y periodo</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Reduce ruido antes de revisar eventos operativos.
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Typography variant="overline" color="text.secondary">
+                2. Prioriza
+              </Typography>
+              <Typography fontWeight={900}>Ventas y accesos bloqueados</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Los atajos resaltan los eventos que suelen requerir revisión.
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Typography variant="overline" color="text.secondary">
+                3. Investiga
+              </Typography>
+              <Typography fontWeight={900}>Búsqueda local sin perder filtros</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Pausa la actualización automática si estás revisando un caso.
+              </Typography>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -221,19 +302,80 @@ export function SellerActivityPage() {
 
       <Card sx={{ mb: 2 }}>
         <CardContent>
-          <Stack spacing={2}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <PersonSearchIcon color="action" />
-              <Box>
-                <Typography variant="h6" fontWeight={900}>
-                  Filtros de actividad
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Consulta por vendedor, acción, rango de fechas y texto dentro
-                  de resultados.
-                </Typography>
-              </Box>
+          <Stack spacing={2.5}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              justifyContent="space-between"
+              alignItems={{ xs: "flex-start", sm: "center" }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center">
+                <PersonSearchIcon color="action" />
+                <Box>
+                  <Typography variant="h6" fontWeight={900}>
+                    Filtros de actividad
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Filtra el historial y después usa la búsqueda local para
+                    afinar resultados ya cargados.
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                data-testid="seller-activity-shortcuts"
+              >
+                <Button
+                  size="small"
+                  variant={action === "SALE_CREATED" ? "contained" : "outlined"}
+                  data-testid="seller-activity-quick-sales"
+                  onClick={() => setAction("SALE_CREATED")}
+                  disabled={isLoading}
+                >
+                  Solo ventas
+                </Button>
+                <Button
+                  size="small"
+                  color="error"
+                  variant={
+                    action === "FAILED_ACCESS_ATTEMPT" ? "contained" : "outlined"
+                  }
+                  data-testid="seller-activity-quick-blocked"
+                  onClick={() => setAction("FAILED_ACCESS_ATTEMPT")}
+                  disabled={isLoading}
+                >
+                  Accesos bloqueados
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  data-testid="seller-activity-quick-week"
+                  onClick={() => {
+                    setFrom(getRelativeDateInputValue(6));
+                    setTo(today);
+                  }}
+                  disabled={isLoading}
+                >
+                  Últimos 7 días
+                </Button>
+              </Stack>
             </Stack>
+
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              flexWrap="wrap"
+              data-testid="seller-activity-active-filters"
+            >
+              {activeFilterLabels.map((label) => (
+                <Chip key={label} size="small" label={label} variant="outlined" />
+              ))}
+            </Stack>
+
+            <Divider />
 
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
@@ -340,14 +482,7 @@ export function SellerActivityPage() {
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 <Button
                   data-testid="seller-activity-clear-button"
-                  onClick={() => {
-                    setSellerId("");
-                    setAction("");
-                    setFrom(today);
-                    setTo(today);
-                    setLimit(200);
-                    setSearch("");
-                  }}
+                  onClick={resetFilters}
                   disabled={isLoading}
                 >
                   Limpiar
@@ -398,16 +533,24 @@ export function SellerActivityPage() {
         )}
       </Grid>
 
+      <Stack spacing={1.5} sx={{ mb: 2 }} data-testid="seller-activity-results-heading">
+        <Typography variant="h6" fontWeight={900}>
+          Eventos encontrados
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {visibleRows.length} de {rows.length} movimientos visibles con la
+          búsqueda local actual. Los filtros de servidor se aplican al consultar.
+        </Typography>
+      </Stack>
+
       {visibleRows.length === 0 ? (
         <EmptyActivityMessage />
       ) : (
-        <Grid container spacing={2}>
+        <Stack spacing={2} data-testid="seller-activity-results-list">
           {visibleRows.map((log) => (
-            <Grid item xs={12} lg={6} key={log.id}>
-              <SellerActivityCard log={log} />
-            </Grid>
+            <SellerActivityCard key={log.id} log={log} />
           ))}
-        </Grid>
+        </Stack>
       )}
     </>
   );

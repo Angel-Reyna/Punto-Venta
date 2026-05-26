@@ -114,7 +114,7 @@ test.describe("cobertura funcional administrativa", () => {
 
     await page.goto("/seller-activity");
 
-    await expect(page.getByRole("heading", { name: "Historial de vendedores", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Actividad de vendedores", level: 1 })).toBeVisible();
     await expect(byTestId(page, "seller-activity-refresh-status")).toContainText("Auto-refresh activo");
     await expect(byTestId(page, "seller-activity-refresh-helper")).toContainText(
       "sin reiniciar búsqueda ni filtros",
@@ -126,6 +126,23 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(byTestId(page, "seller-activity-log-seller-activity-3")).toContainText(
       "Acceso bloqueado a Reportes",
     );
+    await expect(byTestId(page, "seller-activity-shortcuts")).toContainText("Solo ventas");
+    await expect(byTestId(page, "seller-activity-shortcuts")).toContainText("Accesos bloqueados");
+    await expect(byTestId(page, "seller-activity-active-filters")).toContainText(
+      "Acción: Todas las acciones",
+    );
+    await expect(byTestId(page, "seller-activity-results-heading")).toContainText(
+      "3 de 3 movimientos visibles",
+    );
+
+    await clickByTestId(page, "seller-activity-quick-sales");
+    await expect(byTestId(page, "seller-activity-active-filters")).toContainText(
+      "Acción: Venta registrada",
+    );
+    await clickByTestId(page, "seller-activity-consult-button");
+
+    await expect(byTestId(page, "seller-activity-log-seller-activity-1")).toBeVisible();
+    await expect(byTestId(page, "seller-activity-log-seller-activity-3")).toHaveCount(0);
 
     await page.getByRole("combobox", { name: "Acción" }).click();
     await page.getByRole("option", { name: "Acceso bloqueado" }).click();
