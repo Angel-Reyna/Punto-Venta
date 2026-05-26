@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 
 import {
   Alert,
+  Box,
   Button,
+  Card,
+  CardContent,
   Chip,
   Grid,
   LinearProgress,
@@ -11,6 +14,7 @@ import {
 } from "@mui/material";
 
 import InventoryIcon from "@mui/icons-material/Inventory2";
+import InsightsIcon from "@mui/icons-material/Insights";
 import PaidIcon from "@mui/icons-material/Paid";
 import PeopleIcon from "@mui/icons-material/People";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
@@ -67,6 +71,25 @@ export function DashboardPage() {
   const hasCriticalStock = (metrics?.productSummary.outOfStockTotal ?? 0) > 0;
   const hasLowStock = (metrics?.productSummary.lowStockTotal ?? 0) > 0;
   const salesDestination = can(PERMISSIONS.ReportsRead) ? "/reports" : "/sales";
+  const operationalStateLabel = hasCriticalStock
+    ? "Atención crítica"
+    : hasLowStock
+      ? "Reposición sugerida"
+      : "Operación estable";
+  const operationalStateColor = hasCriticalStock
+    ? "error"
+    : hasLowStock
+      ? "warning"
+      : "success";
+  const generatedAtLabel = metrics?.generatedAt
+    ? new Intl.DateTimeFormat("es-MX", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(metrics.generatedAt))
+    : "Sin actualizar";
+
 
   return (
     <>
@@ -97,6 +120,105 @@ export function DashboardPage() {
           {error}
         </Alert>
       )}
+
+      <Card
+        data-testid="dashboard-operational-hero"
+        sx={{
+          mb: 2.5,
+          borderRadius: 5,
+          border: "1px solid",
+          borderColor: "divider",
+          background:
+            "linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(34, 197, 94, 0.10) 45%, rgba(248, 250, 252, 1) 100%)",
+          boxShadow: "0 18px 45px rgba(15, 23, 42, 0.08)",
+          overflow: "hidden",
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2.25, md: 3 } }}>
+          <Grid container spacing={2.5} alignItems="center">
+            <Grid item xs={12} md={7}>
+              <Stack spacing={1.5}>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Chip
+                    icon={<InsightsIcon />}
+                    color={operationalStateColor}
+                    label={operationalStateLabel}
+                    size="small"
+                  />
+                  <Chip
+                    label={
+                      metrics?.salesToday.scope === "cashier"
+                        ? "Vista de vendedor"
+                        : "Vista global"
+                    }
+                    size="small"
+                    variant="outlined"
+                  />
+                </Stack>
+
+                <Box>
+                  <Typography variant="h5" fontWeight={950} gutterBottom>
+                    Resumen operativo en tiempo real
+                  </Typography>
+                  <Typography color="text.secondary" sx={{ maxWidth: 760 }}>
+                    Prioriza ventas, reposición e incidencias desde una sola
+                    lectura. La venta en efectivo sigue independiente de Caja;
+                    Caja solo ayuda a controlar entregas y cortes.
+                  </Typography>
+                </Box>
+              </Stack>
+            </Grid>
+
+            <Grid item xs={12} md={5}>
+              <Grid container spacing={1.5}>
+                <Grid item xs={6}>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 3,
+                      bgcolor: "rgba(255, 255, 255, 0.78)",
+                      border: "1px solid rgba(148, 163, 184, 0.28)",
+                    }}
+                  >
+                    <Typography color="text.secondary" variant="caption">
+                      Vendido hoy
+                    </Typography>
+                    <Typography fontWeight={950}>
+                      {formatMoney(metrics?.salesToday.total)}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={6}>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 3,
+                      bgcolor: "rgba(255, 255, 255, 0.78)",
+                      border: "1px solid rgba(148, 163, 184, 0.28)",
+                    }}
+                  >
+                    <Typography color="text.secondary" variant="caption">
+                      Productos activos
+                    </Typography>
+                    <Typography fontWeight={950}>
+                      {formatNumber(metrics?.productSummary.active)}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography
+                    color="text.secondary"
+                    variant="caption"
+                    sx={{ display: "block", textAlign: { xs: "left", md: "right" } }}
+                  >
+                    Última actualización: {generatedAtLabel}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
 
       {!hasMetrics && isLoading ? (
         <DashboardSkeleton />

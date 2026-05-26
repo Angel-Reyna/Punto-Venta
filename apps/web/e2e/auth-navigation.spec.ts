@@ -11,7 +11,8 @@ test.describe("autenticación y navegación principal", () => {
     await page.getByLabel("Contraseña").fill("Admin12345DevOnly");
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
 
-    await expect(page.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByTestId("dashboard-operational-hero")).toBeVisible();
     await expect(page.getByRole("button", { name: /Ver usuarios/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Usuarios/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Reportes/i })).toBeVisible();
