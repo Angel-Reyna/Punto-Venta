@@ -1,16 +1,21 @@
 import type { ReactNode } from "react";
 
 import {
+  Avatar,
   Box,
   Card,
   CardContent,
   Divider,
+  Stack,
   Typography,
   type ChipProps
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
 import { LabelWithInfo } from "../../components/InfoTooltip";
 import { valuesIncludeSearchText } from "../../utils/text";
+
+type MetricCardTone = "primary" | "success" | "warning" | "error" | "info";
 
 export type MoneySummary = Record<string, number>;
 
@@ -198,25 +203,57 @@ export function MetricCard({
   label,
   value,
   helper,
-  info
+  info,
+  icon,
+  tone = "primary"
 }: {
   label: string;
   value: string | number;
   helper: string;
   info: string;
+  icon?: ReactNode;
+  tone?: MetricCardTone;
 }) {
   return (
-    <Card sx={{ height: "100%" }}>
+    <Card
+      sx={{
+        height: "100%",
+        border: "1px solid",
+        borderColor: (theme) => alpha(theme.palette[tone].main, 0.18),
+        background: (theme) =>
+          `linear-gradient(135deg, ${alpha(theme.palette[tone].main, 0.1)} 0%, ${alpha(
+            theme.palette.background.paper,
+            0.96
+          )} 58%)`
+      }}
+    >
       <CardContent>
-        <Typography color="text.secondary">
-          <LabelWithInfo label={label} info={info} ariaLabel={info} />
-        </Typography>
-        <Typography variant="h5" fontWeight={800} sx={{ mt: 0.5 }}>
-          {value}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" mt={0.5}>
-          {helper}
-        </Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography color="text.secondary">
+              <LabelWithInfo label={label} info={info} ariaLabel={info} />
+            </Typography>
+            <Typography variant="h5" fontWeight={900} sx={{ mt: 0.5, overflowWrap: "anywhere" }}>
+              {value}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" mt={0.5}>
+              {helper}
+            </Typography>
+          </Box>
+
+          {icon && (
+            <Avatar
+              sx={{
+                bgcolor: (theme) => alpha(theme.palette[tone].main, 0.12),
+                color: (theme) => theme.palette[tone].main,
+                width: 44,
+                height: 44
+              }}
+            >
+              {icon}
+            </Avatar>
+          )}
+        </Stack>
       </CardContent>
     </Card>
   );
@@ -232,7 +269,16 @@ export function ReportPanel({
   children: ReactNode;
 }) {
   return (
-    <Card component="section" aria-label={title} sx={{ height: "100%" }}>
+    <Card
+      component="section"
+      aria-label={title}
+      sx={{
+        height: "100%",
+        border: "1px solid",
+        borderColor: "divider",
+        boxShadow: "0 12px 36px rgba(15, 23, 42, 0.06)"
+      }}
+    >
       <CardContent>
         <Typography variant="h6" fontWeight={800}>
           {title}

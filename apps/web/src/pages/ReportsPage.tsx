@@ -1,5 +1,16 @@
 import { useMemo, useState } from "react";
 
+import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
+import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
+import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
+import PointOfSaleOutlinedIcon from "@mui/icons-material/PointOfSaleOutlined";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
+import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import {
   Alert,
   Box,
@@ -8,14 +19,15 @@ import {
   CardContent,
   Chip,
   Grid,
+  InputAdornment,
   Stack,
   TextField,
   Typography
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
 import { api } from "../api/client";
 import { LabelWithInfo } from "../components/InfoTooltip";
-import { PageHeader } from "../components/PageHeader";
 import { StatusFeedback } from "../components/StatusFeedback";
 import { getApiErrorMessage } from "../utils/apiError";
 import { downloadBlob } from "../utils/downloadBlob";
@@ -113,25 +125,33 @@ export function ReportsPage() {
         label: "Ventas registradas",
         value: data?.sales.count ?? 0,
         helper: "Incluye completadas, canceladas y con devolución.",
-        info: REPORT_INFO_TEXT.salesCount
+        info: REPORT_INFO_TEXT.salesCount,
+        icon: <ReceiptLongOutlinedIcon fontSize="small" />,
+        tone: "primary" as const
       },
       {
         label: "Venta bruta",
         value: formatMoney(data?.sales.gross),
         helper: "Ventas no canceladas antes de devoluciones.",
-        info: REPORT_INFO_TEXT.grossSales
+        info: REPORT_INFO_TEXT.grossSales,
+        icon: <PointOfSaleOutlinedIcon fontSize="small" />,
+        tone: "success" as const
       },
       {
         label: "Devoluciones",
         value: formatMoney(data?.sales.refunded),
         helper: "Reembolsos registrados dentro del periodo.",
-        info: REPORT_INFO_TEXT.refunds
+        info: REPORT_INFO_TEXT.refunds,
+        icon: <AssignmentReturnOutlinedIcon fontSize="small" />,
+        tone: "warning" as const
       },
       {
         label: "Venta neta",
         value: formatMoney(data?.sales.net),
         helper: "Venta bruta menos devoluciones.",
-        info: REPORT_INFO_TEXT.netSales
+        info: REPORT_INFO_TEXT.netSales,
+        icon: <TrendingUpOutlinedIcon fontSize="small" />,
+        tone: "info" as const
       }
     ],
     [data]
@@ -195,21 +215,95 @@ export function ReportsPage() {
     data && (data.cashRegister.movements.count > 0 || data.cashRegister.sessions.length > 0)
   );
 
+  const visibleResultsLabel = data
+    ? `${filteredSellers.length} vendedores · ${filteredTopProducts.length} productos · ${filteredRecentSales.length} ventas · ${filteredReturns.length} devoluciones`
+    : "Consulta un periodo para ver indicadores operativos";
+
   return (
     <>
-      <PageHeader
-        title="Reportes"
-        subtitle="Consulta ventas netas, devoluciones, productos vendidos y desempeño por vendedor."
-      />
+      <Card
+        sx={{
+          mb: 2,
+          overflow: "hidden",
+          border: "1px solid",
+          borderColor: (theme) => alpha(theme.palette.primary.main, 0.18),
+          background: (theme) =>
+            `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.14)} 0%, ${alpha(
+              theme.palette.info.main,
+              0.1
+            )} 44%, ${theme.palette.background.paper} 100%)`
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", md: "center" }}
+            gap={2.5}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 1.5 }}>
+                <Chip color="primary" label="Reporte operativo ADMIN" />
+                <Chip variant="outlined" label={`Periodo: ${periodLabel}`} />
+                <Chip
+                  variant="outlined"
+                  color={data ? "success" : "default"}
+                  label={data ? "Datos consultados" : "Pendiente de consulta"}
+                />
+              </Stack>
+              <Typography variant="h4" fontWeight={900} sx={{ letterSpacing: -0.4 }}>
+                Reportes
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 760 }}>
+                Revisa ventas netas, devoluciones, productos vendidos y desempeño por vendedor con
+                indicadores rápidos y detalle operativo.
+              </Typography>
+            </Box>
 
-      <Box sx={{ mb: 2 }}>
-        <Chip color="primary" label="Reporte operativo ADMIN" />
-      </Box>
+            <Stack
+              direction={{ xs: "row", sm: "row" }}
+              flexWrap="wrap"
+              gap={1}
+              sx={{ justifyContent: { xs: "flex-start", md: "flex-end" } }}
+            >
+              <Chip icon={<PeopleAltOutlinedIcon />} label={`${data?.sales.bySeller.length ?? 0} vendedores`} />
+              <Chip
+                icon={<Inventory2OutlinedIcon />}
+                label={`${data?.topProducts.length ?? 0} productos`}
+              />
+              <Chip
+                icon={<PaymentsOutlinedIcon />}
+                label={formatMoney(data?.sales.net)}
+                color={data ? "success" : "default"}
+              />
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
 
       <StatusFeedback error={error} onErrorClose={() => setError("")} />
 
-      <Card sx={{ mb: 2 }}>
+      <Card
+        sx={{
+          mb: 2,
+          border: "1px solid",
+          borderColor: "divider",
+          boxShadow: "0 12px 36px rgba(15, 23, 42, 0.06)"
+        }}
+      >
         <CardContent>
+          <Stack direction="row" alignItems="center" gap={1.25} sx={{ mb: 2 }}>
+            <FilterAltOutlinedIcon color="primary" />
+            <Box>
+              <Typography variant="h6" fontWeight={800}>
+                Consulta del periodo
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Define el rango, consulta y descarga el PDF sin cambiar de pantalla.
+              </Typography>
+            </Box>
+          </Stack>
+
           <Box
             sx={{
               display: "grid",
@@ -248,6 +342,7 @@ export function ReportsPage() {
               fullWidth
               variant="contained"
               data-testid="reports-consult-button"
+              startIcon={<CalendarMonthOutlinedIcon />}
               onClick={consult}
               disabled={dateRangeIsInvalid || isLoading || isDownloadingPdf}
             >
@@ -258,6 +353,7 @@ export function ReportsPage() {
               fullWidth
               variant="outlined"
               data-testid="reports-download-pdf-button"
+              startIcon={<FileDownloadOutlinedIcon />}
               onClick={downloadPdf}
               disabled={dateRangeIsInvalid || isLoading || isDownloadingPdf}
             >
@@ -268,16 +364,36 @@ export function ReportsPage() {
       </Card>
 
       {data && (
-        <Card sx={{ mb: 2 }}>
+        <Card
+          sx={{
+            mb: 2,
+            border: "1px solid",
+            borderColor: "divider",
+            bgcolor: (theme) => alpha(theme.palette.background.paper, 0.92)
+          }}
+        >
           <CardContent>
-            <TextField
-              fullWidth
-              label="Buscar dentro del reporte"
-              placeholder="Folio, vendedor, producto, método de pago, estado..."
-              value={search}
-              inputProps={{ "data-testid": "reports-search" }}
-              onChange={(event) => setSearch(event.target.value)}
-            />
+            <Stack spacing={1.5}>
+              <TextField
+                fullWidth
+                label="Buscar dentro del reporte"
+                placeholder="Folio, vendedor, producto, método de pago, estado..."
+                value={search}
+                inputProps={{ "data-testid": "reports-search" }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchOutlinedIcon fontSize="small" />
+                    </InputAdornment>
+                  )
+                }}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              <Stack direction="row" flexWrap="wrap" gap={1}>
+                <Chip size="small" variant="outlined" label={`Vista actual: ${visibleResultsLabel}`} />
+                {search && <Chip size="small" color="primary" label={`Filtro local: ${search}`} />}
+              </Stack>
+            </Stack>
           </CardContent>
         </Card>
       )}
