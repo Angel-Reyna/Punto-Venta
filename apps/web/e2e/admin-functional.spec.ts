@@ -15,6 +15,10 @@ test.describe("cobertura funcional administrativa", () => {
     await page.goto("/users");
 
     await expect(page.getByRole("heading", { name: "Usuarios y vendedores", level: 1 })).toBeVisible();
+    await expect(page.getByText("Control de accesos interno")).toBeVisible();
+    await expect(byTestId(page, "users-hero-chips")).toContainText("activos");
+    await expect(byTestId(page, "users-active-filters")).toContainText("Rol: Todos los roles");
+    await expect(byTestId(page, "users-results-heading")).toContainText("3 de 3 usuarios visibles");
     await expect(byTestId(page, "user-card-seller-e2e")).toContainText("Vendedor E2E");
 
     await fillByTestId(page, "users-form-name", "Vendedor Funcional E2E");

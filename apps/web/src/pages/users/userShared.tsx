@@ -12,6 +12,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { alpha, type Theme } from "@mui/material/styles";
 
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
@@ -161,25 +162,82 @@ export function filterUsers(
   });
 }
 
+type SummaryTone = "success" | "seller" | "admin" | "inactive";
+
 type SummaryCardProps = {
+  helper: string;
   icon: ReactNode;
   label: string;
+  tone: SummaryTone;
   value: number;
-  helper: string;
 };
 
-export function SummaryCard({ icon, label, value, helper }: SummaryCardProps) {
+function getSummaryToneColors(theme: Theme, tone: SummaryTone) {
+  if (tone === "admin") {
+    return {
+      border: alpha(theme.palette.primary.main, 0.28),
+      iconBg: alpha(theme.palette.primary.main, 0.12),
+      iconColor: theme.palette.primary.main,
+      surface: alpha(theme.palette.primary.light, 0.08),
+    };
+  }
+
+  if (tone === "seller") {
+    return {
+      border: alpha(theme.palette.info.main, 0.28),
+      iconBg: alpha(theme.palette.info.main, 0.12),
+      iconColor: theme.palette.info.main,
+      surface: alpha(theme.palette.info.light, 0.08),
+    };
+  }
+
+  if (tone === "inactive") {
+    return {
+      border: theme.palette.divider,
+      iconBg: theme.palette.action.hover,
+      iconColor: theme.palette.text.secondary,
+      surface: alpha(theme.palette.action.disabledBackground, 0.35),
+    };
+  }
+
+  return {
+    border: alpha(theme.palette.success.main, 0.28),
+    iconBg: alpha(theme.palette.success.main, 0.12),
+    iconColor: theme.palette.success.main,
+    surface: alpha(theme.palette.success.light, 0.08),
+  };
+}
+
+export function SummaryCard({ helper, icon, label, tone, value }: SummaryCardProps) {
   return (
-    <Card variant="outlined" sx={{ height: "100%" }}>
+    <Card
+      variant="outlined"
+      sx={(theme) => {
+        const colors = getSummaryToneColors(theme, tone);
+
+        return {
+          background: `linear-gradient(135deg, ${alpha(
+            theme.palette.background.paper,
+            0.98,
+          )} 0%, ${colors.surface} 100%)`,
+          borderColor: colors.border,
+          height: "100%",
+        };
+      }}
+    >
       <CardContent>
         <Stack direction="row" spacing={1.5} alignItems="flex-start">
           <Avatar
             variant="rounded"
-            sx={{
-              bgcolor: "action.hover",
-              color: "text.primary",
-              height: 40,
-              width: 40,
+            sx={(theme) => {
+              const colors = getSummaryToneColors(theme, tone);
+
+              return {
+                bgcolor: colors.iconBg,
+                color: colors.iconColor,
+                height: 44,
+                width: 44,
+              };
             }}
           >
             {icon}
@@ -188,7 +246,7 @@ export function SummaryCard({ icon, label, value, helper }: SummaryCardProps) {
             <Typography variant="body2" color="text.secondary">
               {label}
             </Typography>
-            <Typography variant="h5" fontWeight={800}>
+            <Typography variant="h4" fontWeight={900} lineHeight={1.1}>
               {value}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -229,15 +287,36 @@ export function UserCard({
     <Card
       variant="outlined"
       data-testid={`user-card-${targetUser.id}`}
-      sx={{
+      sx={(theme) => ({
         borderColor: targetUser.isActive
-          ? "divider"
+          ? alpha(
+              targetUser.role === "ADMIN"
+                ? theme.palette.primary.main
+                : theme.palette.info.main,
+              0.2,
+            )
           : "action.disabledBackground",
+        boxShadow: targetUser.isActive ? theme.shadows[1] : "none",
         height: "100%",
         opacity: targetUser.isActive ? 1 : 0.82,
-      }}
+        overflow: "hidden",
+        position: "relative",
+        "&::before": {
+          bgcolor: targetUser.isActive
+            ? targetUser.role === "ADMIN"
+              ? "primary.main"
+              : "info.main"
+            : "action.disabled",
+          content: '""',
+          height: "100%",
+          left: 0,
+          position: "absolute",
+          top: 0,
+          width: 5,
+        },
+      })}
     >
-      <CardContent>
+      <CardContent sx={{ pl: 3 }}>
         <Stack spacing={2}>
           <Stack direction="row" spacing={1.5} alignItems="flex-start">
             <Avatar

@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   Divider,
   FormHelperText,
   MenuItem,
@@ -30,6 +31,7 @@ import { StatusFeedback } from "../components/StatusFeedback";
 import { getApiErrorMessage } from "../utils/apiError";
 import {
   filterUsers,
+  getRoleLabel,
   initialForm,
   initialResetPasswordForm,
   isPasswordValid,
@@ -260,6 +262,18 @@ export function UsersPage() {
   const anyFilterActive =
     Boolean(query.trim()) || roleFilter !== "ALL" || statusFilter !== "ALL";
 
+  const roleFilterLabel =
+    roleFilter === "ALL" ? "Todos los roles" : getRoleLabel(roleFilter);
+  const statusFilterLabel =
+    statusFilter === "ALL"
+      ? "Todos los estados"
+      : statusFilter === "ACTIVE"
+        ? "Activos"
+        : "Inactivos";
+  const inactiveAccessRatio = rows.length
+    ? Math.round((userSummary.inactiveUsers / rows.length) * 100)
+    : 0;
+
   const actionsAreBusy =
     Boolean(togglingUserId) || isUpdatingRole || isResettingPassword;
 
@@ -269,6 +283,73 @@ export function UsersPage() {
         title="Usuarios y vendedores"
         subtitle="Administra accesos internos. Crea vendedores, asigna permisos por rol y bloquea usuarios cuando sea necesario."
       />
+
+      <Card
+        sx={(theme) => ({
+          background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 54%, ${theme.palette.info.dark} 100%)`,
+          color: "primary.contrastText",
+          mb: 2,
+          overflow: "hidden",
+          position: "relative",
+          "&::after": {
+            background:
+              "radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 62%)",
+            content: '""',
+            height: 220,
+            position: "absolute",
+            right: -80,
+            top: -90,
+            width: 220,
+          },
+        })}
+      >
+        <CardContent sx={{ position: "relative", zIndex: 1 }}>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={2}
+            alignItems={{ xs: "flex-start", md: "center" }}
+            justifyContent="space-between"
+          >
+            <Stack spacing={0.75} sx={{ maxWidth: 680 }}>
+              <Typography
+                variant="overline"
+                sx={{ color: "rgba(255,255,255,0.72)", letterSpacing: 1 }}
+              >
+                Control de accesos interno
+              </Typography>
+              <Typography variant="h5" fontWeight={900}>
+                Gestiona vendedores y administradores sin exponer registro público
+              </Typography>
+              <Typography sx={{ color: "rgba(255,255,255,0.78)" }}>
+                Revisa quién puede vender, quién administra la operación y qué
+                accesos deben bloquearse antes de que representen riesgo operativo.
+              </Typography>
+            </Stack>
+
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              flexWrap="wrap"
+              data-testid="users-hero-chips"
+              sx={{ justifyContent: { xs: "flex-start", md: "flex-end" } }}
+            >
+              <Chip
+                label={`${userSummary.activeUsers} activos`}
+                sx={{ bgcolor: "rgba(255,255,255,0.18)", color: "inherit" }}
+              />
+              <Chip
+                label={`${userSummary.sellerUsers} vendedores`}
+                sx={{ bgcolor: "rgba(255,255,255,0.18)", color: "inherit" }}
+              />
+              <Chip
+                label={`${inactiveAccessRatio}% bloqueados`}
+                sx={{ bgcolor: "rgba(255,255,255,0.18)", color: "inherit" }}
+              />
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
 
       <Box
         sx={{
@@ -287,24 +368,28 @@ export function UsersPage() {
           label="Usuarios activos"
           value={userSummary.activeUsers}
           helper="Pueden iniciar sesión."
+          tone="success"
         />
         <SummaryCard
           icon={<BadgeOutlinedIcon />}
           label="Vendedores"
           value={userSummary.sellerUsers}
           helper="Registran ventas."
+          tone="seller"
         />
         <SummaryCard
           icon={<AdminPanelSettingsIcon />}
           label="Administradores"
           value={userSummary.adminUsers}
           helper="Gestionan la operación."
+          tone="admin"
         />
         <SummaryCard
           icon={<BlockOutlinedIcon />}
           label="Inactivos"
           value={userSummary.inactiveUsers}
           helper="Acceso bloqueado."
+          tone="inactive"
         />
       </Box>
 
@@ -315,14 +400,41 @@ export function UsersPage() {
         onErrorClose={() => setError("")}
       />
 
-      <Card sx={{ mb: 2 }}>
+      <Card
+        sx={(theme) => ({
+          border: `1px solid ${theme.palette.divider}`,
+          boxShadow: theme.shadows[1],
+          mb: 2,
+        })}
+      >
         <CardContent>
-          <Stack spacing={0.5} sx={{ mb: 2 }}>
-            <Typography variant="h6">Crear usuario</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Usa este formulario para crear vendedores o administradores. No se
-              permite el registro público desde la pantalla de inicio de sesión.
-            </Typography>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            sx={{ mb: 2 }}
+          >
+            <Box
+              sx={{
+                alignItems: "center",
+                bgcolor: "primary.main",
+                borderRadius: 2,
+                color: "primary.contrastText",
+                display: "flex",
+                height: 44,
+                justifyContent: "center",
+                width: 44,
+              }}
+            >
+              <PersonAddAlt1OutlinedIcon />
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="h6">Crear usuario</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Alta controlada para vendedores o administradores. No se permite
+                el registro público desde la pantalla de inicio de sesión.
+              </Typography>
+            </Box>
           </Stack>
 
           <Divider sx={{ mb: 2 }} />
@@ -434,13 +546,27 @@ export function UsersPage() {
         helperText="Filtra vendedores y administradores sin depender de una tabla horizontal."
       />
 
-      <Card sx={{ mb: 2 }}>
+      <Card
+        variant="outlined"
+        sx={{ mb: 2 }}
+      >
         <CardContent>
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={1.5}
-            alignItems={{ xs: "stretch", md: "center" }}
-          >
+          <Stack spacing={1.5}>
+            <Stack spacing={0.25}>
+              <Typography variant="subtitle1" fontWeight={800}>
+                Panel de búsqueda y filtros
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Enfoca el directorio por rol, estado o texto antes de cambiar
+                permisos sensibles.
+              </Typography>
+            </Stack>
+
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              spacing={1.5}
+              alignItems={{ xs: "stretch", md: "center" }}
+            >
             <TextField
               select
               label="Rol"
@@ -471,28 +597,67 @@ export function UsersPage() {
 
             <Box sx={{ flex: 1 }} />
 
-            <Button
-              variant="outlined"
-              disabled={!anyFilterActive}
-              onClick={() => {
-                setQuery("");
-                setRoleFilter("ALL");
-                setStatusFilter("ALL");
-              }}
+              <Button
+                variant="outlined"
+                disabled={!anyFilterActive}
+                onClick={() => {
+                  setQuery("");
+                  setRoleFilter("ALL");
+                  setStatusFilter("ALL");
+                }}
+              >
+                Limpiar filtros
+              </Button>
+            </Stack>
+
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              flexWrap="wrap"
+              data-testid="users-active-filters"
             >
-              Limpiar filtros
-            </Button>
+              <Chip size="small" label={`Rol: ${roleFilterLabel}`} />
+              <Chip size="small" label={`Estado: ${statusFilterLabel}`} />
+              {query.trim() && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={`Búsqueda: ${query.trim()}`}
+                />
+              )}
+            </Stack>
           </Stack>
         </CardContent>
       </Card>
 
-      <Stack spacing={1} sx={{ mb: 2 }}>
-        <Typography variant="h6">Usuarios registrados</Typography>
-        <Typography variant="body2" color="text.secondary">
-          Desactiva accesos que ya no se usen. Al desactivar un usuario, sus
-          sesiones activas quedan revocadas.
-        </Typography>
-      </Stack>
+      <Card
+        variant="outlined"
+        sx={{ mb: 2 }}
+      >
+        <CardContent>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            justifyContent="space-between"
+          >
+            <Box>
+              <Typography variant="h6">Usuarios registrados</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Desactiva accesos que ya no se usen. Al desactivar un usuario,
+                sus sesiones activas quedan revocadas.
+              </Typography>
+            </Box>
+            <Chip
+              color="primary"
+              data-testid="users-results-heading"
+              label={`${filteredRows.length} de ${rows.length} usuarios visibles`}
+              variant="outlined"
+            />
+          </Stack>
+        </CardContent>
+      </Card>
 
       {isLoading ? (
         <Card variant="outlined">
