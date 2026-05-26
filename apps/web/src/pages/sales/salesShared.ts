@@ -1,6 +1,21 @@
 export type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "MIXED";
 export type SaleStatus = "COMPLETED" | "CANCELLED" | "PARTIALLY_REFUNDED" | "REFUNDED";
 
+export const PAYMENT_METHOD_OPTIONS: Array<{ value: PaymentMethod; label: string }> = [
+  { value: "CASH", label: "Efectivo" },
+  { value: "CARD", label: "Tarjeta" },
+  { value: "TRANSFER", label: "Transferencia" },
+  { value: "MIXED", label: "Mixto" }
+];
+
+export const SALE_STATUS_FILTER_OPTIONS: Array<{ value: SaleStatus | "ALL"; label: string }> = [
+  { value: "ALL", label: "Todos" },
+  { value: "COMPLETED", label: "Completadas" },
+  { value: "CANCELLED", label: "Canceladas" },
+  { value: "PARTIALLY_REFUNDED", label: "Devolución parcial" },
+  { value: "REFUNDED", label: "Devueltas" }
+];
+
 export type Product = {
   id: string;
   sku: string;

@@ -41,10 +41,12 @@ import {
   getFilteredSales,
   getProductById,
   getProductFinalPrice,
+  PAYMENT_METHOD_OPTIONS,
   getReturnableQuantity,
   isCartInvalid,
   saleItemsSummary,
   salePaymentSummary,
+  SALE_STATUS_FILTER_OPTIONS,
   statusColor,
   statusLabel,
   summarizeSales,
@@ -765,10 +767,11 @@ export function SalesPage() {
                     value={paymentMethod}
                     onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
                   >
-                    <MenuItem value="CASH">Efectivo</MenuItem>
-                    <MenuItem value="CARD">Tarjeta</MenuItem>
-                    <MenuItem value="TRANSFER">Transferencia</MenuItem>
-                    <MenuItem value="MIXED">Mixto</MenuItem>
+                    {PAYMENT_METHOD_OPTIONS.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
                   </TextField>
 
 
@@ -885,11 +888,11 @@ export function SalesPage() {
                   }
                   sx={{ minWidth: { xs: "100%", sm: 180 } }}
                 >
-                  <MenuItem value="ALL">Todos</MenuItem>
-                  <MenuItem value="COMPLETED">Completadas</MenuItem>
-                  <MenuItem value="CANCELLED">Canceladas</MenuItem>
-                  <MenuItem value="PARTIALLY_REFUNDED">Devolución parcial</MenuItem>
-                  <MenuItem value="REFUNDED">Devueltas</MenuItem>
+                  {SALE_STATUS_FILTER_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
                 </TextField>
 
                 <TextField
@@ -903,10 +906,11 @@ export function SalesPage() {
                   sx={{ minWidth: { xs: "100%", sm: 180 } }}
                 >
                   <MenuItem value="ALL">Todos</MenuItem>
-                  <MenuItem value="CASH">Efectivo</MenuItem>
-                  <MenuItem value="CARD">Tarjeta</MenuItem>
-                  <MenuItem value="TRANSFER">Transferencia</MenuItem>
-                  <MenuItem value="MIXED">Mixto</MenuItem>
+                  {PAYMENT_METHOD_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
                 </TextField>
               </Stack>
             </Stack>
@@ -1079,10 +1083,11 @@ export function SalesPage() {
             value={cancelRefundMethod}
             onChange={(event) => setCancelRefundMethod(event.target.value as PaymentMethod)}
           >
-            <MenuItem value="CASH">Efectivo</MenuItem>
-            <MenuItem value="CARD">Tarjeta</MenuItem>
-            <MenuItem value="TRANSFER">Transferencia</MenuItem>
-            <MenuItem value="MIXED">Mixto</MenuItem>
+            {PAYMENT_METHOD_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
           </TextField>
 
           <TextField
@@ -1164,10 +1169,11 @@ export function SalesPage() {
             value={returnRefundMethod}
             onChange={(event) => setReturnRefundMethod(event.target.value as PaymentMethod)}
           >
-            <MenuItem value="CASH">Efectivo</MenuItem>
-            <MenuItem value="CARD">Tarjeta</MenuItem>
-            <MenuItem value="TRANSFER">Transferencia</MenuItem>
-            <MenuItem value="MIXED">Mixto</MenuItem>
+            {PAYMENT_METHOD_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
           </TextField>
 
           <TextField

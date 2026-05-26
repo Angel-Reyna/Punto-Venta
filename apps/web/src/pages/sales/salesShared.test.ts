@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { getExactSearchProduct, getFilteredProducts, type Product } from "./salesShared";
+import {
+  PAYMENT_METHOD_OPTIONS,
+  SALE_STATUS_FILTER_OPTIONS,
+  getExactSearchProduct,
+  getFilteredProducts,
+  paymentMethodLabel,
+  type Product
+} from "./salesShared";
 
 const products: Product[] = [
   {
@@ -36,5 +43,26 @@ describe("sales product search", () => {
     expect(getExactSearchProduct(products, "7501055300075")?.id).toBe("product-1");
     expect(getExactSearchProduct(products, "product-1")).toBeUndefined();
     expect(getExactSearchProduct(products, "CAFE-250")).toBeUndefined();
+  });
+});
+
+describe("sales shared options", () => {
+  it("keeps payment method menu options aligned with their labels", () => {
+    expect(PAYMENT_METHOD_OPTIONS).toEqual([
+      { value: "CASH", label: paymentMethodLabel("CASH") },
+      { value: "CARD", label: paymentMethodLabel("CARD") },
+      { value: "TRANSFER", label: paymentMethodLabel("TRANSFER") },
+      { value: "MIXED", label: paymentMethodLabel("MIXED") }
+    ]);
+  });
+
+  it("exposes one centralized sale status filter option list", () => {
+    expect(SALE_STATUS_FILTER_OPTIONS.map((option) => option.value)).toEqual([
+      "ALL",
+      "COMPLETED",
+      "CANCELLED",
+      "PARTIALLY_REFUNDED",
+      "REFUNDED"
+    ]);
   });
 });
