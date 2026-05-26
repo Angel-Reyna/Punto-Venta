@@ -21,6 +21,8 @@ import KeyOutlinedIcon from "@mui/icons-material/KeyOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 
+import { normalizeSearchText } from "../../utils/text";
+
 export type UserRole = "ADMIN" | "CASHIER";
 export type RoleFilter = "ALL" | UserRole;
 export type StatusFilter = "ALL" | "ACTIVE" | "INACTIVE";
@@ -85,14 +87,6 @@ function getRoleDescription(role: UserRole) {
     : "Registra ventas y consulta información operativa permitida.";
 }
 
-function normalizeSearch(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-}
-
 function formatCreatedAt(value: string) {
   return new Date(value).toLocaleString("es-MX", {
     day: "2-digit",
@@ -115,7 +109,7 @@ function getInitials(name: string, email: string) {
 }
 
 function getUserSearchText(user: User) {
-  return normalizeSearch(
+  return normalizeSearchText(
     [
       user.name,
       user.email,
@@ -152,7 +146,7 @@ export function filterUsers(
   roleFilter: RoleFilter,
   statusFilter: StatusFilter,
 ) {
-  const normalizedQuery = normalizeSearch(query);
+  const normalizedQuery = normalizeSearchText(query);
 
   return rows.filter((item) => {
     const matchesQuery = normalizedQuery

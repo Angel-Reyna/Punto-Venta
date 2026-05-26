@@ -10,6 +10,8 @@ import {
   Typography,
 } from "@mui/material";
 
+import { valuesIncludeSearchText } from "../../utils/text";
+
 export type SellerAction =
   | "SELLER_LOGIN"
   | "SELLER_LOGOUT"
@@ -105,23 +107,20 @@ export function getActionColor(
 }
 
 export function matchesSearch(log: SellerActivityLog, search: string) {
-  const normalized = search.trim().toLowerCase();
-
-  if (!normalized) return true;
-
-  return [
-    log.seller.name,
-    log.seller.email,
-    actionLabels[log.action],
-    log.action,
-    log.entityType,
-    log.entityId,
-    log.description,
-    log.ipAddress,
-    log.userAgent,
-  ]
-    .filter(Boolean)
-    .some((value) => String(value).toLowerCase().includes(normalized));
+  return valuesIncludeSearchText(
+    [
+      log.seller.name,
+      log.seller.email,
+      actionLabels[log.action],
+      log.action,
+      log.entityType,
+      log.entityId,
+      log.description,
+      log.ipAddress,
+      log.userAgent,
+    ],
+    search
+  );
 }
 
 export function buildQuery(args: {

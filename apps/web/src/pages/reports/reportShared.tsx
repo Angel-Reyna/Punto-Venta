@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 
 import { LabelWithInfo } from "../../components/InfoTooltip";
+import { valuesIncludeSearchText } from "../../utils/text";
 
 export type MoneySummary = Record<string, number>;
 
@@ -190,19 +191,7 @@ export function buildQuery(from: string, to: string) {
 }
 
 export function includesQuery(values: Array<string | number | null | undefined>, query: string) {
-  const normalizedQuery = normalizeText(query);
-
-  if (!normalizedQuery) return true;
-
-  return values.some((value) => normalizeText(String(value ?? "")).includes(normalizedQuery));
-}
-
-function normalizeText(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
+  return valuesIncludeSearchText(values, query);
 }
 
 export function MetricCard({
