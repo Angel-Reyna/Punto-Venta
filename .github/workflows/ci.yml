@@ -38,6 +38,9 @@ jobs:
       - name: Check test shortcuts and unsafe E2E overrides
         run: npm run ci:check-test-guardrails
 
+      - name: Check automation script syntax
+        run: npm run ci:check-scripts
+
       - name: Validate Docker Compose configuration
         run: docker compose config >/dev/null
 

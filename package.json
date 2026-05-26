@@ -31,6 +31,7 @@
     "ci:validate-lockfiles": "node scripts/ci/validate-lockfiles.js",
     "ci:check-generated-artifacts": "node scripts/ci/check-generated-artifacts.js",
     "ci:check-test-guardrails": "node scripts/ci/check-test-guardrails.js",
+    "ci:check-scripts": "node scripts/ci/check-scripts.js",
     "clean:generated": "node scripts/clean-generated.js",
     "web:e2e:integration": "node scripts/e2e/run-integration.js",
     "web:e2e:integration:list": "npm --prefix apps/web run e2e:integration -- --list",

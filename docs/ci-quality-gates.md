@@ -10,6 +10,7 @@ El repositorio valida tres niveles: guardrails del monorepo, calidad de API/Web 
 - Valida lockfiles y límites de dependencias.
 - Falla si hay artefactos generados versionados por accidente.
 - Falla si hay tests enfocados/omitidos, `debugger` o `force: true` en E2E.
+- Valida sintaxis de scripts de automatización JavaScript y shell.
 - Valida que `docker compose config` sea resoluble.
 
 ### API quality gate
@@ -75,6 +76,15 @@ npm run clean:generated
 git rm --cached <ruta-del-artefacto>
 ```
 
+## Guardrail de scripts de automatización
+
+`npm run ci:check-scripts` valida los scripts versionados antes de que CI dependa de ellos:
+
+- `scripts/**/*.js` con `node --check`.
+- `scripts/**/*.sh` con `bash -n` cuando Bash está disponible, o `sh -n` como fallback.
+
+El objetivo es fallar rápido si un patch deja una automatización con sintaxis inválida, especialmente en scripts de CI, limpieza, snapshots, E2E integrado o auditoría de bundle.
+
 ## Guardrail de tests y E2E
 
 `npm run ci:check-test-guardrails` escanea `apps/api/tests`, `apps/web/src` y `apps/web/e2e` para bloquear atajos que suelen ocultar regresiones:
@@ -103,6 +113,7 @@ Si un test necesita desactivarse temporalmente, no uses `.skip` silencioso. Elig
 - Tests críticos API fallan.
 - Vitest ejecuta specs Playwright.
 - Hay tests enfocados/omitidos, `debugger` o `force: true` en E2E.
+- Un script de automatización JavaScript o shell tiene sintaxis inválida.
 - `web:e2e` lista specs de `e2e/integration`.
 - Docker Compose resuelve `DATABASE_URL` de API con `localhost` dentro del contenedor.
 - Docker build falla.
