@@ -9,6 +9,7 @@ El repositorio valida tres niveles: guardrails del monorepo, calidad de API/Web 
 - Usa Node.js 22.
 - Valida lockfiles y límites de dependencias.
 - Falla si hay artefactos generados versionados por accidente.
+- Falla si hay tests enfocados/omitidos, `debugger` o `force: true` en E2E.
 - Valida que `docker compose config` sea resoluble.
 
 ### API quality gate
@@ -74,6 +75,21 @@ npm run clean:generated
 git rm --cached <ruta-del-artefacto>
 ```
 
+## Guardrail de tests y E2E
+
+`npm run ci:check-test-guardrails` escanea `apps/api/tests`, `apps/web/src` y `apps/web/e2e` para bloquear atajos que suelen ocultar regresiones:
+
+- `describe.only`, `it.only` y `test.only`.
+- `describe.skip`, `it.skip` y `test.skip`.
+- `debugger`.
+- `force: true` dentro de Playwright E2E.
+
+Si un test necesita desactivarse temporalmente, no uses `.skip` silencioso. Elige una de estas opciones:
+
+1. Corrige el test o el bug antes de integrar.
+2. Extrae el caso a un issue/tarea explícita y retira el archivo del gate solo si hay justificación técnica.
+3. Documenta la excepción en el patch correspondiente.
+
 ## Reglas de dependencias
 
 - Cada app conserva su propio `package-lock.json`.
@@ -86,6 +102,7 @@ git rm --cached <ruta-del-artefacto>
 - Prisma no valida o no genera client.
 - Tests críticos API fallan.
 - Vitest ejecuta specs Playwright.
+- Hay tests enfocados/omitidos, `debugger` o `force: true` en E2E.
 - `web:e2e` lista specs de `e2e/integration`.
 - Docker Compose resuelve `DATABASE_URL` de API con `localhost` dentro del contenedor.
 - Docker build falla.

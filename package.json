@@ -21,7 +21,7 @@
     "dev:doctor": "npm --prefix apps/api run dev:doctor",
     "build": "npm run api:prisma:generate && npm run api:build && npm run web:build",
     "test": "npm run api:test && npm run web:test",
-    "qa:critical": "npm run api:test:critical && npm run web:test:critical",
+    "qa:critical": "npm run ci:check-test-guardrails && npm run api:test:critical && npm run web:test:critical",
     "api:test:critical": "npm --prefix apps/api run test:critical",
     "web:test:critical": "npm --prefix apps/web run test:critical",
     "docker:build": "docker compose build api web",
@@ -30,10 +30,11 @@
     "docker:logs:api": "docker compose logs -f api",
     "ci:validate-lockfiles": "node scripts/ci/validate-lockfiles.js",
     "ci:check-generated-artifacts": "node scripts/ci/check-generated-artifacts.js",
+    "ci:check-test-guardrails": "node scripts/ci/check-test-guardrails.js",
     "clean:generated": "node scripts/clean-generated.js",
     "web:e2e:integration": "node scripts/e2e/run-integration.js",
     "web:e2e:integration:list": "npm --prefix apps/web run e2e:integration -- --list",
-    "qa:local": "npm run ci:validate-lockfiles && npm run ci:check-generated-artifacts && npm run api:prisma:generate && npm run api:prisma:validate && npm run api:build && npm run api:test:critical && npm run web:test && npm run web:test:critical && npm run web:build && npm run web:bundle:audit && npm run web:e2e:list && npm run web:e2e",
+    "qa:local": "npm run ci:validate-lockfiles && npm run ci:check-generated-artifacts && npm run ci:check-test-guardrails && npm run api:prisma:generate && npm run api:prisma:validate && npm run api:build && npm run api:test:critical && npm run web:test && npm run web:test:critical && npm run web:build && npm run web:bundle:audit && npm run web:e2e:list && npm run web:e2e",
     "qa:full": "npm run qa:local && npm run web:e2e:integration:list && npm run web:e2e:integration && npm run docker:config && npm run docker:build"
   },
   "engines": {
