@@ -22,9 +22,9 @@ import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import SecurityIcon from "@mui/icons-material/Security";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
-import { api } from "../api/client";
-import { PageHeader } from "../components/PageHeader";
-import { getApiErrorMessage } from "../utils/apiError";
+import { api } from "../../api/client";
+import { PageHeader } from "../../components/PageHeader";
+import { getApiErrorMessage } from "../../utils/apiError";
 import {
   AuditLogCard,
   AuditMetricCard,
@@ -35,7 +35,7 @@ import {
   initialFilters,
   type AuditFilters,
   type AuditLog
-} from "./audit/auditShared";
+} from "./auditShared";
 
 export function AuditPage() {
   const [rows, setRows] = useState<AuditLog[]>([]);

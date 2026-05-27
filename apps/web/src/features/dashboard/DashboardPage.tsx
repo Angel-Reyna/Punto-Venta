@@ -21,20 +21,20 @@ import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningIcon from "@mui/icons-material/WarningAmber";
 
-import { api } from "../api/client";
-import { PERMISSIONS } from "../auth/permissions";
-import { useAuth } from "../auth/AuthContext";
-import { PageHeader } from "../components/PageHeader";
-import { getApiErrorMessage } from "../utils/apiError";
-import { DashboardMetricCard } from "./dashboard/DashboardMetricCard";
+import { api } from "../../api/client";
+import { PERMISSIONS } from "../../auth/permissions";
+import { useAuth } from "../../auth/AuthContext";
+import { PageHeader } from "../../components/PageHeader";
+import { getApiErrorMessage } from "../../utils/apiError";
+import { DashboardMetricCard } from "./DashboardMetricCard";
 import {
   DashboardSkeleton,
   InventoryAttentionPanel,
   OperationalReadingPanel,
   RecentSalesPanel,
-} from "./dashboard/dashboard.sections";
-import { formatMoney, formatNumber } from "./dashboard/dashboard.formatters";
-import { type DashboardMetrics } from "./dashboard/dashboard.types";
+} from "./dashboard.sections";
+import { formatMoney, formatNumber } from "./dashboard.formatters";
+import { type DashboardMetrics } from "./dashboard.types";
 
 export function DashboardPage() {
   const { can, isAdmin } = useAuth();

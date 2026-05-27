@@ -31,9 +31,9 @@ import SecurityIcon from "@mui/icons-material/Security";
 import TimelineIcon from "@mui/icons-material/Timeline";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 
-import { api } from "../api/client";
-import { PageHeader } from "../components/PageHeader";
-import { getApiErrorMessage } from "../utils/apiError";
+import { api } from "../../api/client";
+import { PageHeader } from "../../components/PageHeader";
+import { getApiErrorMessage } from "../../utils/apiError";
 import {
   actionLabels,
   buildQuery,
@@ -52,7 +52,7 @@ import {
   SummaryCard,
   SummaryItem,
   summarizeActivity,
-} from "./seller-activity/sellerActivityShared";
+} from "./sellerActivityShared";
 
 const DEFAULT_LIMIT = 200;
 

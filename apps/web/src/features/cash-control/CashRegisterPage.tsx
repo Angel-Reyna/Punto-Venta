@@ -13,15 +13,15 @@ import {
   Typography
 } from "@mui/material";
 
-import { api } from "../api/client";
-import { useAuth } from "../auth/AuthContext";
-import { PERMISSIONS } from "../auth/permissions";
-import { ActionDisabledReason } from "../components/ActionDisabledReason";
-import { DataGridCard } from "../components/DataGridCard";
-import { LabelWithInfo } from "../components/InfoTooltip";
-import { PageHeader } from "../components/PageHeader";
-import { StatusFeedback } from "../components/StatusFeedback";
-import { getApiErrorMessage } from "../utils/apiError";
+import { api } from "../../api/client";
+import { useAuth } from "../../auth/AuthContext";
+import { PERMISSIONS } from "../../auth/permissions";
+import { ActionDisabledReason } from "../../components/ActionDisabledReason";
+import { DataGridCard } from "../../components/DataGridCard";
+import { LabelWithInfo } from "../../components/InfoTooltip";
+import { PageHeader } from "../../components/PageHeader";
+import { StatusFeedback } from "../../components/StatusFeedback";
+import { getApiErrorMessage } from "../../utils/apiError";
 import {
   buildCurrentMovementsColumns,
   buildSessionColumns,
@@ -33,7 +33,7 @@ import {
   getManualMovementDisabledReason,
   getOpenRegisterDisabledReason,
   isManualMovementSubmitDisabled
-} from "./cash-register/cashRegisterShared";
+} from "./cashRegisterShared";
 
 export function CashRegisterPage() {
   const { can } = useAuth();

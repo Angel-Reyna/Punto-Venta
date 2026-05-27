@@ -22,34 +22,34 @@ import { useAuth } from "./auth/AuthContext";
 import { PERMISSIONS, type Permission } from "./auth/permissions";
 
 const LoginPage = lazy(() =>
-  import("./pages/LoginPage").then((module) => ({ default: module.LoginPage }))
+  import("./features/auth/LoginPage").then((module) => ({ default: module.LoginPage }))
 );
 const DashboardPage = lazy(() =>
-  import("./pages/DashboardPage").then((module) => ({ default: module.DashboardPage }))
+  import("./features/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage }))
 );
 const ProductsPage = lazy(() =>
-  import("./pages/ProductsPage").then((module) => ({ default: module.ProductsPage }))
+  import("./features/products/ProductsPage").then((module) => ({ default: module.ProductsPage }))
 );
 const InventoryPage = lazy(() =>
-  import("./pages/InventoryPage").then((module) => ({ default: module.InventoryPage }))
+  import("./features/inventory/InventoryPage").then((module) => ({ default: module.InventoryPage }))
 );
 const SalesPage = lazy(() =>
-  import("./pages/SalesPage").then((module) => ({ default: module.SalesPage }))
+  import("./features/sales/SalesPage").then((module) => ({ default: module.SalesPage }))
 );
 const ReportsPage = lazy(() =>
-  import("./pages/ReportsPage").then((module) => ({ default: module.ReportsPage }))
+  import("./features/reports/ReportsPage").then((module) => ({ default: module.ReportsPage }))
 );
 const CashRegisterPage = lazy(() =>
-  import("./pages/CashRegisterPage").then((module) => ({ default: module.CashRegisterPage }))
+  import("./features/cash-control/CashRegisterPage").then((module) => ({ default: module.CashRegisterPage }))
 );
 const UsersPage = lazy(() =>
-  import("./pages/UsersPage").then((module) => ({ default: module.UsersPage }))
+  import("./features/users/UsersPage").then((module) => ({ default: module.UsersPage }))
 );
 const AuditPage = lazy(() =>
-  import("./pages/AuditPage").then((module) => ({ default: module.AuditPage }))
+  import("./features/audit/AuditPage").then((module) => ({ default: module.AuditPage }))
 );
 const SellerActivityPage = lazy(() =>
-  import("./pages/SellerActivityPage").then((module) => ({ default: module.SellerActivityPage }))
+  import("./features/seller-activity/SellerActivityPage").then((module) => ({ default: module.SellerActivityPage }))
 );
 
 function FullPageLoader() {

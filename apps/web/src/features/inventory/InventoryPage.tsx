@@ -12,15 +12,15 @@ import {
   Typography,
 } from "@mui/material";
 
-import { api } from "../api/client";
-import { ActionDisabledReason } from "../components/ActionDisabledReason";
-import { LabelWithInfo } from "../components/InfoTooltip";
-import { PageHeader } from "../components/PageHeader";
-import { SearchToolbar } from "../components/SearchToolbar";
-import { StatusFeedback } from "../components/StatusFeedback";
-import { useAuth } from "../auth/AuthContext";
-import { PERMISSIONS } from "../auth/permissions";
-import { getApiErrorMessage } from "../utils/apiError";
+import { api } from "../../api/client";
+import { ActionDisabledReason } from "../../components/ActionDisabledReason";
+import { LabelWithInfo } from "../../components/InfoTooltip";
+import { PageHeader } from "../../components/PageHeader";
+import { SearchToolbar } from "../../components/SearchToolbar";
+import { StatusFeedback } from "../../components/StatusFeedback";
+import { useAuth } from "../../auth/AuthContext";
+import { PERMISSIONS } from "../../auth/permissions";
+import { getApiErrorMessage } from "../../utils/apiError";
 import {
   InventoryControlHero,
   filterStockRowsByStatus,
@@ -32,14 +32,14 @@ import {
   InventorySummaryCards,
   isInventoryFormInvalid,
   WAREHOUSE_INFO_TEXT,
-} from "./inventory/inventoryShared";
+} from "./inventoryShared";
 import type {
   Movement,
   Product,
   StockItem,
   StockStatusFilter,
   Warehouse,
-} from "./inventory/inventoryShared";
+} from "./inventoryShared";
 
 type InventoryView = "stock" | "adjustments" | "movements";
 

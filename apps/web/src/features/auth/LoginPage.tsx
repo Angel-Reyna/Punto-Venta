@@ -14,8 +14,8 @@ import {
   Typography
 } from "@mui/material";
 
-import { useAuth } from "../auth/AuthContext";
-import { getApiErrorMessage } from "../utils/apiError";
+import { useAuth } from "../../auth/AuthContext";
+import { getApiErrorMessage } from "../../utils/apiError";
 
 export function LoginPage() {
   const navigate = useNavigate();

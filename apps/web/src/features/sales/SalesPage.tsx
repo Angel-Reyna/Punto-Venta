@@ -22,15 +22,15 @@ import UndoIcon from "@mui/icons-material/Undo";
 import CancelIcon from "@mui/icons-material/Cancel";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
-import { api } from "../api/client";
-import { ActionDisabledReason } from "../components/ActionDisabledReason";
-import { SearchToolbar } from "../components/SearchToolbar";
-import { PageHeader } from "../components/PageHeader";
-import { ResponsiveDialog } from "../components/ResponsiveDialog";
-import { StatusFeedback } from "../components/StatusFeedback";
-import { useAuth } from "../auth/AuthContext";
-import { PERMISSIONS } from "../auth/permissions";
-import { getApiErrorMessage } from "../utils/apiError";
+import { api } from "../../api/client";
+import { ActionDisabledReason } from "../../components/ActionDisabledReason";
+import { SearchToolbar } from "../../components/SearchToolbar";
+import { PageHeader } from "../../components/PageHeader";
+import { ResponsiveDialog } from "../../components/ResponsiveDialog";
+import { StatusFeedback } from "../../components/StatusFeedback";
+import { useAuth } from "../../auth/AuthContext";
+import { PERMISSIONS } from "../../auth/permissions";
+import { getApiErrorMessage } from "../../utils/apiError";
 
 import {
   buildCartRows,
@@ -55,7 +55,7 @@ import {
   type Product,
   type Sale,
   type SaleStatus
-} from "./sales/salesShared";
+} from "./salesShared";
 
 export function SalesPage() {
   const { can } = useAuth();

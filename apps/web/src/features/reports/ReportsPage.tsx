@@ -26,11 +26,11 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
-import { api } from "../api/client";
-import { LabelWithInfo } from "../components/InfoTooltip";
-import { StatusFeedback } from "../components/StatusFeedback";
-import { getApiErrorMessage } from "../utils/apiError";
-import { downloadBlob } from "../utils/downloadBlob";
+import { api } from "../../api/client";
+import { LabelWithInfo } from "../../components/InfoTooltip";
+import { StatusFeedback } from "../../components/StatusFeedback";
+import { getApiErrorMessage } from "../../utils/apiError";
+import { downloadBlob } from "../../utils/downloadBlob";
 import {
   DetailLine,
   EmptyText,
@@ -46,7 +46,7 @@ import {
   statusColor,
   statusLabel,
   type OperationsReport
-} from "./reports/reportShared";
+} from "./reportShared";
 
 export function ReportsPage() {
   const today = new Date().toISOString().slice(0, 10);

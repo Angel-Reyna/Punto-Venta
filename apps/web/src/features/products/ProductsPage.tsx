@@ -23,17 +23,17 @@ import StorefrontIcon from "@mui/icons-material/Storefront";
 import UploadIcon from "@mui/icons-material/Upload";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
-import { api } from "../api/client";
-import { ActionDisabledReason } from "../components/ActionDisabledReason";
-import { LabelWithInfo } from "../components/InfoTooltip";
-import { ResponsiveDialog } from "../components/ResponsiveDialog";
-import { SearchToolbar } from "../components/SearchToolbar";
-import { StatusFeedback } from "../components/StatusFeedback";
-import { VisualMetricCard } from "../components/VisualMetricCard";
-import { useAuth } from "../auth/AuthContext";
-import { PERMISSIONS } from "../auth/permissions";
-import { getApiErrorMessage } from "../utils/apiError";
-import { downloadBlob } from "../utils/downloadBlob";
+import { api } from "../../api/client";
+import { ActionDisabledReason } from "../../components/ActionDisabledReason";
+import { LabelWithInfo } from "../../components/InfoTooltip";
+import { ResponsiveDialog } from "../../components/ResponsiveDialog";
+import { SearchToolbar } from "../../components/SearchToolbar";
+import { StatusFeedback } from "../../components/StatusFeedback";
+import { VisualMetricCard } from "../../components/VisualMetricCard";
+import { useAuth } from "../../auth/AuthContext";
+import { PERMISSIONS } from "../../auth/permissions";
+import { getApiErrorMessage } from "../../utils/apiError";
+import { downloadBlob } from "../../utils/downloadBlob";
 import {
   INITIAL_STOCK_INFO_TEXT,
   MIN_STOCK_INFO_TEXT,
@@ -49,7 +49,7 @@ import {
   isInvalidNonNegativeNumber,
   safeTrim,
   toNonNegativeNumber,
-} from "./products/productShared";
+} from "./productShared";
 
 export function ProductsPage() {
   const { can } = useAuth();

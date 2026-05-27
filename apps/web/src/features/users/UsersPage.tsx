@@ -21,14 +21,14 @@ import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import PersonAddAlt1OutlinedIcon from "@mui/icons-material/PersonAddAlt1Outlined";
 
-import { api } from "../api/client";
-import { useAuth } from "../auth/AuthContext";
-import { ActionDisabledReason } from "../components/ActionDisabledReason";
-import { PageHeader } from "../components/PageHeader";
-import { ResponsiveDialog } from "../components/ResponsiveDialog";
-import { SearchToolbar } from "../components/SearchToolbar";
-import { StatusFeedback } from "../components/StatusFeedback";
-import { getApiErrorMessage } from "../utils/apiError";
+import { api } from "../../api/client";
+import { useAuth } from "../../auth/AuthContext";
+import { ActionDisabledReason } from "../../components/ActionDisabledReason";
+import { PageHeader } from "../../components/PageHeader";
+import { ResponsiveDialog } from "../../components/ResponsiveDialog";
+import { SearchToolbar } from "../../components/SearchToolbar";
+import { StatusFeedback } from "../../components/StatusFeedback";
+import { getApiErrorMessage } from "../../utils/apiError";
 import {
   filterUsers,
   getRoleLabel,
@@ -38,13 +38,13 @@ import {
   SummaryCard,
   summarizeUsers,
   UserCard,
-} from "./users/userShared";
+} from "./userShared";
 import type {
   RoleFilter,
   StatusFilter,
   User,
   UserRole,
-} from "./users/userShared";
+} from "./userShared";
 
 export function UsersPage() {
   const { user: currentUser } = useAuth();
