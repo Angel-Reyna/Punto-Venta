@@ -1,22 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Card, CardContent, Chip, Stack, Typography } from "@mui/material";
 
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { PageHeader } from "../../components/PageHeader";
-import { ResponsiveDialog } from "../../components/ResponsiveDialog";
 import { StatusFeedback } from "../../components/StatusFeedback";
 import { useAuth } from "../../auth/AuthContext";
 import { PERMISSIONS } from "../../auth/permissions";
@@ -24,6 +12,7 @@ import { getApiErrorMessage } from "../../utils/apiError";
 
 import { SalesCheckoutPanel } from "./SalesCheckoutPanel";
 import { SalesHistoryPanel } from "./SalesHistoryPanel";
+import { SalesOperationDialogs } from "./SalesOperationDialogs";
 import { SalesProductSearchPanel } from "./SalesProductSearchPanel";
 import { SalesTicketPanel } from "./SalesTicketPanel";
 import { useSalesData } from "./useSalesData";
@@ -34,7 +23,6 @@ import {
   formatMoney,
   getExactSearchProduct,
   getFilteredProducts,
-  PAYMENT_METHOD_OPTIONS,
   getReturnableQuantity,
   isCartInvalid,
   type CartItem,
@@ -561,129 +549,34 @@ export function SalesPage() {
         onOpenReturnDialog={openReturnDialog}
       />
 
-      <ResponsiveDialog
-        open={cancelDialogOpen}
-        onClose={() => setCancelDialogOpen(false)}
-        disableClose={isSubmitting}
-        maxWidth="sm"
-        title={`Cancelar venta ${selectedSale?.folio ?? ""}`.trim()}
-        description="Confirma la cancelación solo cuando la venta deba anularse por completo."
-        actions={
-          <>
-            <Button variant="outlined" onClick={() => setCancelDialogOpen(false)} disabled={isSubmitting}>
-              Cerrar
-            </Button>
-            <Button color="error" onClick={cancelSale} disabled={isSubmitting || cancelReasonIsInvalid}>
-              Confirmar cancelación
-            </Button>
-          </>
-        }
-      >
-        <Box sx={{ display: "grid", gap: 2 }}>
-          <Alert severity="warning">
-            Esta acción restaura el stock de todos los productos vendidos y marca la venta como cancelada.
-          </Alert>
-
-          <TextField
-            select
-            label="Método de devolución"
-            value={cancelRefundMethod}
-            onChange={(event) => setCancelRefundMethod(event.target.value as PaymentMethod)}
-          >
-            {PAYMENT_METHOD_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          <TextField
-            label="Motivo de cancelación"
-            value={cancelReason}
-            multiline
-            minRows={3}
-            error={Boolean(cancelReason) && cancelReasonIsInvalid}
-            helperText="Mínimo 5 caracteres para auditoría."
-            onChange={(event) => setCancelReason(event.target.value)}
-          />
-        </Box>
-      </ResponsiveDialog>
-
-      <ResponsiveDialog
-        open={returnDialogOpen}
-        onClose={() => setReturnDialogOpen(false)}
-        disableClose={isSubmitting}
-        maxWidth="sm"
-        title={`Registrar devolución ${selectedSale?.folio ?? ""}`.trim()}
-        description="Devuelve unidades vendidas y registra el motivo para auditoría."
-        actions={
-          <>
-            <Button variant="outlined" onClick={() => setReturnDialogOpen(false)} disabled={isSubmitting}>
-              Cerrar
-            </Button>
-            <Button color="warning" onClick={returnSaleItem} disabled={isSubmitting || returnFormIsInvalid}>
-              Registrar devolución
-            </Button>
-          </>
-        }
-      >
-        <Box sx={{ display: "grid", gap: 2 }}>
-          <Alert severity="info">La devolución restaura stock y actualiza el estado de la venta.</Alert>
-
-          <TextField
-            select
-            label="Producto vendido"
-            value={returnSaleItemId}
-            onChange={(event) => {
-              setReturnSaleItemId(event.target.value);
-              setReturnQuantity("1");
-            }}
-          >
-            {(selectedSale?.items ?? []).map((item) => {
-              const available = selectedSale ? getReturnableQuantity(selectedSale, item) : 0;
-
-              return (
-                <MenuItem key={item.id} value={item.id} disabled={available <= 0}>
-                  {item.product?.sku ?? item.productId} · {item.product?.name ?? "Producto"} · disponible{" "}
-                  {available}
-                </MenuItem>
-              );
-            })}
-          </TextField>
-
-          <TextField
-            label="Cantidad a devolver"
-            type="number"
-            value={returnQuantity}
-            inputProps={{ min: 1, max: selectedReturnItemAvailable }}
-            helperText={`Disponible para devolver: ${selectedReturnItemAvailable}`}
-            onChange={(event) => setReturnQuantity(event.target.value)}
-          />
-
-          <TextField
-            select
-            label="Método de devolución"
-            value={returnRefundMethod}
-            onChange={(event) => setReturnRefundMethod(event.target.value as PaymentMethod)}
-          >
-            {PAYMENT_METHOD_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          <TextField
-            label="Motivo de devolución"
-            value={returnReason}
-            multiline
-            minRows={3}
-            error={Boolean(returnReason) && returnReason.trim().length < 5}
-            helperText="Mínimo 5 caracteres para auditoría."
-            onChange={(event) => setReturnReason(event.target.value)}
-          />
-        </Box>
-      </ResponsiveDialog>
+      <SalesOperationDialogs
+        cancelDialogOpen={cancelDialogOpen}
+        cancelReason={cancelReason}
+        cancelReasonIsInvalid={cancelReasonIsInvalid}
+        cancelRefundMethod={cancelRefundMethod}
+        isSubmitting={isSubmitting}
+        returnDialogOpen={returnDialogOpen}
+        returnFormIsInvalid={returnFormIsInvalid}
+        returnQuantity={returnQuantity}
+        returnReason={returnReason}
+        returnRefundMethod={returnRefundMethod}
+        returnSaleItemId={returnSaleItemId}
+        selectedReturnItemAvailable={selectedReturnItemAvailable}
+        selectedSale={selectedSale}
+        onCancelReasonChange={setCancelReason}
+        onCancelRefundMethodChange={setCancelRefundMethod}
+        onCloseCancelDialog={() => setCancelDialogOpen(false)}
+        onCloseReturnDialog={() => setReturnDialogOpen(false)}
+        onConfirmCancel={cancelSale}
+        onConfirmReturn={returnSaleItem}
+        onReturnQuantityChange={setReturnQuantity}
+        onReturnReasonChange={setReturnReason}
+        onReturnRefundMethodChange={setReturnRefundMethod}
+        onReturnSaleItemChange={(saleItemId) => {
+          setReturnSaleItemId(saleItemId);
+          setReturnQuantity("1");
+        }}
+      />
     </>
   );
 }
