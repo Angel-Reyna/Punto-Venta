@@ -1,17 +1,6 @@
 import { useEffect, useState } from "react";
 
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  Grid,
-  LinearProgress,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Alert, Button, Chip, Grid, LinearProgress, Stack, Typography } from "@mui/material";
 
 import InventoryIcon from "@mui/icons-material/Inventory2";
 import InsightsIcon from "@mui/icons-material/Insights";
@@ -25,6 +14,8 @@ import { api } from "../../api/client";
 import { PERMISSIONS } from "../../auth/permissions";
 import { useAuth } from "../../auth/AuthContext";
 import { PageHeader } from "../../components/PageHeader";
+import { EntityStatusChip } from "../../components/data-display";
+import { MetricGrid, PageHero } from "../../components/layout";
 import { getApiErrorMessage } from "../../utils/apiError";
 import { DashboardMetricCard } from "./DashboardMetricCard";
 import {
@@ -52,12 +43,7 @@ export function DashboardPage() {
 
       setMetrics(response.data);
     } catch (err: unknown) {
-      setError(
-        getApiErrorMessage(
-          err,
-          "No se pudo cargar el resumen. Intenta actualizar la página.",
-        ),
-      );
+      setError(getApiErrorMessage(err, "No se pudo cargar el resumen. Intenta actualizar la página."));
     } finally {
       setIsLoading(false);
     }
@@ -76,11 +62,7 @@ export function DashboardPage() {
     : hasLowStock
       ? "Reposición sugerida"
       : "Operación estable";
-  const operationalStateColor = hasCriticalStock
-    ? "error"
-    : hasLowStock
-      ? "warning"
-      : "success";
+  const operationalStateColor = hasCriticalStock ? "error" : hasLowStock ? "warning" : "success";
   const generatedAtLabel = metrics?.generatedAt
     ? new Intl.DateTimeFormat("es-MX", {
         day: "2-digit",
@@ -89,7 +71,6 @@ export function DashboardPage() {
         minute: "2-digit",
       }).format(new Date(metrics.generatedAt))
     : "Sin actualizar";
-
 
   return (
     <>
@@ -121,126 +102,61 @@ export function DashboardPage() {
         </Alert>
       )}
 
-      <Card
-        data-testid="dashboard-operational-hero"
-        sx={{
-          mb: 2.5,
-          borderRadius: 5,
-          border: "1px solid",
-          borderColor: "divider",
-          background:
-            "linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(34, 197, 94, 0.10) 45%, rgba(248, 250, 252, 1) 100%)",
-          boxShadow: "0 18px 45px rgba(15, 23, 42, 0.08)",
-          overflow: "hidden",
-        }}
-      >
-        <CardContent sx={{ p: { xs: 2.25, md: 3 } }}>
-          <Grid container spacing={2.5} alignItems="center">
-            <Grid item xs={12} md={7}>
-              <Stack spacing={1.5}>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  <Chip
-                    icon={<InsightsIcon />}
-                    color={operationalStateColor}
-                    label={operationalStateLabel}
-                    size="small"
-                  />
-                  <Chip
-                    label={
-                      metrics?.salesToday.scope === "cashier"
-                        ? "Vista de vendedor"
-                        : "Vista global"
-                    }
-                    size="small"
-                    variant="outlined"
-                  />
-                </Stack>
-
-                <Box>
-                  <Typography variant="h5" fontWeight={950} gutterBottom>
-                    Resumen operativo en tiempo real
-                  </Typography>
-                  <Typography color="text.secondary" sx={{ maxWidth: 760 }}>
-                    Prioriza ventas, reposición e incidencias desde una sola
-                    lectura. La venta en efectivo sigue independiente de Caja;
-                    Caja solo ayuda a controlar entregas y cortes.
-                  </Typography>
-                </Box>
-              </Stack>
-            </Grid>
-
-            <Grid item xs={12} md={5}>
-              <Grid container spacing={1.5}>
-                <Grid item xs={6}>
-                  <Box
-                    sx={{
-                      p: 1.5,
-                      borderRadius: 3,
-                      bgcolor: "rgba(255, 255, 255, 0.78)",
-                      border: "1px solid rgba(148, 163, 184, 0.28)",
-                    }}
-                  >
-                    <Typography color="text.secondary" variant="caption">
-                      Vendido hoy
-                    </Typography>
-                    <Typography fontWeight={950}>
-                      {formatMoney(metrics?.salesToday.total)}
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6}>
-                  <Box
-                    sx={{
-                      p: 1.5,
-                      borderRadius: 3,
-                      bgcolor: "rgba(255, 255, 255, 0.78)",
-                      border: "1px solid rgba(148, 163, 184, 0.28)",
-                    }}
-                  >
-                    <Typography color="text.secondary" variant="caption">
-                      Productos activos
-                    </Typography>
-                    <Typography fontWeight={950}>
-                      {formatNumber(metrics?.productSummary.active)}
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography
-                    color="text.secondary"
-                    variant="caption"
-                    sx={{ display: "block", textAlign: { xs: "left", md: "right" } }}
-                  >
-                    Última actualización: {generatedAtLabel}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+      <PageHero
+        title="Resumen operativo en tiempo real"
+        subtitle="Prioriza ventas, reposición e incidencias desde una sola lectura. La venta en efectivo sigue independiente de Caja; Caja solo ayuda a controlar entregas y cortes."
+        tone={
+          operationalStateColor === "error"
+            ? "error"
+            : operationalStateColor === "warning"
+              ? "warning"
+              : "success"
+        }
+        eyebrow={
+          <>
+            <EntityStatusChip
+              icon={<InsightsIcon />}
+              tone={operationalStateColor}
+              label={operationalStateLabel}
+              variant="filled"
+            />
+            <EntityStatusChip
+              label={metrics?.salesToday.scope === "cashier" ? "Vista de vendedor" : "Vista global"}
+            />
+          </>
+        }
+        stats={[
+          {
+            label: "Vendido hoy",
+            value: formatMoney(metrics?.salesToday.total),
+          },
+          {
+            label: "Productos activos",
+            value: formatNumber(metrics?.productSummary.active),
+          },
+          {
+            label: "Última actualización",
+            value: generatedAtLabel,
+          },
+        ]}
+      />
 
       {!hasMetrics && isLoading ? (
         <DashboardSkeleton />
       ) : (
         <Stack spacing={2.5}>
-          <Grid container spacing={2.5}>
+          <MetricGrid>
             <Grid item xs={12} sm={6} lg={4} xl={2}>
               <DashboardMetricCard
                 title="Ventas de hoy"
                 value={formatNumber(metrics?.salesToday.count)}
                 icon={<PointOfSaleIcon />}
-                description={
-                  isAdmin
-                    ? "Ventas globales completadas"
-                    : "Tus ventas completadas"
-                }
+                description={isAdmin ? "Ventas globales completadas" : "Tus ventas completadas"}
                 to={salesDestination}
                 tone="info"
                 footer={
                   <Typography color="text.secondary" variant="caption">
-                    Ticket promedio{" "}
-                    {formatMoney(metrics?.salesToday.averageTicket)}
+                    Ticket promedio {formatMoney(metrics?.salesToday.averageTicket)}
                   </Typography>
                 }
               />
@@ -251,19 +167,12 @@ export function DashboardPage() {
                 title="Total vendido"
                 value={formatMoney(metrics?.salesToday.total)}
                 icon={<PaidIcon />}
-                description={
-                  isAdmin
-                    ? "Importe global del día"
-                    : "Importe vendido por ti hoy"
-                }
+                description={isAdmin ? "Importe global del día" : "Importe vendido por ti hoy"}
                 to={salesDestination}
                 tone="success"
                 footer={
                   <Typography color="text.secondary" variant="caption">
-                    Alcance:{" "}
-                    {metrics?.salesToday.scope === "cashier"
-                      ? "vendedor"
-                      : "global"}
+                    Alcance: {metrics?.salesToday.scope === "cashier" ? "vendedor" : "global"}
                   </Typography>
                 }
               />
@@ -278,12 +187,7 @@ export function DashboardPage() {
                   description="Administradores y vendedores activos"
                   to="/users"
                   footer={
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      flexWrap="wrap"
-                      useFlexGap
-                    >
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                       <Chip
                         size="small"
                         label={`Admins ${formatNumber(metrics?.userSummary.activeAdmins)}`}
@@ -318,36 +222,21 @@ export function DashboardPage() {
                   icon={<WarningIcon />}
                   description="Productos en mínimo o sin stock"
                   to="/inventory"
-                  tone={
-                    hasCriticalStock
-                      ? "critical"
-                      : hasLowStock
-                        ? "warning"
-                        : "success"
-                  }
+                  tone={hasCriticalStock ? "critical" : hasLowStock ? "warning" : "success"}
                   footer={
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      flexWrap="wrap"
-                      useFlexGap
-                    >
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                       <Chip
                         size="small"
                         color={hasCriticalStock ? "error" : "default"}
                         label={`Sin stock ${formatNumber(metrics?.productSummary.outOfStockTotal)}`}
                       />
-                      <Chip
-                        size="small"
-                        color={hasLowStock ? "warning" : "default"}
-                        label="Revisar"
-                      />
+                      <Chip size="small" color={hasLowStock ? "warning" : "default"} label="Revisar" />
                     </Stack>
                   }
                 />
               </Grid>
             )}
-          </Grid>
+          </MetricGrid>
 
           <Grid container spacing={2.5}>
             <Grid item xs={12} lg={5}>
@@ -355,11 +244,7 @@ export function DashboardPage() {
             </Grid>
 
             <Grid item xs={12} lg={7}>
-              <RecentSalesPanel
-                metrics={metrics}
-                isAdmin={isAdmin}
-                salesDestination={salesDestination}
-              />
+              <RecentSalesPanel metrics={metrics} isAdmin={isAdmin} salesDestination={salesDestination} />
             </Grid>
           </Grid>
 

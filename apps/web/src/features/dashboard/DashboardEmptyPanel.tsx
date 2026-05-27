@@ -1,23 +1,7 @@
 import { type ReactNode } from "react";
 
-import { Box, Typography } from "@mui/material";
+import { EmptyStatePanel } from "../../components/data-display";
 
 export function DashboardEmptyPanel({ children }: { children: ReactNode }) {
-  return (
-    <Box
-      sx={{
-        py: 4,
-        px: 2,
-        borderRadius: 3,
-        bgcolor: "grey.50",
-        border: "1px dashed",
-        borderColor: "divider",
-        textAlign: "center"
-      }}
-    >
-      <Typography color="text.secondary" variant="body2">
-        {children}
-      </Typography>
-    </Box>
-  );
+  return <EmptyStatePanel>{children}</EmptyStatePanel>;
 }
