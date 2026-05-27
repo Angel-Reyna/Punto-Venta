@@ -16,6 +16,7 @@ import { SalesOperationDialogs } from "./SalesOperationDialogs";
 import { SalesProductSearchPanel } from "./SalesProductSearchPanel";
 import { SalesTicketPanel } from "./SalesTicketPanel";
 import { useSalesData } from "./useSalesData";
+import { useSalesOperations } from "./useSalesOperations";
 
 import {
   buildCartRows,
@@ -23,11 +24,9 @@ import {
   formatMoney,
   getExactSearchProduct,
   getFilteredProducts,
-  getReturnableQuantity,
   isCartInvalid,
   type CartItem,
   type PaymentMethod,
-  type Sale,
 } from "./salesShared";
 import {
   SALES_TICKET_MESSAGES,
@@ -60,19 +59,43 @@ export function SalesPage() {
   const [paidAmount, setPaidAmount] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
-  const [cancelRefundMethod, setCancelRefundMethod] = useState<PaymentMethod>("CASH");
-  const [returnReason, setReturnReason] = useState("");
-  const [returnRefundMethod, setReturnRefundMethod] = useState<PaymentMethod>("CASH");
-  const [returnSaleItemId, setReturnSaleItemId] = useState("");
-  const [returnQuantity, setReturnQuantity] = useState("1");
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const {
+    cancelDialogOpen,
+    cancelReason,
+    cancelReasonIsInvalid,
+    cancelRefundMethod,
+    cancelSale,
+    closeCancelDialog,
+    closeReturnDialog,
+    openCancelDialog,
+    openReturnDialog,
+    returnDialogOpen,
+    returnFormIsInvalid,
+    returnQuantity,
+    returnReason,
+    returnRefundMethod,
+    returnSaleItem,
+    returnSaleItemId,
+    saleDialogIsOpen,
+    selectReturnSaleItem,
+    selectedReturnItemAvailable,
+    selectedSale,
+    setCancelReason,
+    setCancelRefundMethod,
+    setReturnQuantity,
+    setReturnReason,
+    setReturnRefundMethod,
+  } = useSalesOperations({
+    setError,
+    setIsSubmitting,
+    setMessage,
+    submitSaleCancellation,
+    submitSaleReturn,
+  });
 
   const loadSalesWorkspace = useCallback(async () => {
     try {
@@ -95,7 +118,6 @@ export function SalesPage() {
   const isPaymentInsufficient = cart.length > 0 && normalizedPaid < total;
   const change = Math.max(normalizedPaid - total, 0);
   const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const saleDialogIsOpen = cancelDialogOpen || returnDialogOpen;
   const checkoutIsDisabled =
     !canCreateSales || cartIsInvalid || isPaymentInsufficient || isSubmitting || saleDialogIsOpen;
 
@@ -262,123 +284,6 @@ export function SalesPage() {
       document.removeEventListener("visibilitychange", refreshCatalogWhenVisible);
     };
   }, [isSubmitting, loadSalesWorkspace, saleDialogIsOpen]);
-
-  function openCancelDialog(sale: Sale) {
-    setSelectedSale(sale);
-    setCancelReason("");
-    setCancelRefundMethod(sale.payments?.[0]?.method ?? "CASH");
-    setCancelDialogOpen(true);
-  }
-
-  function openReturnDialog(sale: Sale) {
-    const firstReturnableItem = (sale.items ?? []).find((item) => getReturnableQuantity(sale, item) > 0);
-
-    setSelectedSale(sale);
-    setReturnReason("");
-    setReturnRefundMethod(sale.payments?.[0]?.method ?? "CASH");
-    setReturnSaleItemId(firstReturnableItem?.id ?? "");
-    setReturnQuantity("1");
-    setReturnDialogOpen(true);
-  }
-
-  async function cancelSale() {
-    if (!selectedSale) return;
-
-    if (cancelReason.trim().length < 5) {
-      setError("Escribe un motivo claro para cancelar la venta.");
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      setError("");
-      setMessage("");
-
-      await submitSaleCancellation(selectedSale.id, {
-        reason: cancelReason.trim(),
-        refundMethod: cancelRefundMethod,
-      });
-
-      setCancelDialogOpen(false);
-      setSelectedSale(null);
-      setMessage("Venta cancelada correctamente. El stock fue restaurado.");
-    } catch (err: unknown) {
-      setError(
-        getApiErrorMessage(
-          err,
-          "No se pudo cancelar la venta. Verifica el motivo y el método de devolución.",
-        ),
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  async function returnSaleItem() {
-    if (!selectedSale) return;
-
-    const quantity = Number(returnQuantity);
-    const saleItem = selectedSale.items?.find((item) => item.id === returnSaleItemId);
-    const available = saleItem ? getReturnableQuantity(selectedSale, saleItem) : 0;
-
-    if (!saleItem) {
-      setError("Selecciona un producto vendido para devolver.");
-      return;
-    }
-
-    if (!Number.isInteger(quantity) || quantity <= 0 || quantity > available) {
-      setError(`La cantidad a devolver debe estar entre 1 y ${available}.`);
-      return;
-    }
-
-    if (returnReason.trim().length < 5) {
-      setError("Escribe un motivo claro para registrar la devolución.");
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      setError("");
-      setMessage("");
-
-      await submitSaleReturn(selectedSale.id, {
-        reason: returnReason.trim(),
-        refundMethod: returnRefundMethod,
-        items: [
-          {
-            saleItemId: saleItem.id,
-            quantity,
-          },
-        ],
-      });
-
-      setReturnDialogOpen(false);
-      setSelectedSale(null);
-      setMessage("Devolución registrada correctamente. El stock fue restaurado.");
-    } catch (err: unknown) {
-      setError(
-        getApiErrorMessage(
-          err,
-          "No se pudo registrar la devolución. Verifica el producto, cantidad, motivo y método.",
-        ),
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  const selectedReturnItem = selectedSale?.items?.find((item) => item.id === returnSaleItemId);
-  const selectedReturnItemAvailable =
-    selectedSale && selectedReturnItem ? getReturnableQuantity(selectedSale, selectedReturnItem) : 0;
-
-  const cancelReasonIsInvalid = cancelReason.trim().length < 5;
-  const returnQuantityNumber = Number(returnQuantity);
-  const returnFormIsInvalid =
-    !returnSaleItemId ||
-    !Number.isInteger(returnQuantityNumber) ||
-    returnQuantityNumber <= 0 ||
-    returnQuantityNumber > selectedReturnItemAvailable ||
-    returnReason.trim().length < 5;
 
   return (
     <>
@@ -565,17 +470,14 @@ export function SalesPage() {
         selectedSale={selectedSale}
         onCancelReasonChange={setCancelReason}
         onCancelRefundMethodChange={setCancelRefundMethod}
-        onCloseCancelDialog={() => setCancelDialogOpen(false)}
-        onCloseReturnDialog={() => setReturnDialogOpen(false)}
+        onCloseCancelDialog={closeCancelDialog}
+        onCloseReturnDialog={closeReturnDialog}
         onConfirmCancel={cancelSale}
         onConfirmReturn={returnSaleItem}
         onReturnQuantityChange={setReturnQuantity}
         onReturnReasonChange={setReturnReason}
         onReturnRefundMethodChange={setReturnRefundMethod}
-        onReturnSaleItemChange={(saleItemId) => {
-          setReturnSaleItemId(saleItemId);
-          setReturnQuantity("1");
-        }}
+        onReturnSaleItemChange={selectReturnSaleItem}
       />
     </>
   );
