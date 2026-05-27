@@ -7,18 +7,16 @@ import {
   Card,
   CardContent,
   Chip,
-  Divider,
   MenuItem,
   Stack,
   TextField,
-  Typography
+  Typography,
 } from "@mui/material";
 
 import UndoIcon from "@mui/icons-material/Undo";
 import CancelIcon from "@mui/icons-material/Cancel";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
-import { ActionDisabledReason } from "../../components/ActionDisabledReason";
 import { SearchToolbar } from "../../components/SearchToolbar";
 import { PageHeader } from "../../components/PageHeader";
 import { ResponsiveDialog } from "../../components/ResponsiveDialog";
@@ -27,6 +25,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { PERMISSIONS } from "../../auth/permissions";
 import { getApiErrorMessage } from "../../utils/apiError";
 
+import { SalesCheckoutPanel } from "./SalesCheckoutPanel";
 import { SalesProductSearchPanel } from "./SalesProductSearchPanel";
 import { SalesTicketPanel } from "./SalesTicketPanel";
 import { useSalesData } from "./useSalesData";
@@ -50,13 +49,13 @@ import {
   type CartItem,
   type PaymentMethod,
   type Sale,
-  type SaleStatus
+  type SaleStatus,
 } from "./salesShared";
 import {
   SALES_TICKET_MESSAGES,
   addProductToSalesTicket,
   removeSalesTicketItem,
-  updateSalesTicketQuantity
+  updateSalesTicketQuantity,
 } from "./salesTicket";
 
 export function SalesPage() {
@@ -74,7 +73,7 @@ export function SalesPage() {
     loadSalesData,
     submitSale,
     submitSaleCancellation,
-    submitSaleReturn
+    submitSaleReturn,
   } = useSalesData();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
@@ -105,12 +104,7 @@ export function SalesPage() {
       setError("");
       await loadSalesData();
     } catch (err: unknown) {
-      setError(
-        getApiErrorMessage(
-          err,
-          "No se pudo cargar la venta ni el catálogo de productos."
-        )
-      );
+      setError(getApiErrorMessage(err, "No se pudo cargar la venta ni el catálogo de productos."));
     }
   }, [loadSalesData]);
 
@@ -128,11 +122,7 @@ export function SalesPage() {
   const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const saleDialogIsOpen = cancelDialogOpen || returnDialogOpen;
   const checkoutIsDisabled =
-    !canCreateSales ||
-    cartIsInvalid ||
-    isPaymentInsufficient ||
-    isSubmitting ||
-    saleDialogIsOpen;
+    !canCreateSales || cartIsInvalid || isPaymentInsufficient || isSubmitting || saleDialogIsOpen;
 
   const checkoutDisabledReason = (() => {
     if (!canCreateSales) return "No tienes permiso para registrar ventas.";
@@ -149,14 +139,13 @@ export function SalesPage() {
 
   const filteredProducts = useMemo(
     () => getFilteredProducts(products, productSearch),
-    [productSearch, products]
+    [productSearch, products],
   );
   const exactProductSearchMatch = useMemo(
     () => getExactSearchProduct(products, productSearch),
-    [productSearch, products]
+    [productSearch, products],
   );
-  const canAddExactSearchMatch =
-    Boolean(exactProductSearchMatch) && !isSubmitting && !saleDialogIsOpen;
+  const canAddExactSearchMatch = Boolean(exactProductSearchMatch) && !isSubmitting && !saleDialogIsOpen;
 
   const cartRows = useMemo(() => buildCartRows(cart, products), [cart, products]);
 
@@ -190,9 +179,7 @@ export function SalesPage() {
   }
 
   function updateCartQuantity(productId: string, quantity: number) {
-    setCart((currentCart) =>
-      updateSalesTicketQuantity(currentCart, products, productId, quantity)
-    );
+    setCart((currentCart) => updateSalesTicketQuantity(currentCart, products, productId, quantity));
   }
 
   function removeCartItem(productId: string) {
@@ -228,12 +215,10 @@ export function SalesPage() {
 
       await submitSale({
         customerName:
-          typeof customerName === "string" && customerName.trim()
-            ? customerName.trim()
-            : undefined,
+          typeof customerName === "string" && customerName.trim() ? customerName.trim() : undefined,
         paymentMethod,
         paidAmount: normalizedPaid,
-        items: cart
+        items: cart,
       });
 
       setMessage("Venta registrada correctamente.");
@@ -243,18 +228,23 @@ export function SalesPage() {
       setPaymentMethod("CASH");
       setPaidAmount("");
       searchInputRef.current?.focus();
-
     } catch (err: unknown) {
       setError(
-        getApiErrorMessage(
-          err,
-          "No se pudo registrar la venta. Verifica productos, stock y método de pago."
-        )
+        getApiErrorMessage(err, "No se pudo registrar la venta. Verifica productos, stock y método de pago."),
       );
     } finally {
       setIsSubmitting(false);
     }
-  }, [cart, cartIsInvalid, customerName, isPaymentInsufficient, normalizedPaid, paymentMethod, submitSale, total]);
+  }, [
+    cart,
+    cartIsInvalid,
+    customerName,
+    isPaymentInsufficient,
+    normalizedPaid,
+    paymentMethod,
+    submitSale,
+    total,
+  ]);
 
   useEffect(() => {
     function handleGlobalShortcuts(event: globalThis.KeyboardEvent) {
@@ -306,9 +296,7 @@ export function SalesPage() {
   }
 
   function openReturnDialog(sale: Sale) {
-    const firstReturnableItem = (sale.items ?? []).find(
-      (item) => getReturnableQuantity(sale, item) > 0
-    );
+    const firstReturnableItem = (sale.items ?? []).find((item) => getReturnableQuantity(sale, item) > 0);
 
     setSelectedSale(sale);
     setReturnReason("");
@@ -333,7 +321,7 @@ export function SalesPage() {
 
       await submitSaleCancellation(selectedSale.id, {
         reason: cancelReason.trim(),
-        refundMethod: cancelRefundMethod
+        refundMethod: cancelRefundMethod,
       });
 
       setCancelDialogOpen(false);
@@ -343,8 +331,8 @@ export function SalesPage() {
       setError(
         getApiErrorMessage(
           err,
-          "No se pudo cancelar la venta. Verifica el motivo y el método de devolución."
-        )
+          "No se pudo cancelar la venta. Verifica el motivo y el método de devolución.",
+        ),
       );
     } finally {
       setIsSubmitting(false);
@@ -384,9 +372,9 @@ export function SalesPage() {
         items: [
           {
             saleItemId: saleItem.id,
-            quantity
-          }
-        ]
+            quantity,
+          },
+        ],
       });
 
       setReturnDialogOpen(false);
@@ -396,21 +384,17 @@ export function SalesPage() {
       setError(
         getApiErrorMessage(
           err,
-          "No se pudo registrar la devolución. Verifica el producto, cantidad, motivo y método."
-        )
+          "No se pudo registrar la devolución. Verifica el producto, cantidad, motivo y método.",
+        ),
       );
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  const selectedReturnItem = selectedSale?.items?.find(
-    (item) => item.id === returnSaleItemId
-  );
+  const selectedReturnItem = selectedSale?.items?.find((item) => item.id === returnSaleItemId);
   const selectedReturnItemAvailable =
-    selectedSale && selectedReturnItem
-      ? getReturnableQuantity(selectedSale, selectedReturnItem)
-      : 0;
+    selectedSale && selectedReturnItem ? getReturnableQuantity(selectedSale, selectedReturnItem) : 0;
 
   const cancelReasonIsInvalid = cancelReason.trim().length < 5;
   const returnQuantityNumber = Number(returnQuantity);
@@ -423,7 +407,7 @@ export function SalesPage() {
 
   const filteredSales = useMemo(
     () => getFilteredSales(sales, saleSearch, saleStatusFilter, salePaymentFilter),
-    [salePaymentFilter, saleSearch, saleStatusFilter, sales]
+    [salePaymentFilter, saleSearch, saleStatusFilter, sales],
   );
 
   const salesSummary = useMemo(() => summarizeSales(sales), [sales]);
@@ -470,8 +454,7 @@ export function SalesPage() {
           mb: 2,
           border: "1px solid",
           borderColor: "divider",
-          background:
-            "linear-gradient(135deg, rgba(25, 118, 210, 0.10), rgba(46, 125, 50, 0.08))"
+          background: "linear-gradient(135deg, rgba(25, 118, 210, 0.10), rgba(46, 125, 50, 0.08))",
         }}
       >
         <CardContent>
@@ -489,7 +472,8 @@ export function SalesPage() {
                 Ticket, catálogo y cobro en una sola vista
               </Typography>
               <Typography color="text.secondary">
-                Escanea o busca productos, revisa el ticket y confirma que el pago cubra el total antes de cobrar.
+                Escanea o busca productos, revisa el ticket y confirma que el pago cubra el total antes de
+                cobrar.
               </Typography>
             </Box>
 
@@ -517,151 +501,72 @@ export function SalesPage() {
             mb: 2,
             border: "1px solid",
             borderColor: "divider",
-            overflow: "hidden"
+            overflow: "hidden",
           }}
         >
           <CardContent>
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                lg: "minmax(0, 1fr) 360px"
-              },
-              gap: 2,
-              alignItems: "start"
-            }}
-          >
-            <Box sx={{ display: "grid", gap: 2 }}>
-              <SalesProductSearchPanel
-                filteredProducts={filteredProducts}
-                productSearch={productSearch}
-                searchInputRef={searchInputRef}
-                canAddExactSearchMatch={canAddExactSearchMatch}
-                isDisabled={isSubmitting || saleDialogIsOpen}
-                onProductSearchChange={setProductSearch}
-                onProductSearchKeyDown={handleProductSearchKeyDown}
-                onAddExactSearchMatch={addExactSearchMatchToCart}
-                onAddProduct={addProductToCart}
-              />
-
-              <SalesTicketPanel
-                cartRows={cartRows}
-                isDisabled={isSubmitting || saleDialogIsOpen}
-                onQuantityChange={updateCartQuantity}
-                onRemoveItem={removeCartItem}
-              />
-            </Box>
-
             <Box
               sx={{
-                position: {
-                  xs: "static",
-                  lg: "sticky"
-                },
-                top: 96,
                 display: "grid",
-                gap: 2
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  lg: "minmax(0, 1fr) 360px",
+                },
+                gap: 2,
+                alignItems: "start",
               }}
             >
-              <Card variant="outlined" sx={{ boxShadow: "none" }}>
-                <CardContent sx={{ display: "grid", gap: 2 }}>
-                  <Typography variant="h6" fontWeight={900}>
-                    Orden de venta
-                  </Typography>
+              <Box sx={{ display: "grid", gap: 2 }}>
+                <SalesProductSearchPanel
+                  filteredProducts={filteredProducts}
+                  productSearch={productSearch}
+                  searchInputRef={searchInputRef}
+                  canAddExactSearchMatch={canAddExactSearchMatch}
+                  isDisabled={isSubmitting || saleDialogIsOpen}
+                  onProductSearchChange={setProductSearch}
+                  onProductSearchKeyDown={handleProductSearchKeyDown}
+                  onAddExactSearchMatch={addExactSearchMatchToCart}
+                  onAddProduct={addProductToCart}
+                />
 
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Total vendido
-                    </Typography>
-                    <Typography
-                      variant="h3"
-                      fontWeight={900}
-                      color="primary"
-                      aria-live="polite"
-                      sx={{ letterSpacing: "-0.04em" }}
-                    >
-                      {formatMoney(total)}
-                    </Typography>
-                  </Box>
+                <SalesTicketPanel
+                  cartRows={cartRows}
+                  isDisabled={isSubmitting || saleDialogIsOpen}
+                  onQuantityChange={updateCartQuantity}
+                  onRemoveItem={removeCartItem}
+                />
+              </Box>
 
-                  <Divider />
-
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr auto",
-                      gap: 1
-                    }}
-                  >
-                    <Typography color="text.secondary">Artículos</Typography>
-                    <Typography fontWeight={800}>{cartItemsCount}</Typography>
-                    <Typography color="text.secondary">Partidas</Typography>
-                    <Typography fontWeight={800}>{cart.length}</Typography>
-                    <Typography color="text.secondary">Cambio estimado</Typography>
-                    <Typography fontWeight={800}>{formatMoney(change)}</Typography>
-                  </Box>
-
-                  <TextField
-                    label="Cliente opcional"
-                    value={customerName}
-                    helperText="Déjalo vacío para público general."
-                    onChange={(event) => setCustomerName(event.target.value)}
-                  />
-
-                  <TextField
-                    select
-                    label="Método de pago"
-                    value={paymentMethod}
-                    onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
-                  >
-                    {PAYMENT_METHOD_OPTIONS.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-
-
-                  <TextField
-                    label="Pago con"
-                    type="number"
-                    value={paidAmount}
-                    inputProps={{
-                      "data-testid": "sales-paid-amount",
-                      min: 0,
-                      step: 0.01,
-                    }}
-                    error={isPaymentInsufficient}
-                    helperText={
-                      isPaymentInsufficient
-                        ? `Pago insuficiente. Falta ${formatMoney(total - normalizedPaid)}.`
-                        : "Debe cubrir el total para poder cobrar. El cambio se calcula arriba."
-                    }
-                    onChange={(event) => setPaidAmount(event.target.value)}
-                  />
-
-                  <Box>
-                    <Button
-                      color="success"
-                      size="large"
-                      fullWidth
-                      onClick={createSale}
-                      disabled={checkoutIsDisabled}
-                      title={checkoutIsDisabled ? checkoutDisabledReason : "Registrar venta"}
-                      data-testid="sales-checkout-button"
-                      sx={{ minHeight: 58, fontSize: "1rem" }}
-                    >
-                      F12 · Cobrar venta
-                    </Button>
-                    <ActionDisabledReason
-                      message={checkoutIsDisabled ? checkoutDisabledReason : ""}
-                    />
-                  </Box>
-                </CardContent>
-              </Card>
+              <Box
+                sx={{
+                  position: {
+                    xs: "static",
+                    lg: "sticky",
+                  },
+                  top: 96,
+                  display: "grid",
+                  gap: 2,
+                }}
+              >
+                <SalesCheckoutPanel
+                  cartItemsCount={cartItemsCount}
+                  cartLinesCount={cart.length}
+                  change={change}
+                  checkoutDisabledReason={checkoutDisabledReason}
+                  customerName={customerName}
+                  isCheckoutDisabled={checkoutIsDisabled}
+                  isPaymentInsufficient={isPaymentInsufficient}
+                  normalizedPaid={normalizedPaid}
+                  paidAmount={paidAmount}
+                  paymentMethod={paymentMethod}
+                  total={total}
+                  onCheckout={createSale}
+                  onCustomerNameChange={setCustomerName}
+                  onPaidAmountChange={setPaidAmount}
+                  onPaymentMethodChange={setPaymentMethod}
+                />
+              </Box>
             </Box>
-          </Box>
           </CardContent>
         </Card>
       )}
@@ -673,16 +578,16 @@ export function SalesPage() {
             gridTemplateColumns: {
               xs: "1fr",
               sm: "repeat(2, minmax(0, 1fr))",
-              lg: "repeat(4, minmax(0, 1fr))"
+              lg: "repeat(4, minmax(0, 1fr))",
             },
-            gap: 2
+            gap: 2,
           }}
         >
           {[
             ["Ventas cargadas", salesSummary.totalCount.toString()],
             ["Completadas", salesSummary.completedCount.toString()],
             ["Total completado", formatMoney(salesSummary.totalSold)],
-            ["Canceladas/devueltas", salesSummary.cancelledOrReturned.toString()]
+            ["Canceladas/devueltas", salesSummary.cancelledOrReturned.toString()],
           ].map(([label, value]) => (
             <Card key={label} variant="outlined" sx={{ boxShadow: "none" }}>
               <CardContent>
@@ -731,9 +636,7 @@ export function SalesPage() {
                   size="small"
                   label="Estado"
                   value={saleStatusFilter}
-                  onChange={(event) =>
-                    setSaleStatusFilter(event.target.value as SaleStatus | "ALL")
-                  }
+                  onChange={(event) => setSaleStatusFilter(event.target.value as SaleStatus | "ALL")}
                   sx={{ minWidth: { xs: "100%", sm: 180 } }}
                 >
                   {SALE_STATUS_FILTER_OPTIONS.map((option) => (
@@ -748,9 +651,7 @@ export function SalesPage() {
                   size="small"
                   label="Pago"
                   value={salePaymentFilter}
-                  onChange={(event) =>
-                    setSalePaymentFilter(event.target.value as PaymentMethod | "ALL")
-                  }
+                  onChange={(event) => setSalePaymentFilter(event.target.value as PaymentMethod | "ALL")}
                   sx={{ minWidth: { xs: "100%", sm: 180 } }}
                 >
                   <MenuItem value="ALL">Todos</MenuItem>
@@ -770,7 +671,7 @@ export function SalesPage() {
                   borderRadius: 2,
                   color: "text.secondary",
                   py: 6,
-                  textAlign: "center"
+                  textAlign: "center",
                 }}
               >
                 No hay ventas que coincidan con los filtros actuales.
@@ -779,7 +680,7 @@ export function SalesPage() {
               <Box sx={{ display: "grid", gap: 1.5 }}>
                 {filteredSales.map((sale) => {
                   const hasReturnableItems = (sale.items ?? []).some(
-                    (item) => getReturnableQuantity(sale, item) > 0
+                    (item) => getReturnableQuantity(sale, item) > 0,
                   );
 
                   return (
@@ -791,10 +692,10 @@ export function SalesPage() {
                             xs: "1fr",
                             lg: canManageSales
                               ? "minmax(0, 1.5fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto"
-                              : "minmax(0, 1.5fr) minmax(180px, 0.8fr) auto"
+                              : "minmax(0, 1.5fr) minmax(180px, 0.8fr) auto",
                           },
                           gap: 2,
-                          alignItems: "center"
+                          alignItems: "center",
                         }}
                       >
                         <Box sx={{ minWidth: 0 }}>
@@ -861,9 +762,7 @@ export function SalesPage() {
                                 size="small"
                                 color="warning"
                                 startIcon={<UndoIcon />}
-                                disabled={
-                                  isSubmitting || sale.status === "CANCELLED" || !hasReturnableItems
-                                }
+                                disabled={isSubmitting || sale.status === "CANCELLED" || !hasReturnableItems}
                                 onClick={() => openReturnDialog(sale)}
                               >
                                 Devolver
@@ -902,18 +801,10 @@ export function SalesPage() {
         description="Confirma la cancelación solo cuando la venta deba anularse por completo."
         actions={
           <>
-            <Button
-              variant="outlined"
-              onClick={() => setCancelDialogOpen(false)}
-              disabled={isSubmitting}
-            >
+            <Button variant="outlined" onClick={() => setCancelDialogOpen(false)} disabled={isSubmitting}>
               Cerrar
             </Button>
-            <Button
-              color="error"
-              onClick={cancelSale}
-              disabled={isSubmitting || cancelReasonIsInvalid}
-            >
+            <Button color="error" onClick={cancelSale} disabled={isSubmitting || cancelReasonIsInvalid}>
               Confirmar cancelación
             </Button>
           </>
@@ -923,7 +814,6 @@ export function SalesPage() {
           <Alert severity="warning">
             Esta acción restaura el stock de todos los productos vendidos y marca la venta como cancelada.
           </Alert>
-
 
           <TextField
             select
@@ -959,28 +849,17 @@ export function SalesPage() {
         description="Devuelve unidades vendidas y registra el motivo para auditoría."
         actions={
           <>
-            <Button
-              variant="outlined"
-              onClick={() => setReturnDialogOpen(false)}
-              disabled={isSubmitting}
-            >
+            <Button variant="outlined" onClick={() => setReturnDialogOpen(false)} disabled={isSubmitting}>
               Cerrar
             </Button>
-            <Button
-              color="warning"
-              onClick={returnSaleItem}
-              disabled={isSubmitting || returnFormIsInvalid}
-            >
+            <Button color="warning" onClick={returnSaleItem} disabled={isSubmitting || returnFormIsInvalid}>
               Registrar devolución
             </Button>
           </>
         }
       >
         <Box sx={{ display: "grid", gap: 2 }}>
-          <Alert severity="info">
-            La devolución restaura stock y actualiza el estado de la venta.
-          </Alert>
-
+          <Alert severity="info">La devolución restaura stock y actualiza el estado de la venta.</Alert>
 
           <TextField
             select
@@ -996,7 +875,8 @@ export function SalesPage() {
 
               return (
                 <MenuItem key={item.id} value={item.id} disabled={available <= 0}>
-                  {item.product?.sku ?? item.productId} · {item.product?.name ?? "Producto"} · disponible {available}
+                  {item.product?.sku ?? item.productId} · {item.product?.name ?? "Producto"} · disponible{" "}
+                  {available}
                 </MenuItem>
               );
             })}
