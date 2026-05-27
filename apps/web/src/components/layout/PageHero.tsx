@@ -16,6 +16,7 @@ export type PageHeroProps = {
   stats?: PageHeroStat[];
   subtitle: ReactNode;
   sx?: SxProps<Theme>;
+  testId?: string;
   title: ReactNode;
   tone?: PageHeroTone;
 };
@@ -34,11 +35,13 @@ export function PageHero({
   stats = [],
   subtitle,
   sx,
+  testId,
   title,
   tone = "info",
 }: PageHeroProps) {
   return (
     <Card
+      data-testid={testId}
       sx={[
         (theme) => {
           const heroColor = getHeroColor(theme, tone);

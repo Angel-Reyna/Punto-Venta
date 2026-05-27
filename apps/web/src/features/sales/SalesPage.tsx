@@ -1,4 +1,4 @@
-import { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Alert,
@@ -8,16 +8,12 @@ import {
   CardContent,
   Chip,
   Divider,
-  IconButton,
   MenuItem,
   Stack,
   TextField,
   Typography
 } from "@mui/material";
 
-import AddShoppingCartIcon from "@mui/icons-material/AddShoppingCart";
-import DeleteIcon from "@mui/icons-material/Delete";
-import SearchIcon from "@mui/icons-material/Search";
 import UndoIcon from "@mui/icons-material/Undo";
 import CancelIcon from "@mui/icons-material/Cancel";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -31,6 +27,8 @@ import { useAuth } from "../../auth/AuthContext";
 import { PERMISSIONS } from "../../auth/permissions";
 import { getApiErrorMessage } from "../../utils/apiError";
 
+import { SalesProductSearchPanel } from "./SalesProductSearchPanel";
+import { SalesTicketPanel } from "./SalesTicketPanel";
 import { useSalesData } from "./useSalesData";
 
 import {
@@ -40,7 +38,6 @@ import {
   getExactSearchProduct,
   getFilteredProducts,
   getFilteredSales,
-  getProductFinalPrice,
   PAYMENT_METHOD_OPTIONS,
   getReturnableQuantity,
   isCartInvalid,
@@ -202,7 +199,7 @@ export function SalesPage() {
     setCart((currentCart) => removeSalesTicketItem(currentCart, productId));
   }
 
-  function handleProductSearchKeyDown(event: KeyboardEvent) {
+  function handleProductSearchKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Enter") {
       event.preventDefault();
 
@@ -536,191 +533,24 @@ export function SalesPage() {
             }}
           >
             <Box sx={{ display: "grid", gap: 2 }}>
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: {
-                    xs: "1fr",
-                    md: "minmax(0, 1fr) 220px"
-                  },
-                  gap: 2
-                }}
-              >
-                <TextField
-                  inputRef={searchInputRef}
-                  label="F3 · Buscar por código, SKU o nombre"
-                  value={productSearch}
-                  autoFocus
-                  placeholder="Escanea código de barras o escribe para buscar"
-                  inputProps={{
-                    "data-testid": "sales-product-search",
-                  }}
-                  helperText="Enter agrega solo SKU o código exacto; para búsquedas parciales selecciona una tarjeta."
-                  onKeyDown={handleProductSearchKeyDown}
-                  onChange={(event) => setProductSearch(event.target.value)}
-                  disabled={isSubmitting || saleDialogIsOpen}
-                  InputProps={{
-                    startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />
-                  }}
-                />
+              <SalesProductSearchPanel
+                filteredProducts={filteredProducts}
+                productSearch={productSearch}
+                searchInputRef={searchInputRef}
+                canAddExactSearchMatch={canAddExactSearchMatch}
+                isDisabled={isSubmitting || saleDialogIsOpen}
+                onProductSearchChange={setProductSearch}
+                onProductSearchKeyDown={handleProductSearchKeyDown}
+                onAddExactSearchMatch={addExactSearchMatchToCart}
+                onAddProduct={addProductToCart}
+              />
 
-                <Button
-                  startIcon={<AddShoppingCartIcon />}
-                  onClick={addExactSearchMatchToCart}
-                  disabled={!canAddExactSearchMatch}
-                  data-testid="sales-add-search-match"
-                  title={
-                    canAddExactSearchMatch
-                      ? "Agregar coincidencia exacta"
-                      : "Busca por SKU o código exacto para agregar con Enter."
-                  }
-                >
-                  Enter · Agregar
-                </Button>
-              </Box>
-
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: {
-                    xs: "1fr",
-                    md: "repeat(4, minmax(0, 1fr))"
-                  },
-                  gap: 1
-                }}
-              >
-                {filteredProducts.map((product) => {
-                  const finalPrice = getProductFinalPrice(product);
-
-                  return (
-                    <Button
-                      key={product.id}
-                      variant="outlined"
-                      color="inherit"
-                      onClick={() => addProductToCart(product.id)}
-                      disabled={isSubmitting || saleDialogIsOpen}
-                      sx={{
-                        justifyContent: "space-between",
-                        minHeight: 78,
-                        textAlign: "left",
-                        alignItems: "stretch",
-                        display: "grid",
-                        gap: 0.5,
-                        p: 1.25
-                      }}
-                    >
-                      <Typography fontWeight={800} noWrap>
-                        {product.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" noWrap>
-                        {product.sku} · stock {product.stock}
-                      </Typography>
-                      <Typography fontWeight={800}>{formatMoney(finalPrice)}</Typography>
-                    </Button>
-                  );
-                })}
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" fontWeight={900} sx={{ mb: 1 }}>
-                  Ticket actual
-                </Typography>
-
-                {cartRows.length === 0 ? (
-                  <Box
-                    data-testid="sales-ticket-empty"
-                    sx={{
-                      py: 6,
-                      textAlign: "center",
-                      color: "text.secondary",
-                      border: "1px dashed #cbd5e1",
-                      borderRadius: 2
-                    }}
-                  >
-                    Escanea o busca un producto para iniciar la venta.
-                  </Box>
-                ) : (
-                  <Box data-testid="sales-cart-items" sx={{ display: "grid", gap: 1 }}>
-                    {cartRows.map((item) => (
-                      <Card key={item.productId} variant="outlined" sx={{ boxShadow: "none" }}>
-                        <CardContent
-                          sx={{
-                            display: "grid",
-                            gridTemplateColumns: {
-                              xs: "1fr",
-                              md: "minmax(0, 1.5fr) 110px 120px 120px auto"
-                            },
-                            gap: 1.5,
-                            alignItems: { xs: "stretch", md: "center" },
-                            p: { xs: 1.5, sm: 2 },
-                            "&:last-child": { pb: { xs: 1.5, sm: 2 } }
-                          }}
-                        >
-                          <Box sx={{ minWidth: 0 }}>
-                            <Stack
-                              direction="row"
-                              spacing={1}
-                              alignItems="center"
-                              sx={{ minWidth: 0, mb: 0.25 }}
-                            >
-                              <Typography fontWeight={900} noWrap>
-                                {item.product?.name ?? "Producto"}
-                              </Typography>
-                              <Chip
-                                size="small"
-                                variant="outlined"
-                                label={`Stock ${item.product?.stock ?? 0}`}
-                              />
-                            </Stack>
-                            <Typography variant="caption" color="text.secondary" noWrap>
-                              {item.product?.sku ?? item.productId}
-                            </Typography>
-                          </Box>
-
-                          <Box>
-                            <Typography variant="caption" color="text.secondary">
-                              Precio
-                            </Typography>
-                            <Typography fontWeight={800}>{formatMoney(item.unitPrice)}</Typography>
-                          </Box>
-
-                          <TextField
-                            label="Cantidad"
-                            type="number"
-                            value={item.quantity}
-                            size="small"
-                            inputProps={{
-                              min: 1,
-                              max: item.product?.stock ?? undefined,
-                              step: 1
-                            }}
-                            disabled={isSubmitting || saleDialogIsOpen}
-                            onChange={(event) =>
-                              updateCartQuantity(item.productId, Number(event.target.value))
-                            }
-                          />
-
-                          <Box>
-                            <Typography variant="caption" color="text.secondary">
-                              Importe
-                            </Typography>
-                            <Typography fontWeight={900}>{formatMoney(item.total)}</Typography>
-                          </Box>
-
-                          <IconButton
-                            onClick={() => removeCartItem(item.productId)}
-                            disabled={isSubmitting || saleDialogIsOpen}
-                            aria-label="Quitar producto"
-                            sx={{ justifySelf: { xs: "flex-end", md: "center" } }}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </Box>
-                )}
-              </Box>
+              <SalesTicketPanel
+                cartRows={cartRows}
+                isDisabled={isSubmitting || saleDialogIsOpen}
+                onQuantityChange={updateCartQuantity}
+                onRemoveItem={removeCartItem}
+              />
             </Box>
 
             <Box

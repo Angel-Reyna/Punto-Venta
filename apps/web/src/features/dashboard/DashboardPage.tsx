@@ -103,6 +103,7 @@ export function DashboardPage() {
       )}
 
       <PageHero
+        testId="dashboard-operational-hero"
         title="Resumen operativo en tiempo real"
         subtitle="Prioriza ventas, reposición e incidencias desde una sola lectura. La venta en efectivo sigue independiente de Caja; Caja solo ayuda a controlar entregas y cortes."
         tone={
