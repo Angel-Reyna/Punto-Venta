@@ -1,0 +1,44 @@
+# Punta Venta repository line-ending policy.
+# Keep repository text files normalized to LF to avoid patch drift between
+# Windows/Git Bash, Linux CI, Docker builds and generated diagnostics.
+
+* text=auto
+
+# Source code and project text files.
+*.cjs text eol=lf
+*.css text eol=lf
+*.env.example text eol=lf
+*.html text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.jsx text eol=lf
+*.md text eol=lf
+*.mjs text eol=lf
+*.prisma text eol=lf
+*.sh text eol=lf
+*.sql text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+.gitignore text eol=lf
+.node-version text eol=lf
+.nvmrc text eol=lf
+
+# Binary assets and documents.
+*.avif binary
+*.docx binary
+*.gz binary
+*.ico binary
+*.jpeg binary
+*.jpg binary
+*.pdf binary
+*.png binary
+*.tar binary
+*.webm binary
+*.webp binary
+*.xlsx binary
+*.zip binary
