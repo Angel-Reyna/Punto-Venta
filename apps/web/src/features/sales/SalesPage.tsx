@@ -1,4 +1,4 @@
-import { KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Alert,
@@ -22,7 +22,6 @@ import UndoIcon from "@mui/icons-material/Undo";
 import CancelIcon from "@mui/icons-material/Cancel";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
-import { api } from "../../api/client";
 import { ActionDisabledReason } from "../../components/ActionDisabledReason";
 import { SearchToolbar } from "../../components/SearchToolbar";
 import { PageHeader } from "../../components/PageHeader";
@@ -31,6 +30,8 @@ import { StatusFeedback } from "../../components/StatusFeedback";
 import { useAuth } from "../../auth/AuthContext";
 import { PERMISSIONS } from "../../auth/permissions";
 import { getApiErrorMessage } from "../../utils/apiError";
+
+import { useSalesData } from "./useSalesData";
 
 import {
   buildCartRows,
@@ -51,7 +52,6 @@ import {
   summarizeSales,
   type CartItem,
   type PaymentMethod,
-  type Product,
   type Sale,
   type SaleStatus
 } from "./salesShared";
@@ -70,9 +70,16 @@ export function SalesPage() {
   const canReturnSales = can(PERMISSIONS.SalesReturn);
   const canManageSales = canCancelSales || canReturnSales;
 
-  const [products, setProducts] = useState<Product[]>([]);
+  const {
+    products,
+    sales,
+    isLoadingCatalog,
+    loadSalesData,
+    submitSale,
+    submitSaleCancellation,
+    submitSaleReturn
+  } = useSalesData();
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [sales, setSales] = useState<Sale[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [productSearch, setProductSearch] = useState("");
@@ -93,22 +100,13 @@ export function SalesPage() {
   const [returnQuantity, setReturnQuantity] = useState("1");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  async function load() {
+  const loadSalesWorkspace = useCallback(async () => {
     try {
       setError("");
-      setIsLoadingCatalog(true);
-
-      const [productsResponse, salesResponse] = await Promise.all([
-        api.get<Product[]>("/products?page=1&pageSize=100"),
-        api.get<Sale[]>("/sales?page=1&pageSize=100")
-      ]);
-
-      setProducts(productsResponse.data);
-      setSales(salesResponse.data);
+      await loadSalesData();
     } catch (err: unknown) {
       setError(
         getApiErrorMessage(
@@ -116,14 +114,12 @@ export function SalesPage() {
           "No se pudo cargar la venta ni el catálogo de productos."
         )
       );
-    } finally {
-      setIsLoadingCatalog(false);
     }
-  }
+  }, [loadSalesData]);
 
   useEffect(() => {
-    void load();
-  }, []);
+    void loadSalesWorkspace();
+  }, [loadSalesWorkspace]);
 
   const total = useMemo(() => calculateCartTotal(cart, products), [cart, products]);
   const cartIsInvalid = useMemo(() => isCartInvalid(cart, products), [cart, products]);
@@ -216,7 +212,7 @@ export function SalesPage() {
     }
   }
 
-  async function createSale() {
+  const createSale = useCallback(async () => {
     setMessage("");
     setError("");
 
@@ -233,7 +229,7 @@ export function SalesPage() {
     try {
       setIsSubmitting(true);
 
-      await api.post("/sales", {
+      await submitSale({
         customerName:
           typeof customerName === "string" && customerName.trim()
             ? customerName.trim()
@@ -251,7 +247,6 @@ export function SalesPage() {
       setPaidAmount("");
       searchInputRef.current?.focus();
 
-      await load();
     } catch (err: unknown) {
       setError(
         getApiErrorMessage(
@@ -262,7 +257,7 @@ export function SalesPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }
+  }, [cart, cartIsInvalid, customerName, isPaymentInsufficient, normalizedPaid, paymentMethod, submitSale, total]);
 
   useEffect(() => {
     function handleGlobalShortcuts(event: globalThis.KeyboardEvent) {
@@ -288,12 +283,12 @@ export function SalesPage() {
     return () => {
       window.removeEventListener("keydown", handleGlobalShortcuts);
     };
-  }, [canCreateSales, checkoutIsDisabled, cart, customerName, paymentMethod, normalizedPaid]);
+  }, [canCreateSales, checkoutIsDisabled, createSale, isSubmitting, saleDialogIsOpen]);
 
   useEffect(() => {
     function refreshCatalogWhenVisible() {
       if (document.visibilityState === "visible" && !saleDialogIsOpen && !isSubmitting) {
-        void load();
+        void loadSalesWorkspace();
       }
     }
 
@@ -304,7 +299,7 @@ export function SalesPage() {
       window.removeEventListener("focus", refreshCatalogWhenVisible);
       document.removeEventListener("visibilitychange", refreshCatalogWhenVisible);
     };
-  }, [saleDialogIsOpen, isSubmitting]);
+  }, [isSubmitting, loadSalesWorkspace, saleDialogIsOpen]);
 
   function openCancelDialog(sale: Sale) {
     setSelectedSale(sale);
@@ -339,7 +334,7 @@ export function SalesPage() {
       setError("");
       setMessage("");
 
-      await api.post(`/sales/${selectedSale.id}/cancel`, {
+      await submitSaleCancellation(selectedSale.id, {
         reason: cancelReason.trim(),
         refundMethod: cancelRefundMethod
       });
@@ -347,7 +342,6 @@ export function SalesPage() {
       setCancelDialogOpen(false);
       setSelectedSale(null);
       setMessage("Venta cancelada correctamente. El stock fue restaurado.");
-      await load();
     } catch (err: unknown) {
       setError(
         getApiErrorMessage(
@@ -387,7 +381,7 @@ export function SalesPage() {
       setError("");
       setMessage("");
 
-      await api.post(`/sales/${selectedSale.id}/returns`, {
+      await submitSaleReturn(selectedSale.id, {
         reason: returnReason.trim(),
         refundMethod: returnRefundMethod,
         items: [
@@ -401,7 +395,6 @@ export function SalesPage() {
       setReturnDialogOpen(false);
       setSelectedSale(null);
       setMessage("Devolución registrada correctamente. El stock fue restaurado.");
-      await load();
     } catch (err: unknown) {
       setError(
         getApiErrorMessage(
@@ -452,7 +445,7 @@ export function SalesPage() {
             fullWidth
             variant="outlined"
             startIcon={<RefreshIcon />}
-            onClick={() => void load()}
+            onClick={() => void loadSalesWorkspace()}
             disabled={isSubmitting || isLoadingCatalog}
           >
             {isLoadingCatalog ? "Actualizando..." : "Actualizar venta"}

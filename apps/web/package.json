@@ -15,7 +15,7 @@
     "playwright:install": "playwright install chromium",
     "preview": "vite preview",
     "test": "vitest",
-    "test:critical": "vitest --run src/auth/permissions.test.ts src/layout/navigation.test.tsx src/features/sales/salesShared.test.ts src/utils/text.test.ts",
+    "test:critical": "vitest --run src/auth/permissions.test.ts src/layout/navigation.test.tsx src/features/sales/salesShared.test.ts src/features/sales/salesTicket.test.ts src/utils/text.test.ts",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
