@@ -1,0 +1,14 @@
+node_modules
+coverage
+dist
+build
+playwright-report
+test-results
+.puntaventa_diagnostics
+backups
+*.log
+*.tar.gz
+*.zip
+package-lock.json
+apps/**/package-lock.json
+apps/api/prisma/migrations/**

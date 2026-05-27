@@ -44,17 +44,17 @@ function manualVendorChunk(id: string) {
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173
+    port: 5173,
   },
   preview: {
-    port: 4173
+    port: 4173,
   },
   build: {
     chunkSizeWarningLimit: 900,
     rollupOptions: {
       output: {
-        manualChunks: manualVendorChunk
-      }
-    }
-  }
+        manualChunks: manualVendorChunk,
+      },
+    },
+  },
 });

@@ -9,8 +9,8 @@ module.exports = {
     "^.+\\.tsx?$": [
       "ts-jest",
       {
-        diagnostics: false
-      }
-    ]
-  }
+        diagnostics: false,
+      },
+    ],
+  },
 };

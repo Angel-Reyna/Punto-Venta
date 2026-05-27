@@ -3,22 +3,25 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "predev": "node scripts/preflight-dev.js",
+    "build": "tsc",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "dev:doctor": "node scripts/dev-doctor.js",
-    "build": "tsc",
+    "dev:e2e": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "format:check": "prettier --check eslint.config.mjs package.json tsconfig.json jest.config.js",
+    "lint": "eslint src tests jest.config.js",
+    "predev": "node scripts/preflight-dev.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "prisma:validate": "prisma validate",
+    "seed": "ts-node-dev --transpile-only --exit-child src/scripts/seed.ts",
+    "seed:e2e": "ts-node-dev --transpile-only --exit-child src/scripts/seed-e2e.ts",
+    "seed:prod": "node dist/scripts/seed.js",
     "start": "node dist/server.js",
     "test": "jest",
     "test:critical": "jest critical-routes.permissions.test.ts auth.middleware.test.ts sales.service.test.ts products.import.test.ts products.delete.test.ts reports.service.test.ts --runInBand",
-    "seed": "ts-node-dev --transpile-only --exit-child src/scripts/seed.ts",
-    "seed:prod": "node dist/scripts/seed.js",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio",
-    "prisma:migrate:deploy": "prisma migrate deploy",
-    "prisma:validate": "prisma validate",
-    "dev:e2e": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "seed:e2e": "ts-node-dev --transpile-only --exit-child src/scripts/seed-e2e.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -38,6 +41,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@types/bcrypt": "^6.0.0",
     "@types/compression": "^1.7.5",
     "@types/cookie-parser": "^1.4.10",
@@ -49,11 +53,21 @@
     "@types/node": "^22.13.0",
     "@types/pdfkit": "^0.13.9",
     "@types/supertest": "^6.0.2",
+    "eslint": "^9.39.4",
+    "globals": "^17.6.0",
     "jest": "^29.7.0",
+    "prettier": "^3.8.3",
     "prisma": "^5.22.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.60.0"
+  },
+  "overrides": {
+    "qs": "6.15.2",
+    "tmp": "0.2.6",
+    "uuid": "11.1.1"
   }
 }
+
