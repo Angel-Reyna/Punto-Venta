@@ -39,7 +39,6 @@ import {
   getExactSearchProduct,
   getFilteredProducts,
   getFilteredSales,
-  getProductById,
   getProductFinalPrice,
   PAYMENT_METHOD_OPTIONS,
   getReturnableQuantity,
@@ -56,6 +55,12 @@ import {
   type Sale,
   type SaleStatus
 } from "./salesShared";
+import {
+  SALES_TICKET_MESSAGES,
+  addProductToSalesTicket,
+  removeSalesTicketItem,
+  updateSalesTicketQuantity
+} from "./salesTicket";
 
 export function SalesPage() {
   const { can } = useAuth();
@@ -163,35 +168,15 @@ export function SalesPage() {
   const cartRows = useMemo(() => buildCartRows(cart, products), [cart, products]);
 
   function addProductToCart(productId: string) {
-    const product = getProductById(products, productId);
+    const result = addProductToSalesTicket(cart, products, productId);
 
-    if (!product || product.stock <= 0) {
-      setError("Producto sin stock disponible para vender.");
-      return;
+    setError(result.error);
+    setCart(result.cart);
+
+    if (result.shouldClearSearch) {
+      setProductSearch("");
+      searchInputRef.current?.focus();
     }
-
-    setError("");
-    setCart((currentCart) => {
-      const existingItem = currentCart.find((item) => item.productId === productId);
-
-      if (!existingItem) {
-        return [...currentCart, { productId, quantity: 1 }];
-      }
-
-      if (existingItem.quantity >= product.stock) {
-        setError("La cantidad no puede superar el stock disponible.");
-        return currentCart;
-      }
-
-      return currentCart.map((item) =>
-        item.productId === productId
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      );
-    });
-
-    setProductSearch("");
-    searchInputRef.current?.focus();
   }
 
   function addExactSearchMatchToCart() {
@@ -204,9 +189,7 @@ export function SalesPage() {
     }
 
     if (!exactProductSearchMatch) {
-      setError(
-        "Enter solo agrega coincidencias exactas de SKU o código. Para búsquedas parciales, selecciona el producto de la lista."
-      );
+      setError(SALES_TICKET_MESSAGES.exactMatchRequired);
       return;
     }
 
@@ -214,25 +197,13 @@ export function SalesPage() {
   }
 
   function updateCartQuantity(productId: string, quantity: number) {
-    const product = getProductById(products, productId);
-
-    if (!product) return;
-
-    const nextQuantity = Math.max(1, Math.min(quantity || 1, product.stock));
-
     setCart((currentCart) =>
-      currentCart.map((item) =>
-        item.productId === productId
-          ? { ...item, quantity: nextQuantity }
-          : item
-      )
+      updateSalesTicketQuantity(currentCart, products, productId, quantity)
     );
   }
 
   function removeCartItem(productId: string) {
-    setCart((currentCart) =>
-      currentCart.filter((item) => item.productId !== productId)
-    );
+    setCart((currentCart) => removeSalesTicketItem(currentCart, productId));
   }
 
   function handleProductSearchKeyDown(event: KeyboardEvent) {
