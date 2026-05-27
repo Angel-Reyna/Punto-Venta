@@ -81,6 +81,10 @@ La suite Playwright mockeada debe cubrir, como mínimo:
 
 La suite integrada debe cubrir al menos venta real con PostgreSQL y eliminación física de producto con historial preservado.
 
+## Checklist manual de release smoke
+
+Después de una ronda visual, de seguridad o de QA amplia, ejecuta también `docs/qa/release-smoke-checklist.md`. Ese checklist cubre validaciones que no conviene delegar solo a E2E: claridad visual, responsive real, importación/descarga de archivos y lectura operativa por rol.
+
 ## Verificaciones manuales pendientes
 
 Aunque ya existe Playwright mockeado e integrado, estas verificaciones siguen requiriendo revisión manual o nuevos casos automatizados específicos:

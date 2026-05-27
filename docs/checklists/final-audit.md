@@ -417,7 +417,9 @@ Estas credenciales son solo para desarrollo y pruebas. No deben usarse con datos
 
 La etapa queda cerrada cuando:
 
-- Patch 28 tiene suites aisladas, runner E2E protegido, E2E real vendedor→venta→inventario→reportes y Docker Compose sin `localhost` interno.
-- Patch 29 tiene guías local/Docker, checklist final y comandos de recuperación.
-- La validación completa de cierre pasa en la máquina local.
-- `git status --short` queda limpio después de correr tests y E2E.
+- `npm run qa:full` pasa completo en la máquina local.
+- Los rediseños visuales conservan navegación por rol, un `h1` visible por módulo y E2E estable.
+- El flujo vendedor→venta→inventario→reportes sigue pasando en E2E integrado real.
+- Docker Compose no usa `localhost` interno para API→PostgreSQL.
+- `git status --short` queda limpio después de correr tests, E2E y limpieza de generados.
+- La revisión manual de release smoke queda cubierta con `docs/qa/release-smoke-checklist.md`.
