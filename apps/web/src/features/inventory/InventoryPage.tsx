@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   Box,
@@ -12,7 +12,6 @@ import {
   Typography,
 } from "@mui/material";
 
-import { api } from "../../api/client";
 import { ActionDisabledReason } from "../../components/ActionDisabledReason";
 import { LabelWithInfo } from "../../components/InfoTooltip";
 import { PageHeader } from "../../components/PageHeader";
@@ -20,7 +19,6 @@ import { SearchToolbar } from "../../components/SearchToolbar";
 import { StatusFeedback } from "../../components/StatusFeedback";
 import { useAuth } from "../../auth/AuthContext";
 import { PERMISSIONS } from "../../auth/permissions";
-import { getApiErrorMessage } from "../../utils/apiError";
 import {
   InventoryControlHero,
   filterStockRowsByStatus,
@@ -33,13 +31,8 @@ import {
   isInventoryFormInvalid,
   WAREHOUSE_INFO_TEXT,
 } from "./inventoryShared";
-import type {
-  Movement,
-  Product,
-  StockItem,
-  StockStatusFilter,
-  Warehouse,
-} from "./inventoryShared";
+import type { StockStatusFilter } from "./inventoryShared";
+import { useInventoryData } from "./useInventoryData";
 
 type InventoryView = "stock" | "adjustments" | "movements";
 
@@ -47,134 +40,36 @@ export function InventoryPage() {
   const { can } = useAuth();
   const canAdjustInventory = can(PERMISSIONS.InventoryAdjust);
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [stockRows, setStockRows] = useState<StockItem[]>([]);
-  const [movements, setMovements] = useState<Movement[]>([]);
+  const {
+    error,
+    message,
+    movementSearch,
+    movements,
+    products,
+    setError,
+    setMessage,
+    setMovementSearch,
+    setStockSearch,
+    stockRows,
+    stockSearch,
+    submitInventoryMovement,
+    warehouses,
+  } = useInventoryData();
 
   const [activeView, setActiveView] = useState<InventoryView>("stock");
   const [stockStatusFilter, setStockStatusFilter] =
     useState<StockStatusFilter>("all");
-  const [stockSearch, setStockSearch] = useState("");
-  const [movementSearch, setMovementSearch] = useState("");
-
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-
   const [form, setForm] = useState(initialInventoryMovementForm);
 
-  async function loadStaticData() {
-    try {
-      setError("");
-
-      const [productsResponse, warehousesResponse] = await Promise.all([
-        api.get<Product[]>("/products", {
-          params: {
-            pageSize: 100,
-          },
-        }),
-        api.get<Warehouse[]>("/inventory/warehouses"),
-      ]);
-
-      setProducts(productsResponse.data);
-      setWarehouses(warehousesResponse.data);
-    } catch {
-      setError("No se pudo cargar productos ni almacenes de inventario.");
-    }
-  }
-
-  async function loadStock(query = stockSearch) {
-    try {
-      setError("");
-
-      const response = await api.get<StockItem[]>("/inventory/stock", {
-        params: {
-          q: query.trim() || undefined,
-          pageSize: 100,
-        },
-      });
-
-      setStockRows(response.data);
-    } catch {
-      setError("No se pudieron cargar las existencias actuales.");
-    }
-  }
-
-  async function loadMovements(query = movementSearch) {
-    try {
-      setError("");
-
-      const response = await api.get<Movement[]>("/inventory/movements", {
-        params: {
-          q: query.trim() || undefined,
-          pageSize: 100,
-        },
-      });
-
-      setMovements(response.data);
-    } catch {
-      setError("No se pudieron cargar los movimientos recientes.");
-    }
-  }
-
-  async function reloadInventoryViews() {
-    await Promise.all([
-      loadStaticData(),
-      loadStock(stockSearch),
-      loadMovements(movementSearch),
-    ]);
-  }
-
-  useEffect(() => {
-    void loadStaticData();
-  }, []);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void loadStock(stockSearch);
-    }, 250);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [stockSearch]);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void loadMovements(movementSearch);
-    }, 250);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [movementSearch]);
-
   async function submit(type: "in" | "out") {
-    setMessage("");
-    setError("");
+    const success = await submitInventoryMovement(type, form);
 
-    try {
-      await api.post(`/inventory/${type}`, {
-        productId: form.productId,
-        warehouseId: form.warehouseId || undefined,
-        quantity: form.quantity,
-        reason: form.reason.trim(),
-      });
-
-      setMessage(
-        type === "in"
-          ? "Entrada registrada correctamente."
-          : "Salida registrada correctamente.",
-      );
-
-      setForm(initialInventoryMovementForm);
-      setActiveView("stock");
-
-      await reloadInventoryViews();
-    } catch (err: any) {
-      setError(
-        getApiErrorMessage(
-          err,
-          "No se pudo registrar el movimiento. Verifica producto, cantidad y motivo.",
-        ),
-      );
+    if (!success) {
+      return;
     }
+
+    setForm(initialInventoryMovementForm);
+    setActiveView("stock");
   }
 
   const filteredStockRows = filterStockRowsByStatus(
