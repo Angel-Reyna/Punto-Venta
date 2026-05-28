@@ -26,12 +26,12 @@ import { useAuth } from "../../auth/AuthContext";
 import { PERMISSIONS } from "../../auth/permissions";
 import {
   Product,
-  ProductCatalog,
   ProductFormValues,
   initialForm,
   safeTrim,
   toNonNegativeNumber,
 } from "./productShared";
+import { ProductCatalog } from "./ProductCatalog";
 import { ProductCatalogToolbar } from "./ProductCatalogToolbar";
 import { ProductFormDialog } from "./ProductFormDialog";
 import { useProductsData } from "./useProductsData";
