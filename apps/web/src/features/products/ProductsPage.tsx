@@ -14,15 +14,12 @@ import { alpha } from "@mui/material/styles";
 
 import AddIcon from "@mui/icons-material/Add";
 import CategoryIcon from "@mui/icons-material/Category";
-import DownloadIcon from "@mui/icons-material/Download";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import StorefrontIcon from "@mui/icons-material/Storefront";
-import UploadIcon from "@mui/icons-material/Upload";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 import { ResponsiveDialog } from "../../components/ResponsiveDialog";
-import { SearchToolbar } from "../../components/SearchToolbar";
 import { StatusFeedback } from "../../components/StatusFeedback";
 import { VisualMetricCard } from "../../components/VisualMetricCard";
 import { useAuth } from "../../auth/AuthContext";
@@ -35,6 +32,7 @@ import {
   safeTrim,
   toNonNegativeNumber,
 } from "./productShared";
+import { ProductCatalogToolbar } from "./ProductCatalogToolbar";
 import { ProductFormDialog } from "./ProductFormDialog";
 import { useProductsData } from "./useProductsData";
 
@@ -333,99 +331,17 @@ export function ProductsPage() {
         onErrorClose={() => setError("")}
       />
 
-      <Card sx={{ mb: 2.5 }}>
-        <CardContent>
-          <Stack spacing={2}>
-            <Stack
-              direction={{ xs: "column", md: "row" }}
-              spacing={1.5}
-              alignItems={{ xs: "flex-start", md: "center" }}
-              justifyContent="space-between"
-            >
-              <Box>
-                <Typography variant="h6" fontWeight={900}>
-                  Control del catálogo
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Busca, importa o descarga el formato sin perder contexto del
-                  inventario visible.
-                </Typography>
-              </Box>
-
-              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                <Chip
-                  size="small"
-                  color={normalizedSearchQuery ? "primary" : "default"}
-                  variant={normalizedSearchQuery ? "filled" : "outlined"}
-                  label={
-                    normalizedSearchQuery
-                      ? `Búsqueda: ${normalizedSearchQuery}`
-                      : "Sin búsqueda activa"
-                  }
-                />
-                {canImportProducts && (
-                  <Chip
-                    size="small"
-                    color={isImportingExcel ? "warning" : "default"}
-                    variant="outlined"
-                    label={
-                      isImportingExcel ? "Importando Excel" : "Excel disponible"
-                    }
-                  />
-                )}
-              </Stack>
-            </Stack>
-
-            <SearchToolbar
-              label="Buscar productos"
-              placeholder="Ej. COCA-600, refresco, 750..., bebidas"
-              query={searchQuery}
-              onQueryChange={setSearchQuery}
-              resultCount={rows.length}
-              helperText={productSearchHelper}
-            />
-
-            {canImportProducts && (
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={1}
-                sx={{ alignItems: "stretch" }}
-              >
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<DownloadIcon />}
-                  onClick={downloadTemplate}
-                  disabled={isDownloadingTemplate || isImportingExcel}
-                >
-                  {isDownloadingTemplate
-                    ? "Descargando..."
-                    : "Descargar formato"}
-                </Button>
-
-                <Button
-                  fullWidth
-                  component="label"
-                  startIcon={<UploadIcon />}
-                  disabled={isImportingExcel || isDownloadingTemplate}
-                >
-                  {isImportingExcel ? "Importando..." : "Importar productos"}
-                  <input
-                    hidden
-                    type="file"
-                    accept=".xlsx"
-                    disabled={isImportingExcel}
-                    onChange={(event) => {
-                      void importExcel(event.target.files?.[0]);
-                      event.target.value = "";
-                    }}
-                  />
-                </Button>
-              </Stack>
-            )}
-          </Stack>
-        </CardContent>
-      </Card>
+      <ProductCatalogToolbar
+        canImportProducts={canImportProducts}
+        isDownloadingTemplate={isDownloadingTemplate}
+        isImportingExcel={isImportingExcel}
+        onDownloadTemplate={downloadTemplate}
+        onImportExcel={importExcel}
+        onSearchQueryChange={setSearchQuery}
+        productSearchHelper={productSearchHelper}
+        resultCount={rows.length}
+        searchQuery={searchQuery}
+      />
 
       <ProductCatalog
         rows={rows}
