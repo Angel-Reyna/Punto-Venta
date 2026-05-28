@@ -1,26 +1,20 @@
 import { useState } from "react";
 
 import { PageHeader } from "../../components/PageHeader";
-import { SearchToolbar } from "../../components/SearchToolbar";
 import { StatusFeedback } from "../../components/StatusFeedback";
 import { useAuth } from "../../auth/AuthContext";
 import { PERMISSIONS } from "../../auth/permissions";
 import {
-  InventoryControlHero,
-  filterStockRowsByStatus,
   getInventoryFormDisabledReason,
   initialInventoryMovementForm,
-  InventoryStatusFilterBar,
-  InventoryMovementTimeline,
-  InventoryStockOverview,
-  InventorySummaryCards,
   isInventoryFormInvalid,
 } from "./inventoryShared";
+import type { InventoryView } from "./inventoryShared";
 import { InventoryAdjustmentForm } from "./InventoryAdjustmentForm";
-import type { StockStatusFilter } from "./inventoryShared";
+import { InventoryControlHero } from "./InventoryControlHero";
+import { InventoryMovementsSection } from "./InventoryMovementsSection";
+import { InventoryStockSection } from "./InventoryStockSection";
 import { useInventoryData } from "./useInventoryData";
-
-type InventoryView = "stock" | "adjustments" | "movements";
 
 export function InventoryPage() {
   const { can } = useAuth();
@@ -43,8 +37,6 @@ export function InventoryPage() {
   } = useInventoryData();
 
   const [activeView, setActiveView] = useState<InventoryView>("stock");
-  const [stockStatusFilter, setStockStatusFilter] =
-    useState<StockStatusFilter>("all");
   const [form, setForm] = useState(initialInventoryMovementForm);
 
   async function submit(type: "in" | "out") {
@@ -57,11 +49,6 @@ export function InventoryPage() {
     setForm(initialInventoryMovementForm);
     setActiveView("stock");
   }
-
-  const filteredStockRows = filterStockRowsByStatus(
-    stockRows,
-    stockStatusFilter,
-  );
 
   const inventoryFormDisabledReason = getInventoryFormDisabledReason(form);
   const formIsInvalid = isInventoryFormInvalid(form);
@@ -93,30 +80,11 @@ export function InventoryPage() {
       />
 
       {activeView === "stock" && (
-        <>
-          <SearchToolbar
-            label="Buscar existencias"
-            placeholder="Ej. COCA-600, refresco, 750..., bebidas"
-            query={stockSearch}
-            onQueryChange={setStockSearch}
-            resultCount={filteredStockRows.length}
-            helperText="Busca productos por nombre, clave interna/SKU, código o categoría para revisar su stock real."
-          />
-
-          <InventorySummaryCards rows={stockRows} />
-
-          <InventoryStatusFilterBar
-            rows={stockRows}
-            value={stockStatusFilter}
-            onChange={setStockStatusFilter}
-          />
-
-          <InventoryStockOverview
-            rows={filteredStockRows}
-            searchQuery={stockSearch}
-            statusFilter={stockStatusFilter}
-          />
-        </>
+        <InventoryStockSection
+          rows={stockRows}
+          searchQuery={stockSearch}
+          onSearchChange={setStockSearch}
+        />
       )}
 
       {activeView === "adjustments" && (
@@ -133,21 +101,11 @@ export function InventoryPage() {
       )}
 
       {activeView === "movements" && (
-        <>
-          <SearchToolbar
-            label="Buscar movimientos"
-            placeholder="Ej. entrada, salida, venta, producto, almacén o motivo"
-            query={movementSearch}
-            onQueryChange={setMovementSearch}
-            resultCount={movements.length}
-            helperText="Filtra movimientos recientes por producto, clave interna/SKU, código, almacén, tipo o motivo."
-          />
-
-          <InventoryMovementTimeline
-            movements={movements}
-            searchQuery={movementSearch}
-          />
-        </>
+        <InventoryMovementsSection
+          movements={movements}
+          searchQuery={movementSearch}
+          onSearchChange={setMovementSearch}
+        />
       )}
     </>
   );
