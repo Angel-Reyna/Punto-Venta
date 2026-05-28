@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 import {
   Box,
   Card,
@@ -114,8 +112,6 @@ export function formatEntityLabel(tableName: string) {
 }
 
 type ChipColor = "default" | "primary" | "secondary" | "success" | "warning" | "error" | "info";
-type AuditMetricTone = "primary" | "success" | "warning" | "error" | "info";
-
 export function getAuditSeverity(log: Pick<AuditLog, "action" | "tableName">): {
   level: Exclude<AuditSeverity, "">;
   label: string;
@@ -259,65 +255,6 @@ export function buildAuditQuery(filters: AuditFilters) {
   params.set("pageSize", "100");
 
   return params.toString();
-}
-
-export function AuditMetricCard({
-  label,
-  value,
-  helper,
-  icon,
-  tone = "primary"
-}: {
-  label: string;
-  value: string | number;
-  helper: string;
-  icon?: ReactNode;
-  tone?: AuditMetricTone;
-}) {
-  return (
-    <Card
-      sx={{
-        height: "100%",
-        border: 1,
-        borderColor: `${tone}.light`,
-        boxShadow: "0 10px 28px rgba(15, 23, 42, 0.06)"
-      }}
-    >
-      <CardContent>
-        <Stack direction="row" spacing={1.25} alignItems="flex-start">
-          <Box
-            sx={{
-              display: "grid",
-              placeItems: "center",
-              width: 38,
-              height: 38,
-              borderRadius: 2,
-              color: `${tone}.main`,
-              bgcolor: "background.default",
-              border: 1,
-              borderColor: `${tone}.light`
-            }}
-          >
-            {icon}
-          </Box>
-
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="body2" color="text.secondary">
-              {label}
-            </Typography>
-
-            <Typography variant="h5" fontWeight={950} sx={{ mt: 0.5, overflowWrap: "anywhere" }}>
-              {value}
-            </Typography>
-
-            <Typography variant="caption" color="text.secondary">
-              {helper}
-            </Typography>
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
 }
 
 function getSeverityBorderColor(color: ChipColor) {

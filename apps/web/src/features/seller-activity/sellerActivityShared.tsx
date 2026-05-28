@@ -1,14 +1,4 @@
-import {
-  Box,
-  Card,
-  CardActionArea,
-  CardContent,
-  Chip,
-  Divider,
-  Grid,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Card, CardContent, Chip, Typography } from "@mui/material";
 
 import { valuesIncludeSearchText } from "../../utils/text";
 
@@ -48,6 +38,40 @@ export type SummaryItem = {
 };
 
 export const SELLER_ACTIVITY_AUTO_REFRESH_INTERVAL_MS = 30_000;
+
+export const DEFAULT_SELLER_ACTIVITY_LIMIT = 200;
+
+export type SellerActivityFilters = {
+  sellerId: string;
+  action: string;
+  from: string;
+  to: string;
+  limit: number;
+};
+
+export function toDateInputValue(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+export function getRelativeDateInputValue(daysBack: number) {
+  const value = new Date();
+  value.setDate(value.getDate() - daysBack);
+
+  return toDateInputValue(value);
+}
+
+export function getActionLabel(value: string) {
+  if (!value) return "Todas las acciones";
+
+  return sellerActions.includes(value as SellerAction) ? actionLabels[value as SellerAction] : value;
+}
+
+export function getDateRangeLabel(from: string, to: string) {
+  if (!from || !to) return "Periodo inválido";
+  if (from === to) return from;
+
+  return `${from} → ${to}`;
+}
 
 export function formatRelativeLastUpdated(value: Date | null, now = new Date()) {
   if (!value) return "Sin actualización todavía";
@@ -176,144 +200,6 @@ export function summarizeActivity(rows: SellerActivityLog[]) {
       .length,
     activeSellersInResults: new Set(rows.map((row) => row.seller.id)).size,
   };
-}
-
-export function ActivityMetricCard({
-  label,
-  value,
-  helper,
-}: {
-  label: string;
-  value: string | number;
-  helper: string;
-}) {
-  return (
-    <Card sx={{ height: "100%" }}>
-      <CardContent>
-        <Typography variant="body2" color="text.secondary">
-          {label}
-        </Typography>
-
-        <Typography variant="h5" fontWeight={900} sx={{ mt: 0.5 }}>
-          {value}
-        </Typography>
-
-        <Typography variant="caption" color="text.secondary">
-          {helper}
-        </Typography>
-      </CardContent>
-    </Card>
-  );
-}
-
-export function SellerActivityCard({ log }: { log: SellerActivityLog }) {
-  return (
-    <Card variant="outlined" data-testid={`seller-activity-log-${log.id}`} sx={{ height: "100%" }}>
-      <CardActionArea
-        component="div"
-        disableRipple
-        sx={{ height: "100%", cursor: "default" }}
-      >
-        <CardContent>
-          <Stack spacing={1.5}>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1}
-              alignItems={{ xs: "flex-start", sm: "center" }}
-              justifyContent="space-between"
-            >
-              <Stack
-                direction="row"
-                spacing={1}
-                alignItems="center"
-                flexWrap="wrap"
-                useFlexGap
-              >
-                <Chip
-                  size="small"
-                  label={actionLabels[log.action]}
-                  color={getActionColor(log.action)}
-                  variant="outlined"
-                />
-                <Chip size="small" label={log.entityType} />
-              </Stack>
-
-              <Typography variant="caption" color="text.secondary">
-                {formatDate(log.createdAt)}
-              </Typography>
-            </Stack>
-
-            <Box>
-              <Typography variant="body2" color="text.secondary">
-                Vendedor
-              </Typography>
-
-              <Stack
-                direction="row"
-                spacing={1}
-                alignItems="center"
-                flexWrap="wrap"
-                useFlexGap
-              >
-                <Typography fontWeight={900} sx={{ overflowWrap: "anywhere" }}>
-                  {log.seller.name}
-                </Typography>
-                <Chip
-                  size="small"
-                  label={log.seller.isActive ? "Activo" : "Inactivo"}
-                  color={log.seller.isActive ? "success" : "default"}
-                  variant="outlined"
-                />
-              </Stack>
-
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ overflowWrap: "anywhere" }}
-              >
-                {log.seller.email}
-              </Typography>
-            </Box>
-
-            <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
-              {log.description}
-            </Typography>
-
-            <Divider />
-
-            <Grid container spacing={1.5}>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Entidad
-                </Typography>
-                <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
-                  {log.entityId || "N/A"}
-                </Typography>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <Typography variant="caption" color="text.secondary">
-                  IP
-                </Typography>
-                <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
-                  {log.ipAddress || "N/A"}
-                </Typography>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Typography variant="caption" color="text.secondary">
-                  Dispositivo / navegador
-                </Typography>
-                <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
-                  {log.userAgent || "N/A"}
-                </Typography>
-              </Grid>
-            </Grid>
-          </Stack>
-        </CardContent>
-      </CardActionArea>
-    </Card>
-  );
 }
 
 export function SummaryCard({ item }: { item: SummaryItem }) {
