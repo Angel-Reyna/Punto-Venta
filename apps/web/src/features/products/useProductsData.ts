@@ -1,0 +1,207 @@
+import { useCallback, useEffect, useState } from "react";
+
+import { getApiErrorMessage } from "../../utils/apiError";
+import { downloadBlob } from "../../utils/downloadBlob";
+
+import { Product, ProductCategory } from "./productShared";
+import {
+  CreateProductInput,
+  createProduct as createProductRequest,
+  deleteProduct as deleteProductRequest,
+  downloadProductTemplate,
+  importProductsExcel,
+  listProductCategories,
+  listProducts,
+  toggleProduct as toggleProductRequest,
+} from "./productsApi";
+
+type UseProductsDataOptions = {
+  canCreateProduct: boolean;
+};
+
+export function useProductsData({ canCreateProduct }: UseProductsDataOptions) {
+  const [rows, setRows] = useState<Product[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
+  const [isImportingExcel, setIsImportingExcel] = useState(false);
+  const [togglingProductId, setTogglingProductId] = useState<string | null>(
+    null,
+  );
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(
+    null,
+  );
+  const [productPendingDelete, setProductPendingDelete] =
+    useState<Product | null>(null);
+
+  const load = useCallback(
+    async (query = searchQuery) => {
+      try {
+        setError("");
+
+        const [products, productCategories] = await Promise.all([
+          listProducts(query),
+          canCreateProduct
+            ? listProductCategories()
+            : Promise.resolve([] as ProductCategory[]),
+        ]);
+
+        setRows(products);
+        setCategories(productCategories);
+      } catch {
+        setError("No se pudo cargar el catálogo de productos.");
+      }
+    },
+    [canCreateProduct, searchQuery],
+  );
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void load(searchQuery);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [load, searchQuery]);
+
+  const createProduct = useCallback(
+    async (payload: CreateProductInput) => {
+      if (isCreatingProduct) return false;
+
+      setMessage("");
+      setError("");
+      setIsCreatingProduct(true);
+
+      try {
+        await createProductRequest(payload);
+
+        setMessage("Producto creado correctamente.");
+        await load();
+
+        return true;
+      } catch (err: unknown) {
+        setError(
+          getApiErrorMessage(
+            err,
+            "No se pudo crear el producto. Revisa SKU, precios y campos obligatorios.",
+          ),
+        );
+
+        return false;
+      } finally {
+        setIsCreatingProduct(false);
+      }
+    },
+    [isCreatingProduct, load],
+  );
+
+  const downloadTemplate = useCallback(async () => {
+    setError("");
+    setIsDownloadingTemplate(true);
+
+    try {
+      const template = await downloadProductTemplate();
+
+      downloadBlob(template, "formato-productos.xlsx");
+    } catch {
+      setError("No se pudo descargar el formato Excel.");
+    } finally {
+      setIsDownloadingTemplate(false);
+    }
+  }, []);
+
+  const importExcel = useCallback(
+    async (file?: File) => {
+      if (!file || isImportingExcel) return;
+
+      setMessage("");
+      setError("");
+      setIsImportingExcel(true);
+
+      try {
+        const response = await importProductsExcel(file);
+
+        setMessage(`Productos importados: ${response.imported}`);
+        await load();
+      } catch (err: unknown) {
+        setError(
+          getApiErrorMessage(
+            err,
+            "No se pudo importar el archivo Excel. Verifica que uses el formato correcto.",
+          ),
+        );
+      } finally {
+        setIsImportingExcel(false);
+      }
+    },
+    [isImportingExcel, load],
+  );
+
+  const toggleProduct = useCallback(
+    async (productId: string) => {
+      if (togglingProductId) return;
+
+      setMessage("");
+      setError("");
+      setTogglingProductId(productId);
+
+      try {
+        await toggleProductRequest(productId);
+
+        setMessage("Estado del producto actualizado.");
+        await load();
+      } catch (err: unknown) {
+        setError(getApiErrorMessage(err, "No se pudo actualizar el producto."));
+      } finally {
+        setTogglingProductId(null);
+      }
+    },
+    [load, togglingProductId],
+  );
+
+  const deleteSelectedProduct = useCallback(async () => {
+    if (!productPendingDelete || deletingProductId) return;
+
+    setMessage("");
+    setError("");
+    setDeletingProductId(productPendingDelete.id);
+
+    try {
+      const response = await deleteProductRequest(productPendingDelete.id);
+
+      setMessage(response.message ?? "Producto eliminado correctamente.");
+      setProductPendingDelete(null);
+      await load();
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, "No se pudo eliminar el producto."));
+    } finally {
+      setDeletingProductId(null);
+    }
+  }, [deletingProductId, load, productPendingDelete]);
+
+  return {
+    categories,
+    createProduct,
+    deletingProductId,
+    deleteSelectedProduct,
+    downloadTemplate,
+    error,
+    importExcel,
+    isCreatingProduct,
+    isDownloadingTemplate,
+    isImportingExcel,
+    load,
+    message,
+    productPendingDelete,
+    rows,
+    searchQuery,
+    setError,
+    setMessage,
+    setProductPendingDelete,
+    setSearchQuery,
+    togglingProductId,
+    toggleProduct,
+  };
+}

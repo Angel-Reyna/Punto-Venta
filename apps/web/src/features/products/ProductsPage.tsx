@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 
 import {
   Box,
@@ -23,7 +23,6 @@ import StorefrontIcon from "@mui/icons-material/Storefront";
 import UploadIcon from "@mui/icons-material/Upload";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
-import { api } from "../../api/client";
 import { ActionDisabledReason } from "../../components/ActionDisabledReason";
 import { LabelWithInfo } from "../../components/InfoTooltip";
 import { ResponsiveDialog } from "../../components/ResponsiveDialog";
@@ -32,15 +31,11 @@ import { StatusFeedback } from "../../components/StatusFeedback";
 import { VisualMetricCard } from "../../components/VisualMetricCard";
 import { useAuth } from "../../auth/AuthContext";
 import { PERMISSIONS } from "../../auth/permissions";
-import { getApiErrorMessage } from "../../utils/apiError";
-import { downloadBlob } from "../../utils/downloadBlob";
 import {
   INITIAL_STOCK_INFO_TEXT,
   MIN_STOCK_INFO_TEXT,
   PRODUCT_CODE_INFO_TEXT,
-  Product,
   ProductCatalog,
-  ProductCategory,
   PROMO_INFO_TEXT,
   SKU_INFO_TEXT,
   generateLocalProductCode,
@@ -50,6 +45,7 @@ import {
   safeTrim,
   toNonNegativeNumber,
 } from "./productShared";
+import { useProductsData } from "./useProductsData";
 
 export function ProductsPage() {
   const { can } = useAuth();
@@ -63,188 +59,52 @@ export function ProductsPage() {
     canToggleProducts ||
     canDeleteProducts;
 
-  const [rows, setRows] = useState<Product[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [open, setOpen] = useState(false);
-
   const [form, setForm] = useState(initialForm);
 
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
-  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
-  const [isImportingExcel, setIsImportingExcel] = useState(false);
-  const [togglingProductId, setTogglingProductId] = useState<string | null>(
-    null,
-  );
-  const [deletingProductId, setDeletingProductId] = useState<string | null>(
-    null,
-  );
-  const [productPendingDelete, setProductPendingDelete] =
-    useState<Product | null>(null);
-
-  async function load(query = searchQuery) {
-    try {
-      setError("");
-
-      const [productsResponse, categoriesResponse] = await Promise.all([
-        api.get<Product[]>("/products", {
-          params: {
-            q: query.trim() || undefined,
-            pageSize: 100,
-          },
-        }),
-        canCreateProduct
-          ? api.get<ProductCategory[]>("/products/categories")
-          : Promise.resolve({ data: [] as ProductCategory[] }),
-      ]);
-
-      setRows(productsResponse.data);
-      setCategories(categoriesResponse.data);
-    } catch {
-      setError("No se pudo cargar el catálogo de productos.");
-    }
-  }
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void load(searchQuery);
-    }, 250);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [canCreateProduct, searchQuery]);
+  const {
+    categories,
+    createProduct,
+    deletingProductId,
+    deleteSelectedProduct,
+    downloadTemplate,
+    error,
+    importExcel,
+    isCreatingProduct,
+    isDownloadingTemplate,
+    isImportingExcel,
+    message,
+    productPendingDelete,
+    rows,
+    searchQuery,
+    setError,
+    setMessage,
+    setProductPendingDelete,
+    setSearchQuery,
+    togglingProductId,
+    toggleProduct,
+  } = useProductsData({ canCreateProduct });
 
   async function submit(event: FormEvent) {
     event.preventDefault();
 
-    setMessage("");
-    setError("");
+    const productWasCreated = await createProduct({
+      categoryId: safeTrim(form.categoryId) || undefined,
+      sku: safeTrim(form.sku),
+      barcode: safeTrim(form.barcode) || undefined,
+      name: safeTrim(form.name),
+      description: safeTrim(form.description) || undefined,
+      costPrice: toNonNegativeNumber(form.costPrice),
+      salePrice: toNonNegativeNumber(form.salePrice),
+      promoPercent: toNonNegativeNumber(form.promoPercent),
+      initialStock: toNonNegativeNumber(form.initialStock),
+      minStock: toNonNegativeNumber(form.minStock),
+    });
 
-    try {
-      setIsCreatingProduct(true);
+    if (!productWasCreated) return;
 
-      await api.post("/products", {
-        categoryId: safeTrim(form.categoryId) || undefined,
-        sku: safeTrim(form.sku),
-        barcode: safeTrim(form.barcode) || undefined,
-        name: safeTrim(form.name),
-        description: safeTrim(form.description) || undefined,
-        costPrice: toNonNegativeNumber(form.costPrice),
-        salePrice: toNonNegativeNumber(form.salePrice),
-        promoPercent: toNonNegativeNumber(form.promoPercent),
-        initialStock: toNonNegativeNumber(form.initialStock),
-        minStock: toNonNegativeNumber(form.minStock),
-      });
-
-      setMessage("Producto creado correctamente.");
-      setOpen(false);
-      setForm(initialForm);
-
-      await load();
-    } catch (err: any) {
-      setError(
-        getApiErrorMessage(
-          err,
-          "No se pudo crear el producto. Revisa SKU, precios y campos obligatorios.",
-        ),
-      );
-    } finally {
-      setIsCreatingProduct(false);
-    }
-  }
-
-  async function downloadTemplate() {
-    setError("");
-    setIsDownloadingTemplate(true);
-
-    try {
-      const response = await api.get("/products/template/excel", {
-        responseType: "blob",
-      });
-
-      downloadBlob(response.data, "formato-productos.xlsx");
-    } catch {
-      setError("No se pudo descargar el formato Excel.");
-    } finally {
-      setIsDownloadingTemplate(false);
-    }
-  }
-
-  async function importExcel(file?: File) {
-    if (!file || isImportingExcel) return;
-
-    setMessage("");
-    setError("");
-    setIsImportingExcel(true);
-
-    try {
-      const formData = new FormData();
-
-      formData.append("file", file);
-
-      const response = await api.post("/products/import/excel", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      setMessage(`Productos importados: ${response.data.imported}`);
-
-      await load();
-    } catch (err: any) {
-      setError(
-        getApiErrorMessage(
-          err,
-          "No se pudo importar el archivo Excel. Verifica que uses el formato correcto.",
-        ),
-      );
-    } finally {
-      setIsImportingExcel(false);
-    }
-  }
-
-  async function toggleProduct(productId: string) {
-    if (togglingProductId) return;
-
-    setMessage("");
-    setError("");
-    setTogglingProductId(productId);
-
-    try {
-      await api.patch(`/products/${productId}/toggle`);
-
-      setMessage("Estado del producto actualizado.");
-
-      await load();
-    } catch (err: any) {
-      setError(getApiErrorMessage(err, "No se pudo actualizar el producto."));
-    } finally {
-      setTogglingProductId(null);
-    }
-  }
-
-  async function deleteProduct() {
-    if (!productPendingDelete || deletingProductId) return;
-
-    setMessage("");
-    setError("");
-    setDeletingProductId(productPendingDelete.id);
-
-    try {
-      const response = await api.delete<{ message?: string }>(
-        `/products/${productPendingDelete.id}`,
-      );
-
-      setMessage(response.data.message ?? "Producto eliminado correctamente.");
-      setProductPendingDelete(null);
-
-      await load();
-    } catch (err: any) {
-      setError(getApiErrorMessage(err, "No se pudo eliminar el producto."));
-    } finally {
-      setDeletingProductId(null);
-    }
+    setOpen(false);
+    setForm(initialForm);
   }
 
   const normalizedSearchQuery = searchQuery.trim();
@@ -583,7 +443,7 @@ export function ProductsPage() {
               </Button>
               <Button
                 color="error"
-                onClick={deleteProduct}
+                onClick={deleteSelectedProduct}
                 disabled={Boolean(deletingProductId)}
                 data-testid="products-delete-confirm-button"
               >
