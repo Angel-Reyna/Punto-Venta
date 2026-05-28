@@ -121,7 +121,7 @@ function AnyPermissionRoute({
 function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute>
-      <AppLayout>{children}</AppLayout>
+      <AppLayout>{withSuspense(children)}</AppLayout>
     </ProtectedRoute>
   );
 }

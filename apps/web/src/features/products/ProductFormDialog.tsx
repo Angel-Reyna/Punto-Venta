@@ -24,6 +24,7 @@ type ProductFormDialogProps = {
   categories: ProductCategory[];
   form: ProductFormValues;
   isSubmitting: boolean;
+  mode?: "create" | "edit";
   onClose: () => void;
   onFormChange: (form: ProductFormValues) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -34,12 +35,14 @@ export function ProductFormDialog({
   categories,
   form,
   isSubmitting,
+  mode = "create",
   onClose,
   onFormChange,
   onSubmit,
   open,
 }: ProductFormDialogProps) {
   const promoPercent = toNonNegativeNumber(form.promoPercent);
+  const isEditMode = mode === "edit";
 
   const formIsInvalid =
     !safeTrim(form.sku) ||
@@ -48,7 +51,7 @@ export function ProductFormDialog({
     isInvalidNonNegativeNumber(form.salePrice) ||
     isInvalidNonNegativeNumber(form.promoPercent) ||
     promoPercent > 100 ||
-    isInvalidNonNegativeInteger(form.initialStock) ||
+    (!isEditMode && isInvalidNonNegativeInteger(form.initialStock)) ||
     isInvalidNonNegativeInteger(form.minStock) ||
     isSubmitting;
 
@@ -64,13 +67,15 @@ export function ProductFormDialog({
     if (isInvalidNonNegativeNumber(form.promoPercent) || promoPercent > 100) {
       return "La promoción debe estar entre 0 y 100%.";
     }
-    if (isInvalidNonNegativeInteger(form.initialStock)) {
+    if (!isEditMode && isInvalidNonNegativeInteger(form.initialStock)) {
       return "El stock inicial debe ser un entero mayor o igual a cero.";
     }
     if (isInvalidNonNegativeInteger(form.minStock)) {
       return "El stock mínimo debe ser un entero mayor o igual a cero.";
     }
-    if (isSubmitting) return "Guardando producto...";
+    if (isSubmitting) {
+      return isEditMode ? "Actualizando producto..." : "Guardando producto...";
+    }
 
     return "";
   })();
@@ -81,8 +86,12 @@ export function ProductFormDialog({
       onClose={onClose}
       disableClose={isSubmitting}
       maxWidth="md"
-      title="Nuevo producto"
-      description="Registra datos comerciales, precios e inventario inicial en una sola operación."
+      title={isEditMode ? "Editar producto" : "Nuevo producto"}
+      description={
+        isEditMode
+          ? "Actualiza datos comerciales, precios, promoción y nivel de alerta sin alterar el historial de ventas."
+          : "Registra datos comerciales, precios e inventario inicial en una sola operación."
+      }
       actions={
         <>
           <Button variant="outlined" onClick={onClose} disabled={isSubmitting}>
@@ -94,7 +103,13 @@ export function ProductFormDialog({
             disabled={formIsInvalid}
             data-testid="product-form-submit"
           >
-            {isSubmitting ? "Guardando..." : "Guardar producto"}
+            {isSubmitting
+              ? isEditMode
+                ? "Actualizando..."
+                : "Guardando..."
+              : isEditMode
+                ? "Actualizar producto"
+                : "Guardar producto"}
           </Button>
         </>
       }
@@ -290,34 +305,36 @@ export function ProductFormDialog({
             />
           </Grid>
 
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              label={
-                <LabelWithInfo
-                  label="Stock inicial"
-                  info={INITIAL_STOCK_INFO_TEXT}
-                  ariaLabel={INITIAL_STOCK_INFO_TEXT}
-                />
-              }
-              type="number"
-              value={form.initialStock}
-              helperText="Crea inventario real en el almacén principal."
-              inputProps={{
-                "data-testid": "product-form-initial-stock",
-                min: 0,
-                step: 1,
-              }}
-              onChange={(event) =>
-                onFormChange({
-                  ...form,
-                  initialStock: event.target.value,
-                })
-              }
-            />
-          </Grid>
+          {!isEditMode && (
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                label={
+                  <LabelWithInfo
+                    label="Stock inicial"
+                    info={INITIAL_STOCK_INFO_TEXT}
+                    ariaLabel={INITIAL_STOCK_INFO_TEXT}
+                  />
+                }
+                type="number"
+                value={form.initialStock}
+                helperText="Crea inventario real en el almacén principal."
+                inputProps={{
+                  "data-testid": "product-form-initial-stock",
+                  min: 0,
+                  step: 1,
+                }}
+                onChange={(event) =>
+                  onFormChange({
+                    ...form,
+                    initialStock: event.target.value,
+                  })
+                }
+              />
+            </Grid>
+          )}
 
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={isEditMode ? 8 : 4}>
             <TextField
               fullWidth
               label={

@@ -87,6 +87,15 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(page.getByText("Producto creado correctamente.")).toBeVisible();
     await expect(byTestId(page, "product-row-AGUA-1L")).toBeVisible();
 
+    await clickByTestId(page, "product-edit-AGUA-1L");
+    const editDialog = dialogByName(page, "Editar producto");
+    await expect(editDialog).toBeVisible();
+    await fillByTestId(editDialog, "product-form-sale-price", "16");
+    await clickByTestId(editDialog, "product-form-submit");
+
+    await expect(page.getByText("Producto actualizado correctamente.")).toBeVisible();
+    await expect(byTestId(page, "product-row-AGUA-1L")).toContainText("$16.00");
+
     await clickByTestId(page, "product-toggle-AGUA-1L");
 
     await expect(page.getByText("Estado del producto actualizado.")).toBeVisible();

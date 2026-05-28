@@ -28,7 +28,9 @@ import { VisualMetricCard } from "../../components/VisualMetricCard";
 import { useAuth } from "../../auth/AuthContext";
 import { PERMISSIONS } from "../../auth/permissions";
 import {
+  Product,
   ProductCatalog,
+  ProductFormValues,
   initialForm,
   safeTrim,
   toNonNegativeNumber,
@@ -36,20 +38,44 @@ import {
 import { ProductFormDialog } from "./ProductFormDialog";
 import { useProductsData } from "./useProductsData";
 
+function numberToFormValue(value: unknown) {
+  const numberValue = Number(value ?? 0);
+
+  return Number.isFinite(numberValue) ? String(numberValue) : "0";
+}
+
+function productToForm(product: Product): ProductFormValues {
+  return {
+    barcode: product.barcode ?? "",
+    categoryId: product.category?.id ?? "",
+    costPrice: numberToFormValue(product.costPrice),
+    description: product.description ?? "",
+    initialStock: "0",
+    minStock: numberToFormValue(product.minStock),
+    name: product.name,
+    promoPercent: numberToFormValue(product.promoPercent),
+    salePrice: numberToFormValue(product.salePrice),
+    sku: product.sku,
+  };
+}
+
 export function ProductsPage() {
   const { can } = useAuth();
   const canCreateProduct = can(PERMISSIONS.ProductsCreate);
   const canImportProducts = can(PERMISSIONS.ProductsImport);
+  const canUpdateProducts = can(PERMISSIONS.ProductsUpdate);
   const canToggleProducts = can(PERMISSIONS.ProductsToggleActive);
   const canDeleteProducts = can(PERMISSIONS.ProductsDelete);
   const canViewAdminColumns =
     canCreateProduct ||
     canImportProducts ||
+    canUpdateProducts ||
     canToggleProducts ||
     canDeleteProducts;
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(initialForm);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [form, setForm] = useState<ProductFormValues>(initialForm);
 
   const {
     categories,
@@ -72,27 +98,59 @@ export function ProductsPage() {
     setSearchQuery,
     togglingProductId,
     toggleProduct,
-  } = useProductsData({ canCreateProduct });
+    updatingProductId,
+    updateProduct,
+  } = useProductsData({ canCreateProduct: canCreateProduct || canUpdateProducts });
+
+  function closeProductForm() {
+    if (isCreatingProduct || updatingProductId) return;
+
+    setOpen(false);
+    setEditingProduct(null);
+    setForm(initialForm);
+  }
+
+  function openCreateProductForm() {
+    setEditingProduct(null);
+    setForm(initialForm);
+    setOpen(true);
+  }
+
+  function openEditProductForm(product: Product) {
+    setEditingProduct(product);
+    setForm(productToForm(product));
+    setOpen(true);
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
 
-    const productWasCreated = await createProduct({
-      categoryId: safeTrim(form.categoryId) || undefined,
+    const payload = {
+      categoryId: safeTrim(form.categoryId) || null,
       sku: safeTrim(form.sku),
-      barcode: safeTrim(form.barcode) || undefined,
+      barcode: safeTrim(form.barcode) || null,
       name: safeTrim(form.name),
-      description: safeTrim(form.description) || undefined,
+      description: safeTrim(form.description) || null,
       costPrice: toNonNegativeNumber(form.costPrice),
       salePrice: toNonNegativeNumber(form.salePrice),
       promoPercent: toNonNegativeNumber(form.promoPercent),
-      initialStock: toNonNegativeNumber(form.initialStock),
       minStock: toNonNegativeNumber(form.minStock),
-    });
+    };
 
-    if (!productWasCreated) return;
+    const productWasSaved = editingProduct
+      ? await updateProduct(editingProduct.id, payload)
+      : await createProduct({
+          ...payload,
+          categoryId: payload.categoryId || undefined,
+          barcode: payload.barcode || undefined,
+          description: payload.description || undefined,
+          initialStock: toNonNegativeNumber(form.initialStock),
+        });
+
+    if (!productWasSaved) return;
 
     setOpen(false);
+    setEditingProduct(null);
     setForm(initialForm);
   }
 
@@ -205,7 +263,7 @@ export function ProductsPage() {
                 <Button
                   size="large"
                   startIcon={<AddIcon />}
-                  onClick={() => setOpen(true)}
+                  onClick={openCreateProductForm}
                   data-testid="products-create-button"
                   sx={{ alignSelf: { xs: "stretch", md: "flex-start" } }}
                 >
@@ -374,10 +432,12 @@ export function ProductsPage() {
         searchQuery={searchQuery}
         canViewAdminColumns={canViewAdminColumns}
         canToggleProducts={canToggleProducts}
+        canUpdateProducts={canUpdateProducts}
         canDeleteProducts={canDeleteProducts}
         togglingProductId={togglingProductId}
         deletingProductId={deletingProductId}
         onToggleProduct={toggleProduct}
+        onEditProduct={openEditProductForm}
         onDeleteProduct={setProductPendingDelete}
       />
 
@@ -424,12 +484,13 @@ export function ProductsPage() {
         </ResponsiveDialog>
       )}
 
-      {canCreateProduct && (
+      {(canCreateProduct || canUpdateProducts) && (
         <ProductFormDialog
           categories={categories}
           form={form}
-          isSubmitting={isCreatingProduct}
-          onClose={() => setOpen(false)}
+          isSubmitting={Boolean(isCreatingProduct || updatingProductId)}
+          mode={editingProduct ? "edit" : "create"}
+          onClose={closeProductForm}
           onFormChange={setForm}
           onSubmit={submit}
           open={open}

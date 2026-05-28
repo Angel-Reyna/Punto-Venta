@@ -6,6 +6,7 @@ import { downloadBlob } from "../../utils/downloadBlob";
 import { Product, ProductCategory } from "./productShared";
 import {
   CreateProductInput,
+  UpdateProductInput,
   createProduct as createProductRequest,
   deleteProduct as deleteProductRequest,
   downloadProductTemplate,
@@ -13,6 +14,7 @@ import {
   listProductCategories,
   listProducts,
   toggleProduct as toggleProductRequest,
+  updateProduct as updateProductRequest,
 } from "./productsApi";
 
 type UseProductsDataOptions = {
@@ -26,6 +28,7 @@ export function useProductsData({ canCreateProduct }: UseProductsDataOptions) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+  const [updatingProductId, setUpdatingProductId] = useState<string | null>(null);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
   const [isImportingExcel, setIsImportingExcel] = useState(false);
   const [togglingProductId, setTogglingProductId] = useState<string | null>(
@@ -95,6 +98,38 @@ export function useProductsData({ canCreateProduct }: UseProductsDataOptions) {
       }
     },
     [isCreatingProduct, load],
+  );
+
+
+  const updateProduct = useCallback(
+    async (productId: string, payload: UpdateProductInput) => {
+      if (updatingProductId) return false;
+
+      setMessage("");
+      setError("");
+      setUpdatingProductId(productId);
+
+      try {
+        await updateProductRequest(productId, payload);
+
+        setMessage("Producto actualizado correctamente.");
+        await load();
+
+        return true;
+      } catch (err: unknown) {
+        setError(
+          getApiErrorMessage(
+            err,
+            "No se pudo actualizar el producto. Revisa SKU, precios y campos obligatorios.",
+          ),
+        );
+
+        return false;
+      } finally {
+        setUpdatingProductId(null);
+      }
+    },
+    [load, updatingProductId],
   );
 
   const downloadTemplate = useCallback(async () => {
@@ -203,5 +238,7 @@ export function useProductsData({ canCreateProduct }: UseProductsDataOptions) {
     setSearchQuery,
     togglingProductId,
     toggleProduct,
+    updatingProductId,
+    updateProduct,
   };
 }

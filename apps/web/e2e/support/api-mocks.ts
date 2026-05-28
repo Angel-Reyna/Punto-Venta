@@ -368,6 +368,24 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
       return json(route, product);
     }
 
+
+    const productUpdateMatch = pathname.match(/^\/products\/([^/]+)$/);
+    if (productUpdateMatch && method === "PATCH") {
+      const product = products.find((item) => item.id === productUpdateMatch[1]);
+
+      if (!product) {
+        return json(route, { message: "Producto no encontrado" }, 404);
+      }
+
+      const payload = readJsonPayload(request) as Partial<MockProduct> & {
+        categoryId?: string | null;
+      };
+
+      updateMockProduct(product, payload);
+
+      return json(route, product);
+    }
+
     const productDeleteMatch = pathname.match(/^\/products\/([^/]+)$/);
     if (productDeleteMatch && method === "DELETE") {
       const productIndex = products.findIndex((item) => item.id === productDeleteMatch[1]);
@@ -742,6 +760,33 @@ function buildCreatedProduct(
       ? Number((((salePrice - Number(payload.costPrice ?? 0)) / salePrice) * 100).toFixed(2))
       : 0,
   };
+}
+
+function updateMockProduct(
+  product: MockProduct,
+  payload: Partial<MockProduct> & { categoryId?: string | null },
+) {
+  const salePrice = Number(payload.salePrice ?? product.salePrice);
+  const promoPercent = Number(payload.promoPercent ?? product.promoPercent);
+  const costPrice = Number(payload.costPrice ?? product.costPrice ?? 0);
+
+  product.sku = String(payload.sku ?? product.sku);
+  product.barcode = payload.barcode ? String(payload.barcode) : null;
+  product.name = String(payload.name ?? product.name);
+  product.description = payload.description ? String(payload.description) : null;
+  product.category = payload.category?.id
+    ? payload.category
+    : payload.categoryId === null
+      ? null
+      : product.category;
+  product.salePrice = salePrice;
+  product.promoPercent = promoPercent;
+  product.finalPrice = Number((salePrice * (1 - promoPercent / 100)).toFixed(2));
+  product.costPrice = costPrice;
+  product.minStock = Number(payload.minStock ?? product.minStock ?? 0);
+  product.marginPercent = salePrice > 0
+    ? Number((((salePrice - costPrice) / salePrice) * 100).toFixed(2))
+    : 0;
 }
 
 function inventoryStockResponse(products: MockProduct[], query: string | null) {

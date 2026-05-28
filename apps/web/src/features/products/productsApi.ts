@@ -3,10 +3,10 @@ import { api } from "../../api/client";
 import { Product, ProductCategory } from "./productShared";
 
 export type CreateProductInput = {
-  barcode?: string;
-  categoryId?: string;
+  barcode?: string | null;
+  categoryId?: string | null;
   costPrice: number;
-  description?: string;
+  description?: string | null;
   initialStock: number;
   minStock: number;
   name: string;
@@ -14,6 +14,8 @@ export type CreateProductInput = {
   salePrice: number;
   sku: string;
 };
+
+export type UpdateProductInput = Omit<CreateProductInput, "initialStock">;
 
 export type ProductImportResult = {
   imported: number;
@@ -42,6 +44,12 @@ export async function listProductCategories() {
 
 export async function createProduct(payload: CreateProductInput) {
   const response = await api.post<Product>("/products", payload);
+
+  return response.data;
+}
+
+export async function updateProduct(productId: string, payload: UpdateProductInput) {
+  const response = await api.patch<Product>(`/products/${productId}`, payload);
 
   return response.data;
 }

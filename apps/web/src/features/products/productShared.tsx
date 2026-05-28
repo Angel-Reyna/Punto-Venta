@@ -13,6 +13,7 @@ import {
 import { alpha } from "@mui/material/styles";
 
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import ToggleOffIcon from "@mui/icons-material/ToggleOff";
 
 import { InfoTooltip } from "../../components/InfoTooltip";
@@ -199,9 +200,11 @@ function ProductField({
 type ProductCatalogProps = {
   canDeleteProducts: boolean;
   canToggleProducts: boolean;
+  canUpdateProducts: boolean;
   canViewAdminColumns: boolean;
   deletingProductId: string | null;
   onDeleteProduct: (product: Product) => void;
+  onEditProduct: (product: Product) => void;
   onToggleProduct: (productId: string) => void;
   rows: Product[];
   searchQuery: string;
@@ -211,9 +214,11 @@ type ProductCatalogProps = {
 export function ProductCatalog({
   canDeleteProducts,
   canToggleProducts,
+  canUpdateProducts,
   canViewAdminColumns,
   deletingProductId,
   onDeleteProduct,
+  onEditProduct,
   onToggleProduct,
   rows,
   searchQuery,
@@ -306,7 +311,7 @@ export function ProductCatalog({
                   gridTemplateColumns: {
                     xs: "1fr",
                     md:
-                      canToggleProducts || canDeleteProducts
+                      canUpdateProducts || canToggleProducts || canDeleteProducts
                         ? "minmax(0, 1.6fr) minmax(190px, 0.85fr) minmax(190px, 0.85fr) auto"
                         : "minmax(0, 1.6fr) minmax(190px, 0.85fr) minmax(190px, 0.85fr)",
                   },
@@ -495,12 +500,32 @@ export function ProductCatalog({
                   )}
                 </Stack>
 
-                {(canToggleProducts || canDeleteProducts) && (
+                {(canUpdateProducts || canToggleProducts || canDeleteProducts) && (
                   <Stack
                     spacing={1}
                     alignItems={{ xs: "stretch", md: "flex-end" }}
                     justifyContent="center"
                   >
+                    {canUpdateProducts && (
+                      <IconButton
+                        onClick={() => onEditProduct(product)}
+                        disabled={
+                          Boolean(togglingProductId) ||
+                          Boolean(deletingProductId)
+                        }
+                        title="Editar producto"
+                        aria-label={`Editar ${product.name}`}
+                        data-testid={`product-edit-${product.sku}`}
+                        sx={{
+                          border: 1,
+                          borderColor: "divider",
+                          borderRadius: 2,
+                        }}
+                      >
+                        <EditIcon color="primary" />
+                      </IconButton>
+                    )}
+
                     {canToggleProducts && (
                       <IconButton
                         onClick={() => onToggleProduct(product.id)}
