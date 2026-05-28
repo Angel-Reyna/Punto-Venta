@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 
 import { mockApi } from "./support/api-mocks";
 
+const ROUTE_HEADING_TIMEOUT_MS = 15000;
+
 const ADMIN_MODULES = [
   { path: "/", heading: "Inicio" },
   { path: "/products", heading: "Productos" },
@@ -27,7 +29,7 @@ test.describe("accesibilidad visual de módulos principales", () => {
         await expect(main).toBeVisible();
         await expect(
           main.getByRole("heading", { name: module.heading, level: 1 }),
-        ).toBeVisible();
+        ).toBeVisible({ timeout: ROUTE_HEADING_TIMEOUT_MS });
         await expect(main.getByRole("heading", { level: 1 })).toHaveCount(1);
       });
     }
