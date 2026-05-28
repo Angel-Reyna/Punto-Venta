@@ -73,6 +73,8 @@ export const initialForm = {
   minStock: "",
 };
 
+export type ProductFormValues = typeof initialForm;
+
 export function safeTrim(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }

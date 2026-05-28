@@ -7,9 +7,7 @@ import {
   CardContent,
   Chip,
   Grid,
-  MenuItem,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
@@ -23,8 +21,6 @@ import StorefrontIcon from "@mui/icons-material/Storefront";
 import UploadIcon from "@mui/icons-material/Upload";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
-import { ActionDisabledReason } from "../../components/ActionDisabledReason";
-import { LabelWithInfo } from "../../components/InfoTooltip";
 import { ResponsiveDialog } from "../../components/ResponsiveDialog";
 import { SearchToolbar } from "../../components/SearchToolbar";
 import { StatusFeedback } from "../../components/StatusFeedback";
@@ -32,19 +28,12 @@ import { VisualMetricCard } from "../../components/VisualMetricCard";
 import { useAuth } from "../../auth/AuthContext";
 import { PERMISSIONS } from "../../auth/permissions";
 import {
-  INITIAL_STOCK_INFO_TEXT,
-  MIN_STOCK_INFO_TEXT,
-  PRODUCT_CODE_INFO_TEXT,
   ProductCatalog,
-  PROMO_INFO_TEXT,
-  SKU_INFO_TEXT,
-  generateLocalProductCode,
   initialForm,
-  isInvalidNonNegativeInteger,
-  isInvalidNonNegativeNumber,
   safeTrim,
   toNonNegativeNumber,
 } from "./productShared";
+import { ProductFormDialog } from "./ProductFormDialog";
 import { useProductsData } from "./useProductsData";
 
 export function ProductsPage() {
@@ -148,38 +137,6 @@ export function ProductsPage() {
 
     return `Mostrando coincidencias para “${normalizedSearchQuery}”.`;
   }, [normalizedSearchQuery]);
-
-  const promoPercent = toNonNegativeNumber(form.promoPercent);
-
-  const formIsInvalid =
-    !safeTrim(form.sku) ||
-    !safeTrim(form.name) ||
-    isInvalidNonNegativeNumber(form.costPrice) ||
-    isInvalidNonNegativeNumber(form.salePrice) ||
-    isInvalidNonNegativeNumber(form.promoPercent) ||
-    promoPercent > 100 ||
-    isInvalidNonNegativeInteger(form.initialStock) ||
-    isInvalidNonNegativeInteger(form.minStock) ||
-    isCreatingProduct;
-
-  const productFormDisabledReason = (() => {
-    if (!safeTrim(form.sku)) return "Captura una clave interna/SKU.";
-    if (!safeTrim(form.name)) return "Captura el nombre del producto.";
-    if (isInvalidNonNegativeNumber(form.costPrice))
-      return "El costo debe ser un número mayor o igual a cero.";
-    if (isInvalidNonNegativeNumber(form.salePrice))
-      return "El precio de venta debe ser un número mayor o igual a cero.";
-    if (isInvalidNonNegativeNumber(form.promoPercent) || promoPercent > 100) {
-      return "La promoción debe estar entre 0 y 100%.";
-    }
-    if (isInvalidNonNegativeInteger(form.initialStock))
-      return "El stock inicial debe ser un entero mayor o igual a cero.";
-    if (isInvalidNonNegativeInteger(form.minStock))
-      return "El stock mínimo debe ser un entero mayor o igual a cero.";
-    if (isCreatingProduct) return "Guardando producto...";
-
-    return "";
-  })();
 
   return (
     <>
@@ -468,290 +425,15 @@ export function ProductsPage() {
       )}
 
       {canCreateProduct && (
-        <ResponsiveDialog
-          open={open}
+        <ProductFormDialog
+          categories={categories}
+          form={form}
+          isSubmitting={isCreatingProduct}
           onClose={() => setOpen(false)}
-          disableClose={isCreatingProduct}
-          maxWidth="md"
-          title="Nuevo producto"
-          description="Registra datos comerciales, precios e inventario inicial en una sola operación."
-          actions={
-            <>
-              <Button
-                variant="outlined"
-                onClick={() => setOpen(false)}
-                disabled={isCreatingProduct}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                form="product-create-form"
-                disabled={formIsInvalid}
-                data-testid="product-form-submit"
-              >
-                {isCreatingProduct ? "Guardando..." : "Guardar producto"}
-              </Button>
-            </>
-          }
-        >
-          <Box
-            id="product-create-form"
-            component="form"
-            noValidate
-            onSubmit={submit}
-          >
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={8}>
-                <TextField
-                  fullWidth
-                  label={
-                    <LabelWithInfo
-                      label="Clave interna/SKU"
-                      info={SKU_INFO_TEXT}
-                      ariaLabel={SKU_INFO_TEXT}
-                    />
-                  }
-                  value={form.sku}
-                  helperText="Identificador interno único. Ejemplo: COCA-600 o SAB-ACE-1KG."
-                  inputProps={{
-                    "data-testid": "product-form-sku",
-                  }}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      sku: event.target.value,
-                    })
-                  }
-                />
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  sx={{ minHeight: 56 }}
-                  onClick={() => {
-                    const code = generateLocalProductCode();
-
-                    setForm((currentForm) => ({
-                      ...currentForm,
-                      sku: currentForm.sku || code,
-                      barcode: code,
-                    }));
-                  }}
-                >
-                  Generar código
-                </Button>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label={
-                    <LabelWithInfo
-                      label="Código del producto"
-                      info={PRODUCT_CODE_INFO_TEXT}
-                      ariaLabel={PRODUCT_CODE_INFO_TEXT}
-                    />
-                  }
-                  value={form.barcode}
-                  helperText="Puede ser código de barras, código interno o código generado."
-                  inputProps={{
-                    "data-testid": "product-form-barcode",
-                  }}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      barcode: event.target.value,
-                    })
-                  }
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Categoría"
-                  value={form.categoryId}
-                  helperText="Selecciona una categoría activa."
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      categoryId: event.target.value,
-                    })
-                  }
-                >
-                  <MenuItem value="">Sin categoría</MenuItem>
-                  {categories.map((category) => (
-                    <MenuItem key={category.id} value={category.id}>
-                      {category.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Nombre del producto"
-                  value={form.name}
-                  inputProps={{
-                    "data-testid": "product-form-name",
-                  }}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      name: event.target.value,
-                    })
-                  }
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  multiline
-                  minRows={3}
-                  label="Descripción opcional"
-                  value={form.description}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      description: event.target.value,
-                    })
-                  }
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Costo unitario"
-                  type="number"
-                  value={form.costPrice}
-                  inputProps={{
-                    "data-testid": "product-form-cost-price",
-                    min: 0,
-                    step: 0.01,
-                  }}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      costPrice: event.target.value,
-                    })
-                  }
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Precio de venta"
-                  type="number"
-                  value={form.salePrice}
-                  inputProps={{
-                    "data-testid": "product-form-sale-price",
-                    min: 0,
-                    step: 0.01,
-                  }}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      salePrice: event.target.value,
-                    })
-                  }
-                />
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label={
-                    <LabelWithInfo
-                      label="Promoción (%)"
-                      info={PROMO_INFO_TEXT}
-                      ariaLabel={PROMO_INFO_TEXT}
-                    />
-                  }
-                  type="number"
-                  value={form.promoPercent}
-                  inputProps={{
-                    min: 0,
-                    max: 100,
-                    step: 0.01,
-                  }}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      promoPercent: event.target.value,
-                    })
-                  }
-                />
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label={
-                    <LabelWithInfo
-                      label="Stock inicial"
-                      info={INITIAL_STOCK_INFO_TEXT}
-                      ariaLabel={INITIAL_STOCK_INFO_TEXT}
-                    />
-                  }
-                  type="number"
-                  value={form.initialStock}
-                  helperText="Crea inventario real en el almacén principal."
-                  inputProps={{
-                    "data-testid": "product-form-initial-stock",
-                    min: 0,
-                    step: 1,
-                  }}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      initialStock: event.target.value,
-                    })
-                  }
-                />
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label={
-                    <LabelWithInfo
-                      label="Stock mínimo"
-                      info={MIN_STOCK_INFO_TEXT}
-                      ariaLabel={MIN_STOCK_INFO_TEXT}
-                    />
-                  }
-                  type="number"
-                  value={form.minStock}
-                  inputProps={{
-                    "data-testid": "product-form-min-stock",
-                    min: 0,
-                    step: 1,
-                  }}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      minStock: event.target.value,
-                    })
-                  }
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <ActionDisabledReason
-                  message={formIsInvalid ? productFormDisabledReason : ""}
-                />
-              </Grid>
-            </Grid>
-          </Box>
-        </ResponsiveDialog>
+          onFormChange={setForm}
+          onSubmit={submit}
+          open={open}
+        />
       )}
     </>
   );
