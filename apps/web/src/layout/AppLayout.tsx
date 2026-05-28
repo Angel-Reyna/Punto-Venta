@@ -418,111 +418,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
         bgcolor: "background.default",
       }}
     >
-      <AppBar
-        position="fixed"
-        color="inherit"
-        elevation={0}
-        sx={{
-          zIndex: (muiTheme) => muiTheme.zIndex.drawer + 1,
-          width: {
-            xs: "100%",
-            md: `calc(100% - ${drawerWidth}px)`,
-          },
-          ml: {
-            md: `${drawerWidth}px`,
-          },
-          borderBottom: "1px solid",
-          borderColor: "divider",
-          backdropFilter: "blur(10px)",
-          backgroundColor: alpha(theme.palette.background.paper, 0.92),
-        }}
-      >
-        <Toolbar
-          sx={{
-            minHeight: {
-              xs: 60,
-              sm: 72,
-            },
-            px: {
-              xs: 1.25,
-              sm: 2.5,
-              lg: 3,
-            },
-            gap: {
-              xs: 0.75,
-              sm: 1.5,
-            },
-          }}
-        >
-          {isMobile && (
-            <IconButton
-              color="inherit"
-              edge="start"
-              onClick={() => setOpen(true)}
-              sx={{ mr: 0.25 }}
-              aria-label="Abrir navegación"
-            >
-              <MenuIcon />
-            </IconButton>
-          )}
-
-          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              fontWeight={750}
-              noWrap
-              sx={{
-                display: { xs: "none", sm: "block" },
-                lineHeight: 1.2,
-              }}
-            >
-              {currentItem?.description ?? "Panel de ventas"}
-            </Typography>
-            <Typography
-              variant="h6"
-              fontWeight={850}
-              noWrap
-              sx={{
-                fontSize: { xs: "1.05rem", sm: "1.25rem" },
-                lineHeight: 1.2,
-              }}
-            >
-              {currentItem?.label ?? "Punta Venta"}
-            </Typography>
-          </Box>
-
-          {!isMobile && (
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              noWrap
-              sx={{ mr: 2, maxWidth: 220 }}
-            >
-              {displayName}
-            </Typography>
-          )}
-
-          <Button
-            variant="outlined"
-            color="inherit"
-            startIcon={<LogoutIcon />}
-            onClick={logout}
-            aria-label="Cerrar sesión"
-            sx={{
-              minHeight: { xs: 38, sm: 40 },
-              px: {
-                xs: 1.15,
-                sm: 2,
-              },
-              flexShrink: 0,
-            }}
-          >
-            {isMobile ? "Salir" : "Cerrar sesión"}
-          </Button>
-        </Toolbar>
-      </AppBar>
-
       <Drawer
         variant={isMobile ? "temporary" : "permanent"}
         open={isMobile ? open : true}
@@ -546,38 +441,143 @@ export function AppLayout({ children }: { children: ReactNode }) {
       </Drawer>
 
       <Box
-        component="main"
         sx={{
           flexGrow: 1,
           width: {
             xs: "100%",
             md: `calc(100% - ${drawerWidth}px)`,
           },
+          minWidth: 0,
           minHeight: "100vh",
-          p: {
-            xs: 1.5,
-            sm: 2.5,
-            lg: 3,
-          },
-          pt: {
-            xs: 9,
-            sm: 11,
-          },
-          pb: {
-            xs: `calc(${mobileNavigationHeight}px + env(safe-area-inset-bottom) + 24px)`,
-            md: 3,
-          },
-          overflowX: "hidden",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        <Box
+        <AppBar
+          position="sticky"
+          color="inherit"
+          elevation={0}
           sx={{
-            width: "100%",
-            maxWidth: 1480,
-            mx: "auto",
+            top: 0,
+            zIndex: (muiTheme) => muiTheme.zIndex.appBar,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            backdropFilter: "blur(10px)",
+            backgroundColor: alpha(theme.palette.background.paper, 0.92),
           }}
         >
-          {children}
+          <Toolbar
+            sx={{
+              minHeight: {
+                xs: 60,
+                sm: 72,
+              },
+              px: {
+                xs: 1.25,
+                sm: 2.5,
+                lg: 3,
+              },
+              gap: {
+                xs: 0.75,
+                sm: 1.5,
+              },
+            }}
+          >
+            {isMobile && (
+              <IconButton
+                color="inherit"
+                edge="start"
+                onClick={() => setOpen(true)}
+                sx={{ mr: 0.25 }}
+                aria-label="Abrir navegación"
+              >
+                <MenuIcon />
+              </IconButton>
+            )}
+
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                fontWeight={750}
+                noWrap
+                sx={{
+                  display: { xs: "none", sm: "block" },
+                  lineHeight: 1.2,
+                }}
+              >
+                {currentItem?.description ?? "Panel de ventas"}
+              </Typography>
+              <Typography
+                variant="h6"
+                fontWeight={850}
+                noWrap
+                sx={{
+                  fontSize: { xs: "1.05rem", sm: "1.25rem" },
+                  lineHeight: 1.2,
+                }}
+              >
+                {currentItem?.label ?? "Punta Venta"}
+              </Typography>
+            </Box>
+
+            {!isMobile && (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                noWrap
+                sx={{ mr: 2, maxWidth: 220 }}
+              >
+                {displayName}
+              </Typography>
+            )}
+
+            <Button
+              variant="outlined"
+              color="inherit"
+              startIcon={<LogoutIcon />}
+              onClick={logout}
+              aria-label="Cerrar sesión"
+              sx={{
+                minHeight: { xs: 38, sm: 40 },
+                px: {
+                  xs: 1.15,
+                  sm: 2,
+                },
+                flexShrink: 0,
+              }}
+            >
+              {isMobile ? "Salir" : "Cerrar sesión"}
+            </Button>
+          </Toolbar>
+        </AppBar>
+
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            width: "100%",
+            p: {
+              xs: 1.5,
+              sm: 2.5,
+              lg: 3,
+            },
+            pb: {
+              xs: `calc(${mobileNavigationHeight}px + env(safe-area-inset-bottom) + 24px)`,
+              md: 3,
+            },
+            overflowX: "hidden",
+          }}
+        >
+          <Box
+            sx={{
+              width: "100%",
+              maxWidth: 1480,
+              mx: "auto",
+            }}
+          >
+            {children}
+          </Box>
         </Box>
       </Box>
 
