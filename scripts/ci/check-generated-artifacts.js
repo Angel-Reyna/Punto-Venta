@@ -23,9 +23,9 @@ const generatedFilePatterns = [
     test: (filePath) => /(^|\/)Punta_Venta_(current|after_patch)_.*\.tar\.gz$/u.test(filePath),
   },
   {
-    label: 'Punta Venta diagnostics text output',
+    label: 'Punta Venta diagnostics/status text output',
     test: (filePath) =>
-      /(^|\/)punta-venta-(local-diagnostics|post-patches-diagnostics|after-patch|current-diagnostics)-.*\.txt$/u.test(
+      /(^|\/)punta-venta-(local-diagnostics|post-patches-diagnostics|after-patch|current-diagnostics|project-status-update)-.*\.txt$/u.test(
         filePath,
       ),
   },

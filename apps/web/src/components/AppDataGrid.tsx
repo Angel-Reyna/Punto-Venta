@@ -38,13 +38,13 @@ function getFirstPageSize(pageSizeOptions: DataGridProps["pageSizeOptions"]) {
   return DEFAULT_PAGE_SIZE_OPTIONS[0];
 }
 
-export type AppDataGridProps<R extends GridValidRowModel = any> = DataGridProps<R> & {
+export type AppDataGridProps<R extends GridValidRowModel = GridValidRowModel> = DataGridProps<R> & {
   noRowsLabel?: string;
   hideFooterWhenSinglePage?: boolean;
   singlePageThreshold?: number;
 };
 
-export function AppDataGrid<R extends GridValidRowModel = any>({
+export function AppDataGrid<R extends GridValidRowModel = GridValidRowModel>({
   rows,
   pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
   disableRowSelectionOnClick = true,

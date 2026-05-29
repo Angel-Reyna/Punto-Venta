@@ -135,6 +135,7 @@ test-results/
 punta-venta-local-diagnostics-*.txt
 punta-venta-post-patches-diagnostics-*.txt
 punta-venta-after-patch-*.txt
+punta-venta-project-status-update-*.txt
 punta-venta-current-diagnostics-*.txt
 punta-venta-continuity-*.md
 Punta_Venta_after_patch_*.tar.gz

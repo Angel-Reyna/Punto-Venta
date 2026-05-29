@@ -17,7 +17,7 @@ function asSxArray(sx?: SxProps<Theme>) {
   return Array.isArray(sx) ? sx : [sx];
 }
 
-export type DataGridCardProps<R extends GridValidRowModel = any> = AppDataGridProps<R> & {
+export type DataGridCardProps<R extends GridValidRowModel = GridValidRowModel> = AppDataGridProps<R> & {
   title?: string;
   subtitle?: string;
   minWidth?: number | string;
@@ -26,7 +26,7 @@ export type DataGridCardProps<R extends GridValidRowModel = any> = AppDataGridPr
   contentSx?: SxProps<Theme>;
 };
 
-export function DataGridCard<R extends GridValidRowModel = any>({
+export function DataGridCard<R extends GridValidRowModel = GridValidRowModel>({
   title,
   subtitle,
   minWidth,
