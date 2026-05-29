@@ -195,6 +195,11 @@ Criterios de cierre:
 
 Consulta también `docs/continuity/next-chat-handoff.md`.
 
+
+## Auditoría final de la ronda
+
+Cuando la ronda completa de mejoras quede aplicada, revisa también `docs/qa/final-project-audit.md`. Ese documento resume el cumplimiento contra el plan inicial, los criterios de cierre, la deuda técnica no bloqueante y las reglas que no deben romperse en siguientes etapas.
+
 ## Validación completa de cierre
 
 Para un patch común, ejecuta:

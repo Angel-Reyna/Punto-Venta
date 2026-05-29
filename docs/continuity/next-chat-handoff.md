@@ -33,34 +33,34 @@ Modelo correcto:
 
 ## 3. Estado de patches al cierre de esta ronda
 
-Aplicados y validados durante la ronda:
+Aplicados y validados durante la ronda principal de estabilización histórica:
 
-- Patch 50a: cobertura funcional E2E inicial para Ventas, Productos e Inventario.
-- Fixes Patch 50a: selectores estables, diálogos, campos numéricos y stock.
-- Patch 50b: hardening permanente de selectores E2E con `data-testid` y helpers.
-- Patch 50c: cobertura funcional administrativa E2E.
-- Patch 50d: cobertura funcional E2E de Caja/permisos.
-- Patch 50e: E2E integrado real de eliminación física con historial preservado.
-- Patch 51: Auditoría más clara y estándar operativo en UI.
-- Patch 52: Actividad de vendedores con auto-refresh, pausar/reanudar y filtros preservados.
-- Patch 53: contrato API para eliminación física con historial preservado.
-- Patch 54: refactor backend de Ventas.
-- Patch 55: refactor backend de Productos/importación Excel + fix.
-- Patch 56: refactor backend de Reportes.
-- Patch 57: refactor backend de Dashboard.
-- Patch 58: refactor backend de Caja.
-- Patch 59: refactor backend de Inventario.
-- Patch 60: refactor backend de Usuarios.
-- Patch 61: refactor backend de Actividad de vendedores.
-- Patch 62: refactor backend de Auth.
-- Patch 63: refactor backend de Auditoría + fix de `audit.shared.ts`.
-- Patch 64: documentación de arquitectura backend modular.
-- Patch 65: enlaces de arquitectura y checklist QA.
-- Patch 66: diagnóstico frontend post-cobertura.
-- Patch 67: guardrail informativo de bundle frontend.
-- Patch 68: code splitting seguro de vendors en Vite.
-- Patch 69: guardrail final de calidad para patches.
-- Patch 70: continuidad, snapshot y cierre para migrar a chat nuevo.
+- Patches 50a-70: cobertura E2E/API, auditoría operativa, actividad de vendedores con auto-refresh, eliminación física de productos con historial preservado, refactor backend modular, documentación de arquitectura, guardrails de bundle y guardrails de calidad para patches.
+- Patches 120-122: extracción y endurecimiento del módulo Productos en frontend, importación, catálogo y acciones responsive.
+- Patches 123-125: finalización del módulo Inventario en frontend, hook de datos, formulario de ajustes, secciones de stock y timeline de movimientos.
+- Patch 126: finalización de Reportes en frontend con controles, resumen, detalle y API client dedicado.
+- Patch 127 + 127a: finalización de Usuarios en frontend y estabilización de accesibilidad E2E.
+- Patch 128: finalización de Auditoría y Actividad de vendedores en frontend.
+- Patch 129: limpieza de Caja/control de efectivo e Inicio/Dashboard, manteniendo venta sin dependencia de caja abierta.
+- Patch 130: checkpoint de estado 1.
+- Patch 131: contratos HTTP frontend centralizados.
+- Patch 132: cleanup backend de módulos core: productos, inventario y ventas.
+- Patch 133: cleanup backend de módulos administrativos/reporting: reportes, dashboard, usuarios, actividad de vendedores y caja.
+- Patch 134: checkpoint de estado 2.
+- Patch 135: costos históricos y utilidad bruta en ventas, devoluciones, reportes y PDF.
+- Patch 136 + 136a + 136b: redacción de datos sensibles en auditoría/actividad y serialización segura de payloads JSON.
+- Patch 137: factories reutilizables para E2E mockeado e integrado.
+- Patch 138: checkpoint de estado 3.
+- Patch 139: limpieza final de warnings frontend, logs de checkpoint y guardrails de artefactos.
+- Patch 140: auditoría final contra el plan inicial y actualización de documentación de cierre.
+
+Estado esperado al cerrar Patch 140:
+
+- `git diff --check` limpio.
+- `npm run qa:full` en verde.
+- `node scripts/web/audit-bundle.js` sin `FAIL`.
+- `git status --short --untracked-files=all` limpio salvo archivos deliberadamente no versionados antes de `npm run clean:generated`.
+- Snapshot de continuidad generado con `bash scripts/project/create-continuity-snapshot.sh --with-qa`.
 
 ## 4. Validación final recomendada antes de migrar
 
@@ -138,7 +138,7 @@ Modelo funcional obligatorio:
 Punta Venta no es un POS clásico dependiente de caja abierta. El flujo correcto es admin/dueño + vendedores. La venta en efectivo no debe depender de caja abierta. CASHIER se conserva como enum técnico, pero en UI/documentación debe tratarse como Vendedor.
 
 Estado esperado:
-Ya quedaron aplicados los patches 50a–70. La ronda incluyó cobertura E2E/API, auditoría operativa, actividad de vendedores con auto-refresh, eliminación física de productos con historial preservado, refactor backend modular, documentación de arquitectura, guardrails de bundle y guardrails de calidad para patches.
+Ya quedaron aplicados los patches 50a–70 y la ronda 120–140. El proyecto incluye cobertura E2E/API, auditoría operativa con redacción de datos sensibles, actividad de vendedores con auto-refresh, eliminación física de productos con historial preservado, costos históricos y utilidad bruta en reportes, refactor frontend/backend modular, contratos HTTP frontend centralizados, factories E2E, documentación de arquitectura, guardrails de bundle y guardrails de calidad para patches.
 
 Reglas obligatorias:
 - Responde en español.
@@ -175,11 +175,12 @@ npm run docker:build
 
 Siguiente etapa recomendada:
 No continuar refactorizando por inercia. Primero analizar el snapshot actual y proponer el siguiente objetivo con bajo riesgo. Prioridades probables:
-1. QA/release local.
-2. Revisión visual responsive real.
-3. Optimización frontend puntual si el audit de bundle lo justifica.
-4. Preparación de entorno producción/CI/CD.
-5. Mejoras funcionales nuevas solo si están bien delimitadas.
+1. Release smoke manual y revisión visual responsive real.
+2. Preparación de entorno producción/CI/CD.
+3. Observabilidad y logs estructurados con destino externo.
+4. Liquidaciones/entregas de efectivo si el negocio confirma ese flujo.
+5. Roles/permisos persistidos si se requiere administración granular.
+6. Mejoras funcionales nuevas solo si están bien delimitadas.
 ```
 
 ## 7. Reglas para el próximo asistente

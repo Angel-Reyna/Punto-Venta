@@ -196,6 +196,7 @@ Esto elimina `dist`, `test-results`, `playwright-report`, `*.tsbuildinfo` y logs
 | `docs/e2e-playwright.md` | E2E mockeado de frontend. |
 | `docs/e2e-integration.md` | E2E real con backend y PostgreSQL. |
 | `docs/qa/critical-flows.md` | Matriz funcional crítica por rol. |
+| `docs/qa/final-project-audit.md` | Auditoría final contra el plan de mejoras y criterios de cierre. |
 | `docs/checklists/final-audit.md` | Checklist de cierre de patches. |
 | `docs/production/checklist.md` | Checklist antes de usar datos reales. |
 | `docs/production/backup-restore.md` | Backup y restore PostgreSQL. |

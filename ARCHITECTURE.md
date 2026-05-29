@@ -24,7 +24,7 @@ El modelo funcional actual no obliga a abrir caja para vender. El flujo principa
 - Validación de entrada con Zod en rutas críticas.
 - Middleware centralizado de autenticación, autorización, CSRF, rate limit, request id y errores.
 - Transacciones Prisma para operaciones sensibles de venta, inventario, devolución y caja.
-- Auditoría para operaciones críticas.
+- Auditoría para operaciones críticas con redacción de datos sensibles.
 - Refresh sessions persistidas mediante hash, expiración, revocación y reemplazo.
 
 ### Frontend
@@ -34,7 +34,9 @@ El modelo funcional actual no obliga a abrir caja para vender. El flujo principa
 - Rutas protegidas por autenticación y permisos efectivos recibidos desde backend.
 - Access token en memoria y refresh token en cookie `httpOnly`.
 - Interceptor HTTP para refresh y manejo de errores.
-- Pantallas adaptadas progresivamente a responsive real mediante cards/listas/tablas según módulo.
+- Pantallas adaptadas a responsive real mediante cards/listas/tablas según módulo.
+- API clients de frontend centralizados en `apps/web/src/api/http.ts` y contratos de paginación/queries en `apps/web/src/api/contracts.ts`.
+- Features organizadas por dominio con hooks de datos y componentes presentacionales separados.
 
 ### Infraestructura local
 
@@ -54,6 +56,7 @@ El modelo funcional actual no obliga a abrir caja para vender. El flujo principa
 - Helmet y CORS configurables por entorno.
 - Permisos efectivos derivados del rol y validados en backend.
 - Registro de intentos no autorizados de vendedores.
+- Redacción centralizada de contraseñas, tokens, cookies, secretos, credenciales y headers de autorización antes de persistir auditoría o actividad.
 
 ## Autorización
 
@@ -75,6 +78,7 @@ La autorización usa permisos por acción para los módulos principales: usuario
 - Playwright mockeado valida navegación, permisos visuales, responsive y flujo básico de venta sin backend real.
 - Playwright integrado valida login real, venta real, descuento de inventario real y validación de reportes con admin.
 - CI valida lockfiles, Prisma, migraciones contra PostgreSQL real, tests, builds y Docker build.
+- Fixtures E2E reutilizables reducen datos hardcodeados y mejoran estabilidad de flujos mockeados/integrados.
 
 ## Fortalezas actuales
 
@@ -82,6 +86,7 @@ La autorización usa permisos por acción para los módulos principales: usuario
 - Operaciones críticas modeladas como reglas de negocio, no como CRUD plano.
 - Tokens refresh no se almacenan en claro.
 - Buen baseline de pruebas críticas y E2E real.
+- Reportes conservan costos históricos, utilidad bruta y snapshots de producto eliminado.
 - Docker y documentación operativa están separados entre modo local y modo contenedor.
 - Los scripts `qa:local` y `qa:full` reducen errores manuales al validar patches.
 
@@ -101,11 +106,11 @@ La referencia operativa está en `docs/architecture/backend-modules.md`. Ese doc
 
 ## Riesgos actuales y siguientes mejoras
 
-1. **Archivos grandes de UI**: páginas como ventas, productos, reportes y usuarios aún concentran bastante lógica de estado, render y handlers. Conviene extraer hooks y subcomponentes por dominio antes de añadir más funciones.
-2. **Caja sigue siendo módulo secundario**: el dominio existe, pero el modelo de negocio actual prioriza ventas por vendedor. Si se requiere control de efectivo real, debería evolucionar hacia liquidaciones/entregas de efectivo, no forzar caja abierta para vender.
-3. **RBAC editable**: los permisos aún se derivan del rol en código. Para producción multiempresa o administración granular, conviene persistir permisos/roles en base de datos.
-4. **Paginación server-side**: algunas pantallas aún pueden crecer en memoria si el volumen de ventas/productos aumenta. Hay utilidades de paginación en API, pero falta extenderlas uniformemente al frontend.
-5. **Observabilidad**: existe logging base con request id, pero falta logging estructurado completo, métricas y tracing.
+1. **Caja sigue siendo módulo secundario**: el dominio existe, pero el modelo de negocio actual prioriza ventas por vendedor. Si se requiere control de efectivo real, debería evolucionar hacia liquidaciones/entregas de efectivo, no forzar caja abierta para vender.
+2. **RBAC editable**: los permisos aún se derivan del rol en código. Para producción multiempresa o administración granular, conviene persistir permisos/roles en base de datos.
+3. **Paginación server-side uniforme**: existen utilidades de paginación y varios endpoints ya la usan, pero conviene extenderla de forma consistente antes de manejar volúmenes altos.
+4. **Observabilidad**: existe logging base con request id, pero falta logging estructurado completo, métricas y tracing con destino externo.
+5. **Presupuesto de bundle**: el guardrail de bundle es informativo por defecto. Conviene ajustar umbrales con datos reales y convertir ciertos avisos en bloqueo cuando la app se acerque a producción.
 6. **Dependencias de importación**: revisar periódicamente `multer`/uploads y límites de Excel para mantener superficie de ataque baja.
 7. **Node local**: el proyecto declara Node 22. Los entornos locales deberían alinearse para evitar diferencias con CI/Docker.
 
