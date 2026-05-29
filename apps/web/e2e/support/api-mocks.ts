@@ -1164,6 +1164,15 @@ function operationsReportResponse() {
         CASH: 320,
         CARD: 200,
       },
+      profit: {
+        grossCost: 260,
+        returnedCost: 25,
+        netCost: 235,
+        grossProfit: 260,
+        returnedProfit: 25,
+        netProfit: 235,
+        marginPercent: 50,
+      },
       bySeller: [
         {
           seller: {
@@ -1236,6 +1245,8 @@ function operationsReportResponse() {
         },
         quantity: 3,
         total: 270,
+        cost: 150,
+        grossProfit: 120,
       },
       {
         product: {
@@ -1245,6 +1256,8 @@ function operationsReportResponse() {
         },
         quantity: 2,
         total: 200,
+        cost: 85,
+        grossProfit: 115,
       },
     ],
   };

@@ -2,7 +2,7 @@ import { SaleStatus } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
-import { roundMoney, toMoney } from "./reports.shared";
+import { buildProfitSummary, roundMoney, toMoney } from "./reports.shared";
 import type { ReportDateRange, SalesReport } from "./reports.shared";
 
 export { getOperationsReport } from "./reports.operations";
@@ -121,6 +121,11 @@ export async function getSalesReport(range: ReportDateRange): Promise<SalesRepor
           }
         }
       },
+      returns: {
+        include: {
+          items: true
+        }
+      },
       payments: true
     },
     orderBy: {
@@ -149,6 +154,29 @@ export async function getSalesReport(range: ReportDateRange): Promise<SalesRepor
       return summary;
     }, {});
 
+  const soldCost = roundMoney(
+    sales
+      .flatMap((sale) => sale.items)
+      .reduce((sum, item) => sum + Number(item.unitCost ?? 0) * item.quantity, 0)
+  );
+  const soldProfit = roundMoney(
+    sales
+      .flatMap((sale) => sale.items)
+      .reduce((sum, item) => sum + Number(item.grossProfit ?? 0), 0)
+  );
+  const returnedItems = sales.flatMap((sale) =>
+    sale.returns.flatMap((saleReturn) => saleReturn.items)
+  );
+  const returnedCost = roundMoney(
+    returnedItems.reduce(
+      (sum, item) => sum + Number(item.unitCost ?? 0) * item.quantity,
+      0
+    )
+  );
+  const returnedProfit = roundMoney(
+    returnedItems.reduce((sum, item) => sum + Number(item.grossProfit ?? 0), 0)
+  );
+
   return {
     from: range.start,
     to: range.end,
@@ -160,6 +188,13 @@ export async function getSalesReport(range: ReportDateRange): Promise<SalesRepor
     tax,
     total,
     paymentSummary,
+    profit: buildProfitSummary({
+      grossCost: soldCost,
+      returnedCost,
+      grossProfit: soldProfit,
+      returnedProfit,
+      netSales: total
+    }),
     sales: sales.map((sale) => ({
       ...sale,
       subtotal: toMoney(sale.subtotal),
@@ -169,8 +204,11 @@ export async function getSalesReport(range: ReportDateRange): Promise<SalesRepor
       items: sale.items.map((item) => ({
         ...item,
         unitPrice: toMoney(item.unitPrice),
+        unitCost: toMoney(item.unitCost),
+        promoPercent: toMoney(item.promoPercent),
         discount: toMoney(item.discount),
-        total: toMoney(item.total)
+        total: toMoney(item.total),
+        grossProfit: toMoney(item.grossProfit)
       })),
       payments: sale.payments.map((payment) => ({
         ...payment,

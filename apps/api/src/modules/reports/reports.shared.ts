@@ -29,7 +29,18 @@ export type SalesReport = {
   tax: number;
   total: number;
   paymentSummary: Record<string, number>;
+  profit: ProfitSummary;
   sales: Array<Record<string, unknown>>;
+};
+
+export type ProfitSummary = {
+  grossCost: number;
+  returnedCost: number;
+  netCost: number;
+  grossProfit: number;
+  returnedProfit: number;
+  netProfit: number;
+  marginPercent: number;
 };
 
 export type OperationsReport = {
@@ -44,6 +55,7 @@ export type OperationsReport = {
     refunded: number;
     net: number;
     paymentSummary: Record<string, number>;
+    profit: ProfitSummary;
     bySeller: Array<{
       seller: ReportPerson;
       count: number;
@@ -106,8 +118,38 @@ export type OperationsReport = {
     };
     quantity: number;
     total: number;
+    cost: number;
+    grossProfit: number;
   }>;
 };
+
+
+export function buildProfitSummary(input: {
+  grossCost: number;
+  returnedCost: number;
+  grossProfit: number;
+  returnedProfit: number;
+  netSales: number;
+}): ProfitSummary {
+  const grossCost = roundMoney(input.grossCost);
+  const returnedCost = roundMoney(input.returnedCost);
+  const grossProfit = roundMoney(input.grossProfit);
+  const returnedProfit = roundMoney(input.returnedProfit);
+  const netCost = roundMoney(grossCost - returnedCost);
+  const netProfit = roundMoney(grossProfit - returnedProfit);
+  const marginPercent =
+    input.netSales <= 0 ? 0 : roundMoney((netProfit / input.netSales) * 100);
+
+  return {
+    grossCost,
+    returnedCost,
+    netCost,
+    grossProfit,
+    returnedProfit,
+    netProfit,
+    marginPercent
+  };
+}
 
 export function roundMoney(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;

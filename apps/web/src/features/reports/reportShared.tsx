@@ -25,6 +25,16 @@ export type ReportPerson = {
   email: string;
 };
 
+export type ProfitSummary = {
+  grossCost: number;
+  returnedCost: number;
+  netCost: number;
+  grossProfit: number;
+  returnedProfit: number;
+  netProfit: number;
+  marginPercent: number;
+};
+
 export type OperationsReport = {
   from: string;
   to: string;
@@ -37,6 +47,7 @@ export type OperationsReport = {
     refunded: number;
     net: number;
     paymentSummary: MoneySummary;
+    profit: ProfitSummary;
     bySeller: Array<{
       seller: ReportPerson;
       count: number;
@@ -96,6 +107,8 @@ export type OperationsReport = {
     };
     quantity: number;
     total: number;
+    cost: number;
+    grossProfit: number;
   }>;
 };
 
@@ -106,10 +119,18 @@ export const REPORT_INFO_TEXT = {
   refunds: "Monto reembolsado por devoluciones registradas dentro del periodo consultado.",
   netSales:
     "Venta bruta menos devoluciones. Es el total operativo más útil para revisar el resultado real del periodo.",
+  netCost:
+    "Costo histórico neto: costo al momento de venta menos costo asociado a devoluciones del periodo.",
+  grossProfit:
+    "Utilidad bruta neta calculada con el costo congelado al momento de vender, no con el costo actual del producto.",
+  marginPercent:
+    "Margen bruto del periodo: utilidad bruta neta dividida entre venta neta.",
   sellerNet:
     "Venta neta del vendedor: ventas no canceladas menos devoluciones asociadas al periodo.",
   netUnits: "Unidades vendidas menos unidades devueltas dentro del periodo.",
   netSold: "Importe vendido menos devoluciones asociadas al producto dentro del periodo.",
+  productProfit:
+    "Utilidad del producto dentro del periodo: venta neta menos costo histórico neto.",
   expectedCash:
     "Efectivo calculado por el sistema: apertura más entradas y ventas en efectivo, menos salidas y devoluciones en efectivo.",
   cashDifference:

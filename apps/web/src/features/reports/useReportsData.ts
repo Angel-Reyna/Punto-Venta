@@ -105,7 +105,17 @@ export function useReportsData() {
   const filteredTopProducts = useMemo(
     () =>
       data?.topProducts.filter((item) =>
-        includesQuery([item.product.sku, item.product.name, item.quantity, item.total], search)
+        includesQuery(
+          [
+            item.product.sku,
+            item.product.name,
+            item.quantity,
+            item.total,
+            item.cost,
+            item.grossProfit
+          ],
+          search
+        )
       ) ?? [],
     [data, search]
   );

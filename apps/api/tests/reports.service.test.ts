@@ -98,6 +98,14 @@ describe("reports.service", () => {
             method: PaymentMethod.CASH,
             amount: 200
           }
+        ],
+        items: [
+          {
+            id: "item-1",
+            quantity: 5,
+            unitCost: 20,
+            grossProfit: 100
+          }
         ]
       },
       {
@@ -117,6 +125,14 @@ describe("reports.service", () => {
             method: PaymentMethod.CASH,
             amount: 999
           }
+        ],
+        items: [
+          {
+            id: "item-ignored",
+            quantity: 1,
+            unitCost: 1,
+            grossProfit: 998
+          }
         ]
       }
     ]);
@@ -134,7 +150,15 @@ describe("reports.service", () => {
           id: "cashier-1",
           name: "Caja 1",
           email: "cashier@pos.local"
-        }
+        },
+        items: [
+          {
+            id: "return-item-1",
+            quantity: 1,
+            unitCost: 20,
+            grossProfit: 30
+          }
+        ]
       }
     ]);
     prismaMock.cashRegisterSession.findMany.mockResolvedValue([
@@ -184,7 +208,9 @@ describe("reports.service", () => {
         productSku: "CAF-001",
         productName: "Café",
         quantity: 5,
-        total: 200
+        total: 200,
+        unitCost: 20,
+        grossProfit: 100
       }
     ]);
     prismaMock.saleReturnItem.findMany.mockResolvedValue([
@@ -193,7 +219,9 @@ describe("reports.service", () => {
         productSku: "CAF-001",
         productName: "Café",
         quantity: 1,
-        total: 50
+        total: 50,
+        unitCost: 20,
+        grossProfit: 30
       }
     ]);
     prismaMock.product.findMany.mockResolvedValue([
@@ -224,6 +252,15 @@ describe("reports.service", () => {
     expect(report.sales.gross).toBe(200);
     expect(report.sales.refunded).toBe(50);
     expect(report.sales.net).toBe(150);
+    expect(report.sales.profit).toEqual({
+      grossCost: 100,
+      returnedCost: 20,
+      netCost: 80,
+      grossProfit: 100,
+      returnedProfit: 30,
+      netProfit: 70,
+      marginPercent: 46.67
+    });
     expect(report.sales.paymentSummary).toEqual({
       CASH: 200
     });
@@ -255,7 +292,9 @@ describe("reports.service", () => {
           name: "Café"
         },
         quantity: 4,
-        total: 150
+        total: 150,
+        cost: 80,
+        grossProfit: 70
       }
     ]);
     expect(report.sales.recent).toEqual([
@@ -283,7 +322,9 @@ describe("reports.service", () => {
         productSku: "DEL-001",
         productName: "Producto eliminado",
         quantity: 2,
-        total: 120
+        total: 120,
+        unitCost: 30,
+        grossProfit: 60
       }
     ]);
     prismaMock.saleReturnItem.findMany.mockResolvedValue([
@@ -292,7 +333,9 @@ describe("reports.service", () => {
         productSku: "DEL-001",
         productName: "Producto eliminado",
         quantity: 1,
-        total: 60
+        total: 60,
+        unitCost: 30,
+        grossProfit: 30
       }
     ]);
 
@@ -306,7 +349,9 @@ describe("reports.service", () => {
           name: "Producto eliminado (eliminado)"
         },
         quantity: 1,
-        total: 60
+        total: 60,
+        cost: 30,
+        grossProfit: 30
       }
     ]);
   });

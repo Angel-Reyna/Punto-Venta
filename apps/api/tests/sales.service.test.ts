@@ -88,6 +88,7 @@ describe("sales.service", () => {
         findUnique: jest.fn().mockResolvedValue({
           id: "product-1",
           name: "Café",
+          costPrice: 40,
           salePrice: 100,
           promoPercent: 10,
           isActive: true
@@ -113,8 +114,11 @@ describe("sales.service", () => {
               productId: "product-1",
               quantity: 3,
               unitPrice: 100,
+              unitCost: 40,
+              promoPercent: 10,
               discount: 30,
-              total: 270
+              total: 270,
+              grossProfit: 150
             }
           ],
           payments: [
@@ -177,8 +181,11 @@ describe("sales.service", () => {
                 productId: "product-1",
                 quantity: 3,
                 unitPrice: 100,
+                unitCost: 40,
+                promoPercent: 10,
                 discount: 30,
-                total: 270
+                total: 270,
+                grossProfit: 150
               })
             ]
           }
@@ -216,6 +223,7 @@ describe("sales.service", () => {
         findUnique: jest.fn().mockResolvedValue({
           id: "product-1",
           name: "Café",
+          costPrice: 40,
           salePrice: 100,
           promoPercent: 0,
           isActive: true
@@ -295,6 +303,7 @@ describe("sales.service", () => {
         findUnique: jest.fn().mockResolvedValue({
           id: "product-1",
           name: "Café",
+          costPrice: 40,
           salePrice: 100,
           promoPercent: 0,
           isActive: true

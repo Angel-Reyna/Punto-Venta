@@ -204,7 +204,7 @@ function TopProductsPanel({ products }: { products: ProductReportItem[] }) {
                   display: "grid",
                   gridTemplateColumns: {
                     xs: "1fr",
-                    sm: "minmax(0, 1.5fr) repeat(2, minmax(110px, 0.7fr))"
+                    sm: "minmax(0, 1.4fr) repeat(3, minmax(110px, 0.7fr))"
                   },
                   gap: 1.5,
                   alignItems: "center"
@@ -235,6 +235,16 @@ function TopProductsPanel({ products }: { products: ProductReportItem[] }) {
                       label={formatMoney(item.total)}
                       info={REPORT_INFO_TEXT.netSold}
                       ariaLabel={REPORT_INFO_TEXT.netSold}
+                    />
+                  }
+                />
+                <DetailLine
+                  label="Utilidad"
+                  value={
+                    <LabelWithInfo
+                      label={formatMoney(item.grossProfit)}
+                      info={REPORT_INFO_TEXT.productProfit}
+                      ariaLabel={REPORT_INFO_TEXT.productProfit}
                     />
                   }
                 />

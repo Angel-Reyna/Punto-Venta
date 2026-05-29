@@ -105,6 +105,9 @@ function writeOperationsPdf(doc: PDFKit.PDFDocument, report: OperationsReport) {
   doc.text(`Venta bruta: ${formatMoney(report.sales.gross)}`);
   doc.text(`Devoluciones: ${formatMoney(report.sales.refunded)}`);
   doc.text(`Venta neta: ${formatMoney(report.sales.net)}`);
+  doc.text(`Costo neto histórico: ${formatMoney(report.sales.profit.netCost)}`);
+  doc.text(`Utilidad bruta neta: ${formatMoney(report.sales.profit.netProfit)}`);
+  doc.text(`Margen bruto: ${report.sales.profit.marginPercent.toFixed(2)}%`);
 
   doc.moveDown();
 

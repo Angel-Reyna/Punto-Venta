@@ -126,8 +126,11 @@ export function mapSaleDetails(sale: SaleWithDetails) {
     items: sale.items.map((item) => ({
       ...item,
       unitPrice: Number(item.unitPrice),
+      unitCost: Number(item.unitCost ?? 0),
+      promoPercent: Number(item.promoPercent ?? 0),
       discount: Number(item.discount),
       total: Number(item.total),
+      grossProfit: Number(item.grossProfit ?? 0),
       product: mapSaleItemProduct(item)
     })),
     payments: sale.payments.map((payment) => ({
@@ -140,8 +143,11 @@ export function mapSaleDetails(sale: SaleWithDetails) {
       items: saleReturn.items.map((item) => ({
         ...item,
         unitPrice: Number(item.unitPrice),
+        unitCost: Number(item.unitCost ?? 0),
+        promoPercent: Number(item.promoPercent ?? 0),
         discount: Number(item.discount),
         total: Number(item.total),
+        grossProfit: Number(item.grossProfit ?? 0),
         product: mapSaleItemProduct(item)
       }))
     }))
@@ -158,8 +164,11 @@ export function mapCreatedSale(sale: SaleWithItemsAndPayments) {
     items: sale.items.map((item) => ({
       ...item,
       unitPrice: Number(item.unitPrice),
+      unitCost: Number(item.unitCost ?? 0),
+      promoPercent: Number(item.promoPercent ?? 0),
       discount: Number(item.discount),
-      total: Number(item.total)
+      total: Number(item.total),
+      grossProfit: Number(item.grossProfit ?? 0)
     })),
     payments: sale.payments.map((payment) => ({
       ...payment,

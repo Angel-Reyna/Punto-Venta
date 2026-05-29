@@ -1,7 +1,7 @@
 import { SaleStatus } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
-import { roundMoney, toMoney } from "./reports.shared";
+import { buildProfitSummary, roundMoney, toMoney } from "./reports.shared";
 import type { OperationsReport, ReportDateRange, ReportPerson } from "./reports.shared";
 
 export async function getOperationsReport(range: ReportDateRange): Promise<OperationsReport> {
@@ -28,7 +28,8 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
             email: true
           }
         },
-        payments: true
+        payments: true,
+        items: true
       },
       orderBy: {
         createdAt: "desc"
@@ -48,7 +49,8 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
             name: true,
             email: true
           }
-        }
+        },
+        items: true
       },
       orderBy: {
         createdAt: "desc"
@@ -111,7 +113,9 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
         productSku: true,
         productName: true,
         quantity: true,
-        total: true
+        total: true,
+        unitCost: true,
+        grossProfit: true
       }
     }),
     prisma.saleReturnItem.findMany({
@@ -128,7 +132,9 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
         productSku: true,
         productName: true,
         quantity: true,
-        total: true
+        total: true,
+        unitCost: true,
+        grossProfit: true
       }
     })
   ]);
@@ -143,6 +149,8 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
       };
       quantity: number;
       total: number;
+      cost: number;
+      grossProfit: number;
     }
   >();
 
@@ -171,13 +179,17 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     const current = productTotals.get(key) ?? {
       product: snapshotProduct(item),
       quantity: 0,
-      total: 0
+      total: 0,
+      cost: 0,
+      grossProfit: 0
     };
 
     productTotals.set(key, {
       ...current,
       quantity: current.quantity + Number(item.quantity),
-      total: roundMoney(current.total + Number(item.total))
+      total: roundMoney(current.total + Number(item.total)),
+      cost: roundMoney(current.cost + Number(item.unitCost ?? 0) * item.quantity),
+      grossProfit: roundMoney(current.grossProfit + Number(item.grossProfit ?? 0))
     });
   }
 
@@ -186,13 +198,17 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     const current = productTotals.get(key) ?? {
       product: snapshotProduct(item),
       quantity: 0,
-      total: 0
+      total: 0,
+      cost: 0,
+      grossProfit: 0
     };
 
     productTotals.set(key, {
       ...current,
       quantity: current.quantity - Number(item.quantity),
-      total: roundMoney(current.total - Number(item.total))
+      total: roundMoney(current.total - Number(item.total)),
+      cost: roundMoney(current.cost - Number(item.unitCost ?? 0) * item.quantity),
+      grossProfit: roundMoney(current.grossProfit - Number(item.grossProfit ?? 0))
     });
   }
 
@@ -200,7 +216,9 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     .map((item) => ({
       product: item.product,
       quantity: item.quantity,
-      total: roundMoney(item.total)
+      total: roundMoney(item.total),
+      cost: roundMoney(item.cost),
+      grossProfit: roundMoney(item.grossProfit)
     }))
     .filter((item) => item.quantity > 0 || item.total > 0)
     .sort((a, b) => b.quantity - a.quantity || b.total - a.total)
@@ -232,6 +250,36 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
 
       return summary;
     }, {});
+
+  const soldItems = sales
+    .filter((sale) => sale.status !== SaleStatus.CANCELLED)
+    .flatMap((sale) => sale.items);
+  const returnedItems = returns.flatMap((saleReturn) => saleReturn.items);
+  const soldCost = roundMoney(
+    soldItems.reduce(
+      (sum, item) => sum + Number(item.unitCost ?? 0) * item.quantity,
+      0
+    )
+  );
+  const soldProfit = roundMoney(
+    soldItems.reduce((sum, item) => sum + Number(item.grossProfit ?? 0), 0)
+  );
+  const returnedCost = roundMoney(
+    returnedItems.reduce(
+      (sum, item) => sum + Number(item.unitCost ?? 0) * item.quantity,
+      0
+    )
+  );
+  const returnedProfit = roundMoney(
+    returnedItems.reduce((sum, item) => sum + Number(item.grossProfit ?? 0), 0)
+  );
+  const profit = buildProfitSummary({
+    grossCost: soldCost,
+    returnedCost,
+    grossProfit: soldProfit,
+    returnedProfit,
+    netSales
+  });
 
   const sellerTotals = new Map<
     string,
@@ -281,7 +329,12 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
       refunded: roundMoney(entry.refunded),
       net: roundMoney(entry.gross - entry.refunded)
     }))
-    .sort((a, b) => b.net - a.net || b.gross - a.gross || a.seller.name.localeCompare(b.seller.name));
+    .sort(
+      (a, b) =>
+        b.net - a.net ||
+        b.gross - a.gross ||
+        a.seller.name.localeCompare(b.seller.name)
+    );
 
   const refundSummary = returns.reduce<Record<string, number>>((summary, saleReturn) => {
     summary[saleReturn.refundMethod] = roundMoney(
@@ -314,6 +367,7 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
       refunded: refundedTotal,
       net: netSales,
       paymentSummary,
+      profit,
       bySeller: salesBySeller,
       recent: sales.slice(0, 25).map((sale) => ({
         id: sale.id,
@@ -358,7 +412,9 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     topProducts: sortedTopProducts.map((item) => ({
       product: item.product,
       quantity: item.quantity,
-      total: item.total
+      total: item.total,
+      cost: item.cost,
+      grossProfit: item.grossProfit
     }))
   };
 }

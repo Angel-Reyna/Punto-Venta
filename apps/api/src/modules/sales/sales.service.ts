@@ -49,14 +49,18 @@ type PreparedSaleItem = {
     id: string;
     sku: string;
     name: string;
+    costPrice: Prisma.Decimal;
     salePrice: Prisma.Decimal;
     promoPercent: Prisma.Decimal;
     isActive: boolean;
   };
   quantity: number;
   unitPrice: number;
+  unitCost: number;
+  promoPercent: number;
   discount: number;
   total: number;
+  grossProfit: number;
 };
 
 function generateFolio() {
@@ -180,6 +184,7 @@ async function prepareSaleItems(
         id: true,
         sku: true,
         name: true,
+        costPrice: true,
         salePrice: true,
         promoPercent: true,
         isActive: true
@@ -195,10 +200,13 @@ async function prepareSaleItems(
     }
 
     const unitPrice = Number(product.salePrice);
+    const unitCost = Number(product.costPrice);
     const promoPercent = Number(product.promoPercent);
     const lineSubtotal = roundMoney(unitPrice * item.quantity);
     const lineDiscount = roundMoney(lineSubtotal * (promoPercent / 100));
     const lineTotal = roundMoney(lineSubtotal - lineDiscount);
+    const lineCost = roundMoney(unitCost * item.quantity);
+    const lineGrossProfit = roundMoney(lineTotal - lineCost);
 
     subtotal = roundMoney(subtotal + lineSubtotal);
     discount = roundMoney(discount + lineDiscount);
@@ -207,8 +215,11 @@ async function prepareSaleItems(
       product,
       quantity: item.quantity,
       unitPrice,
+      unitCost,
+      promoPercent,
       discount: lineDiscount,
-      total: lineTotal
+      total: lineTotal,
+      grossProfit: lineGrossProfit
     });
   }
 
@@ -462,8 +473,11 @@ async function createSaleAttempt(
               productName: item.product.name,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
+              unitCost: item.unitCost,
+              promoPercent: item.promoPercent,
               discount: item.discount,
-              total: item.total
+              total: item.total,
+              grossProfit: item.grossProfit
             }))
           },
           payments: {
@@ -600,8 +614,11 @@ export async function cancelSale(
               productName: item.productName,
               quantity: item.quantity,
               unitPrice: Number(item.unitPrice),
+              unitCost: Number(item.unitCost ?? 0),
+              promoPercent: Number(item.promoPercent ?? 0),
               discount: Number(item.discount),
-              total: Number(item.total)
+              total: Number(item.total),
+              grossProfit: Number(item.grossProfit ?? 0)
             }))
           }
         }
@@ -688,10 +705,14 @@ export async function returnSaleItems(
         }
 
         const unitPrice = Number(saleItem.unitPrice);
+        const unitCost = Number(saleItem.unitCost ?? 0);
+        const promoPercent = Number(saleItem.promoPercent ?? 0);
         const unitDiscount = roundMoney(Number(saleItem.discount) / saleItem.quantity);
         const unitTotal = roundMoney(Number(saleItem.total) / saleItem.quantity);
+        const unitGrossProfit = roundMoney(Number(saleItem.grossProfit ?? 0) / saleItem.quantity);
         const lineDiscount = roundMoney(unitDiscount * requestedItem.quantity);
         const lineTotal = roundMoney(unitTotal * requestedItem.quantity);
+        const lineGrossProfit = roundMoney(unitGrossProfit * requestedItem.quantity);
 
         refundTotal = roundMoney(refundTotal + lineTotal);
         requestedQuantities.set(saleItem.id, requestedItem.quantity);
@@ -700,8 +721,11 @@ export async function returnSaleItems(
           saleItem,
           quantity: requestedItem.quantity,
           unitPrice,
+          unitCost,
+          promoPercent,
           discount: lineDiscount,
-          total: lineTotal
+          total: lineTotal,
+          grossProfit: lineGrossProfit
         };
       });
 
@@ -734,8 +758,11 @@ export async function returnSaleItems(
               productName: item.saleItem.productName,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
+              unitCost: item.unitCost,
+              promoPercent: item.promoPercent,
               discount: item.discount,
-              total: item.total
+              total: item.total,
+              grossProfit: item.grossProfit
             }))
           }
         }

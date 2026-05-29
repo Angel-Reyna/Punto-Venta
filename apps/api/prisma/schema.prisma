@@ -261,9 +261,12 @@ model SaleItem {
   productSku  String
   productName String
   quantity    Int
-  unitPrice   Decimal @db.Decimal(12, 2)
-  discount    Decimal @default(0) @db.Decimal(12, 2)
-  total       Decimal @db.Decimal(12, 2)
+  unitPrice    Decimal @db.Decimal(12, 2)
+  unitCost     Decimal @default(0) @db.Decimal(12, 2)
+  promoPercent Decimal @default(0) @db.Decimal(5, 2)
+  discount     Decimal @default(0) @db.Decimal(12, 2)
+  total        Decimal @db.Decimal(12, 2)
+  grossProfit  Decimal @default(0) @db.Decimal(12, 2)
 
   sale        Sale             @relation(fields: [saleId], references: [id], onDelete: Cascade)
   product     Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
@@ -316,9 +319,12 @@ model SaleReturnItem {
   productSku  String
   productName String
   quantity    Int
-  unitPrice   Decimal @db.Decimal(12, 2)
-  discount    Decimal @default(0) @db.Decimal(12, 2)
-  total       Decimal @db.Decimal(12, 2)
+  unitPrice    Decimal @db.Decimal(12, 2)
+  unitCost     Decimal @default(0) @db.Decimal(12, 2)
+  promoPercent Decimal @default(0) @db.Decimal(5, 2)
+  discount     Decimal @default(0) @db.Decimal(12, 2)
+  total        Decimal @db.Decimal(12, 2)
+  grossProfit  Decimal @default(0) @db.Decimal(12, 2)
 
   return   SaleReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
   saleItem SaleItem   @relation(fields: [saleItemId], references: [id])
