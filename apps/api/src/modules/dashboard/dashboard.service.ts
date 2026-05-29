@@ -1,6 +1,5 @@
-import { CashRegisterStatus, Role, SaleStatus } from "@prisma/client";
+import { Role } from "@prisma/client";
 
-import { prisma } from "../../config/prisma";
 import { getProductStocks } from "../inventory/inventory.service";
 import {
   buildLowStockItems,
@@ -10,12 +9,12 @@ import {
   mapUserCounts
 } from "./dashboard.mappers";
 import {
-  RECENT_SALES_LIMIT,
   startOfToday,
   toMoney,
   type CurrentUser,
   type DashboardSummary
 } from "./dashboard.shared";
+import { fetchDashboardSummaryData } from "./dashboard.queries";
 
 export type { CurrentUser, DashboardSummary } from "./dashboard.shared";
 
@@ -37,123 +36,19 @@ export async function getDashboardSummary(
         cashierId: user.id
       };
 
-  const [
+  const {
     activeProducts,
     activeProductRows,
     groupedUsers,
     todaySalesAggregate,
     cashRegisterSessions,
     recentSales
-  ] = await Promise.all([
-    prisma.product.count({
-      where: {
-        isActive: true
-      }
-    }),
-
-    prisma.product.findMany({
-      where: {
-        isActive: true
-      },
-      select: {
-        id: true,
-        sku: true,
-        name: true,
-        minStock: true
-      },
-      orderBy: [
-        {
-          name: "asc"
-        },
-        {
-          sku: "asc"
-        }
-      ]
-    }),
-
-    isAdmin
-      ? prisma.user.groupBy({
-          by: ["role"],
-          where: {
-            isActive: true
-          },
-          _count: {
-            _all: true
-          },
-          orderBy: {
-            role: "asc"
-          }
-        })
-      : Promise.resolve([]),
-
-    prisma.sale.aggregate({
-      where: {
-        ...salesScopeWhere,
-        status: SaleStatus.COMPLETED,
-        createdAt: {
-          gte: todayStart
-        }
-      },
-      _count: {
-        _all: true
-      },
-      _sum: {
-        total: true
-      },
-      _avg: {
-        total: true
-      }
-    }),
-
-    prisma.cashRegisterSession.findMany({
-      where: {
-        ...cashRegisterScopeWhere,
-        status: CashRegisterStatus.OPEN
-      },
-      select: {
-        id: true,
-        cashierId: true,
-        openedAt: true,
-        cashier: {
-          select: {
-            name: true
-          }
-        },
-        movements: {
-          select: {
-            type: true,
-            amount: true
-          }
-        }
-      },
-      orderBy: {
-        openedAt: "desc"
-      }
-    }),
-
-    prisma.sale.findMany({
-      where: salesScopeWhere,
-      select: {
-        id: true,
-        folio: true,
-        status: true,
-        total: true,
-        createdAt: true,
-        cashier: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: "desc"
-      },
-      take: RECENT_SALES_LIMIT
-    })
-  ]);
-
+  } = await fetchDashboardSummaryData({
+    isAdmin,
+    todayStart,
+    salesScopeWhere,
+    cashRegisterScopeWhere
+  });
   const stocks = await getProductStocks(
     activeProductRows.map((product) => product.id)
   );

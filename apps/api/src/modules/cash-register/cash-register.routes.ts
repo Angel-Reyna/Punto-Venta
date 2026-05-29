@@ -6,8 +6,12 @@ import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { AppError } from "../../utils/AppError";
 import { setPaginationHeaders } from "../../utils/pagination";
-import { auditLog } from "../audit/audit.service";
 import { PERMISSIONS } from "../auth/permissions";
+import {
+  auditCashMovementCreated,
+  auditCashRegisterClosed,
+  auditCashRegisterOpened
+} from "./cash-register.audit";
 
 import {
   addManualCashMovement,
@@ -56,16 +60,10 @@ cashRegisterRouter.post(
   asyncHandler(async (req, res) => {
     const session = await openCashRegister(getCurrentUser(req), req.body);
 
-    await auditLog({
+    await auditCashRegisterOpened({
       userId: req.user?.id,
-      action: "CASH_REGISTER_OPENED",
-      tableName: "CashRegisterSession",
-      recordId: session.id,
-      newData: {
-        openingAmount: session.openingAmount,
-        notes: session.notes
-      },
-      ipAddress: req.ip
+      ipAddress: req.ip,
+      session
     });
 
     res.status(201).json(session);
@@ -79,18 +77,10 @@ cashRegisterRouter.post(
   asyncHandler(async (req, res) => {
     const movement = await addManualCashMovement(getCurrentUser(req), req.body);
 
-    await auditLog({
+    await auditCashMovementCreated({
       userId: req.user?.id,
-      action: `CASH_${movement.type}`,
-      tableName: "CashMovement",
-      recordId: movement.id,
-      newData: {
-        type: movement.type,
-        amount: movement.amount,
-        signedAmount: movement.signedAmount,
-        reason: movement.reason
-      },
-      ipAddress: req.ip
+      ipAddress: req.ip,
+      movement
     });
 
     res.status(201).json(movement);
@@ -104,18 +94,10 @@ cashRegisterRouter.post(
   asyncHandler(async (req, res) => {
     const session = await closeCashRegister(getCurrentUser(req), req.body);
 
-    await auditLog({
+    await auditCashRegisterClosed({
       userId: req.user?.id,
-      action: "CASH_REGISTER_CLOSED",
-      tableName: "CashRegisterSession",
-      recordId: session.id,
-      newData: {
-        expectedClosingAmount: session.expectedClosingAmount,
-        closingAmount: session.closingAmount,
-        difference: session.difference,
-        notes: session.notes
-      },
-      ipAddress: req.ip
+      ipAddress: req.ip,
+      session
     });
 
     res.json(session);

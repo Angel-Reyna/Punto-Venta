@@ -1,18 +1,14 @@
 import { Router } from "express";
-import { Role } from "@prisma/client";
-
 import { requireAuth, requirePermission } from "../../middlewares/auth";
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
-import { AppError } from "../../utils/AppError";
 import {
   buildPaginationMeta,
-  getOptionalBoolean,
-  getOptionalString,
   getPagination,
   setPaginationHeaders
 } from "../../utils/pagination";
 import { PERMISSIONS } from "../auth/permissions";
+import { parseUserListFilters } from "./users.queries";
 import {
   createUser,
   listUsers,
@@ -39,18 +35,10 @@ usersRouter.get(
       defaultPageSize: 50,
       maxPageSize: 100
     });
-    const q = getOptionalString(req.query.q, 120);
-    const role = getOptionalString(req.query.role, 30);
-    const active = getOptionalBoolean(req.query.active);
-
-    if (role && !Object.values(Role).includes(role as Role)) {
-      throw new AppError(400, "role inválido");
-    }
+    const filters = parseUserListFilters(req.query as Record<string, unknown>);
 
     const result = await listUsers({
-      q,
-      role: role as Role | undefined,
-      active,
+      ...filters,
       skip: pagination.skip,
       take: pagination.take
     });
