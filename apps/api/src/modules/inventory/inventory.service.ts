@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { InventoryType, Prisma } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
@@ -110,6 +110,24 @@ export async function getProductStocks(productIds?: string[]): Promise<Map<strin
       balance.productId,
       balance._sum.quantity ?? 0
     ])
+  );
+}
+
+export async function recordInventoryIn(input: Omit<StockMovementInput, "type">) {
+  return prisma.$transaction((tx) =>
+    increaseStock(tx, {
+      ...input,
+      type: InventoryType.IN
+    })
+  );
+}
+
+export async function recordInventoryOut(input: Omit<StockMovementInput, "type">) {
+  return prisma.$transaction((tx) =>
+    decreaseStock(tx, {
+      ...input,
+      type: InventoryType.OUT
+    })
   );
 }
 

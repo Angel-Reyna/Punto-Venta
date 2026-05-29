@@ -11,14 +11,16 @@ import { PERMISSIONS } from "../auth/permissions";
 
 import {
   cancelSale,
-  cancelSaleSchema,
   createSale,
   getSaleById,
   listSales,
   returnSaleItems,
+} from "./sales.service";
+import {
+  cancelSaleSchema,
   returnSaleSchema,
   saleSchema
-} from "./sales.service";
+} from "./sales.schemas";
 
 const saleIdParamsSchema = z.object({
   params: z.object({

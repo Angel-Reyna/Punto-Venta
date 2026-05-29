@@ -1,9 +1,7 @@
 import { Router, type Request } from "express";
 import multer from "multer";
-import { Prisma, Role } from "@prisma/client";
 import { z } from "zod";
 
-import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
 
 import {
@@ -13,39 +11,23 @@ import {
 
 import { validate } from "../../middlewares/validate";
 import { asyncHandler } from "../../utils/asyncHandler";
-import {
-  buildPaginationMeta,
-  getOptionalBoolean,
-  getOptionalString,
-  getPagination,
-  setPaginationHeaders
-} from "../../utils/pagination";
+import { setPaginationHeaders } from "../../utils/pagination";
 
 import { auditLog } from "../audit/audit.service";
 import { PERMISSIONS } from "../auth/permissions";
-import { getProductStocks } from "../inventory/inventory.service";
 
 import {
-  calculateFinalPrice,
-  calculateMargin,
   createProduct,
   deleteProductSafely,
   importProducts,
   productTemplateBuffer
 } from "./products.service";
-
-const productWithCategoryInclude = {
-  category: {
-    select: {
-      id: true,
-      name: true
-    }
-  }
-} satisfies Prisma.ProductInclude;
-
-type ProductWithCategory = Prisma.ProductGetPayload<{
-  include: typeof productWithCategoryInclude;
-}>;
+import {
+  listProductCategories,
+  listProducts,
+  toggleProductActive,
+  updateProduct
+} from "./products.queries";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -116,151 +98,14 @@ productsRouter.get(
   "/",
   requirePermission(PERMISSIONS.ProductsRead),
   asyncHandler(async (req, res) => {
-    const pagination = getPagination(req.query as Record<string, unknown>, {
-      defaultPageSize: 50,
-      maxPageSize: 100
-    });
-    const q = getOptionalString(req.query.q, 120);
-    const categoryId = getOptionalString(req.query.categoryId, 80);
-    const active = getOptionalBoolean(req.query.active);
-    const lowStock = getOptionalBoolean(req.query.lowStock);
-
-    const where: Prisma.ProductWhereInput = {
-      ...(q
-        ? {
-            OR: [
-              {
-                sku: {
-                  contains: q,
-                  mode: "insensitive"
-                }
-              },
-              {
-                name: {
-                  contains: q,
-                  mode: "insensitive"
-                }
-              },
-              {
-                barcode: {
-                  contains: q,
-                  mode: "insensitive"
-                }
-              },
-              {
-                description: {
-                  contains: q,
-                  mode: "insensitive"
-                }
-              },
-              {
-                category: {
-                  name: {
-                    contains: q,
-                    mode: "insensitive"
-                  }
-                }
-              }
-            ]
-          }
-        : {}),
-      ...(categoryId ? { categoryId } : {}),
-      ...(req.user?.role === Role.ADMIN
-        ? active === undefined
-          ? {}
-          : { isActive: active }
-        : {
-            isActive: true
-          })
-    };
-
-    const mapProduct = (
-      product: ProductWithCategory,
-      stock: number
-    ) => {
-      const salePrice = Number(product.salePrice);
-      const promoPercent = Number(product.promoPercent);
-      const finalPrice = calculateFinalPrice(salePrice, promoPercent);
-
-      if (req.user?.role !== Role.ADMIN) {
-        return {
-          id: product.id,
-          sku: product.sku,
-          barcode: product.barcode,
-          name: product.name,
-          description: product.description,
-          category: product.category,
-          salePrice,
-          promoPercent,
-          finalPrice,
-          stock
-        };
-      }
-
-      return {
-        ...product,
-        costPrice: Number(product.costPrice),
-        salePrice,
-        promoPercent,
-        marginPercent: calculateMargin(
-          Number(product.costPrice),
-          salePrice
-        ),
-        finalPrice,
-        stock
-      };
-    };
-
-    if (lowStock !== true) {
-      const [total, products] = await Promise.all([
-        prisma.product.count({ where }),
-        prisma.product.findMany({
-          where,
-          include: productWithCategoryInclude,
-          orderBy: {
-            createdAt: "desc"
-          },
-          skip: pagination.skip,
-          take: pagination.take
-        })
-      ]);
-
-      const stocks = await getProductStocks(
-        products.map((product) => product.id)
-      );
-
-      setPaginationHeaders(res, buildPaginationMeta(pagination, total));
-
-      return res.json(
-        products.map((product) => mapProduct(product, stocks.get(product.id) ?? 0))
-      );
-    }
-
-    const products = await prisma.product.findMany({
-      where,
-      include: productWithCategoryInclude,
-      orderBy: {
-        createdAt: "desc"
-      }
-    });
-
-    const stocks = await getProductStocks(products.map((product) => product.id));
-    const lowStockProducts = products.filter((product) => {
-      const stock = stocks.get(product.id) ?? 0;
-
-      return stock <= product.minStock;
-    });
-
-    const pageItems = lowStockProducts
-      .slice(pagination.skip, pagination.skip + pagination.take)
-      .map((product) => mapProduct(product, stocks.get(product.id) ?? 0));
-
-    setPaginationHeaders(
-      res,
-      buildPaginationMeta(pagination, lowStockProducts.length)
+    const result = await listProducts(
+      req.user!,
+      req.query as Record<string, unknown>
     );
 
-    return res.json(pageItems);
+    setPaginationHeaders(res, result.meta);
+
+    res.json(result.data);
   })
 );
 
@@ -268,18 +113,7 @@ productsRouter.get(
   "/categories",
   requirePermission(PERMISSIONS.ProductsRead),
   asyncHandler(async (_req, res) => {
-    const categories = await prisma.productCategory.findMany({
-      where: {
-        isActive: true
-      },
-      orderBy: {
-        name: "asc"
-      },
-      select: {
-        id: true,
-        name: true
-      }
-    });
+    const categories = await listProductCategories();
 
     res.json(categories);
   })
@@ -314,19 +148,7 @@ productsRouter.patch(
   validate(updateSchema),
   asyncHandler(async (req, res) => {
     const productId = getRouteId(req);
-
-    const oldData = await prisma.product.findUniqueOrThrow({
-      where: {
-        id: productId
-      }
-    });
-
-    const product = await prisma.product.update({
-      where: {
-        id: productId
-      },
-      data: req.body
-    });
+    const { oldData, product } = await updateProduct(productId, req.body);
 
     await auditLog({
       userId: req.user?.id,
@@ -347,21 +169,7 @@ productsRouter.patch(
   requirePermission(PERMISSIONS.ProductsToggleActive),
   asyncHandler(async (req, res) => {
     const productId = getRouteId(req);
-
-    const oldData = await prisma.product.findUniqueOrThrow({
-      where: {
-        id: productId
-      }
-    });
-
-    const product = await prisma.product.update({
-      where: {
-        id: productId
-      },
-      data: {
-        isActive: !oldData.isActive
-      }
-    });
+    const { oldData, product } = await toggleProductActive(productId);
 
     await auditLog({
       userId: req.user?.id,
