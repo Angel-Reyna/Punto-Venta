@@ -1,17 +1,13 @@
-import { api } from "../../api/client";
+import { getBlob, getJson } from "../../api/http";
 import { downloadBlob } from "../../utils/downloadBlob";
 import { buildQuery, type OperationsReport } from "./reportShared";
 
 export async function fetchOperationsReport(from: string, to: string) {
-  const response = await api.get<OperationsReport>(`/reports/operations?${buildQuery(from, to)}`);
-
-  return response.data;
+  return getJson<OperationsReport>(`/reports/operations?${buildQuery(from, to)}`);
 }
 
 export async function downloadOperationsReportPdf(from: string, to: string) {
-  const response = await api.get(`/reports/operations/pdf?${buildQuery(from, to)}`, {
-    responseType: "blob"
-  });
+  const blob = await getBlob(`/reports/operations/pdf?${buildQuery(from, to)}`);
 
-  downloadBlob(response.data, `reporte-operativo-${from}-${to}.pdf`);
+  downloadBlob(blob, `reporte-operativo-${from}-${to}.pdf`);
 }

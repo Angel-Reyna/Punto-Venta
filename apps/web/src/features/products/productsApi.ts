@@ -1,6 +1,7 @@
-import { api } from "../../api/client";
+import { DEFAULT_LIST_PAGE_SIZE, optionalSearchQuery } from "../../api/contracts";
+import { deleteJson, getBlob, getJson, patchJson, postFormData, postJson } from "../../api/http";
 
-import { Product, ProductCategory } from "./productShared";
+import type { Product, ProductCategory } from "./productShared";
 
 export type CreateProductInput = {
   barcode?: string | null;
@@ -26,40 +27,28 @@ export type ProductDeleteResult = {
 };
 
 export async function listProducts(query: string) {
-  const response = await api.get<Product[]>("/products", {
+  return getJson<Product[]>("/products", {
     params: {
-      q: query.trim() || undefined,
-      pageSize: 100,
+      q: optionalSearchQuery(query),
+      pageSize: DEFAULT_LIST_PAGE_SIZE,
     },
   });
-
-  return response.data;
 }
 
 export async function listProductCategories() {
-  const response = await api.get<ProductCategory[]>("/products/categories");
-
-  return response.data;
+  return getJson<ProductCategory[]>("/products/categories");
 }
 
 export async function createProduct(payload: CreateProductInput) {
-  const response = await api.post<Product>("/products", payload);
-
-  return response.data;
+  return postJson<Product, CreateProductInput>("/products", payload);
 }
 
 export async function updateProduct(productId: string, payload: UpdateProductInput) {
-  const response = await api.patch<Product>(`/products/${productId}`, payload);
-
-  return response.data;
+  return patchJson<Product, UpdateProductInput>(`/products/${productId}`, payload);
 }
 
 export async function downloadProductTemplate() {
-  const response = await api.get<Blob>("/products/template/excel", {
-    responseType: "blob",
-  });
-
-  return response.data;
+  return getBlob("/products/template/excel");
 }
 
 export async function importProductsExcel(file: File) {
@@ -67,25 +56,13 @@ export async function importProductsExcel(file: File) {
 
   formData.append("file", file);
 
-  const response = await api.post<ProductImportResult>(
-    "/products/import/excel",
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    },
-  );
-
-  return response.data;
+  return postFormData<ProductImportResult>("/products/import/excel", formData);
 }
 
 export async function toggleProduct(productId: string) {
-  await api.patch(`/products/${productId}/toggle`);
+  await patchJson(`/products/${productId}/toggle`);
 }
 
 export async function deleteProduct(productId: string) {
-  const response = await api.delete<ProductDeleteResult>(`/products/${productId}`);
-
-  return response.data;
+  return deleteJson<ProductDeleteResult>(`/products/${productId}`);
 }

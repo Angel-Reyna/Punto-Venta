@@ -1,4 +1,5 @@
-import { api } from "../../api/client";
+import { DEFAULT_LIST_PAGE_SIZE } from "../../api/contracts";
+import { getJson, postJson } from "../../api/http";
 
 import type { CartItem, PaymentMethod, Product, Sale } from "./salesShared";
 
@@ -23,31 +24,36 @@ export type ReturnSaleItemsPayload = {
   }>;
 };
 
-const DEFAULT_SALES_WORKSPACE_PAGE_SIZE = 100;
-
 export async function fetchSalesWorkspace() {
-  const [productsResponse, salesResponse] = await Promise.all([
-    api.get<Product[]>(`/products?page=1&pageSize=${DEFAULT_SALES_WORKSPACE_PAGE_SIZE}`),
-    api.get<Sale[]>(`/sales?page=1&pageSize=${DEFAULT_SALES_WORKSPACE_PAGE_SIZE}`)
+  const [products, sales] = await Promise.all([
+    getJson<Product[]>("/products", {
+      params: {
+        page: 1,
+        pageSize: DEFAULT_LIST_PAGE_SIZE,
+      },
+    }),
+    getJson<Sale[]>("/sales", {
+      params: {
+        page: 1,
+        pageSize: DEFAULT_LIST_PAGE_SIZE,
+      },
+    }),
   ]);
 
   return {
-    products: productsResponse.data,
-    sales: salesResponse.data
+    products,
+    sales,
   };
 }
 
 export async function createSale(payload: CreateSalePayload) {
-  await api.post("/sales", payload);
+  await postJson("/sales", payload);
 }
 
 export async function cancelSale(saleId: string, payload: CancelSalePayload) {
-  await api.post(`/sales/${saleId}/cancel`, payload);
+  await postJson(`/sales/${saleId}/cancel`, payload);
 }
 
-export async function returnSaleItems(
-  saleId: string,
-  payload: ReturnSaleItemsPayload
-) {
-  await api.post(`/sales/${saleId}/returns`, payload);
+export async function returnSaleItems(saleId: string, payload: ReturnSaleItemsPayload) {
+  await postJson(`/sales/${saleId}/returns`, payload);
 }

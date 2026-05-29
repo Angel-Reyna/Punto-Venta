@@ -1,4 +1,5 @@
-import { api } from "../../api/client";
+import { DEFAULT_LIST_PAGE_SIZE, optionalSearchQuery } from "../../api/contracts";
+import { getJson, postJson } from "../../api/http";
 import type { Movement, Product, StockItem, Warehouse } from "./inventoryShared";
 
 export type InventoryMovementType = "in" | "out";
@@ -11,46 +12,38 @@ export type CreateInventoryMovementPayload = {
 };
 
 export async function listInventoryProducts() {
-  const response = await api.get<Product[]>("/products", {
+  return getJson<Product[]>("/products", {
     params: {
-      pageSize: 100,
+      pageSize: DEFAULT_LIST_PAGE_SIZE,
     },
   });
-
-  return response.data;
 }
 
 export async function listWarehouses() {
-  const response = await api.get<Warehouse[]>("/inventory/warehouses");
-
-  return response.data;
+  return getJson<Warehouse[]>("/inventory/warehouses");
 }
 
 export async function listStock(query: string) {
-  const response = await api.get<StockItem[]>("/inventory/stock", {
+  return getJson<StockItem[]>("/inventory/stock", {
     params: {
-      q: query.trim() || undefined,
-      pageSize: 100,
+      q: optionalSearchQuery(query),
+      pageSize: DEFAULT_LIST_PAGE_SIZE,
     },
   });
-
-  return response.data;
 }
 
 export async function listInventoryMovements(query: string) {
-  const response = await api.get<Movement[]>("/inventory/movements", {
+  return getJson<Movement[]>("/inventory/movements", {
     params: {
-      q: query.trim() || undefined,
-      pageSize: 100,
+      q: optionalSearchQuery(query),
+      pageSize: DEFAULT_LIST_PAGE_SIZE,
     },
   });
-
-  return response.data;
 }
 
 export async function createInventoryMovement(
   type: InventoryMovementType,
   payload: CreateInventoryMovementPayload,
 ) {
-  await api.post(`/inventory/${type}`, payload);
+  await postJson(`/inventory/${type}`, payload);
 }

@@ -1,4 +1,4 @@
-import { api } from "../../api/client";
+import { getJson } from "../../api/http";
 import {
   buildQuery,
   type Seller,
@@ -8,21 +8,21 @@ import {
 } from "./sellerActivityShared";
 
 export async function fetchSellerUsers() {
-  const response = await api.get<Seller[]>("/users");
+  const users = await getJson<Seller[]>("/users");
 
-  return response.data.filter((user) => user.role === "CASHIER");
+  return users.filter((user) => user.role === "CASHIER");
 }
 
 export async function fetchSellerActivity(filters: SellerActivityFilters) {
   const query = buildQuery(filters);
 
-  const [activityResponse, summaryResponse] = await Promise.all([
-    api.get<SellerActivityLog[]>(`/seller-activity?${query}`),
-    api.get<SummaryItem[]>(`/seller-activity/summary?${query}`),
+  const [rows, summary] = await Promise.all([
+    getJson<SellerActivityLog[]>(`/seller-activity?${query}`),
+    getJson<SummaryItem[]>(`/seller-activity/summary?${query}`),
   ]);
 
   return {
-    rows: activityResponse.data,
-    summary: summaryResponse.data,
+    rows,
+    summary,
   };
 }
