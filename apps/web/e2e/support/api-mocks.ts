@@ -1,8 +1,10 @@
 import type { Page, Request, Route } from "@playwright/test";
 
+import { buildMockManagedUserFixture, buildMockProductFixture } from "./api-mock-fixtures";
+
 const REQUEST_PATTERN = "**/*";
 
-type Role = "ADMIN" | "CASHIER";
+export type Role = "ADMIN" | "CASHIER";
 
 type MockUser = {
   id: string;
@@ -17,7 +19,7 @@ type MockSessionOptions = {
   authenticated?: boolean;
 };
 
-type MockProduct = {
+export type MockProduct = {
   id: string;
   sku: string;
   barcode?: string | null;
@@ -56,7 +58,7 @@ type MockInventoryMovement = {
   } | null;
 };
 
-type MockManagedUser = {
+export type MockManagedUser = {
   id: string;
   name: string;
   email: string;
@@ -670,25 +672,7 @@ function dashboardResponse(role: Role) {
 }
 
 function productsResponse(): MockProduct[] {
-  return [
-    {
-      id: "product-1",
-      sku: "COCA-600",
-      barcode: "7501055300075",
-      name: "Coca-Cola 600 ml",
-      description: "Refresco retornable de prueba",
-      category: { id: "category-1", name: "Bebidas" },
-      salePrice: 18,
-      finalPrice: 18,
-      promoPercent: 0,
-      currentStock: 24,
-      stock: 24,
-      isActive: true,
-      costPrice: 12,
-      minStock: 6,
-      marginPercent: 33.33,
-    },
-  ];
+  return [buildMockProductFixture()];
 }
 
 function filterProductsForRole(products: MockProduct[], role: Role, query: string | null) {
@@ -873,30 +857,19 @@ function filterMovements(movements: MockInventoryMovement[], query: string | nul
 
 function usersResponse(): MockManagedUser[] {
   return [
-    {
+    buildMockManagedUserFixture({
       id: "admin-e2e",
-      name: "Admin E2E",
-      email: "admin@puntaventa.test",
       role: "ADMIN",
-      isActive: true,
       createdAt: "2026-05-20T09:00:00.000Z",
-    },
-    {
-      id: "seller-e2e",
-      name: "Vendedor E2E",
-      email: "vendedor@puntaventa.test",
-      role: "CASHIER",
-      isActive: true,
-      createdAt: "2026-05-21T10:00:00.000Z",
-    },
-    {
+    }),
+    buildMockManagedUserFixture(),
+    buildMockManagedUserFixture({
       id: "seller-inactive-e2e",
       name: "Vendedor Inactivo E2E",
       email: "inactivo@puntaventa.test",
-      role: "CASHIER",
       isActive: false,
       createdAt: "2026-05-21T11:00:00.000Z",
-    },
+    }),
   ];
 }
 

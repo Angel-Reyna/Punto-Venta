@@ -1,6 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { activateByTestId, byTestId, clickByTestId, fillByTestId } from "../support/e2e-locators";
+import {
+  buildCustomerName,
+  buildIntegratedProduct,
+  escapeRegExp,
+  type IntegratedProductInput,
+} from "../support/e2e-fixtures";
 
 const ADMIN_EMAIL =
   process.env.E2E_ADMIN_EMAIL ?? process.env.SEED_ADMIN_EMAIL ?? "admin.e2e@puntaventa.test";
@@ -11,7 +17,6 @@ const SELLER_PASSWORD = process.env.E2E_SELLER_PASSWORD ?? "Vendedor12345DevOnly
 const SELLER_NAME = process.env.E2E_SELLER_NAME ?? "Vendedor E2E";
 const PRODUCT_SKU = "E2E-COCA-600";
 const PRODUCT_NAME = "Producto integrado E2E";
-const CUSTOMER_NAME = `Cliente integrado ${Date.now()}`;
 const SALE_FOLIO_PATTERN = /SALE-\d{8}-[A-F0-9]{10}/;
 
 async function login(page: Page, email: string, password: string) {
@@ -40,20 +45,6 @@ async function readCreatedSaleFolio(page: Page) {
 
   return folio as string;
 }
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-type IntegratedProductInput = {
-  sku: string;
-  barcode: string;
-  name: string;
-  costPrice: string;
-  salePrice: string;
-  initialStock: string;
-  minStock: string;
-};
 
 async function createProductThroughUi(page: Page, product: IntegratedProductInput) {
   await page.goto("/products");
@@ -125,12 +116,14 @@ test.describe("flujo integrado real de venta", () => {
     await expect(page.getByText(PRODUCT_SKU, { exact: true })).toBeVisible();
     await expect(page.getByText("$18.00").last()).toBeVisible();
 
-    await page.getByLabel("Cliente opcional").fill(CUSTOMER_NAME);
+    const customerName = buildCustomerName();
+
+    await page.getByLabel("Cliente opcional").fill(customerName);
     await page.getByLabel("Pago con").fill("20");
     await page.getByRole("button", { name: /Cobrar venta/i }).click();
 
     await expect(page.getByText("Venta registrada correctamente.")).toBeVisible();
-    await expect(page.getByText(CUSTOMER_NAME)).toBeVisible();
+    await expect(page.getByText(customerName)).toBeVisible();
 
     const saleFolio = await readCreatedSaleFolio(page);
 
@@ -180,16 +173,7 @@ test.describe("flujo integrado real de venta", () => {
   });
 
   test("producto vendido puede eliminarse físicamente y conservar snapshot histórico", async ({ page }) => {
-    const uniqueSuffix = Date.now().toString(36).toUpperCase();
-    const product: IntegratedProductInput = {
-      sku: `E2E-DEL-${uniqueSuffix}`,
-      barcode: `998${Date.now().toString().slice(-9)}`,
-      name: `Producto eliminado integrado ${uniqueSuffix}`,
-      costPrice: "11",
-      salePrice: "21",
-      initialStock: "4",
-      minStock: "1",
-    };
+    const product = buildIntegratedProduct();
 
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await createProductThroughUi(page, product);
