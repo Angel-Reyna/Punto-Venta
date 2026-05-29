@@ -20,7 +20,7 @@
     "seed:prod": "node dist/scripts/seed.js",
     "start": "node dist/server.js",
     "test": "jest",
-    "test:critical": "jest critical-routes.permissions.test.ts auth.middleware.test.ts sales.service.test.ts products.import.test.ts products.delete.test.ts reports.service.test.ts --runInBand",
+    "test:critical": "jest critical-routes.permissions.test.ts auth.middleware.test.ts sales.service.test.ts products.import.test.ts products.delete.test.ts reports.service.test.ts security.redaction.test.ts --runInBand",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

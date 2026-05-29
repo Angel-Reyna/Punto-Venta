@@ -1,4 +1,8 @@
 import { prisma } from "../../config/prisma";
+import {
+  redactSensitiveInputJson,
+  redactSensitiveJsonValue
+} from "../../utils/redaction";
 import type { Prisma } from "@prisma/client";
 import type { Pagination } from "../../utils/pagination";
 import {
@@ -36,8 +40,8 @@ export async function auditLog(args: {
       action: args.action,
       tableName: args.tableName,
       recordId: args.recordId,
-      oldData: args.oldData,
-      newData: args.newData,
+      oldData: redactSensitiveInputJson(args.oldData),
+      newData: redactSensitiveInputJson(args.newData),
       ipAddress: args.ipAddress
     }
   });
@@ -67,6 +71,10 @@ export async function listAuditLogs(
 
   return {
     total,
-    logs
+    logs: logs.map((log) => ({
+      ...log,
+      oldData: redactSensitiveJsonValue(log.oldData),
+      newData: redactSensitiveJsonValue(log.newData)
+    }))
   };
 }

@@ -204,17 +204,26 @@ function TopProductsPanel({ products }: { products: ProductReportItem[] }) {
                   display: "grid",
                   gridTemplateColumns: {
                     xs: "1fr",
-                    sm: "minmax(0, 1.4fr) repeat(3, minmax(110px, 0.7fr))"
+                    sm: "repeat(3, minmax(0, 1fr))"
                   },
                   gap: 1.5,
-                  alignItems: "center"
+                  alignItems: "start"
                 }}
               >
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="caption" color="text.secondary">
+                <Box sx={{ gridColumn: "1 / -1", minWidth: 0 }}>
+                  <Typography variant="caption" color="text.secondary" display="block">
                     #{index + 1} · SKU {item.product.sku ?? "—"}
                   </Typography>
-                  <Typography fontWeight={800} noWrap>
+                  <Typography
+                    component="p"
+                    fontWeight={800}
+                    sx={{
+                      display: "block",
+                      minWidth: 0,
+                      overflowWrap: "anywhere",
+                      wordBreak: "break-word"
+                    }}
+                  >
                     {item.product.name}
                   </Typography>
                 </Box>

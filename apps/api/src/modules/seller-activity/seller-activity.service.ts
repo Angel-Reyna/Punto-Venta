@@ -2,6 +2,10 @@ import { Prisma, Role, SellerAction } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { logger } from "../../utils/logger";
+import {
+  redactSensitiveInputJson,
+  redactSensitiveJsonValue
+} from "../../utils/redaction";
 import type { Pagination } from "../../utils/pagination";
 import {
   buildSellerActivityWhere,
@@ -52,7 +56,7 @@ export async function logSellerActivity(input: SellerActivityInput) {
         entityType: input.entityType,
         entityId: input.entityId ?? undefined,
         description: input.description,
-        metadata: input.metadata,
+        metadata: redactSensitiveInputJson(input.metadata),
         ipAddress: input.ipAddress,
         userAgent: input.userAgent
       }
@@ -96,7 +100,10 @@ export async function listSellerActivity(
 
   return {
     total,
-    logs
+    logs: logs.map((log) => ({
+      ...log,
+      metadata: redactSensitiveJsonValue(log.metadata)
+    }))
   };
 }
 
