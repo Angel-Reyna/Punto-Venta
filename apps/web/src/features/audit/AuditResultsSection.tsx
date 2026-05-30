@@ -36,7 +36,7 @@ function getResultsCopy(variant: AuditLayoutVariant, visibleCount: number) {
   return {
     title: `${visibleCount} evento(s) visibles`,
     eyebrow: "Línea de tiempo",
-    helper: "Vista de investigación con contexto, responsable, área afectada y evidencia del cambio.",
+    helper: "Vista de revisión con explicación simple, responsable, área afectada y datos técnicos solo cuando hacen falta.",
   };
 }
 
@@ -90,7 +90,7 @@ export function AuditResultsSection({
 
       {visibleRows.length === 0 ? (
         <EmptyStatePanel>
-          No hay registros con los filtros actuales. Limpia filtros o realiza una acción administrativa para ver actividad.
+          No hay cambios con los filtros actuales. Limpia filtros o realiza una acción administrativa para ver actividad.
         </EmptyStatePanel>
       ) : (
         <Box

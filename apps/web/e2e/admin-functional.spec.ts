@@ -91,16 +91,16 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(page.getByRole("heading", { name: "Auditoría", level: 1 })).toBeVisible();
     await expect(page.getByText("Centro de investigación operativa")).toBeVisible();
     await expect(byTestId(page, "audit-results-heading")).toContainText("3 evento(s) visibles");
-    await expect(byTestId(page, "audit-active-filters")).toContainText("Severidad: Todas");
+    await expect(byTestId(page, "audit-active-filters")).toContainText("Importancia: Todas");
     await expect(byTestId(page, "audit-log-audit-1")).toContainText("Producto eliminado");
-    await expect(byTestId(page, "audit-log-audit-1")).toContainText("Severidad Crítica");
+    await expect(byTestId(page, "audit-log-audit-1")).toContainText("Importancia Crítica");
     await expect(byTestId(page, "audit-log-audit-1")).toContainText("product-deleted-snapshot");
     await expect(byTestId(page, "audit-after-audit-1")).toContainText("e2e");
 
-    await page.getByRole("combobox", { name: "Severidad" }).click();
+    await page.getByRole("combobox", { name: "Importancia" }).click();
     await page.getByRole("option", { name: "Media" }).click();
 
-    await expect(byTestId(page, "audit-active-filters")).toContainText("Severidad: Media");
+    await expect(byTestId(page, "audit-active-filters")).toContainText("Importancia: Media");
     await expect(byTestId(page, "audit-results-heading")).toContainText("1 evento(s) visibles");
     await expect(byTestId(page, "audit-log-audit-2")).toContainText("Venta registrada");
     await expect(byTestId(page, "audit-log-audit-1")).toHaveCount(0);

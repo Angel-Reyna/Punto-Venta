@@ -1,14 +1,4 @@
-import {
-  Box,
-  Card,
-  CardContent,
-  Chip,
-  Divider,
-  Grid,
-  Stack,
-  Typography,
-} from "@mui/material";
-
+import { Box, Card, CardContent, Chip, Divider, Grid, Stack, Typography } from "@mui/material";
 
 export type AuditLog = {
   id: string;
@@ -51,46 +41,166 @@ export const initialFilters: AuditFilters = {
 
 const SENSITIVE_KEY_PATTERN = /(password|token|secret|hash|pepper|credential|cookie|authorization)/i;
 
+const currencyFormatter = new Intl.NumberFormat("es-MX", {
+  currency: "MXN",
+  maximumFractionDigits: 2,
+  style: "currency",
+});
+
 const ACTION_LABELS: Record<string, string> = {
   CASH_REGISTER_CLOSE: "Cierre de caja",
+  CLOSE_CASH_REGISTER: "Cierre de caja",
   CASH_REGISTER_MOVEMENT: "Movimiento manual de caja",
+  CREATE_CASH_MOVEMENT: "Movimiento manual de caja",
   CASH_REGISTER_OPEN: "Apertura de caja",
+  OPEN_CASH_REGISTER: "Apertura de caja",
   INVENTORY_IN: "Entrada de inventario",
+  CREATE_INVENTORY_IN: "Entrada de inventario",
   INVENTORY_OUT: "Salida de inventario",
+  CREATE_INVENTORY_OUT: "Salida de inventario",
   PRODUCT_CREATE: "Producto creado",
+  CREATE_PRODUCT: "Producto creado",
   PRODUCT_DELETE: "Producto eliminado",
-  PRODUCT_IMPORT: "Importación de productos",
+  DELETE_PRODUCT: "Producto eliminado",
+  PRODUCT_IMPORT: "Productos importados desde Excel",
+  IMPORT_PRODUCTS_EXCEL: "Productos importados desde Excel",
   PRODUCT_TOGGLE_ACTIVE: "Cambio de estado de producto",
+  TOGGLE_PRODUCT_ACTIVE: "Cambio de estado de producto",
   PRODUCT_UPDATE: "Producto actualizado",
+  UPDATE_PRODUCT: "Producto actualizado",
   SALE_CANCEL: "Venta cancelada",
+  CANCEL_SALE: "Venta cancelada",
   SALE_CREATE: "Venta registrada",
+  CREATE_SALE: "Venta registrada",
   SALE_RETURN: "Devolución registrada",
+  CREATE_SALE_RETURN: "Devolución registrada",
   USER_ACTIVATE: "Usuario activado",
+  ACTIVATE_USER: "Usuario activado",
   USER_CREATE: "Usuario creado",
+  CREATE_USER: "Usuario creado",
   USER_DEACTIVATE: "Usuario desactivado",
+  DEACTIVATE_USER: "Usuario desactivado",
   USER_PASSWORD_RESET: "Contraseña restablecida",
+  RESET_PASSWORD: "Contraseña restablecida",
   USER_ROLE_UPDATE: "Rol actualizado",
+  UPDATE_USER_ROLE: "Rol actualizado",
 };
 
 const ACTION_HELPERS: Record<string, string> = {
   CASH_REGISTER_CLOSE: "Se cerró una caja y quedó guardado el corte.",
+  CLOSE_CASH_REGISTER: "Se cerró una caja y quedó guardado el corte.",
   CASH_REGISTER_MOVEMENT: "Se agregó o retiró efectivo manualmente de caja.",
+  CREATE_CASH_MOVEMENT: "Se agregó o retiró efectivo manualmente de caja.",
   CASH_REGISTER_OPEN: "Se abrió una caja para control de efectivo.",
+  OPEN_CASH_REGISTER: "Se abrió una caja para control de efectivo.",
   INVENTORY_IN: "Entraron unidades al inventario.",
+  CREATE_INVENTORY_IN: "Entraron unidades al inventario.",
   INVENTORY_OUT: "Salieron unidades del inventario.",
+  CREATE_INVENTORY_OUT: "Salieron unidades del inventario.",
   PRODUCT_CREATE: "Se registró un producto nuevo en el catálogo.",
+  CREATE_PRODUCT: "Se registró un producto nuevo en el catálogo.",
   PRODUCT_DELETE: "Se eliminó físicamente un producto permitido por las reglas del sistema.",
+  DELETE_PRODUCT: "Se eliminó físicamente un producto permitido por las reglas del sistema.",
   PRODUCT_IMPORT: "Se cargaron productos desde un archivo Excel.",
+  IMPORT_PRODUCTS_EXCEL: "Se cargaron productos desde un archivo Excel.",
   PRODUCT_TOGGLE_ACTIVE: "Se activó o desactivó un producto para venta.",
+  TOGGLE_PRODUCT_ACTIVE: "Se activó o desactivó un producto para venta.",
   PRODUCT_UPDATE: "Se cambió información de un producto.",
+  UPDATE_PRODUCT: "Se cambió información de un producto.",
   SALE_CANCEL: "Se canceló una venta existente.",
-  SALE_CREATE: "Se registró una venta y se actualizó inventario.",
+  CANCEL_SALE: "Se canceló una venta existente.",
+  SALE_CREATE: "Se registró una venta, se guardó el pago y se actualizó el inventario.",
+  CREATE_SALE: "Se registró una venta, se guardó el pago y se actualizó el inventario.",
   SALE_RETURN: "Se registró una devolución de producto.",
+  CREATE_SALE_RETURN: "Se registró una devolución de producto.",
   USER_ACTIVATE: "Se permitió de nuevo el acceso de un usuario.",
+  ACTIVATE_USER: "Se permitió de nuevo el acceso de un usuario.",
   USER_CREATE: "Se creó una cuenta de usuario.",
+  CREATE_USER: "Se creó una cuenta de usuario.",
   USER_DEACTIVATE: "Se bloqueó el acceso de un usuario.",
+  DEACTIVATE_USER: "Se bloqueó el acceso de un usuario.",
   USER_PASSWORD_RESET: "Se cambió la contraseña de un usuario.",
+  RESET_PASSWORD: "Se cambió la contraseña de un usuario.",
   USER_ROLE_UPDATE: "Se cambió el rol de un usuario.",
+  UPDATE_USER_ROLE: "Se cambió el rol de un usuario.",
+};
+
+const ACTION_MEANINGS: Record<string, string> = {
+  CASH_REGISTER_CLOSE: "El corte de efectivo quedó registrado para consulta del administrador.",
+  CLOSE_CASH_REGISTER: "El corte de efectivo quedó registrado para consulta del administrador.",
+  CASH_REGISTER_MOVEMENT: "El efectivo controlado en caja cambió por una entrada o salida manual.",
+  CREATE_CASH_MOVEMENT: "El efectivo controlado en caja cambió por una entrada o salida manual.",
+  CASH_REGISTER_OPEN: "La caja quedó disponible para control de efectivo, pero las ventas no dependen de esto.",
+  OPEN_CASH_REGISTER: "La caja quedó disponible para control de efectivo, pero las ventas no dependen de esto.",
+  INVENTORY_IN: "Aumentaron las existencias de uno o más productos.",
+  CREATE_INVENTORY_IN: "Aumentaron las existencias de uno o más productos.",
+  INVENTORY_OUT: "Disminuyeron las existencias por una salida manual.",
+  CREATE_INVENTORY_OUT: "Disminuyeron las existencias por una salida manual.",
+  PRODUCT_CREATE: "El producto ya puede aparecer en catálogo e inventario si está activo.",
+  CREATE_PRODUCT: "El producto ya puede aparecer en catálogo e inventario si está activo.",
+  PRODUCT_DELETE: "El producto dejó de estar disponible. El historial previo se conserva con snapshots.",
+  DELETE_PRODUCT: "El producto dejó de estar disponible. El historial previo se conserva con snapshots.",
+  PRODUCT_IMPORT: "El catálogo se modificó a partir de una plantilla Excel.",
+  IMPORT_PRODUCTS_EXCEL: "El catálogo se modificó a partir de una plantilla Excel.",
+  PRODUCT_TOGGLE_ACTIVE: "El producto cambió su disponibilidad para venderse.",
+  TOGGLE_PRODUCT_ACTIVE: "El producto cambió su disponibilidad para venderse.",
+  PRODUCT_UPDATE: "Cambió información que puede afectar búsqueda, precio, costo, promoción o stock mínimo.",
+  UPDATE_PRODUCT: "Cambió información que puede afectar búsqueda, precio, costo, promoción o stock mínimo.",
+  SALE_CANCEL: "La venta ya no debe contarse como operación completada.",
+  CANCEL_SALE: "La venta ya no debe contarse como operación completada.",
+  SALE_CREATE: "Se vendió producto, se registró el pago y bajó el inventario.",
+  CREATE_SALE: "Se vendió producto, se registró el pago y bajó el inventario.",
+  SALE_RETURN: "Se devolvió producto y la operación debe reflejarse en inventario y reportes.",
+  CREATE_SALE_RETURN: "Se devolvió producto y la operación debe reflejarse en inventario y reportes.",
+  USER_ACTIVATE: "La persona puede volver a entrar al sistema.",
+  ACTIVATE_USER: "La persona puede volver a entrar al sistema.",
+  USER_CREATE: "Hay una cuenta nueva que puede operar según su rol y permisos.",
+  CREATE_USER: "Hay una cuenta nueva que puede operar según su rol y permisos.",
+  USER_DEACTIVATE: "La persona ya no debería poder entrar al sistema.",
+  DEACTIVATE_USER: "La persona ya no debería poder entrar al sistema.",
+  USER_PASSWORD_RESET: "La persona necesitará usar la nueva contraseña para entrar.",
+  RESET_PASSWORD: "La persona necesitará usar la nueva contraseña para entrar.",
+  USER_ROLE_UPDATE: "La persona puede haber ganado o perdido permisos dentro de la aplicación.",
+  UPDATE_USER_ROLE: "La persona puede haber ganado o perdido permisos dentro de la aplicación.",
+};
+
+const ACTION_REVIEW_HINTS: Record<string, string> = {
+  CASH_REGISTER_CLOSE: "Revisa si el corte de efectivo no coincide con lo entregado.",
+  CLOSE_CASH_REGISTER: "Revisa si el corte de efectivo no coincide con lo entregado.",
+  CASH_REGISTER_MOVEMENT: "Revisa si no reconoces la entrada o salida de efectivo.",
+  CREATE_CASH_MOVEMENT: "Revisa si no reconoces la entrada o salida de efectivo.",
+  CASH_REGISTER_OPEN: "Revisa si la caja se abrió fuera del horario esperado.",
+  OPEN_CASH_REGISTER: "Revisa si la caja se abrió fuera del horario esperado.",
+  INVENTORY_IN: "Revisa si las unidades agregadas no coinciden con la mercancía recibida.",
+  CREATE_INVENTORY_IN: "Revisa si las unidades agregadas no coinciden con la mercancía recibida.",
+  INVENTORY_OUT: "Revisa si no reconoces la salida o si el stock quedó incorrecto.",
+  CREATE_INVENTORY_OUT: "Revisa si no reconoces la salida o si el stock quedó incorrecto.",
+  PRODUCT_CREATE: "Revisa precio, costo, SKU y stock inicial antes de venderlo.",
+  CREATE_PRODUCT: "Revisa precio, costo, SKU y stock inicial antes de venderlo.",
+  PRODUCT_DELETE: "Revisa si el producto no debía eliminarse o si todavía debería venderse.",
+  DELETE_PRODUCT: "Revisa si el producto no debía eliminarse o si todavía debería venderse.",
+  PRODUCT_IMPORT: "Revisa si después del Excel hay precios, nombres o existencias incorrectas.",
+  IMPORT_PRODUCTS_EXCEL: "Revisa si después del Excel hay precios, nombres o existencias incorrectas.",
+  PRODUCT_TOGGLE_ACTIVE: "Revisa si el producto desapareció o apareció por error en venta.",
+  TOGGLE_PRODUCT_ACTIVE: "Revisa si el producto desapareció o apareció por error en venta.",
+  PRODUCT_UPDATE: "Revisa si cambió precio, costo, promoción o datos de identificación.",
+  UPDATE_PRODUCT: "Revisa si cambió precio, costo, promoción o datos de identificación.",
+  SALE_CANCEL: "Revisa si la cancelación no fue autorizada o si afecta reportes.",
+  CANCEL_SALE: "Revisa si la cancelación no fue autorizada o si afecta reportes.",
+  SALE_CREATE: "Revisa si no reconoces la venta, el total o el vendedor.",
+  CREATE_SALE: "Revisa si no reconoces la venta, el total o el vendedor.",
+  SALE_RETURN: "Revisa si la devolución no corresponde con la venta original.",
+  CREATE_SALE_RETURN: "Revisa si la devolución no corresponde con la venta original.",
+  USER_ACTIVATE: "Revisa si la persona no debería tener acceso.",
+  ACTIVATE_USER: "Revisa si la persona no debería tener acceso.",
+  USER_CREATE: "Revisa rol, correo y estado de la cuenta.",
+  CREATE_USER: "Revisa rol, correo y estado de la cuenta.",
+  USER_DEACTIVATE: "Revisa si la persona sí debería conservar acceso.",
+  DEACTIVATE_USER: "Revisa si la persona sí debería conservar acceso.",
+  USER_PASSWORD_RESET: "Revisa si el cambio fue solicitado por la persona correcta.",
+  RESET_PASSWORD: "Revisa si el cambio fue solicitado por la persona correcta.",
+  USER_ROLE_UPDATE: "Revisa si el nuevo rol corresponde a sus responsabilidades.",
+  UPDATE_USER_ROLE: "Revisa si el nuevo rol corresponde a sus responsabilidades.",
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -112,6 +222,32 @@ const ENTITY_HELPERS: Record<string, string> = {
   SaleReturn: "afectó una devolución",
   User: "afectó una cuenta de usuario",
 };
+
+const FACT_LABELS: Array<{ label: string; pattern: RegExp }> = [
+  { label: "Folio", pattern: /^(folio|saleFolio|saleNumber|number)$/i },
+  { label: "Total", pattern: /^(total|totalAmount|grandTotal|amountPaid|paidAmount|amount)$/i },
+  { label: "Cambio", pattern: /^(change|changeAmount)$/i },
+  { label: "Forma de pago", pattern: /^(paymentMethod|method|paymentType)$/i },
+  { label: "Producto", pattern: /^(productName|name|displayName)$/i },
+  { label: "SKU", pattern: /^(sku|productSku)$/i },
+  { label: "Código", pattern: /^(barcode|code)$/i },
+  { label: "Cantidad", pattern: /^(quantity|qty|units|stock|initialStock)$/i },
+  { label: "Precio", pattern: /^(salePrice|price|unitPrice|unitPriceAtSale)$/i },
+  { label: "Costo", pattern: /^(costPrice|unitCost|unitCostAtSale)$/i },
+  { label: "Correo", pattern: /^(email)$/i },
+  { label: "Rol", pattern: /^(role)$/i },
+  { label: "Estado", pattern: /^(isActive|active|status)$/i },
+  { label: "Registros", pattern: /^(processed|processedRows|created|updated|skipped|imported)$/i },
+];
+
+function normalizeAction(value: string) {
+  return value
+    .trim()
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase();
+}
 
 function titleCase(value: string) {
   return value
@@ -136,11 +272,13 @@ export function formatRole(role?: "ADMIN" | "CASHIER") {
 }
 
 export function formatActionLabel(action: string) {
-  return ACTION_LABELS[action] ?? titleCase(action);
+  const normalized = normalizeAction(action);
+  return ACTION_LABELS[normalized] ?? titleCase(action);
 }
 
 export function formatActionHelper(action: string) {
-  return ACTION_HELPERS[action] ?? "Se registró una acción del sistema.";
+  const normalized = normalizeAction(action);
+  return ACTION_HELPERS[normalized] ?? "Se registró una acción del sistema.";
 }
 
 export function formatEntityLabel(tableName: string) {
@@ -158,7 +296,7 @@ export function getAuditSeverity(log: Pick<AuditLog, "action" | "tableName">): {
   helper: string;
   color: ChipColor;
 } {
-  const normalized = `${log.action} ${log.tableName}`.toLowerCase();
+  const normalized = `${normalizeAction(log.action)} ${log.tableName}`.toLowerCase();
 
   if (
     normalized.includes("delete") ||
@@ -311,11 +449,101 @@ function getSeverityMainColor(color: ChipColor) {
   return `${color}.main`;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function getReadableActionDetails(log: AuditLog) {
+  const normalized = normalizeAction(log.action);
+
+  return {
+    meaning: ACTION_MEANINGS[normalized] ?? "El sistema guardó esta acción para que pueda revisarse después.",
+    reviewHint: ACTION_REVIEW_HINTS[normalized] ?? "Revisa este evento si no reconoces la acción o el responsable.",
+    title: formatActionLabel(log.action),
+  };
+}
+
+function getFieldLabel(key: string) {
+  const cleanKey = key.split(".").pop() ?? key;
+  const match = FACT_LABELS.find((entry) => entry.pattern.test(cleanKey));
+  return match?.label;
+}
+
+function isMoneyKey(key: string) {
+  return /(amount|total|price|cost|paid|change)$/i.test(key);
+}
+
+function formatFactValue(key: string, value: unknown) {
+  if (value == null || value === "") return "Sin dato";
+
+  if (typeof value === "boolean") {
+    if (/active|isActive/i.test(key)) return value ? "Activo" : "Inactivo";
+    return value ? "Sí" : "No";
+  }
+
+  if (typeof value === "number") {
+    return isMoneyKey(key) ? currencyFormatter.format(value) : String(value);
+  }
+
+  if (typeof value === "string") {
+    if (value === "ADMIN" || value === "CASHIER") return formatRole(value);
+    return value;
+  }
+
+  return String(summarizePrimitive(value));
+}
+
+function collectFactCandidates(value: unknown, prefix = ""): Array<{ key: string; value: unknown }> {
+  if (!isRecord(value)) return [];
+
+  const facts: Array<{ key: string; value: unknown }> = [];
+
+  for (const [key, rawValue] of Object.entries(value)) {
+    if (SENSITIVE_KEY_PATTERN.test(key) || rawValue == null) continue;
+
+    const fullKey = prefix ? `${prefix}.${key}` : key;
+
+    if (isRecord(rawValue)) {
+      facts.push(...collectFactCandidates(rawValue, fullKey));
+      continue;
+    }
+
+    if (Array.isArray(rawValue)) {
+      if (/items|products|rows|details/i.test(key)) {
+        facts.push({ key, value: `${rawValue.length} elemento(s)` });
+      }
+      continue;
+    }
+
+    facts.push({ key: fullKey, value: rawValue });
+  }
+
+  return facts;
+}
+
+function extractImportantFacts(log: AuditLog) {
+  const sourceCandidates = [...collectFactCandidates(log.newData), ...collectFactCandidates(log.oldData)];
+  const seen = new Set<string>();
+  const facts: Array<{ label: string; value: string }> = [];
+
+  for (const candidate of sourceCandidates) {
+    const label = getFieldLabel(candidate.key);
+    if (!label || seen.has(label)) continue;
+
+    facts.push({ label, value: formatFactValue(candidate.key, candidate.value) });
+    seen.add(label);
+
+    if (facts.length >= 5) break;
+  }
+
+  return facts;
+}
+
 function buildPlainSummary(log: AuditLog) {
   const actor = log.user?.name ?? "El sistema";
-  const action = formatActionLabel(log.action).toLowerCase();
-  const entity = formatEntityHelper(log.tableName);
-  return `${actor} ${action} y ${entity}.`;
+  const { title } = getReadableActionDetails(log);
+  const helper = formatActionHelper(log.action);
+  return `${actor}: ${title.toLowerCase()}. ${helper}`;
 }
 
 function TechnicalDetails({ log, defaultExpanded }: { log: AuditLog; defaultExpanded: boolean }) {
@@ -344,9 +572,9 @@ function TechnicalDetails({ log, defaultExpanded }: { log: AuditLog; defaultExpa
       <Box component="summary">
         <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
           <Box>
-            <Typography fontWeight={850}>Detalles del cambio</Typography>
+            <Typography fontWeight={850}>Datos técnicos</Typography>
             <Typography variant="caption" color="text.secondary">
-              Datos seguros para revisión. Contraseñas, tokens y secretos se ocultan automáticamente.
+              Información para soporte. Contraseñas, tokens y secretos se ocultan automáticamente.
             </Typography>
           </Box>
           <Typography aria-hidden color="text.secondary" sx={{ fontSize: 18 }}>
@@ -431,9 +659,70 @@ function AuditFact({ label, value, helper }: { label: string; value: string; hel
 function AuditStatusChips({ result, severity }: { result: ReturnType<typeof getResultLabel>; severity: ReturnType<typeof getAuditSeverity> }) {
   return (
     <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
-      <Chip size="small" label={`Severidad ${severity.label}`} color={severity.color} />
+      <Chip size="small" label={`Importancia ${severity.label}`} color={severity.color} />
+      <Chip size="small" label={`Severidad ${severity.label}`} color={severity.color} variant="outlined" />
       <Chip size="small" label={result.label} color={result.color} variant="outlined" />
     </Stack>
+  );
+}
+
+function ImportantFacts({ facts }: { facts: Array<{ label: string; value: string }> }) {
+  if (facts.length === 0) return null;
+
+  return (
+    <Box>
+      <Typography variant="subtitle2" fontWeight={950} sx={{ mb: 0.75 }}>
+        Datos importantes
+      </Typography>
+      <Grid container spacing={1}>
+        {facts.map((fact) => (
+          <Grid item xs={12} sm={6} md={4} key={`${fact.label}-${fact.value}`}>
+            <AuditFact label={fact.label} value={fact.value} />
+          </Grid>
+        ))}
+      </Grid>
+    </Box>
+  );
+}
+
+function PlainLanguageBlock({ log }: { log: AuditLog }) {
+  const details = getReadableActionDetails(log);
+  const entityLabel = formatEntityLabel(log.tableName);
+
+  return (
+    <Box
+      sx={{
+        border: 1,
+        borderColor: "divider",
+        borderRadius: 2.5,
+        bgcolor: "background.default",
+        p: 1.25,
+      }}
+    >
+      <Stack spacing={0.75}>
+        <Box>
+          <Typography variant="caption" color="text.secondary">
+            Qué significa
+          </Typography>
+          <Typography variant="body2" fontWeight={900} sx={{ overflowWrap: "anywhere" }}>
+            {details.meaning}
+          </Typography>
+        </Box>
+        <Divider />
+        <Box>
+          <Typography variant="caption" color="text.secondary">
+            Revisar si
+          </Typography>
+          <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
+            {details.reviewHint}
+          </Typography>
+        </Box>
+        <Typography variant="caption" color="text.secondary">
+          Área afectada: {entityLabel}
+          {log.recordId ? ` · Referencia técnica: ${log.recordId}` : ""}
+        </Typography>
+      </Stack>
+    </Box>
   );
 }
 
@@ -452,6 +741,8 @@ export function AuditLogCard({
   const entityLabel = formatEntityLabel(log.tableName);
   const actor = log.user?.name ?? "Sistema";
   const actorHelper = log.user?.email ? `${formatRole(log.user.role)} · ${log.user.email}` : formatRole(log.user?.role);
+  const facts = extractImportantFacts(log);
+  const summary = buildPlainSummary(log);
 
   if (variant === "mobile") {
     return (
@@ -494,29 +785,25 @@ export function AuditLogCard({
               </Box>
             </Stack>
 
+            <Typography variant="body2" fontWeight={900} sx={{ overflowWrap: "anywhere" }}>
+              {summary}
+            </Typography>
             <AuditStatusChips result={result} severity={severity} />
-
-            <Box sx={{ borderRadius: 2, bgcolor: "background.default", p: 1.1 }}>
-              <Typography variant="body2" fontWeight={900} sx={{ overflowWrap: "anywhere" }}>
-                {buildPlainSummary(log)}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {severity.helper}
-              </Typography>
-            </Box>
+            <PlainLanguageBlock log={log} />
 
             <Stack spacing={0.75}>
-              <AuditFact label="Quién" value={actor} helper={actorHelper} />
+              <AuditFact label="Quién lo hizo" value={actor} helper={actorHelper} />
               <Stack direction="row" spacing={0.75}>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <AuditFact label="Área" value={entityLabel} helper={log.recordId || "Sin ID"} />
+                  <AuditFact label="Área" value={entityLabel} helper={log.recordId || "Sin referencia"} />
                 </Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <AuditFact label="IP" value={log.ipAddress || "No disponible"} helper="Origen" />
+                  <AuditFact label="Origen" value={log.ipAddress || "No disponible"} helper="IP" />
                 </Box>
               </Stack>
             </Stack>
 
+            <ImportantFacts facts={facts} />
             <TechnicalDetails log={log} defaultExpanded={false} />
           </Stack>
         </CardContent>
@@ -561,16 +848,19 @@ export function AuditLogCard({
               }}
             >
               <Typography variant="body2" fontWeight={900} sx={{ overflowWrap: "anywhere" }}>
-                {buildPlainSummary(log)}
+                {summary}
               </Typography>
             </Box>
+
+            <PlainLanguageBlock log={log} />
+            <ImportantFacts facts={facts} />
 
             <Grid container spacing={1} sx={{ flex: 1 }}>
               <Grid item xs={12}>
                 <AuditFact label="Responsable" value={actor} helper={actorHelper} />
               </Grid>
               <Grid item xs={6}>
-                <AuditFact label="Área" value={entityLabel} helper={log.recordId || "Sin ID visible"} />
+                <AuditFact label="Área" value={entityLabel} helper={log.recordId || "Sin referencia"} />
               </Grid>
               <Grid item xs={6}>
                 <AuditFact label="Origen" value={log.ipAddress || "No disponible"} helper="IP" />
@@ -596,7 +886,7 @@ export function AuditLogCard({
       }}
     >
       <CardContent sx={{ p: 0 }}>
-        <Box sx={{ display: "grid", gridTemplateColumns: "132px minmax(0, 1fr)", minHeight: 180 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: "112px minmax(0, 1fr)", minHeight: 180 }}>
           <Box
             sx={{
               borderRight: 1,
@@ -623,7 +913,8 @@ export function AuditLogCard({
               <Typography variant="caption" color="text.secondary">
                 {formatDate(log.createdAt)}
               </Typography>
-              <Chip size="small" label={`Severidad ${severity.label}`} color={severity.color} />
+              <Chip size="small" label={`Importancia ${severity.label}`} color={severity.color} />
+              <Chip size="small" label={`Severidad ${severity.label}`} color={severity.color} variant="outlined" />
             </Stack>
           </Box>
 
@@ -634,41 +925,31 @@ export function AuditLogCard({
                   {actionLabel}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {formatActionHelper(log.action)} {severity.helper}
+                  {summary}
                 </Typography>
               </Box>
               <Chip size="small" label={result.label} color={result.color} variant="outlined" />
             </Stack>
 
-            <Box
-              sx={{
-                border: 1,
-                borderColor: getSeverityBorderColor(severity.color),
-                borderRadius: 2,
-                p: 1.25,
-                bgcolor: "background.default",
-              }}
-            >
-              <Typography variant="body2" fontWeight={900} sx={{ overflowWrap: "anywhere" }}>
-                {buildPlainSummary(log)}
-              </Typography>
-            </Box>
+            <PlainLanguageBlock log={log} />
 
             <Grid container spacing={1.25}>
               <Grid item xs={12} md={4}>
                 <AuditFact label="Quién lo hizo" value={actor} helper={actorHelper} />
               </Grid>
               <Grid item xs={12} md={4}>
-                <AuditFact label="Qué área afectó" value={entityLabel} helper={log.recordId || "Sin ID visible"} />
+                <AuditFact label="Qué área afectó" value={entityLabel} helper={log.recordId || "Sin referencia visible"} />
               </Grid>
               <Grid item xs={12} md={4}>
                 <AuditFact label="Desde dónde" value={log.ipAddress || "No disponible"} helper="IP registrada por la API" />
               </Grid>
             </Grid>
 
+            <ImportantFacts facts={facts} />
+
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-              <Chip size="small" label={`Código de acción: ${log.action}`} color="default" variant="outlined" />
-              <Chip size="small" label={`Tabla: ${log.tableName}`} color="default" variant="outlined" />
+              <Chip size="small" label={`Código técnico: ${log.action}`} color="default" variant="outlined" />
+              <Chip size="small" label={`Tabla técnica: ${log.tableName}`} color="default" variant="outlined" />
             </Stack>
 
             <Divider />

@@ -17,7 +17,7 @@ const SEVERITY_LABELS: Record<Exclude<AuditFilters["severity"], "">, string> = {
   critical: "Crítica",
   high: "Alta",
   medium: "Media",
-  low: "Baja",
+  low: "Informativa",
 };
 
 export function useAuditData() {
@@ -77,7 +77,7 @@ export function useAuditData() {
   const latestEvent = visibleRows[0]?.createdAt ? formatDate(visibleRows[0].createdAt) : "Sin actividad";
 
   const activeFilterLabels = [
-    filters.severity ? `Severidad: ${SEVERITY_LABELS[filters.severity]}` : "Severidad: Todas",
+    filters.severity ? `Importancia: ${SEVERITY_LABELS[filters.severity]}` : "Importancia: Todas",
     filters.action ? `Qué ocurrió: ${formatActionLabel(filters.action)}` : "Qué ocurrió: Todo",
     filters.tableName ? `Área: ${formatEntityLabel(filters.tableName)}` : "Área: Todas",
     filters.dateFrom || filters.dateTo

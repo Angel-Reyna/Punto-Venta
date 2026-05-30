@@ -36,7 +36,7 @@ function getFilterCopy(layout: AuditLayoutVariant) {
 
   return {
     title: "Consola de filtros",
-    helper: "Investiga por acción, área, severidad, fecha o texto libre.",
+    helper: "Investiga por acción, área, importancia, fecha o texto libre.",
     searchPlaceholder: "Producto, usuario, acción, ID o IP",
   };
 }
@@ -96,7 +96,7 @@ function AuditFilterFields({
         <TextField
           select
           fullWidth
-          label="Severidad"
+          label="Importancia"
           size={isMobile ? "small" : "medium"}
           value={filters.severity}
           inputProps={{ "data-testid": "audit-severity" }}
@@ -106,7 +106,7 @@ function AuditFilterFields({
           <MenuItem value="critical">Crítica</MenuItem>
           <MenuItem value="high">Alta</MenuItem>
           <MenuItem value="medium">Media</MenuItem>
-          <MenuItem value="low">Baja</MenuItem>
+          <MenuItem value="low">Informativa</MenuItem>
         </TextField>
       </Grid>
 
