@@ -12,6 +12,7 @@ import { alpha } from "@mui/material/styles";
 
 import HistoryIcon from "@mui/icons-material/History";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
+import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 
 import type { InventoryView, StockItem } from "./inventoryShared";
 import { getInventoryStockSummary } from "./inventoryShared";
@@ -30,6 +31,7 @@ export function InventoryControlHero({
   stockRows: StockItem[];
 }) {
   const summary = getInventoryStockSummary(stockRows);
+  const hasAlerts = summary.attention > 0;
 
   return (
     <Card
@@ -39,13 +41,22 @@ export function InventoryControlHero({
         overflow: "hidden",
         border: 1,
         borderColor: alpha(theme.palette.primary.main, 0.18),
-        background: `linear-gradient(135deg, ${alpha(
-          theme.palette.primary.main,
-          0.14,
-        )}, ${alpha(theme.palette.background.paper, 0.96)} 48%, ${alpha(
-          theme.palette.warning.main,
-          summary.attention > 0 ? 0.1 : 0.03,
-        )})`,
+        background:
+          theme.palette.mode === "dark"
+            ? `linear-gradient(135deg, ${alpha(
+                theme.palette.primary.main,
+                0.16,
+              )}, ${alpha(theme.palette.background.paper, 0.96)} 54%, ${alpha(
+                theme.palette.warning.main,
+                hasAlerts ? 0.12 : 0.04,
+              )})`
+            : `linear-gradient(135deg, ${alpha(
+                theme.palette.primary.main,
+                0.12,
+              )}, ${alpha(theme.palette.background.paper, 0.98)} 52%, ${alpha(
+                theme.palette.warning.main,
+                hasAlerts ? 0.12 : 0.04,
+              )})`,
       })}
     >
       <CardContent
@@ -56,12 +67,12 @@ export function InventoryControlHero({
       >
         <Stack spacing={2.5}>
           <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={2}
-            alignItems={{ xs: "flex-start", md: "center" }}
+            direction={{ xs: "column", lg: "row" }}
+            spacing={{ xs: 2, lg: 3 }}
+            alignItems={{ xs: "stretch", lg: "center" }}
             justifyContent="space-between"
           >
-            <Stack spacing={1} sx={{ maxWidth: 720 }}>
+            <Stack spacing={1.25} sx={{ maxWidth: 760 }}>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                 <Chip
                   color={canAdjustInventory ? "primary" : "success"}
@@ -72,10 +83,11 @@ export function InventoryControlHero({
                   }
                 />
                 <Chip
-                  color={summary.attention > 0 ? "warning" : "success"}
+                  color={hasAlerts ? "warning" : "success"}
+                  icon={hasAlerts ? <ReportProblemIcon /> : undefined}
                   variant="outlined"
                   label={
-                    summary.attention > 0
+                    hasAlerts
                       ? `${summary.attention} alerta${summary.attention === 1 ? "" : "s"} de stock`
                       : "Stock operativo estable"
                   }
@@ -87,29 +99,30 @@ export function InventoryControlHero({
                   Control de inventario
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Revisa existencias, detecta reposición y consulta movimientos
-                  con una lectura más visual antes de registrar ajustes
-                  manuales.
+                  Primero revisa productos sin stock o bajo mínimo; después consulta
+                  movimientos o registra entradas y salidas manuales cuando exista
+                  una razón operativa.
                 </Typography>
               </Box>
             </Stack>
 
-            <Stack
-              direction="row"
-              spacing={1}
-              useFlexGap
-              flexWrap="wrap"
-              sx={{ justifyContent: { xs: "flex-start", md: "flex-end" } }}
+            <Box
+              sx={{
+                display: "grid",
+                gap: 1,
+                gridTemplateColumns: {
+                  xs: "1fr 1fr",
+                  sm: "repeat(4, minmax(0, 1fr))",
+                  lg: "repeat(2, minmax(128px, 1fr))",
+                },
+                minWidth: { lg: 320 },
+              }}
             >
-              <Chip
-                icon={<Inventory2Icon />}
-                label={`${summary.total} productos`}
-              />
-              <Chip
-                icon={<HistoryIcon />}
-                label={`${movementsCount} movimientos`}
-              />
-            </Stack>
+              <InventoryHeroStat label="Productos" value={summary.total} />
+              <InventoryHeroStat label="Unidades" value={summary.units} />
+              <InventoryHeroStat label="Alertas" value={summary.attention} />
+              <InventoryHeroStat label="Movimientos" value={movementsCount} />
+            </Box>
           </Stack>
 
           <Tabs
@@ -147,5 +160,36 @@ export function InventoryControlHero({
         </Stack>
       </CardContent>
     </Card>
+  );
+}
+
+function InventoryHeroStat({ label, value }: { label: string; value: number }) {
+  return (
+    <Box
+      sx={(theme) => ({
+        border: 1,
+        borderColor: alpha(theme.palette.primary.main, 0.16),
+        borderRadius: 3,
+        bgcolor: alpha(theme.palette.background.paper, 0.64),
+        px: 1.5,
+        py: 1.25,
+      })}
+    >
+      <Stack direction="row" spacing={1} alignItems="center">
+        {label === "Movimientos" ? (
+          <HistoryIcon fontSize="small" color="primary" />
+        ) : (
+          <Inventory2Icon fontSize="small" color="primary" />
+        )}
+        <Box>
+          <Typography variant="h6" fontWeight={900} lineHeight={1.1}>
+            {value}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" fontWeight={800}>
+            {label}
+          </Typography>
+        </Box>
+      </Stack>
+    </Box>
   );
 }

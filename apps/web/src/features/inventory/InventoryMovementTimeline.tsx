@@ -5,6 +5,7 @@ import {
   Card,
   CardContent,
   Chip,
+  Divider,
   Stack,
   Typography,
 } from "@mui/material";
@@ -23,6 +24,7 @@ function getMovementTypeMeta(type: Movement["type"]): {
   color: InventoryMetricColor;
   icon: ReactElement;
   label: string;
+  plainSummary: string;
 } {
   const meta: Record<
     Movement["type"],
@@ -30,32 +32,38 @@ function getMovementTypeMeta(type: Movement["type"]): {
       color: InventoryMetricColor;
       icon: ReactElement;
       label: string;
+      plainSummary: string;
     }
   > = {
     ADJUSTMENT: {
       color: "info",
       icon: <TuneIcon fontSize="small" />,
       label: "Ajuste",
+      plainSummary: "Se corrigió el inventario manualmente.",
     },
     IN: {
       color: "success",
       icon: <AddCircleIcon fontSize="small" />,
       label: "Entrada",
+      plainSummary: "Entraron unidades al inventario.",
     },
     OUT: {
       color: "warning",
       icon: <RemoveCircleIcon fontSize="small" />,
       label: "Salida",
+      plainSummary: "Salieron unidades del inventario.",
     },
     RETURN: {
       color: "success",
       icon: <ReplayIcon fontSize="small" />,
       label: "Devolución",
+      plainSummary: "Una devolución regresó unidades al inventario.",
     },
     SALE: {
       color: "warning",
       icon: <LocalShippingIcon fontSize="small" />,
       label: "Venta",
+      plainSummary: "Una venta descontó unidades del inventario.",
     },
   };
 
@@ -131,21 +139,30 @@ export function InventoryMovementTimeline({
                 key={movement.id}
                 sx={{
                   display: "grid",
-                  gridTemplateColumns: "auto minmax(0, 1fr)",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "auto minmax(0, 1fr)",
+                  },
                   gap: { xs: 1, sm: 1.5 },
                 }}
               >
-                <Stack alignItems="center" sx={{ pt: 0.25 }}>
+                <Stack
+                  alignItems="center"
+                  sx={{ display: { xs: "none", sm: "flex" }, pt: 0.25 }}
+                >
                   <Box
                     sx={(theme) => ({
                       display: "grid",
                       placeItems: "center",
-                      width: { xs: 32, sm: 36 },
-                      height: { xs: 32, sm: 36 },
+                      width: 36,
+                      height: 36,
                       borderRadius: "50%",
                       color: theme.palette[meta.color].main,
                       bgcolor: alpha(theme.palette[meta.color].main, 0.12),
-                      border: `1px solid ${alpha(theme.palette[meta.color].main, 0.28)}`,
+                      border: `1px solid ${alpha(
+                        theme.palette[meta.color].main,
+                        0.28,
+                      )}`,
                     })}
                   >
                     {meta.icon}
@@ -212,28 +229,57 @@ export function InventoryMovementTimeline({
                         >
                           {productName}
                         </Typography>
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          useFlexGap
-                          flexWrap="wrap"
-                          sx={{ mt: 0.75 }}
-                        >
-                          <Chip size="small" variant="outlined" label={productSku} />
-                          {barcode && (
-                            <Chip size="small" variant="outlined" label={barcode} />
-                          )}
-                          <Chip
-                            size="small"
-                            variant="outlined"
-                            label={movement.warehouse?.name ?? "Sin almacén"}
-                          />
-                        </Stack>
+                        <Typography variant="body2" color="text.secondary">
+                          {meta.plainSummary}
+                        </Typography>
                       </Box>
 
-                      <Typography variant="body2" color="text.secondary">
-                        {movement.reason || "Sin motivo capturado."}
-                      </Typography>
+                      <Divider />
+
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gap: 1,
+                          gridTemplateColumns: {
+                            xs: "1fr",
+                            md: "minmax(0, 1fr) minmax(0, 1fr)",
+                          },
+                        }}
+                      >
+                        <Stack spacing={0.75}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            fontWeight={800}
+                          >
+                            Producto afectado
+                          </Typography>
+                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                            <Chip size="small" variant="outlined" label={productSku} />
+                            {barcode && (
+                              <Chip size="small" variant="outlined" label={barcode} />
+                            )}
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              label={movement.warehouse?.name ?? "Sin almacén"}
+                            />
+                          </Stack>
+                        </Stack>
+
+                        <Stack spacing={0.75}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            fontWeight={800}
+                          >
+                            Motivo
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {movement.reason || "Sin motivo capturado."}
+                          </Typography>
+                        </Stack>
+                      </Box>
                     </Stack>
                   </CardContent>
                 </Card>

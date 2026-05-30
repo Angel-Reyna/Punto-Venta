@@ -52,20 +52,47 @@ export function InventoryAdjustmentForm({
   return (
     <Card sx={{ mb: 2 }}>
       <CardContent>
-        <Stack spacing={2}>
-          <Box>
-            <Typography variant="h6" fontWeight={900}>
-              Registrar entrada o salida manual
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Usa esta sección para ajustes operativos justificados. Las ventas
-              y devoluciones generan movimientos automáticamente.
-            </Typography>
-          </Box>
+        <Stack spacing={2.5}>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={1.5}
+            alignItems={{ xs: "flex-start", md: "center" }}
+            justifyContent="space-between"
+          >
+            <Box>
+              <Typography variant="h6" fontWeight={900}>
+                Registrar entrada o salida manual
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Usa esta sección para ajustes justificados. Las ventas y
+                devoluciones generan movimientos automáticamente.
+              </Typography>
+            </Box>
+
+            <Box
+              sx={(theme) => ({
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 3,
+                bgcolor: theme.palette.background.default,
+                px: 1.5,
+                py: 1,
+                maxWidth: { xs: "100%", md: 320 },
+              })}
+            >
+              <Typography variant="caption" color="text.secondary" fontWeight={800}>
+                Antes de guardar
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Verifica producto, cantidad y motivo. Este registro queda en el
+                historial de inventario.
+              </Typography>
+            </Box>
+          </Stack>
 
           {canAdjustInventory ? (
             <Grid container spacing={2} alignItems="flex-start">
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={7}>
                 <TextField
                   select
                   fullWidth
@@ -86,7 +113,7 @@ export function InventoryAdjustmentForm({
                 </TextField>
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={5}>
                 <TextField
                   select
                   fullWidth
@@ -134,7 +161,7 @@ export function InventoryAdjustmentForm({
                   fullWidth
                   label="Motivo del movimiento"
                   value={form.reason}
-                  helperText="Mínimo 3 caracteres"
+                  helperText="Ej. Compra a proveedor, merma, conteo físico"
                   inputProps={{
                     "data-testid": "inventory-form-reason",
                   }}

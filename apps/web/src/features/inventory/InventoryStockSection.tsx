@@ -6,6 +6,7 @@ import {
   CardContent,
   Chip,
   Divider,
+  LinearProgress,
   Stack,
   Typography,
 } from "@mui/material";
@@ -15,6 +16,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 
 import { EmptyStatePanel } from "../../components/data-display";
 import { SearchToolbar } from "../../components/SearchToolbar";
@@ -50,6 +52,8 @@ export function InventoryStockSection({
         helperText="Busca productos por nombre, clave interna/SKU, código o categoría para revisar su stock real."
       />
 
+      <InventoryPriorityPanel rows={rows} />
+
       <InventorySummaryCards rows={rows} />
 
       <InventoryStatusFilterBar
@@ -64,6 +68,90 @@ export function InventoryStockSection({
         statusFilter={statusFilter}
       />
     </>
+  );
+}
+
+function InventoryPriorityPanel({ rows }: { rows: StockItem[] }) {
+  const summary = getInventoryStockSummary(rows);
+  const hasAlerts = summary.attention > 0;
+  const headline = summary.outOfStock
+    ? "Primero revisa productos sin stock"
+    : summary.lowStock
+      ? "Hay productos cerca del mínimo"
+      : "Inventario listo para operar";
+  const helper = summary.outOfStock
+    ? "Hay productos que no deberían prometerse en venta hasta reponer existencias."
+    : summary.lowStock
+      ? "Todavía pueden venderse, pero conviene preparar reposición antes de agotarlos."
+      : "No hay alertas críticas visibles. Mantén seguimiento de movimientos y ventas.";
+
+  return (
+    <Card
+      variant="outlined"
+      sx={(theme) => ({
+        mb: 2,
+        borderColor: alpha(
+          hasAlerts ? theme.palette.warning.main : theme.palette.success.main,
+          0.24,
+        ),
+        bgcolor: alpha(
+          hasAlerts ? theme.palette.warning.main : theme.palette.success.main,
+          theme.palette.mode === "dark" ? 0.08 : 0.05,
+        ),
+      })}
+    >
+      <CardContent>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          alignItems={{ xs: "stretch", md: "center" }}
+          justifyContent="space-between"
+        >
+          <Stack direction="row" spacing={1.5} alignItems="flex-start">
+            <Box
+              sx={(theme) => ({
+                display: "grid",
+                placeItems: "center",
+                flex: "0 0 auto",
+                width: 44,
+                height: 44,
+                borderRadius: 3,
+                color: hasAlerts
+                  ? theme.palette.warning.main
+                  : theme.palette.success.main,
+                bgcolor: alpha(
+                  hasAlerts ? theme.palette.warning.main : theme.palette.success.main,
+                  0.14,
+                ),
+              })}
+            >
+              {summary.outOfStock ? <ErrorOutlineIcon /> : <WarningAmberIcon />}
+            </Box>
+
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="subtitle1" fontWeight={900}>
+                {headline}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {helper}
+              </Typography>
+            </Box>
+          </Stack>
+
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            flexWrap="wrap"
+            sx={{ justifyContent: { xs: "flex-start", md: "flex-end" } }}
+          >
+            <Chip color="error" variant="outlined" label={`Sin stock · ${summary.outOfStock}`} />
+            <Chip color="warning" variant="outlined" label={`Bajo mínimo · ${summary.lowStock}`} />
+            <Chip color="success" variant="outlined" label={`Listos · ${summary.available}`} />
+          </Stack>
+        </Stack>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -270,6 +358,9 @@ function InventoryStockOverview({
 
 function InventoryStockItem({ item }: { item: StockItem }) {
   const stockStatus = getStockStatus(item);
+  const minStock = Math.max(Number(item.minStock ?? 0), 0);
+  const stock = Math.max(Number(item.stock ?? 0), 0);
+  const progressValue = minStock > 0 ? Math.min((stock / minStock) * 100, 100) : 100;
 
   return (
     <Box
@@ -278,7 +369,8 @@ function InventoryStockItem({ item }: { item: StockItem }) {
         gap: { xs: 1.5, md: 2 },
         gridTemplateColumns: {
           xs: "1fr",
-          md: "minmax(0, 1.5fr) minmax(180px, 0.7fr) minmax(180px, 0.7fr)",
+          md: "minmax(0, 1.35fr) minmax(190px, 0.75fr)",
+          xl: "minmax(0, 1.35fr) minmax(190px, 0.65fr) minmax(190px, 0.65fr)",
         },
         px: { xs: 2, sm: 2.5 },
         py: { xs: 2, sm: 2.25 },
@@ -290,64 +382,73 @@ function InventoryStockItem({ item }: { item: StockItem }) {
         },
       })}
     >
-      <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-        <Typography
-          variant="subtitle1"
-          fontWeight={900}
-          sx={{ overflowWrap: "anywhere" }}
-        >
-          {item.name}
-        </Typography>
-
+      <Stack spacing={1} sx={{ minWidth: 0 }}>
         <Stack
-          direction="row"
+          direction={{ xs: "column", sm: "row" }}
           spacing={1}
-          useFlexGap
-          flexWrap="wrap"
-          alignItems="center"
+          alignItems={{ xs: "flex-start", sm: "center" }}
+          justifyContent="space-between"
         >
-          <Chip size="small" variant="outlined" label={item.sku} />
-          {item.barcode && (
-            <Chip size="small" variant="outlined" label={item.barcode} />
-          )}
-          <Chip
-            size="small"
-            variant="outlined"
-            label={item.category?.name ?? "Sin categoría"}
-          />
-        </Stack>
-      </Stack>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography
+              variant="subtitle1"
+              fontWeight={900}
+              sx={{ overflowWrap: "anywhere" }}
+            >
+              {item.name}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {item.category?.name ?? "Sin categoría"}
+            </Typography>
+          </Box>
 
-      <Stack spacing={0.75}>
-        <Typography variant="caption" color="text.secondary" fontWeight={800}>
-          Stock actual
-        </Typography>
-        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-          <Chip
-            color={stockStatus.color}
-            label={`${item.stock} unidad${item.stock === 1 ? "" : "es"}`}
-          />
           <Chip
             color={stockStatus.color}
             variant="outlined"
             label={stockStatus.label}
           />
         </Stack>
+
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <Chip size="small" variant="outlined" label={item.sku} />
+          {item.barcode && (
+            <Chip size="small" variant="outlined" label={item.barcode} />
+          )}
+        </Stack>
+      </Stack>
+
+      <Stack spacing={0.9}>
+        <Typography variant="caption" color="text.secondary" fontWeight={800}>
+          Stock actual
+        </Typography>
+        <Typography variant="h5" fontWeight={900}>
+          {item.stock} unidad{item.stock === 1 ? "" : "es"}
+        </Typography>
+        <LinearProgress
+          color={stockStatus.color}
+          variant="determinate"
+          value={progressValue}
+          sx={{ height: 8, borderRadius: 99 }}
+        />
         <Typography variant="caption" color="text.secondary">
           {stockStatus.helper}
         </Typography>
       </Stack>
 
-      <Stack spacing={0.75}>
+      <Stack spacing={0.75} sx={{ display: { xs: "flex", md: "none", xl: "flex" } }}>
         <Typography variant="caption" color="text.secondary" fontWeight={800}>
           Reposición
         </Typography>
         <Typography variant="body2" fontWeight={700}>
           Stock mínimo: {item.minStock}
         </Typography>
-        {item.lowStock && (
+        {item.lowStock ? (
           <Typography variant="body2" color="warning.main">
             Requiere revisión de existencias.
+          </Typography>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            Sin alerta de reposición visible.
           </Typography>
         )}
       </Stack>
