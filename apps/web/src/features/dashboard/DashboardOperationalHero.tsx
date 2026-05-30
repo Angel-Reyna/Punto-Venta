@@ -26,8 +26,8 @@ export function DashboardOperationalHero({
   return (
     <PageHero
       testId="dashboard-operational-hero"
-      title="Resumen operativo en tiempo real"
-      subtitle="Prioriza ventas, reposición e incidencias desde una sola lectura. La venta en efectivo sigue independiente de Caja; Caja solo ayuda a controlar entregas y cortes."
+      title="Cómo va el negocio hoy"
+      subtitle="Una lectura rápida para decidir si vender, reponer inventario o revisar actividad. Caja sigue siendo control secundario."
       tone={
         operationalStateColor === "error"
           ? "error"

@@ -1,18 +1,17 @@
-import { Alert, Button, Grid, LinearProgress, Stack } from "@mui/material";
+import { Alert, Button, LinearProgress, useMediaQuery, type Theme } from "@mui/material";
 
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { PERMISSIONS } from "../../auth/permissions";
 import { useAuth } from "../../auth/AuthContext";
 import { PageHeader } from "../../components/PageHeader";
-import { DashboardMetricsGrid } from "./DashboardMetricsGrid";
 import { DashboardOperationalHero } from "./DashboardOperationalHero";
 import {
-  DashboardSkeleton,
-  InventoryAttentionPanel,
-  OperationalReadingPanel,
-  RecentSalesPanel,
-} from "./dashboard.sections";
+  DashboardDesktopScreen,
+  DashboardMobileScreen,
+  DashboardTabletScreen,
+} from "./DashboardDeviceScreens";
+import { DashboardSkeleton } from "./dashboard.sections";
 import { useDashboardData } from "./useDashboardData";
 
 function getGeneratedAtLabel(value: string | null | undefined) {
@@ -29,6 +28,8 @@ function getGeneratedAtLabel(value: string | null | undefined) {
 export function DashboardPage() {
   const { can, isAdmin } = useAuth();
   const { error, isLoading, load, metrics } = useDashboardData();
+  const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down("sm"));
+  const isDesktop = useMediaQuery((theme: Theme) => theme.breakpoints.up("lg"));
 
   const hasMetrics = Boolean(metrics);
   const hasCriticalStock = (metrics?.productSummary.outOfStockTotal ?? 0) > 0;
@@ -42,8 +43,8 @@ export function DashboardPage() {
         title="Inicio"
         subtitle={
           isAdmin
-            ? "Resumen operativo del negocio: ventas por vendedor, inventario crítico y usuarios activos."
-            : "Panel para registrar ventas y consultar tu actividad reciente."
+            ? "Vista clara del día: ventas, inventario que requiere atención y actividad reciente."
+            : "Tu punto de partida para vender, revisar inventario y consultar tus operaciones."
         }
         action={
           <Button
@@ -76,41 +77,39 @@ export function DashboardPage() {
       {!hasMetrics && isLoading ? (
         <DashboardSkeleton />
       ) : (
-        <Stack spacing={2.5}>
-          <DashboardMetricsGrid
-            hasCriticalStock={hasCriticalStock}
-            hasLowStock={hasLowStock}
-            isAdmin={isAdmin}
-            metrics={metrics}
-            salesDestination={salesDestination}
-          />
-
-          <Grid container spacing={2.5}>
-            <Grid item xs={12} lg={5}>
-              <InventoryAttentionPanel metrics={metrics} />
-            </Grid>
-
-            <Grid item xs={12} lg={7}>
-              <RecentSalesPanel
-                metrics={metrics}
-                isAdmin={isAdmin}
-                salesDestination={salesDestination}
-              />
-            </Grid>
-          </Grid>
-
-          <Grid container spacing={2.5}>
-            <Grid item xs={12}>
-              <OperationalReadingPanel
-                hasCriticalStock={hasCriticalStock}
-                hasLowStock={hasLowStock}
-                outOfStockTotal={metrics?.productSummary.outOfStockTotal}
-                isLoading={isLoading}
-                onRefresh={load}
-              />
-            </Grid>
-          </Grid>
-        </Stack>
+        <>
+          {isMobile ? (
+            <DashboardMobileScreen
+              hasCriticalStock={hasCriticalStock}
+              hasLowStock={hasLowStock}
+              isAdmin={isAdmin}
+              isLoading={isLoading}
+              metrics={metrics}
+              onRefresh={load}
+              salesDestination={salesDestination}
+            />
+          ) : isDesktop ? (
+            <DashboardDesktopScreen
+              hasCriticalStock={hasCriticalStock}
+              hasLowStock={hasLowStock}
+              isAdmin={isAdmin}
+              isLoading={isLoading}
+              metrics={metrics}
+              onRefresh={load}
+              salesDestination={salesDestination}
+            />
+          ) : (
+            <DashboardTabletScreen
+              hasCriticalStock={hasCriticalStock}
+              hasLowStock={hasLowStock}
+              isAdmin={isAdmin}
+              isLoading={isLoading}
+              metrics={metrics}
+              onRefresh={load}
+              salesDestination={salesDestination}
+            />
+          )}
+        </>
       )}
     </>
   );

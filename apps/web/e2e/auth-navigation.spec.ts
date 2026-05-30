@@ -26,7 +26,7 @@ test.describe("autenticación y navegación principal", () => {
 
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
-    await expect(page.getByText("Panel para registrar ventas")).toBeVisible();
+    await expect(page.getByText("Tu punto de partida para vender")).toBeVisible();
     await expect(page.getByRole("link", { name: /Usuarios/i })).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Reportes/i })).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Auditoría/i })).toHaveCount(0);
