@@ -16,34 +16,73 @@ function useAuditLayoutVariant(): AuditLayoutVariant {
   return "desktop";
 }
 
+function getResultsCopy(variant: AuditLayoutVariant, visibleCount: number) {
+  if (variant === "mobile") {
+    return {
+      title: `${visibleCount} evento(s) visibles`,
+      eyebrow: "Feed móvil",
+      helper: "Una tarjeta por cambio. Lee lo esencial y abre detalles solo si hace falta.",
+    };
+  }
+
+  if (variant === "tablet") {
+    return {
+      title: `${visibleCount} evento(s) visibles`,
+      eyebrow: "Tablero táctil",
+      helper: "Tarjetas amplias para comparar eventos sin forzar una tabla horizontal.",
+    };
+  }
+
+  return {
+    title: `${visibleCount} evento(s) visibles`,
+    eyebrow: "Línea de tiempo",
+    helper: "Vista de investigación con contexto, responsable, área afectada y evidencia del cambio.",
+  };
+}
+
 export function AuditResultsSection({
   criticalEvents,
+  layoutVariant,
   visibleRows,
 }: {
   criticalEvents: number;
+  layoutVariant?: AuditLayoutVariant;
   visibleRows: AuditLog[];
 }) {
-  const layoutVariant = useAuditLayoutVariant();
-  const isTabletLayout = layoutVariant === "tablet";
+  const detectedLayoutVariant = useAuditLayoutVariant();
+  const variant = layoutVariant ?? detectedLayoutVariant;
+  const copy = getResultsCopy(variant, visibleRows.length);
 
   return (
-    <Stack spacing={2}>
-      <Card variant="outlined">
-        <CardContent>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} justifyContent="space-between">
+    <Stack spacing={variant === "mobile" ? 1.25 : 1.75}>
+      <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: variant === "mobile" ? "none" : undefined }}>
+        <CardContent sx={{ p: variant === "mobile" ? 1.5 : 2 }}>
+          <Stack
+            direction={variant === "desktop" ? "row" : "column"}
+            spacing={1.25}
+            alignItems={variant === "desktop" ? "center" : "stretch"}
+            justifyContent="space-between"
+          >
             <Box>
-              <Typography variant="h6" fontWeight={900} data-testid="audit-results-heading">
-                {visibleRows.length} registro(s) para revisar
+              <Typography variant="overline" color="text.secondary" fontWeight={900}>
+                {copy.eyebrow}
+              </Typography>
+              <Typography
+                variant={variant === "mobile" ? "subtitle1" : "h6"}
+                fontWeight={950}
+                data-testid="audit-results-heading"
+              >
+                {copy.title}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Cada tarjeta explica en lenguaje simple qué pasó, quién lo hizo, cuándo ocurrió y qué dato cambió.
+                {copy.helper}
               </Typography>
             </Box>
             <Chip
               color={criticalEvents > 0 ? "error" : "success"}
-              label={criticalEvents > 0 ? "Hay acciones delicadas" : "Sin acciones delicadas visibles"}
+              label={criticalEvents > 0 ? "Revisar acciones críticas" : "Sin críticas visibles"}
               icon={criticalEvents > 0 ? <WarningAmberIcon /> : <SecurityIcon />}
-              sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}
+              sx={{ alignSelf: variant === "desktop" ? "center" : "flex-start" }}
             />
           </Stack>
         </CardContent>
@@ -57,12 +96,12 @@ export function AuditResultsSection({
         <Box
           sx={{
             display: "grid",
-            gap: 1.5,
-            gridTemplateColumns: isTabletLayout ? "repeat(2, minmax(0, 1fr))" : "1fr",
+            gap: variant === "mobile" ? 1.25 : 1.5,
+            gridTemplateColumns: variant === "tablet" ? "repeat(2, minmax(0, 1fr))" : "1fr",
           }}
         >
-          {visibleRows.map((log) => (
-            <AuditLogCard key={log.id} log={log} variant={layoutVariant} />
+          {visibleRows.map((log, index) => (
+            <AuditLogCard key={log.id} index={index + 1} log={log} variant={variant} />
           ))}
         </Box>
       )}

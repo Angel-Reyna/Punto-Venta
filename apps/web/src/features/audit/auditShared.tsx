@@ -1,7 +1,6 @@
 import {
   Box,
   Card,
-  CardActionArea,
   CardContent,
   Chip,
   Divider,
@@ -169,8 +168,8 @@ export function getAuditSeverity(log: Pick<AuditLog, "action" | "tableName">): {
   ) {
     return {
       level: "critical",
-      label: "Revisar primero",
-      helper: "Puede afectar acceso, historial o datos importantes.",
+      label: "Crítica",
+      helper: "Revisar primero: puede afectar acceso, historial o datos importantes.",
       color: "error",
     };
   }
@@ -184,8 +183,8 @@ export function getAuditSeverity(log: Pick<AuditLog, "action" | "tableName">): {
   ) {
     return {
       level: "high",
-      label: "Importante",
-      helper: "Puede afectar permisos, caja, inventario o devoluciones.",
+      label: "Alta",
+      helper: "Cambio importante: puede afectar permisos, caja, inventario o devoluciones.",
       color: "warning",
     };
   }
@@ -199,8 +198,8 @@ export function getAuditSeverity(log: Pick<AuditLog, "action" | "tableName">): {
   ) {
     return {
       level: "medium",
-      label: "Normal",
-      helper: "Cambio operativo que conviene poder consultar después.",
+      label: "Media",
+      helper: "Cambio operativo normal que conviene poder consultar después.",
       color: "info",
     };
   }
@@ -303,6 +302,10 @@ function getSeverityBorderColor(color: ChipColor) {
   return `${color}.light`;
 }
 
+function getSeveritySoftColor(_color: ChipColor) {
+  return "background.default";
+}
+
 function getSeverityMainColor(color: ChipColor) {
   if (color === "default") return "text.secondary";
   return `${color}.main`;
@@ -328,6 +331,7 @@ function TechnicalDetails({ log, defaultExpanded }: { log: AuditLog; defaultExpa
         borderColor: "divider",
         borderRadius: 2,
         overflow: "hidden",
+        bgcolor: "background.paper",
         "& > summary": {
           cursor: "pointer",
           listStyle: "none",
@@ -424,10 +428,21 @@ function AuditFact({ label, value, helper }: { label: string; value: string; hel
   );
 }
 
+function AuditStatusChips({ result, severity }: { result: ReturnType<typeof getResultLabel>; severity: ReturnType<typeof getAuditSeverity> }) {
+  return (
+    <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+      <Chip size="small" label={`Severidad ${severity.label}`} color={severity.color} />
+      <Chip size="small" label={result.label} color={result.color} variant="outlined" />
+    </Stack>
+  );
+}
+
 export function AuditLogCard({
+  index = 1,
   log,
   variant = "desktop",
 }: {
+  index?: number;
   log: AuditLog;
   variant?: AuditLayoutVariant;
 }) {
@@ -435,113 +450,233 @@ export function AuditLogCard({
   const result = getResultLabel(log.action);
   const actionLabel = formatActionLabel(log.action);
   const entityLabel = formatEntityLabel(log.tableName);
-  const isMobile = variant === "mobile";
-  const isTablet = variant === "tablet";
-  const compact = isMobile || isTablet;
+  const actor = log.user?.name ?? "Sistema";
+  const actorHelper = log.user?.email ? `${formatRole(log.user.role)} · ${log.user.email}` : formatRole(log.user?.role);
+
+  if (variant === "mobile") {
+    return (
+      <Card
+        data-testid={`audit-log-${log.id}`}
+        sx={{
+          border: 1,
+          borderColor: getSeverityBorderColor(severity.color),
+          borderRadius: 3,
+          boxShadow: "none",
+          overflow: "hidden",
+        }}
+      >
+        <Box sx={{ height: 6, bgcolor: getSeverityMainColor(severity.color) }} />
+        <CardContent sx={{ p: 1.5 }}>
+          <Stack spacing={1.25}>
+            <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
+              <Box
+                sx={{
+                  display: "grid",
+                  placeItems: "center",
+                  width: 34,
+                  height: 34,
+                  borderRadius: "50%",
+                  bgcolor: getSeverityMainColor(severity.color),
+                  color: "common.white",
+                  fontWeight: 950,
+                  flexShrink: 0,
+                }}
+              >
+                {index}
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="subtitle1" fontWeight={950} sx={{ overflowWrap: "anywhere" }}>
+                  {actionLabel}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {formatDate(log.createdAt)}
+                </Typography>
+              </Box>
+            </Stack>
+
+            <AuditStatusChips result={result} severity={severity} />
+
+            <Box sx={{ borderRadius: 2, bgcolor: "background.default", p: 1.1 }}>
+              <Typography variant="body2" fontWeight={900} sx={{ overflowWrap: "anywhere" }}>
+                {buildPlainSummary(log)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {severity.helper}
+              </Typography>
+            </Box>
+
+            <Stack spacing={0.75}>
+              <AuditFact label="Quién" value={actor} helper={actorHelper} />
+              <Stack direction="row" spacing={0.75}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <AuditFact label="Área" value={entityLabel} helper={log.recordId || "Sin ID"} />
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <AuditFact label="IP" value={log.ipAddress || "No disponible"} helper="Origen" />
+                </Box>
+              </Stack>
+            </Stack>
+
+            <TechnicalDetails log={log} defaultExpanded={false} />
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (variant === "tablet") {
+    return (
+      <Card
+        data-testid={`audit-log-${log.id}`}
+        sx={{
+          height: "100%",
+          border: 1,
+          borderColor: getSeverityBorderColor(severity.color),
+          borderRadius: 3,
+          boxShadow: "0 12px 28px rgba(15, 23, 42, 0.06)",
+          overflow: "hidden",
+        }}
+      >
+        <CardContent sx={{ p: 1.75 }}>
+          <Stack spacing={1.25} sx={{ height: "100%" }}>
+            <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Evento #{index} · {formatDate(log.createdAt)}
+                </Typography>
+                <Typography variant="subtitle1" fontWeight={950} sx={{ overflowWrap: "anywhere" }}>
+                  {actionLabel}
+                </Typography>
+              </Box>
+              <AuditStatusChips result={result} severity={severity} />
+            </Stack>
+
+            <Box
+              sx={{
+                borderLeft: 5,
+                borderColor: getSeverityMainColor(severity.color),
+                borderRadius: 2,
+                bgcolor: getSeveritySoftColor(severity.color),
+                p: 1,
+              }}
+            >
+              <Typography variant="body2" fontWeight={900} sx={{ overflowWrap: "anywhere" }}>
+                {buildPlainSummary(log)}
+              </Typography>
+            </Box>
+
+            <Grid container spacing={1} sx={{ flex: 1 }}>
+              <Grid item xs={12}>
+                <AuditFact label="Responsable" value={actor} helper={actorHelper} />
+              </Grid>
+              <Grid item xs={6}>
+                <AuditFact label="Área" value={entityLabel} helper={log.recordId || "Sin ID visible"} />
+              </Grid>
+              <Grid item xs={6}>
+                <AuditFact label="Origen" value={log.ipAddress || "No disponible"} helper="IP" />
+              </Grid>
+            </Grid>
+
+            <TechnicalDetails log={log} defaultExpanded={false} />
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card
-      variant="outlined"
       data-testid={`audit-log-${log.id}`}
       sx={{
-        height: "100%",
+        border: 1,
         borderColor: getSeverityBorderColor(severity.color),
-        boxShadow: "0 12px 30px rgba(15, 23, 42, 0.05)",
+        borderRadius: 3,
+        boxShadow: "0 14px 34px rgba(15, 23, 42, 0.06)",
+        overflow: "hidden",
       }}
     >
-      <CardActionArea component="div" disableRipple sx={{ height: "100%", cursor: "default" }}>
-        <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
-          <Stack direction="row" spacing={{ xs: 1.25, md: 2 }} alignItems="stretch">
-            <Box
-              aria-hidden
-              sx={{
-                display: { xs: "none", sm: "flex" },
-                flexDirection: "column",
-                alignItems: "center",
-                pt: 0.5,
-              }}
-            >
+      <CardContent sx={{ p: 0 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: "132px minmax(0, 1fr)", minHeight: 180 }}>
+          <Box
+            sx={{
+              borderRight: 1,
+              borderColor: "divider",
+              bgcolor: "background.default",
+              p: 2,
+            }}
+          >
+            <Stack spacing={1} alignItems="center" textAlign="center">
               <Box
                 sx={{
-                  width: 14,
-                  height: 14,
+                  display: "grid",
+                  placeItems: "center",
+                  width: 46,
+                  height: 46,
                   borderRadius: "50%",
                   bgcolor: getSeverityMainColor(severity.color),
-                  boxShadow: 2,
-                }}
-              />
-              <Box sx={{ width: 2, flex: 1, bgcolor: getSeverityBorderColor(severity.color), mt: 1 }} />
-            </Box>
-
-            <Stack spacing={compact ? 1.1 : 1.5} sx={{ minWidth: 0, flex: 1 }}>
-              <Stack
-                direction={{ xs: "column", md: "row" }}
-                spacing={1}
-                alignItems={{ xs: "flex-start", md: "center" }}
-                justifyContent="space-between"
-              >
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant={isMobile ? "subtitle2" : "subtitle1"} fontWeight={950} sx={{ overflowWrap: "anywhere" }}>
-                    {actionLabel}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {formatDate(log.createdAt)}
-                  </Typography>
-                </Box>
-
-                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                  <Chip size="small" label={severity.label} color={severity.color} />
-                  <Chip size="small" label={result.label} color={result.color} variant="outlined" />
-                </Stack>
-              </Stack>
-
-              <Box
-                sx={{
-                  border: 1,
-                  borderColor: getSeverityBorderColor(severity.color),
-                  borderRadius: 2,
-                  p: 1,
-                  bgcolor: "background.default",
+                  color: "common.white",
+                  fontWeight: 950,
                 }}
               >
-                <Typography variant="body2" fontWeight={800} sx={{ overflowWrap: "anywhere" }}>
-                  {buildPlainSummary(log)}
+                {index}
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                {formatDate(log.createdAt)}
+              </Typography>
+              <Chip size="small" label={`Severidad ${severity.label}`} color={severity.color} />
+            </Stack>
+          </Box>
+
+          <Stack spacing={1.5} sx={{ p: 2, minWidth: 0 }}>
+            <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="h6" fontWeight={950} sx={{ overflowWrap: "anywhere" }}>
+                  {actionLabel}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                   {formatActionHelper(log.action)} {severity.helper}
                 </Typography>
               </Box>
-
-              <Grid container spacing={1.25}>
-                <Grid item xs={12} md={isTablet ? 12 : 4}>
-                  <AuditFact
-                    label="Quién lo hizo"
-                    value={log.user?.name ?? "Sistema"}
-                    helper={log.user?.email ? `${formatRole(log.user.role)} · ${log.user.email}` : formatRole(log.user?.role)}
-                  />
-                </Grid>
-                <Grid item xs={12} md={isTablet ? 12 : 4}>
-                  <AuditFact label="Qué área afectó" value={entityLabel} helper={log.recordId || "Sin ID visible"} />
-                </Grid>
-                <Grid item xs={12} md={isTablet ? 12 : 4}>
-                  <AuditFact label="Desde dónde" value={log.ipAddress || "No disponible"} helper="IP registrada por la API" />
-                </Grid>
-              </Grid>
-
-              {!isMobile && (
-                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                  <Chip size="small" label={`Código de acción: ${log.action}`} color="default" variant="outlined" />
-                  <Chip size="small" label={`Tabla: ${log.tableName}`} color="default" variant="outlined" />
-                </Stack>
-              )}
-
-              <Divider />
-
-              <TechnicalDetails log={log} defaultExpanded={variant === "desktop"} />
+              <Chip size="small" label={result.label} color={result.color} variant="outlined" />
             </Stack>
+
+            <Box
+              sx={{
+                border: 1,
+                borderColor: getSeverityBorderColor(severity.color),
+                borderRadius: 2,
+                p: 1.25,
+                bgcolor: "background.default",
+              }}
+            >
+              <Typography variant="body2" fontWeight={900} sx={{ overflowWrap: "anywhere" }}>
+                {buildPlainSummary(log)}
+              </Typography>
+            </Box>
+
+            <Grid container spacing={1.25}>
+              <Grid item xs={12} md={4}>
+                <AuditFact label="Quién lo hizo" value={actor} helper={actorHelper} />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <AuditFact label="Qué área afectó" value={entityLabel} helper={log.recordId || "Sin ID visible"} />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <AuditFact label="Desde dónde" value={log.ipAddress || "No disponible"} helper="IP registrada por la API" />
+              </Grid>
+            </Grid>
+
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+              <Chip size="small" label={`Código de acción: ${log.action}`} color="default" variant="outlined" />
+              <Chip size="small" label={`Tabla: ${log.tableName}`} color="default" variant="outlined" />
+            </Stack>
+
+            <Divider />
+
+            <TechnicalDetails log={log} defaultExpanded />
           </Stack>
-        </CardContent>
-      </CardActionArea>
+        </Box>
+      </CardContent>
     </Card>
   );
 }

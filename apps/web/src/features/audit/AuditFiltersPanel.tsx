@@ -1,8 +1,143 @@
 import { Box, Button, Card, CardContent, Chip, Divider, Grid, MenuItem, Stack, TextField, Typography } from "@mui/material";
 
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 
-import { formatActionLabel, formatEntityLabel, type AuditFilters } from "./auditShared";
+import { formatActionLabel, formatEntityLabel, type AuditFilters, type AuditLayoutVariant } from "./auditShared";
+
+type AuditFiltersPanelProps = {
+  actionOptions: string[];
+  activeFilterLabels: string[];
+  clearFilters: () => void;
+  consult: () => void;
+  filters: AuditFilters;
+  isLoading: boolean;
+  layout?: AuditLayoutVariant;
+  tableOptions: string[];
+  updateFilter: <K extends keyof AuditFilters>(key: K, value: AuditFilters[K]) => void;
+};
+
+function getFilterCopy(layout: AuditLayoutVariant) {
+  if (layout === "mobile") {
+    return {
+      title: "Buscar en la bitácora",
+      helper: "Primero escribe lo que recuerdes. Abre filtros solo si necesitas afinar.",
+      searchPlaceholder: "Producto, usuario, venta o IP",
+    };
+  }
+
+  if (layout === "tablet") {
+    return {
+      title: "Controles fijos",
+      helper: "Panel lateral para tocar filtros sin perder de vista las tarjetas.",
+      searchPlaceholder: "Producto, usuario, acción o registro",
+    };
+  }
+
+  return {
+    title: "Consola de filtros",
+    helper: "Investiga por acción, área, severidad, fecha o texto libre.",
+    searchPlaceholder: "Producto, usuario, acción, ID o IP",
+  };
+}
+
+function AuditFilterFields({
+  actionOptions,
+  filters,
+  isMobile,
+  isDesktop,
+  tableOptions,
+  updateFilter,
+}: Pick<AuditFiltersPanelProps, "actionOptions" | "filters" | "tableOptions" | "updateFilter"> & {
+  isDesktop: boolean;
+  isMobile: boolean;
+}) {
+  return (
+    <Grid container spacing={isMobile ? 1.1 : 1.5}>
+      <Grid item xs={12} sm={isMobile ? 12 : 6} lg={isDesktop ? 12 : 6}>
+        <TextField
+          select
+          fullWidth
+          label="Qué ocurrió"
+          size={isMobile ? "small" : "medium"}
+          value={filters.action}
+          inputProps={{ "data-testid": "audit-action" }}
+          onChange={(event) => updateFilter("action", event.target.value)}
+        >
+          <MenuItem value="">Todas</MenuItem>
+          {actionOptions.map((option) => (
+            <MenuItem key={option} value={option}>
+              {formatActionLabel(option)}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Grid>
+
+      <Grid item xs={12} sm={isMobile ? 12 : 6} lg={isDesktop ? 12 : 6}>
+        <TextField
+          select
+          fullWidth
+          label="Área afectada"
+          size={isMobile ? "small" : "medium"}
+          value={filters.tableName}
+          inputProps={{ "data-testid": "audit-entity" }}
+          onChange={(event) => updateFilter("tableName", event.target.value)}
+        >
+          <MenuItem value="">Todas</MenuItem>
+          {tableOptions.map((option) => (
+            <MenuItem key={option} value={option}>
+              {formatEntityLabel(option)}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Grid>
+
+      <Grid item xs={12} sm={isMobile ? 12 : 6} lg={isDesktop ? 12 : 6}>
+        <TextField
+          select
+          fullWidth
+          label="Severidad"
+          size={isMobile ? "small" : "medium"}
+          value={filters.severity}
+          inputProps={{ "data-testid": "audit-severity" }}
+          onChange={(event) => updateFilter("severity", event.target.value as AuditFilters["severity"])}
+        >
+          <MenuItem value="">Todas</MenuItem>
+          <MenuItem value="critical">Crítica</MenuItem>
+          <MenuItem value="high">Alta</MenuItem>
+          <MenuItem value="medium">Media</MenuItem>
+          <MenuItem value="low">Baja</MenuItem>
+        </TextField>
+      </Grid>
+
+      <Grid item xs={12} sm={isMobile ? 12 : 6} lg={isDesktop ? 12 : 6}>
+        <TextField
+          fullWidth
+          label="Desde"
+          type="date"
+          size={isMobile ? "small" : "medium"}
+          value={filters.dateFrom}
+          inputProps={{ "data-testid": "audit-date-from" }}
+          onChange={(event) => updateFilter("dateFrom", event.target.value)}
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+
+      <Grid item xs={12} sm={isMobile ? 12 : 6} lg={isDesktop ? 12 : 6}>
+        <TextField
+          fullWidth
+          label="Hasta"
+          type="date"
+          size={isMobile ? "small" : "medium"}
+          value={filters.dateTo}
+          inputProps={{ "data-testid": "audit-date-to" }}
+          onChange={(event) => updateFilter("dateTo", event.target.value)}
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+    </Grid>
+  );
+}
 
 export function AuditFiltersPanel({
   actionOptions,
@@ -11,138 +146,127 @@ export function AuditFiltersPanel({
   consult,
   filters,
   isLoading,
+  layout = "desktop",
   tableOptions,
   updateFilter,
-}: {
-  actionOptions: string[];
-  activeFilterLabels: string[];
-  clearFilters: () => void;
-  consult: () => void;
-  filters: AuditFilters;
-  isLoading: boolean;
-  tableOptions: string[];
-  updateFilter: <K extends keyof AuditFilters>(key: K, value: AuditFilters[K]) => void;
-}) {
+}: AuditFiltersPanelProps) {
+  const copy = getFilterCopy(layout);
+  const isMobile = layout === "mobile";
+  const isDesktop = layout === "desktop";
+
   return (
-    <Card sx={{ position: { lg: "sticky" }, top: { lg: 88 } }}>
-      <CardContent>
-        <Stack spacing={2}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <ManageSearchIcon color="primary" />
+    <Card
+      sx={{
+        position: isDesktop ? { lg: "sticky" } : "static",
+        top: isDesktop ? { lg: 84 } : "auto",
+        border: 1,
+        borderColor: "divider",
+        borderRadius: isMobile ? 3 : 3,
+        boxShadow: isMobile ? "none" : undefined,
+      }}
+    >
+      <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
+        <Stack spacing={isMobile ? 1.25 : 1.75}>
+          <Stack direction="row" spacing={1} alignItems="flex-start">
+            <Box
+              sx={{
+                display: "grid",
+                placeItems: "center",
+                width: 38,
+                height: 38,
+                borderRadius: 2,
+                bgcolor: "primary.main",
+                color: "primary.contrastText",
+                flexShrink: 0,
+              }}
+            >
+              <ManageSearchIcon fontSize="small" />
+            </Box>
             <Box>
-              <Typography variant="h6" fontWeight={900}>
-                Panel de investigación
+              <Typography variant={isMobile ? "subtitle1" : "h6"} fontWeight={950}>
+                {copy.title}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-Encuentra cambios por tipo de acción, área afectada, importancia, fecha o texto.
+                {copy.helper}
               </Typography>
             </Box>
           </Stack>
 
-          <Divider />
+          <TextField
+            fullWidth
+            label="Buscar"
+            placeholder={copy.searchPlaceholder}
+            size={isMobile ? "small" : "medium"}
+            value={filters.q}
+            inputProps={{ "data-testid": "audit-search" }}
+            onChange={(event) => updateFilter("q", event.target.value)}
+          />
 
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Buscar"
-                placeholder="Producto, usuario, acción o registro"
-                value={filters.q}
-                inputProps={{ "data-testid": "audit-search" }}
-                onChange={(event) => updateFilter("q", event.target.value)}
+          {isMobile ? (
+            <Box
+              component="details"
+              sx={{
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 2,
+                overflow: "hidden",
+                "& > summary": {
+                  cursor: "pointer",
+                  listStyle: "none",
+                  px: 1.25,
+                  py: 1,
+                },
+                "& > summary::-webkit-details-marker": { display: "none" },
+              }}
+            >
+              <Box component="summary">
+                <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <FilterAltIcon fontSize="small" color="primary" />
+                    <Typography fontWeight={900}>Afinar búsqueda</Typography>
+                  </Stack>
+                  <Typography aria-hidden color="text.secondary">
+                    ⌄
+                  </Typography>
+                </Stack>
+              </Box>
+              <Box sx={{ px: 1.25, pb: 1.25 }}>
+                <AuditFilterFields
+                  actionOptions={actionOptions}
+                  filters={filters}
+                  isDesktop={isDesktop}
+                  isMobile={isMobile}
+                  tableOptions={tableOptions}
+                  updateFilter={updateFilter}
+                />
+              </Box>
+            </Box>
+          ) : (
+            <>
+              <Divider />
+              <AuditFilterFields
+                actionOptions={actionOptions}
+                filters={filters}
+                isDesktop={isDesktop}
+                isMobile={isMobile}
+                tableOptions={tableOptions}
+                updateFilter={updateFilter}
               />
-            </Grid>
+            </>
+          )}
 
-            <Grid item xs={12} sm={6} lg={12}>
-              <TextField
-                select
-                fullWidth
-                label="Qué ocurrió"
-                value={filters.action}
-                inputProps={{ "data-testid": "audit-action" }}
-                onChange={(event) => updateFilter("action", event.target.value)}
-              >
-                <MenuItem value="">Todas</MenuItem>
-                {actionOptions.map((option) => (
-                  <MenuItem key={option} value={option}>
-                    {formatActionLabel(option)}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-
-            <Grid item xs={12} sm={6} lg={12}>
-              <TextField
-                select
-                fullWidth
-                label="Área afectada"
-                value={filters.tableName}
-                inputProps={{ "data-testid": "audit-entity" }}
-                onChange={(event) => updateFilter("tableName", event.target.value)}
-              >
-                <MenuItem value="">Todas</MenuItem>
-                {tableOptions.map((option) => (
-                  <MenuItem key={option} value={option}>
-                    {formatEntityLabel(option)}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-
-            <Grid item xs={12} sm={6} lg={12}>
-              <TextField
-                select
-                fullWidth
-                label="Importancia"
-                value={filters.severity}
-                inputProps={{ "data-testid": "audit-severity" }}
-                onChange={(event) => updateFilter("severity", event.target.value as AuditFilters["severity"])}
-              >
-                <MenuItem value="">Todas</MenuItem>
-                <MenuItem value="critical">Crítica</MenuItem>
-                <MenuItem value="high">Alta</MenuItem>
-                <MenuItem value="medium">Media</MenuItem>
-                <MenuItem value="low">Baja</MenuItem>
-              </TextField>
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Desde"
-                type="date"
-                value={filters.dateFrom}
-                inputProps={{ "data-testid": "audit-date-from" }}
-                onChange={(event) => updateFilter("dateFrom", event.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Hasta"
-                type="date"
-                value={filters.dateTo}
-                inputProps={{ "data-testid": "audit-date-to" }}
-                onChange={(event) => updateFilter("dateTo", event.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-          </Grid>
-
-          <Stack spacing={1} data-testid="audit-active-filters">
-            <Typography variant="subtitle2" fontWeight={900}>
+          <Box data-testid="audit-active-filters">
+            <Typography variant="subtitle2" fontWeight={900} sx={{ mb: 0.75 }}>
               Vista actual
             </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
               {activeFilterLabels.map((label) => (
                 <Chip key={label} size="small" label={label} variant="outlined" />
               ))}
             </Stack>
-          </Stack>
+          </Box>
 
-          <Stack direction={{ xs: "column", sm: "row", lg: "column" }} spacing={1}>
+          <Stack direction={isMobile || isDesktop ? "column" : "row"} spacing={1}>
             <Button data-testid="audit-clear-button" onClick={clearFilters} disabled={isLoading} fullWidth>
               Limpiar
             </Button>

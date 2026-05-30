@@ -14,10 +14,10 @@ import {
 } from "./auditShared";
 
 const SEVERITY_LABELS: Record<Exclude<AuditFilters["severity"], "">, string> = {
-  critical: "Revisar primero",
-  high: "Importante",
-  medium: "Normal",
-  low: "Informativo",
+  critical: "Crítica",
+  high: "Alta",
+  medium: "Media",
+  low: "Baja",
 };
 
 export function useAuditData() {
@@ -77,7 +77,7 @@ export function useAuditData() {
   const latestEvent = visibleRows[0]?.createdAt ? formatDate(visibleRows[0].createdAt) : "Sin actividad";
 
   const activeFilterLabels = [
-    filters.severity ? `Importancia: ${SEVERITY_LABELS[filters.severity]}` : "Importancia: Todas",
+    filters.severity ? `Severidad: ${SEVERITY_LABELS[filters.severity]}` : "Severidad: Todas",
     filters.action ? `Qué ocurrió: ${formatActionLabel(filters.action)}` : "Qué ocurrió: Todo",
     filters.tableName ? `Área: ${formatEntityLabel(filters.tableName)}` : "Área: Todas",
     filters.dateFrom || filters.dateTo
