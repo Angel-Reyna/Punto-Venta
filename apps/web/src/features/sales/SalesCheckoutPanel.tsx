@@ -53,11 +53,22 @@ export function SalesCheckoutPanel({
   onPaymentMethodChange,
 }: SalesCheckoutPanelProps) {
   return (
-    <Card variant="outlined" sx={{ boxShadow: "none" }}>
+    <Card
+      variant="outlined"
+      sx={{
+        boxShadow: "none",
+        borderColor: isPaymentInsufficient ? "warning.main" : "divider",
+      }}
+    >
       <CardContent sx={{ display: "grid", gap: 2 }}>
-        <Typography variant="h6" fontWeight={900}>
-          Orden de venta
-        </Typography>
+        <Box>
+          <Typography variant="overline" color="primary" fontWeight={900}>
+            Paso 3 · Cobrar
+          </Typography>
+          <Typography variant="h6" fontWeight={900}>
+            Orden de venta
+          </Typography>
+        </Box>
 
         <Box>
           <Typography variant="caption" color="text.secondary">
@@ -81,6 +92,9 @@ export function SalesCheckoutPanel({
             display: "grid",
             gridTemplateColumns: "1fr auto",
             gap: 1,
+            borderRadius: 2,
+            bgcolor: "action.hover",
+            p: 1.5,
           }}
         >
           <Typography color="text.secondary">Artículos</Typography>

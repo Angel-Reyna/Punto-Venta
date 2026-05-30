@@ -1,4 +1,4 @@
-import { Box, Card, CardContent, Chip, IconButton, Stack, TextField, Typography } from "@mui/material";
+import { Box, Card, CardContent, Chip, Divider, IconButton, Stack, TextField, Typography } from "@mui/material";
 
 import DeleteIcon from "@mui/icons-material/Delete";
 
@@ -19,9 +19,23 @@ export function SalesTicketPanel({
 }: SalesTicketPanelProps) {
   return (
     <Box>
-      <Typography variant="subtitle2" fontWeight={900} sx={{ mb: 1 }}>
-        Ticket actual
-      </Typography>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={0.75}
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        justifyContent="space-between"
+        sx={{ mb: 1 }}
+      >
+        <Box>
+          <Typography variant="overline" color="primary" fontWeight={900}>
+            Paso 2 · Revisar ticket
+          </Typography>
+          <Typography variant="subtitle2" fontWeight={900}>
+            Ticket actual
+          </Typography>
+        </Box>
+        <Chip size="small" variant="outlined" label={`${cartRows.length} partida(s)`} />
+      </Stack>
 
       {cartRows.length === 0 ? (
         <Box
@@ -47,7 +61,7 @@ export function SalesTicketPanel({
                     xs: "1fr",
                     md: "minmax(0, 1.5fr) 110px 120px 120px auto",
                   },
-                  gap: 1.5,
+                  gap: { xs: 1.25, md: 1.5 },
                   alignItems: { xs: "stretch", md: "center" },
                   p: { xs: 1.5, sm: 2 },
                   "&:last-child": { pb: { xs: 1.5, sm: 2 } },
@@ -65,11 +79,25 @@ export function SalesTicketPanel({
                   </Typography>
                 </Box>
 
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Precio
-                  </Typography>
-                  <Typography fontWeight={800}>{formatMoney(item.unitPrice)}</Typography>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr 1fr", md: "1fr" },
+                    gap: { xs: 1.5, md: 0 },
+                  }}
+                >
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Precio
+                    </Typography>
+                    <Typography fontWeight={800}>{formatMoney(item.unitPrice)}</Typography>
+                  </Box>
+                  <Box sx={{ display: { xs: "block", md: "none" } }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Importe
+                    </Typography>
+                    <Typography fontWeight={900}>{formatMoney(item.total)}</Typography>
+                  </Box>
                 </Box>
 
                 <TextField
@@ -86,21 +114,24 @@ export function SalesTicketPanel({
                   onChange={(event) => onQuantityChange(item.productId, Number(event.target.value))}
                 />
 
-                <Box>
+                <Box sx={{ display: { xs: "none", md: "block" } }}>
                   <Typography variant="caption" color="text.secondary">
                     Importe
                   </Typography>
                   <Typography fontWeight={900}>{formatMoney(item.total)}</Typography>
                 </Box>
 
-                <IconButton
-                  onClick={() => onRemoveItem(item.productId)}
-                  disabled={isDisabled}
-                  aria-label="Quitar producto"
-                  sx={{ justifySelf: { xs: "flex-end", md: "center" } }}
-                >
-                  <DeleteIcon />
-                </IconButton>
+                <Box sx={{ display: "grid", gap: 1 }}>
+                  <Divider sx={{ display: { xs: "block", md: "none" } }} />
+                  <IconButton
+                    onClick={() => onRemoveItem(item.productId)}
+                    disabled={isDisabled}
+                    aria-label="Quitar producto"
+                    sx={{ justifySelf: { xs: "flex-end", md: "center" } }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
               </CardContent>
             </Card>
           ))}

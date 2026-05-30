@@ -15,7 +15,9 @@ test.describe("flujo crítico de ventas", () => {
     await page.getByRole("button", { name: /Coca-Cola 600 ml/i }).click();
 
     await expect(page.getByText("Orden de venta")).toBeVisible();
-    await expect(page.getByText("COCA-600", { exact: true })).toBeVisible();
+    await expect(
+      page.getByTestId("sales-cart-items").getByText("COCA-600", { exact: true }),
+    ).toBeVisible();
     await expect(page.getByText("$18.00").last()).toBeVisible();
 
     await page.getByLabel("Cliente opcional").fill("Cliente E2E");

@@ -340,19 +340,20 @@ export function SalesPage() {
             overflow: "hidden",
           }}
         >
-          <CardContent>
+          <CardContent sx={{ p: { xs: 1.5, sm: 2, lg: 2.5 } }}>
             <Box
               sx={{
                 display: "grid",
                 gridTemplateColumns: {
                   xs: "1fr",
-                  lg: "minmax(0, 1fr) 360px",
+                  md: "minmax(0, 1.25fr) minmax(300px, 0.75fr)",
+                  xl: "minmax(0, 1fr) 380px",
                 },
-                gap: 2,
+                gap: { xs: 2, lg: 2.5 },
                 alignItems: "start",
               }}
             >
-              <Box sx={{ display: "grid", gap: 2 }}>
+              <Box sx={{ display: "grid", gap: { xs: 2, lg: 2.5 } }}>
                 <SalesProductSearchPanel
                   filteredProducts={filteredProducts}
                   productSearch={productSearch}
@@ -377,7 +378,7 @@ export function SalesPage() {
                 sx={{
                   position: {
                     xs: "static",
-                    lg: "sticky",
+                    md: "sticky",
                   },
                   top: 96,
                   display: "grid",

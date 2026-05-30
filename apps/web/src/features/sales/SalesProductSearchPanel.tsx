@@ -1,6 +1,6 @@
 import type { KeyboardEventHandler, RefObject } from "react";
 
-import { Box, Button, TextField, Typography } from "@mui/material";
+import { Box, Button, Chip, Stack, TextField, Typography } from "@mui/material";
 
 import AddShoppingCartIcon from "@mui/icons-material/AddShoppingCart";
 import SearchIcon from "@mui/icons-material/Search";
@@ -31,7 +31,16 @@ export function SalesProductSearchPanel({
   onAddProduct,
 }: SalesProductSearchPanelProps) {
   return (
-    <Box sx={{ display: "grid", gap: 2 }}>
+    <Box sx={{ display: "grid", gap: { xs: 1.5, md: 2 } }}>
+      <Box>
+        <Typography variant="overline" color="primary" fontWeight={900}>
+          Paso 1 · Elegir productos
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          En celular trabaja como una lista táctil; en PC puedes usar escáner, F3 y Enter con SKU exacto.
+        </Typography>
+      </Box>
+
       <Box
         sx={{
           display: "grid",
@@ -39,7 +48,7 @@ export function SalesProductSearchPanel({
             xs: "1fr",
             md: "minmax(0, 1fr) 220px",
           },
-          gap: 2,
+          gap: 1.5,
         }}
       >
         <TextField
@@ -51,7 +60,7 @@ export function SalesProductSearchPanel({
           inputProps={{
             "data-testid": "sales-product-search",
           }}
-          helperText="Enter agrega solo SKU o código exacto; para búsquedas parciales selecciona una tarjeta."
+          helperText="Enter agrega solo SKU o código exacto; en táctil selecciona una tarjeta."
           onKeyDown={onProductSearchKeyDown}
           onChange={(event) => onProductSearchChange(event.target.value)}
           disabled={isDisabled}
@@ -70,6 +79,7 @@ export function SalesProductSearchPanel({
               ? "Agregar coincidencia exacta"
               : "Busca por SKU o código exacto para agregar con Enter."
           }
+          sx={{ minHeight: { xs: 52, md: "auto" } }}
         >
           Enter · Agregar
         </Button>
@@ -80,9 +90,10 @@ export function SalesProductSearchPanel({
           display: "grid",
           gridTemplateColumns: {
             xs: "1fr",
-            md: "repeat(4, minmax(0, 1fr))",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(4, minmax(0, 1fr))",
           },
-          gap: 1,
+          gap: { xs: 1, md: 1.25 },
         }}
       >
         {filteredProducts.map((product) => {
@@ -95,23 +106,41 @@ export function SalesProductSearchPanel({
               color="inherit"
               onClick={() => onAddProduct(product.id)}
               disabled={isDisabled}
-              sx={{
+              sx={(theme) => ({
                 justifyContent: "space-between",
-                minHeight: 78,
+                minHeight: { xs: 92, md: 104 },
                 textAlign: "left",
                 alignItems: "stretch",
                 display: "grid",
-                gap: 0.5,
-                p: 1.25,
-              }}
+                gap: 0.75,
+                p: { xs: 1.25, md: 1.5 },
+                borderColor: product.stock <= 3 ? theme.palette.warning.light : "divider",
+                bgcolor:
+                  product.stock <= 3
+                    ? theme.palette.mode === "dark"
+                      ? "rgba(245, 158, 11, 0.12)"
+                      : "rgba(245, 158, 11, 0.08)"
+                    : "background.paper",
+                "&:hover": {
+                  bgcolor:
+                    product.stock <= 3
+                      ? theme.palette.mode === "dark"
+                        ? "rgba(245, 158, 11, 0.18)"
+                        : "rgba(245, 158, 11, 0.14)"
+                      : "action.hover",
+                },
+              })}
             >
-              <Typography fontWeight={800} noWrap>
-                {product.name}
-              </Typography>
+              <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
+                <Typography fontWeight={900} noWrap>
+                  {product.name}
+                </Typography>
+                <Chip size="small" variant="outlined" label={`Stock ${product.stock}`} />
+              </Stack>
               <Typography variant="caption" color="text.secondary" noWrap>
-                {product.sku} · stock {product.stock}
+                {product.sku}
               </Typography>
-              <Typography fontWeight={800}>{formatMoney(finalPrice)}</Typography>
+              <Typography fontWeight={900}>{formatMoney(finalPrice)}</Typography>
             </Button>
           );
         })}

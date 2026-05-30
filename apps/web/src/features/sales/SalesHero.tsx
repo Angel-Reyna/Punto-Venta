@@ -35,8 +35,8 @@ export function SalesHero({
       testId="sales-visual-hero"
       tone={hasTicket && !isPaymentInsufficient ? "success" : "info"}
       eyebrow={<Chip size="small" color="primary" variant="outlined" label="Flujo de venta operativo" />}
-      title="Ticket, catálogo y cobro en una sola vista"
-      subtitle="Escanea o busca productos, revisa el ticket y confirma que el pago cubra el total antes de cobrar."
+      title="Venta por pasos, sin depender de caja abierta"
+      subtitle="Busca productos, revisa el ticket y cobra solo cuando el pago cubra el total. En móvil se lee como flujo; en PC funciona como estación de venta."
       stats={[
         {
           label: "Artículos",
