@@ -76,7 +76,7 @@ async function sellProductThroughUi(page: Page, product: IntegratedProductInput)
   await page.getByRole("button", { name: new RegExp(escapeRegExp(product.name), "i") }).click();
 
   await expect(page.getByText("Orden de venta")).toBeVisible();
-  await expect(page.getByText(product.sku, { exact: true })).toBeVisible();
+  await expect(byTestId(page, "sales-cart-items").getByText(product.sku, { exact: true })).toBeVisible();
 
   await fillByTestId(page, "sales-paid-amount", product.salePrice);
   await clickByTestId(page, "sales-checkout-button");
@@ -113,7 +113,7 @@ test.describe("flujo integrado real de venta", () => {
     await page.getByRole("button", { name: /Producto integrado E2E/i }).click();
 
     await expect(page.getByText("Orden de venta")).toBeVisible();
-    await expect(page.getByText(PRODUCT_SKU, { exact: true })).toBeVisible();
+    await expect(byTestId(page, "sales-cart-items").getByText(PRODUCT_SKU, { exact: true })).toBeVisible();
     await expect(page.getByText("$18.00").last()).toBeVisible();
 
     const customerName = buildCustomerName();
@@ -135,11 +135,9 @@ test.describe("flujo integrado real de venta", () => {
     await page.getByLabel("Buscar existencias").fill(PRODUCT_SKU);
     await expect(page.getByRole("heading", { name: PRODUCT_NAME })).toBeVisible();
 
-    const stockCard = page
-      .getByRole("heading", { name: PRODUCT_NAME })
-      .locator("..")
-      .locator("..");
+    const stockCard = byTestId(page, `inventory-stock-item-${PRODUCT_SKU}`);
 
+    await expect(stockCard).toBeVisible();
     await expect(stockCard.getByText(PRODUCT_SKU, { exact: true })).toBeVisible();
     await expect(stockCard.getByText("23 unidades")).toBeVisible();
 

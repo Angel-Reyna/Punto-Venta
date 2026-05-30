@@ -364,6 +364,7 @@ function InventoryStockItem({ item }: { item: StockItem }) {
 
   return (
     <Box
+      data-testid={`inventory-stock-item-${item.sku}`}
       sx={(theme) => ({
         display: "grid",
         gap: { xs: 1.5, md: 2 },
