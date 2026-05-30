@@ -45,27 +45,35 @@ export function PageHero({
       sx={[
         (theme) => {
           const heroColor = getHeroColor(theme, tone);
+          const isDark = theme.palette.mode === "dark";
 
           return {
-            mb: 2.5,
-            borderRadius: 5,
+            mb: 2.25,
+            borderRadius: 4,
             border: "1px solid",
-            borderColor: alpha(heroColor, 0.22),
-            background: `linear-gradient(135deg, ${alpha(heroColor, 0.13)} 0%, ${alpha(
-              theme.palette.success.main,
-              0.08,
-            )} 46%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
-            boxShadow: "0 18px 45px rgba(15, 23, 42, 0.08)",
+            borderColor: alpha(heroColor, isDark ? 0.22 : 0.2),
+            background: isDark
+              ? `linear-gradient(135deg, ${alpha(heroColor, 0.14)} 0%, ${alpha(
+                  theme.palette.background.paper,
+                  0.98,
+                )} 54%, ${alpha(theme.palette.common.black, 0.18)} 100%)`
+              : `linear-gradient(135deg, ${alpha(heroColor, 0.1)} 0%, ${alpha(
+                  theme.palette.success.main,
+                  0.05,
+                )} 44%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`,
+            boxShadow: isDark
+              ? "0 20px 50px rgba(0, 0, 0, 0.22)"
+              : "0 18px 42px rgba(15, 23, 42, 0.07)",
             overflow: "hidden",
           };
         },
         ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
       ]}
     >
-      <CardContent sx={{ p: { xs: 2.25, md: 3 } }}>
-        <Grid container spacing={2.5} alignItems="center">
+      <CardContent sx={{ p: { xs: 2, md: 2.75 } }}>
+        <Grid container spacing={2.25} alignItems="center">
           <Grid item xs={12} md={stats.length ? 7 : 12}>
-            <Stack spacing={1.5}>
+            <Stack spacing={1.35}>
               {eyebrow && (
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                   {eyebrow}
@@ -87,17 +95,18 @@ export function PageHero({
 
           {stats.length > 0 && (
             <Grid item xs={12} md={5}>
-              <Grid container spacing={1.5}>
+              <Grid container spacing={1.25}>
                 {stats.map((stat) => (
                   <Grid item xs={12} sm={6} key={stat.label}>
                     <Box
-                      sx={{
-                        p: 1.5,
+                      sx={(theme) => ({
+                        p: 1.4,
                         borderRadius: 3,
-                        bgcolor: "rgba(255, 255, 255, 0.78)",
-                        border: "1px solid rgba(148, 163, 184, 0.28)",
+                        bgcolor: alpha(theme.palette.background.paper, 0.74),
+                        border: "1px solid",
+                        borderColor: alpha(theme.palette.divider, 0.9),
                         height: "100%",
-                      }}
+                      })}
                     >
                       <Typography color="text.secondary" variant="caption">
                         {stat.label}

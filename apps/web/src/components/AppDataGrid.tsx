@@ -77,20 +77,47 @@ export function AppDataGrid<R extends GridValidRowModel = GridValidRowModel>({
         ...(noRowsLabel ? { noRowsLabel } : {}),
         ...localeText
       }}
-      sx={{
-        border: 0,
-        "& .MuiDataGrid-columnHeaders": {
-          backgroundColor: "action.hover"
-        },
-        "& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus": {
-          outline: "none"
-        },
-        "& .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within": {
-          outline: "2px solid rgba(37, 99, 235, 0.55)",
-          outlineOffset: -2
-        },
-        ...sx
-      }}
+      sx={[
+        (theme) => ({
+          border: 0,
+          color: "text.primary",
+          backgroundColor: "transparent",
+          "& .MuiDataGrid-columnHeaders": {
+            backgroundColor: "action.hover",
+            borderTopLeftRadius: 12,
+            borderTopRightRadius: 12
+          },
+          "& .MuiDataGrid-columnHeaderTitle": {
+            fontWeight: 850
+          },
+          "& .MuiDataGrid-cell": {
+            borderColor: "divider"
+          },
+          "& .MuiDataGrid-row:hover": {
+            backgroundColor: "action.hover"
+          },
+          "& .MuiDataGrid-footerContainer": {
+            borderColor: "divider"
+          },
+          "& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus": {
+            outline: "none"
+          },
+          "& .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within": {
+            outline: `2px solid ${theme.palette.primary.main}`,
+            outlineOffset: -2
+          },
+          [theme.breakpoints.down("sm")]: {
+            fontSize: "0.8125rem",
+            "& .MuiDataGrid-cell": {
+              py: 0.75
+            },
+            "& .MuiDataGrid-columnHeaderTitle": {
+              fontSize: "0.75rem"
+            }
+          }
+        }),
+        ...(Array.isArray(sx) ? sx : sx ? [sx] : [])
+      ]}
     />
   );
 }

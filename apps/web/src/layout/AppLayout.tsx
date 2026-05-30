@@ -22,6 +22,8 @@ import {
   useTheme,
 } from "@mui/material";
 
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import LightModeIcon from "@mui/icons-material/LightMode";
 import LogoutIcon from "@mui/icons-material/Logout";
 import MenuIcon from "@mui/icons-material/Menu";
 import StorefrontIcon from "@mui/icons-material/Storefront";
@@ -29,6 +31,7 @@ import StorefrontIcon from "@mui/icons-material/Storefront";
 import { NavLink, useLocation } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
+import { useColorMode } from "../theme/colorMode";
 import {
   buildMobileNavigationItems,
   buildNavigationSections,
@@ -93,14 +96,26 @@ function SidebarLink({
           },
         },
         "&.active": {
-          backgroundColor: "primary.main",
-          color: "primary.contrastText",
-          boxShadow: "0 12px 24px rgba(37, 99, 235, 0.22)",
+          backgroundColor: (muiTheme) =>
+            muiTheme.palette.mode === "dark"
+              ? alpha(muiTheme.palette.primary.main, 0.2)
+              : muiTheme.palette.primary.main,
+          color: (muiTheme) =>
+            muiTheme.palette.mode === "dark"
+              ? muiTheme.palette.primary.light
+              : muiTheme.palette.primary.contrastText,
+          boxShadow: (muiTheme) =>
+            muiTheme.palette.mode === "dark"
+              ? "inset 0 0 0 1px rgba(96, 165, 250, 0.18)"
+              : "0 12px 24px rgba(37, 99, 235, 0.22)",
           "& .MuiListItemIcon-root": {
-            color: "primary.contrastText",
+            color: "inherit",
           },
           "&:hover": {
-            backgroundColor: "primary.dark",
+            backgroundColor: (muiTheme) =>
+              muiTheme.palette.mode === "dark"
+                ? alpha(muiTheme.palette.primary.main, 0.26)
+                : muiTheme.palette.primary.dark,
           },
         },
       }}
@@ -151,7 +166,8 @@ function MobileBottomNavigation({
         borderTop: "1px solid",
         borderColor: "divider",
         borderRadius: 0,
-        backgroundColor: "background.paper",
+        backgroundColor: (muiTheme) => alpha(muiTheme.palette.background.paper, 0.96),
+        backdropFilter: "blur(16px)",
         pb: "env(safe-area-inset-bottom)",
       }}
     >
@@ -225,6 +241,7 @@ function MobileBottomNavigation({
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, logout, can } = useAuth();
   const theme = useTheme();
+  const { mode, toggleMode } = useColorMode();
   const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -256,6 +273,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   const displayName = getDisplayName(user?.name);
   const roleLabel = getRoleLabel(user?.role);
+  const isDarkMode = mode === "dark";
 
   const closeMobileDrawer = () => {
     if (isMobile) {
@@ -416,6 +434,16 @@ export function AppLayout({ children }: { children: ReactNode }) {
         display: "flex",
         minHeight: "100vh",
         bgcolor: "background.default",
+        backgroundImage: (muiTheme) =>
+          muiTheme.palette.mode === "dark"
+            ? `radial-gradient(circle at top left, ${alpha(
+                muiTheme.palette.primary.main,
+                0.12
+              )}, transparent 34%), linear-gradient(180deg, #070f1d 0%, #0b1220 100%)`
+            : `radial-gradient(circle at top left, ${alpha(
+                muiTheme.palette.primary.main,
+                0.08
+              )}, transparent 32%), linear-gradient(180deg, #f6f8fb 0%, #eef4fb 100%)`,
       }}
     >
       <Drawer
@@ -433,6 +461,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
             borderRight: "1px solid",
             borderColor: "divider",
             backgroundColor: "background.paper",
+            backgroundImage: (muiTheme) =>
+              muiTheme.palette.mode === "dark"
+                ? "linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98))"
+                : "linear-gradient(180deg, #ffffff, #f8fbff)",
             boxSizing: "border-box",
           },
         }}
@@ -463,7 +495,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             borderBottom: "1px solid",
             borderColor: "divider",
             backdropFilter: "blur(10px)",
-            backgroundColor: alpha(theme.palette.background.paper, 0.92),
+            backgroundColor: alpha(theme.palette.background.paper, theme.palette.mode === "dark" ? 0.84 : 0.92),
           }}
         >
           <Toolbar
@@ -535,6 +567,24 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <Button
               variant="outlined"
               color="inherit"
+              startIcon={isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
+              onClick={toggleMode}
+              aria-label={isDarkMode ? "Activar modo día" : "Activar modo noche"}
+              sx={{
+                minHeight: { xs: 38, sm: 40 },
+                px: {
+                  xs: 1.15,
+                  sm: 1.75,
+                },
+                flexShrink: 0,
+              }}
+            >
+              {isMobile ? (isDarkMode ? "Día" : "Noche") : isDarkMode ? "Modo día" : "Modo noche"}
+            </Button>
+
+            <Button
+              variant="outlined"
+              color="inherit"
               startIcon={<LogoutIcon />}
               onClick={logout}
               aria-label="Cerrar sesión"
@@ -572,7 +622,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <Box
             sx={{
               width: "100%",
-              maxWidth: 1480,
+              maxWidth: 1360,
               mx: "auto",
             }}
           >

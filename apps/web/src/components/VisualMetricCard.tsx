@@ -23,14 +23,22 @@ export function VisualMetricCard({
   return (
     <Card
       variant="outlined"
-      sx={(theme) => ({
-        height: "100%",
-        borderColor: alpha(theme.palette[tone].main, 0.28),
-        background: `linear-gradient(135deg, ${alpha(
-          theme.palette[tone].main,
-          0.1,
-        )}, ${alpha(theme.palette.background.paper, 0.94)})`,
-      })}
+      sx={(theme) => {
+        const toneColor = theme.palette[tone].main;
+        const isDark = theme.palette.mode === "dark";
+
+        return {
+          height: "100%",
+          borderColor: alpha(toneColor, isDark ? 0.22 : 0.24),
+          background: `linear-gradient(135deg, ${alpha(
+            toneColor,
+            isDark ? 0.12 : 0.08,
+          )}, ${alpha(theme.palette.background.paper, isDark ? 0.92 : 0.96)})`,
+          boxShadow: isDark
+            ? "0 16px 38px rgba(0, 0, 0, 0.18)"
+            : "0 12px 30px rgba(15, 23, 42, 0.05)",
+        };
+      }}
     >
       <CardContent>
         <Stack direction="row" spacing={1.5} alignItems="flex-start">
@@ -42,7 +50,7 @@ export function VisualMetricCard({
               height: 42,
               borderRadius: 2,
               color: theme.palette[tone].main,
-              bgcolor: alpha(theme.palette[tone].main, 0.12),
+              bgcolor: alpha(theme.palette[tone].main, theme.palette.mode === "dark" ? 0.14 : 0.11),
               flexShrink: 0,
             })}
           >

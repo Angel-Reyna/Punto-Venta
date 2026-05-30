@@ -40,15 +40,25 @@ export function DataGridCard<R extends GridValidRowModel = GridValidRowModel>({
       <CardContent
         sx={[
           {
-            overflowX: "auto"
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            scrollbarWidth: "thin",
+            px: { xs: 1.5, sm: 2.35 },
+            "&::-webkit-scrollbar": {
+              height: 8
+            },
+            "&::-webkit-scrollbar-thumb": {
+              borderRadius: 999,
+              backgroundColor: "divider"
+            }
           },
           ...asSxArray(contentSx)
         ]}
       >
         {(title || subtitle) && (
-          <Stack spacing={0.5} sx={{ mb: 2 }}>
+          <Stack spacing={0.5} sx={{ mb: 1.75 }}>
             {title && (
-              <Typography variant="h6" fontWeight={800}>
+              <Typography variant="h6" fontWeight={850}>
                 {title}
               </Typography>
             )}
