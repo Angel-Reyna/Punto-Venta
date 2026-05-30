@@ -80,20 +80,18 @@ export function UserCreateForm({
 
         <Divider sx={{ mb: 2 }} />
 
-        <Box component="form" onSubmit={handleSubmit}>
+        <Box component="form" onSubmit={handleSubmit} sx={{ minWidth: 0 }}>
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                md: "1.2fr 1.4fr",
-                lg: "1.2fr 1.4fr 1.2fr 1fr auto",
-              },
+              gridTemplateColumns: "minmax(0, 1fr)",
               gap: 2,
-              alignItems: "start",
+              alignItems: "stretch",
+              minWidth: 0,
             }}
           >
             <TextField
+              fullWidth
               label="Nombre completo"
               placeholder="Ej. Ana López"
               value={form.name}
@@ -109,6 +107,7 @@ export function UserCreateForm({
             />
 
             <TextField
+              fullWidth
               label="Correo electrónico"
               placeholder="usuario@empresa.com"
               type="email"
@@ -125,6 +124,7 @@ export function UserCreateForm({
             />
 
             <TextField
+              fullWidth
               label="Contraseña temporal"
               type="password"
               autoComplete="new-password"
@@ -141,6 +141,7 @@ export function UserCreateForm({
             />
 
             <TextField
+              fullWidth
               select
               label="Rol"
               value={form.role}
@@ -157,7 +158,7 @@ export function UserCreateForm({
               <MenuItem value="ADMIN">Administrador</MenuItem>
             </TextField>
 
-            <Box>
+            <Box sx={{ minWidth: 0 }}>
               <Button
                 fullWidth
                 type="submit"

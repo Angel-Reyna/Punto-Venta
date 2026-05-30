@@ -70,7 +70,8 @@ export function UsersFiltersPanel({
             sx={{
               display: "grid",
               gap: 1.5,
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+              gridTemplateColumns: "minmax(0, 1fr)",
+              minWidth: 0,
             }}
           >
             <TextField

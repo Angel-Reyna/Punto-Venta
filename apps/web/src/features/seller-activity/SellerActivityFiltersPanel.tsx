@@ -169,7 +169,7 @@ export function SellerActivityFiltersPanel({
           </TextField>
 
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} lg={12} xl={6}>
+            <Grid item xs={12}>
               <TextField
                 fullWidth
                 label="Desde"
@@ -180,7 +180,7 @@ export function SellerActivityFiltersPanel({
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={12} sm={6} lg={12} xl={6}>
+            <Grid item xs={12}>
               <TextField
                 fullWidth
                 label="Hasta"
@@ -217,7 +217,7 @@ export function SellerActivityFiltersPanel({
             >
               {isLoading ? "Consultando..." : "Consultar"}
             </Button>
-            <Stack direction={{ xs: "column", sm: "row", lg: "column", xl: "row" }} spacing={1}>
+            <Stack direction="column" spacing={1}>
               <Button
                 fullWidth
                 variant="outlined"
