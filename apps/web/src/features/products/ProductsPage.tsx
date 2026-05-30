@@ -251,7 +251,7 @@ export function ProductsPage() {
                   </Typography>
                   <Typography color="text.secondary" sx={{ mt: 0.5 }}>
                     {canViewAdminColumns
-                      ? "Controla catálogo, precios, promociones, stock mínimo e importación por Excel desde una vista operativa."
+                      ? "Revisa qué se puede vender, qué necesita reposición y administra precios sin saturar la pantalla."
                       : "Consulta productos activos, precios finales y disponibilidad antes de vender."}
                   </Typography>
                 </Box>
@@ -275,7 +275,7 @@ export function ProductsPage() {
                 <VisualMetricCard
                   tone="primary"
                   icon={<Inventory2Icon />}
-                  label="Productos visibles"
+                  label="Catálogo visible"
                   value={productStats.totalProducts}
                   helper={`${productStats.activeProducts} activos${
                     productStats.inactiveProducts
@@ -293,7 +293,7 @@ export function ProductsPage() {
                       : "success"
                   }
                   icon={<WarningAmberIcon />}
-                  label="Atención de stock"
+                  label="Requieren atención"
                   value={
                     productStats.lowStockProducts +
                     productStats.outOfStockProducts
@@ -305,7 +305,7 @@ export function ProductsPage() {
                 <VisualMetricCard
                   tone="info"
                   icon={<CategoryIcon />}
-                  label="Categorías visibles"
+                  label="Categorías"
                   value={productStats.categoryCount}
                   helper="Agrupación detectada en los resultados actuales"
                 />
@@ -314,7 +314,7 @@ export function ProductsPage() {
                 <VisualMetricCard
                   tone={productStats.promotedProducts ? "success" : "info"}
                   icon={<LocalOfferIcon />}
-                  label="Con promoción"
+                  label="Promociones"
                   value={productStats.promotedProducts}
                   helper="Productos con descuento aplicado"
                 />

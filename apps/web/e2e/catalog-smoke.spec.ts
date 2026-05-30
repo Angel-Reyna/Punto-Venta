@@ -14,8 +14,8 @@ test.describe("catálogo e inventario responsive", () => {
       page.getByRole("heading", { name: "Productos", level: 1 }),
     ).toBeVisible();
     await expect(page.getByTestId("products-visual-dashboard")).toBeVisible();
-    await expect(page.getByText("Control del catálogo")).toBeVisible();
-    await expect(page.getByText("Atención de stock")).toBeVisible();
+    await expect(page.getByText("Gestión de catálogo")).toBeVisible();
+    await expect(page.getByText("Requieren atención")).toBeVisible();
     await expect(page.getByText("Coca-Cola 600 ml")).toBeVisible();
 
     await page.getByLabel("Buscar productos").fill("COCA-600");
