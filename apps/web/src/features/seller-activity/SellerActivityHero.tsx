@@ -2,6 +2,7 @@ import { Box, Card, CardContent, Chip, Divider, Grid, Stack, Typography } from "
 import { alpha } from "@mui/material/styles";
 
 import SecurityIcon from "@mui/icons-material/Security";
+import SensorsIcon from "@mui/icons-material/Sensors";
 
 export function SellerActivityHero({
   autoRefreshIntervalSeconds,
@@ -20,16 +21,16 @@ export function SellerActivityHero({
         border: "1px solid",
         borderColor: "divider",
         background: (theme) =>
-          `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.12)}, ${alpha(
+          `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.14)}, ${alpha(
             theme.palette.background.paper,
-            0.96,
-          )} 46%, ${alpha(theme.palette.success.main, 0.08)})`,
+            0.98,
+          )} 52%, ${alpha(theme.palette.success.main, 0.1)})`,
       }}
     >
       <CardContent sx={{ p: { xs: 2, md: 3 } }}>
-        <Grid container spacing={2.5} alignItems="center">
+        <Grid container spacing={2.5} alignItems="stretch">
           <Grid item xs={12} md={7}>
-            <Stack spacing={1.5}>
+            <Stack spacing={1.5} sx={{ height: "100%", justifyContent: "center" }}>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                 <Chip color="primary" label="Acceso exclusivo ADMIN" icon={<SecurityIcon />} />
                 <Chip
@@ -42,14 +43,14 @@ export function SellerActivityHero({
 
               <Box>
                 <Typography variant="overline" color="text.secondary">
-                  Panel operativo
+                  Pulso del equipo
                 </Typography>
-                <Typography variant="h5" fontWeight={900}>
-                  Supervisa ventas, consultas y accesos en una sola línea de tiempo
+                <Typography variant="h5" fontWeight={900} sx={{ maxWidth: 760 }}>
+                  Revisa qué hizo cada vendedor sin leer una bitácora técnica
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-                  Usa filtros rápidos para detectar eventos críticos y revisa cada movimiento con contexto de vendedor,
-                  hora, entidad, IP y dispositivo.
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, maxWidth: 760 }}>
+                  La vista resume ventas, consultas, accesos y bloqueos para que el dueño detecte actividad relevante y
+                  revise solo lo que necesita atención.
                 </Typography>
               </Box>
             </Stack>
@@ -59,20 +60,37 @@ export function SellerActivityHero({
             <Stack
               spacing={1.5}
               sx={{
-                p: 2,
-                borderRadius: 2,
-                bgcolor: (theme) => alpha(theme.palette.background.paper, 0.72),
+                height: "100%",
+                p: { xs: 1.5, sm: 2 },
+                borderRadius: 3,
+                bgcolor: (theme) => alpha(theme.palette.background.paper, 0.76),
                 border: "1px solid",
                 borderColor: "divider",
               }}
             >
-              <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" color="text.secondary">
-                  Última carga
-                </Typography>
-                <Typography variant="body2" fontWeight={800} data-testid="seller-activity-last-updated">
-                  {relativeLastUpdated}
-                </Typography>
+              <Stack direction="row" spacing={1.25} alignItems="center">
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 2,
+                    display: "grid",
+                    placeItems: "center",
+                    color: "primary.main",
+                    bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
+                    flexShrink: 0,
+                  }}
+                >
+                  <SensorsIcon />
+                </Box>
+                <Box minWidth={0}>
+                  <Typography variant="caption" color="text.secondary">
+                    Última carga
+                  </Typography>
+                  <Typography variant="body2" fontWeight={900} data-testid="seller-activity-last-updated">
+                    {relativeLastUpdated}
+                  </Typography>
+                </Box>
               </Stack>
               <Divider />
               <Typography variant="caption" color="text.secondary" data-testid="seller-activity-refresh-helper">

@@ -1,4 +1,5 @@
-import { Card, CardContent, Chip, Typography } from "@mui/material";
+import { Card, CardContent, Chip, Stack, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
 import { valuesIncludeSearchText } from "../../utils/text";
 
@@ -114,6 +115,37 @@ export const actionLabels: Record<SellerAction, string> = {
   FAILED_ACCESS_ATTEMPT: "Acceso bloqueado",
 };
 
+
+export const actionBusinessMeaning: Record<SellerAction, string> = {
+  SELLER_LOGIN: "El vendedor entró a la app y puede operar con sus permisos.",
+  SELLER_LOGOUT: "El vendedor cerró su sesión o dejó de operar en la app.",
+  SALE_CREATED: "Se registró una venta y el movimiento ya forma parte de la operación del día.",
+  SALE_VIEWED: "El vendedor consultó una venta existente para revisar información.",
+  PRODUCT_VIEWED: "El vendedor consultó producto o inventario disponible.",
+  FAILED_ACCESS_ATTEMPT: "Alguien intentó abrir una sección sin permiso. Conviene revisar si fue esperado.",
+};
+
+export const actionReviewHint: Record<SellerAction, string> = {
+  SELLER_LOGIN: "Revisa si el horario o dispositivo no coincide con la operación normal.",
+  SELLER_LOGOUT: "Útil para confirmar cuándo terminó la actividad del vendedor.",
+  SALE_CREATED: "Revisa el monto o folio si no reconoces la venta.",
+  SALE_VIEWED: "Útil para saber qué ventas se consultaron durante la operación.",
+  PRODUCT_VIEWED: "Útil para entender qué productos consultó el vendedor.",
+  FAILED_ACCESS_ATTEMPT: "Revisa permisos, usuario e IP si el intento no era esperado.",
+};
+
+export function getEntityDisplayName(value: string) {
+  const labels: Record<string, string> = {
+    AuthSession: "Sesión",
+    Permission: "Permiso",
+    Product: "Producto",
+    Sale: "Venta",
+    User: "Usuario",
+  };
+
+  return labels[value] ?? value;
+}
+
 export function formatDate(value: string) {
   return new Date(value).toLocaleString("es-MX", {
     dateStyle: "medium",
@@ -203,19 +235,23 @@ export function summarizeActivity(rows: SellerActivityLog[]) {
 }
 
 export function SummaryCard({ item }: { item: SummaryItem }) {
-  return (
-    <Card sx={{ height: "100%" }}>
-      <CardContent>
-        <Chip
-          size="small"
-          label={actionLabels[item.action]}
-          color={getActionColor(item.action)}
-          variant="outlined"
-        />
+  const tone = getActionColor(item.action);
 
-        <Typography variant="h5" fontWeight={900} sx={{ mt: 1 }}>
-          {item.count}
-        </Typography>
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        height: "100%",
+        bgcolor: (theme) => alpha(theme.palette[tone].main, 0.05),
+      }}
+    >
+      <CardContent sx={{ p: 1.5 }}>
+        <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="space-between">
+          <Chip size="small" label={actionLabels[item.action]} color={tone} variant="outlined" />
+          <Typography variant="h5" fontWeight={900}>
+            {item.count}
+          </Typography>
+        </Stack>
 
         <Typography variant="caption" color="text.secondary">
           Eventos registrados
@@ -227,11 +263,9 @@ export function SummaryCard({ item }: { item: SummaryItem }) {
 
 export function EmptyActivityMessage() {
   return (
-    <Card>
+    <Card variant="outlined">
       <CardContent>
-        <Typography fontWeight={800}>
-          No hay actividad con los filtros actuales.
-        </Typography>
+        <Typography fontWeight={800}>No hay actividad con los filtros actuales.</Typography>
         <Typography variant="body2" color="text.secondary">
           Ajusta el rango, vendedor, acción o texto de búsqueda.
         </Typography>
@@ -242,11 +276,9 @@ export function EmptyActivityMessage() {
 
 export function EmptySummaryMessage() {
   return (
-    <Card>
+    <Card variant="outlined">
       <CardContent>
-        <Typography color="text.secondary">
-          No hay movimientos agrupados en este rango.
-        </Typography>
+        <Typography color="text.secondary">No hay movimientos agrupados en este rango.</Typography>
       </CardContent>
     </Card>
   );

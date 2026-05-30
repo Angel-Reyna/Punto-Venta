@@ -1,4 +1,5 @@
 import { Box, Button, Card, CardContent, Chip, Divider, Grid, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 
@@ -58,18 +59,24 @@ export function SellerActivityFiltersPanel({
   today: string;
 }) {
   return (
-    <Card>
-      <CardContent>
+    <Card
+      sx={{
+        border: "1px solid",
+        borderColor: "divider",
+        bgcolor: (theme) => alpha(theme.palette.background.paper, 0.96),
+      }}
+    >
+      <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
         <Stack spacing={2.5}>
           <Stack spacing={1}>
             <Stack direction="row" spacing={1} alignItems="center">
               <FilterAltIcon color="action" />
               <Box>
                 <Typography variant="h6" fontWeight={900}>
-                  Filtros de actividad
+                  Enfocar la revisión
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Filtra el historial y después usa la búsqueda local para afinar resultados ya cargados.
+                  Elige vendedor, acción o periodo. La búsqueda solo afina los movimientos ya cargados.
                 </Typography>
               </Box>
             </Stack>
@@ -77,6 +84,7 @@ export function SellerActivityFiltersPanel({
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" data-testid="seller-activity-shortcuts">
               <Button
                 size="small"
+                sx={{ flexGrow: { xs: 1, sm: 0 } }}
                 variant={action === "SALE_CREATED" ? "contained" : "outlined"}
                 data-testid="seller-activity-quick-sales"
                 onClick={() => setAction("SALE_CREATED")}
@@ -86,6 +94,7 @@ export function SellerActivityFiltersPanel({
               </Button>
               <Button
                 size="small"
+                sx={{ flexGrow: { xs: 1, sm: 0 } }}
                 color="error"
                 variant={action === "FAILED_ACCESS_ATTEMPT" ? "contained" : "outlined"}
                 data-testid="seller-activity-quick-blocked"
@@ -96,6 +105,7 @@ export function SellerActivityFiltersPanel({
               </Button>
               <Button
                 size="small"
+                sx={{ flexGrow: { xs: 1, sm: 0 } }}
                 variant="outlined"
                 data-testid="seller-activity-quick-week"
                 onClick={() => {
@@ -120,7 +130,7 @@ export function SellerActivityFiltersPanel({
           <TextField
             fullWidth
             label="Buscar en resultados"
-            placeholder="Vendedor, correo, acción, descripción o IP"
+            placeholder="Nombre, correo, venta, bloqueo o IP"
             value={search}
             inputProps={{ "data-testid": "seller-activity-search" }}
             onChange={(event) => setSearch(event.target.value)}
@@ -199,6 +209,7 @@ export function SellerActivityFiltersPanel({
 
           <Stack spacing={1}>
             <Button
+              fullWidth
               variant="contained"
               data-testid="seller-activity-consult-button"
               onClick={onConsult}

@@ -35,8 +35,8 @@ function VisualMetricCard({
         bgcolor: (theme) => alpha(theme.palette[tone].main, 0.04),
       }}
     >
-      <CardContent>
-        <Stack direction="row" spacing={1.5} alignItems="flex-start">
+      <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "flex-start", sm: "center" }}>
           <Box
             sx={{
               width: 40,
@@ -56,7 +56,7 @@ function VisualMetricCard({
             <Typography variant="body2" color="text.secondary">
               {label}
             </Typography>
-            <Typography variant="h4" fontWeight={900} sx={{ mt: 0.25 }}>
+            <Typography variant="h4" fontWeight={900} sx={{ mt: 0.25, lineHeight: 1 }}>
               {value}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -71,12 +71,12 @@ function VisualMetricCard({
 
 export function SellerActivityMetrics({ rowsCount, summary }: { rowsCount: number; summary: ActivitySummary }) {
   return (
-    <Grid container spacing={2} sx={{ mb: 2 }}>
+    <Grid container spacing={2} sx={{ mb: 2 }} data-testid="seller-activity-metrics">
       <Grid item xs={12} sm={6} lg={3}>
         <VisualMetricCard
           label="Movimientos cargados"
           value={rowsCount}
-          helper="Según filtros consultados"
+          helper="Eventos cargados"
           icon={<TimelineIcon />}
           tone="primary"
         />
@@ -85,7 +85,7 @@ export function SellerActivityMetrics({ rowsCount, summary }: { rowsCount: numbe
         <VisualMetricCard
           label="Vendedores con actividad"
           value={summary.activeSellersInResults}
-          helper="Usuarios únicos en resultados"
+          helper="Personas distintas"
           icon={<GroupsIcon />}
           tone="info"
         />
@@ -94,7 +94,7 @@ export function SellerActivityMetrics({ rowsCount, summary }: { rowsCount: numbe
         <VisualMetricCard
           label="Ventas registradas"
           value={summary.saleCreatedCount}
-          helper="Eventos de venta del periodo"
+          helper="Operación comercial"
           icon={<PointOfSaleIcon />}
           tone="success"
         />
@@ -103,7 +103,7 @@ export function SellerActivityMetrics({ rowsCount, summary }: { rowsCount: numbe
         <VisualMetricCard
           label="Accesos bloqueados"
           value={summary.failedAccessCount}
-          helper="Intentos sin permiso"
+          helper="Requieren revisión"
           icon={<BlockIcon />}
           tone="error"
         />
