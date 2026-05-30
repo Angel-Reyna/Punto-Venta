@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
@@ -22,12 +24,12 @@ export function ReportsHero({ data, periodLabel }: { data: OperationsReport | nu
           )} 44%, ${theme.palette.background.paper} 100%)`
       }}
     >
-      <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
+      <CardContent sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
         <Stack
-          direction={{ xs: "column", md: "row" }}
+          direction={{ xs: "column", lg: "row" }}
           justifyContent="space-between"
-          alignItems={{ xs: "flex-start", md: "center" }}
-          gap={2.5}
+          alignItems={{ xs: "stretch", lg: "center" }}
+          gap={{ xs: 2, md: 3 }}
         >
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 1.5 }}>
@@ -43,33 +45,56 @@ export function ReportsHero({ data, periodLabel }: { data: OperationsReport | nu
               Reportes
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 760 }}>
-              Revisa ventas netas, devoluciones, productos vendidos y desempeño por vendedor con
-              indicadores rápidos y detalle operativo.
+              Entiende cuánto se vendió, qué utilidad dejó el periodo, qué productos se movieron y
+              cómo participó cada vendedor. En celular se prioriza el resumen; en tablet y PC se
+              muestran más detalles para análisis.
             </Typography>
           </Box>
 
-          <Stack
-            direction="row"
-            flexWrap="wrap"
-            gap={1}
-            sx={{ justifyContent: { xs: "flex-start", md: "flex-end" } }}
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "repeat(2, minmax(0, 1fr))",
+                sm: "repeat(4, minmax(0, 1fr))",
+                lg: "repeat(2, minmax(120px, 1fr))"
+              },
+              gap: 1,
+              minWidth: { lg: 360 }
+            }}
           >
-            <Chip icon={<PeopleAltOutlinedIcon />} label={`${data?.sales.bySeller.length ?? 0} vendedores`} />
-            <Chip icon={<Inventory2OutlinedIcon />} label={`${data?.topProducts.length ?? 0} productos`} />
-            <Chip
-              icon={<PaymentsOutlinedIcon />}
-              label={formatMoney(data?.sales.net)}
-              color={data ? "success" : "default"}
-            />
-            <Chip
-              icon={<AssignmentReturnOutlinedIcon />}
-              label={formatMoney(data?.sales.refunded)}
-              color={data ? "warning" : "default"}
-              variant="outlined"
-            />
-          </Stack>
+            <HeroStat icon={<PeopleAltOutlinedIcon />} label="Vendedores" value={data?.sales.bySeller.length ?? 0} />
+            <HeroStat icon={<Inventory2OutlinedIcon />} label="Productos" value={data?.topProducts.length ?? 0} />
+            <HeroStat icon={<PaymentsOutlinedIcon />} label="Venta neta" value={formatMoney(data?.sales.net)} />
+            <HeroStat icon={<AssignmentReturnOutlinedIcon />} label="Devuelto" value={formatMoney(data?.sales.refunded)} />
+          </Box>
         </Stack>
       </CardContent>
     </Card>
+  );
+}
+
+function HeroStat({ icon, label, value }: { icon: ReactNode; label: string; value: string | number }) {
+  return (
+    <Box
+      sx={{
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 2,
+        bgcolor: (theme) => alpha(theme.palette.background.paper, 0.72),
+        p: 1.25,
+        minWidth: 0
+      }}
+    >
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ color: "primary.main" }}>
+        {icon}
+        <Typography variant="caption" color="text.secondary" fontWeight={800}>
+          {label}
+        </Typography>
+      </Stack>
+      <Typography variant="body1" fontWeight={900} sx={{ mt: 0.5, overflowWrap: "anywhere" }}>
+        {value}
+      </Typography>
+    </Box>
   );
 }

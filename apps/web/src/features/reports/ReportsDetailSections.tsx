@@ -76,23 +76,26 @@ export function ReportsDetailSections({
 
 function SellersPanel({ sellers }: { sellers: SellerReportItem[] }) {
   return (
-    <ReportPanel title="Ventas por vendedor" subtitle="Desempeño neto por vendedor en el periodo consultado.">
+    <ReportPanel title="Ventas por vendedor" subtitle="Quién vendió, cuánto aportó y qué tanto se afectó por devoluciones.">
       {sellers.length === 0 ? (
         <EmptyText>No hay vendedores que coincidan con la búsqueda.</EmptyText>
       ) : (
         <Stack spacing={1.5}>
           {sellers.map((item) => (
             <Card key={item.seller.id} variant="outlined">
-              <CardContent>
+              <CardContent sx={{ p: { xs: 2, md: 2.25 } }}>
                 <Stack spacing={1.5}>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography fontWeight={800} sx={{ overflowWrap: "anywhere" }}>
-                      {item.seller.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
-                      {item.seller.email}
-                    </Typography>
-                  </Box>
+                  <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={1}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography fontWeight={800} sx={{ overflowWrap: "anywhere" }}>
+                        {item.seller.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
+                        {item.seller.email}
+                      </Typography>
+                    </Box>
+                    <Chip color="primary" variant="outlined" label={`${item.count} venta(s)`} />
+                  </Stack>
 
                   <Box
                     sx={{
@@ -102,7 +105,7 @@ function SellersPanel({ sellers }: { sellers: SellerReportItem[] }) {
                         sm: "repeat(2, minmax(0, 1fr))",
                         md: "repeat(4, minmax(0, 1fr))"
                       },
-                      gap: 1.5
+                      gap: 1
                     }}
                   >
                     <DetailLine label="Ventas" value={item.count} />
@@ -131,7 +134,7 @@ function SellersPanel({ sellers }: { sellers: SellerReportItem[] }) {
 
 function StatusAndMethodsPanel({ data }: { data: OperationsReport }) {
   return (
-    <ReportPanel title="Estados y métodos" subtitle="Resumen rápido de estados de venta, cobros y devoluciones.">
+    <ReportPanel title="Estados y métodos" subtitle="Cómo se cerraron las ventas y por dónde entró o salió el dinero.">
       <Stack spacing={2}>
         <SummaryChipGroup title="Ventas por estado">
           {Object.entries(data.sales.byStatus).length === 0 ? (
@@ -192,7 +195,7 @@ function SummaryChipGroup({ children, title }: { children: ReactNode; title: str
 
 function TopProductsPanel({ products }: { products: ProductReportItem[] }) {
   return (
-    <ReportPanel title="Productos más vendidos" subtitle="Ranking neto: ventas no canceladas menos devoluciones del periodo.">
+    <ReportPanel title="Productos más vendidos" subtitle="Qué productos movieron unidades, dinero y utilidad en el periodo.">
       {products.length === 0 ? (
         <EmptyText>No hay productos vendidos que coincidan con la búsqueda.</EmptyText>
       ) : (
@@ -206,27 +209,31 @@ function TopProductsPanel({ products }: { products: ProductReportItem[] }) {
                     xs: "1fr",
                     sm: "repeat(3, minmax(0, 1fr))"
                   },
-                  gap: 1.5,
-                  alignItems: "start"
+                  gap: 1,
+                  alignItems: "start",
+                  p: { xs: 2, md: 2.25 }
                 }}
               >
-                <Box sx={{ gridColumn: "1 / -1", minWidth: 0 }}>
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    #{index + 1} · SKU {item.product.sku ?? "—"}
-                  </Typography>
-                  <Typography
-                    component="p"
-                    fontWeight={800}
-                    sx={{
-                      display: "block",
-                      minWidth: 0,
-                      overflowWrap: "anywhere",
-                      wordBreak: "break-word"
-                    }}
-                  >
-                    {item.product.name}
-                  </Typography>
-                </Box>
+                <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ gridColumn: "1 / -1", minWidth: 0 }}>
+                  <Chip color="primary" label={`#${index + 1}`} />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      SKU {item.product.sku ?? "—"}
+                    </Typography>
+                    <Typography
+                      component="p"
+                      fontWeight={800}
+                      sx={{
+                        display: "block",
+                        minWidth: 0,
+                        overflowWrap: "anywhere",
+                        wordBreak: "break-word"
+                      }}
+                    >
+                      {item.product.name}
+                    </Typography>
+                  </Box>
+                </Stack>
                 <DetailLine
                   label="Unidades netas"
                   value={
@@ -268,14 +275,14 @@ function TopProductsPanel({ products }: { products: ProductReportItem[] }) {
 
 function RecentSalesPanel({ sales }: { sales: RecentSaleItem[] }) {
   return (
-    <ReportPanel title="Ventas recientes" subtitle="Historial operativo del periodo con folio, vendedor, estado y pagos.">
+    <ReportPanel title="Ventas recientes" subtitle="Últimas operaciones del periodo con folio, vendedor, cobro y estado.">
       {sales.length === 0 ? (
         <EmptyText>No hay ventas que coincidan con la búsqueda.</EmptyText>
       ) : (
         <Stack spacing={1.25}>
           {sales.map((sale) => (
             <Card key={sale.id} variant="outlined">
-              <CardContent>
+              <CardContent sx={{ p: { xs: 2, md: 2.25 } }}>
                 <Stack
                   direction={{ xs: "column", sm: "row" }}
                   justifyContent="space-between"
@@ -288,7 +295,10 @@ function RecentSalesPanel({ sales }: { sales: RecentSaleItem[] }) {
                       {formatDate(sale.createdAt)}
                     </Typography>
                   </Box>
-                  <Chip size="small" label={statusLabel(sale.status)} color={statusColor(sale.status)} />
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip size="small" label={statusLabel(sale.status)} color={statusColor(sale.status)} />
+                    <Typography fontWeight={900}>{formatMoney(sale.total)}</Typography>
+                  </Stack>
                 </Stack>
 
                 <Box
@@ -330,7 +340,7 @@ function RecentSalesPanel({ sales }: { sales: RecentSaleItem[] }) {
 
 function ReturnsPanel({ returns }: { returns: ReturnReportItem[] }) {
   return (
-    <ReportPanel title="Devoluciones recientes" subtitle="Reembolsos registrados dentro del periodo.">
+    <ReportPanel title="Devoluciones recientes" subtitle="Reembolsos que reducen la venta neta del periodo.">
       {returns.length === 0 ? (
         <EmptyText>No hay devoluciones que coincidan con la búsqueda.</EmptyText>
       ) : (
@@ -371,7 +381,7 @@ function ReturnsPanel({ returns }: { returns: ReturnReportItem[] }) {
 
 function CashActivityPanel({ data }: { data: OperationsReport }) {
   return (
-    <ReportPanel title="Movimientos de efectivo registrados" subtitle="Aparece solo si existen datos históricos del módulo de caja.">
+    <ReportPanel title="Movimientos de efectivo registrados" subtitle="Control secundario de caja; no es requisito para registrar ventas.">
       <Stack spacing={2}>
         <SummaryChipGroup title={`Movimientos: ${data.cashRegister.movements.count}`}>
           {Object.entries(data.cashRegister.movements.summary).length === 0 ? (

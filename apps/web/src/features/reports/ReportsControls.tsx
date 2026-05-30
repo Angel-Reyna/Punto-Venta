@@ -40,35 +40,36 @@ export function ReportsPeriodControls({
   return (
     <Card
       sx={{
-        mb: 2,
         border: "1px solid",
         borderColor: "divider",
         boxShadow: "0 12px 36px rgba(15, 23, 42, 0.06)"
       }}
     >
-      <CardContent>
-        <Stack direction="row" alignItems="center" gap={1.25} sx={{ mb: 2 }}>
-          <FilterAltOutlinedIcon color="primary" />
-          <Box>
-            <Typography variant="h6" fontWeight={800}>
-              Consulta del periodo
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Define el rango, consulta y descarga el PDF sin cambiar de pantalla.
-            </Typography>
-          </Box>
-        </Stack>
+      <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+        <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" gap={2} sx={{ mb: 2 }}>
+          <Stack direction="row" alignItems="center" gap={1.25}>
+            <FilterAltOutlinedIcon color="primary" />
+            <Box>
+              <Typography variant="h6" fontWeight={800}>
+                Elige qué periodo revisar
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Primero consulta el rango; después puedes filtrar dentro del reporte y descargar PDF.
+              </Typography>
+            </Box>
+          </Stack>
 
-        <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
-          {DATE_PRESETS.map((preset) => (
-            <Chip
-              key={preset.value}
-              clickable
-              label={preset.label}
-              onClick={() => onApplyPreset(preset.value)}
-              variant="outlined"
-            />
-          ))}
+          <Stack direction="row" flexWrap="wrap" gap={1} sx={{ justifyContent: { xs: "flex-start", md: "flex-end" } }}>
+            {DATE_PRESETS.map((preset) => (
+              <Chip
+                key={preset.value}
+                clickable
+                label={preset.label}
+                onClick={() => onApplyPreset(preset.value)}
+                variant="outlined"
+              />
+            ))}
+          </Stack>
         </Stack>
 
         <Box
@@ -77,9 +78,10 @@ export function ReportsPeriodControls({
             gridTemplateColumns: {
               xs: "1fr",
               sm: "1fr 1fr",
-              lg: "repeat(4, minmax(0, 1fr))"
+              lg: "minmax(160px, 0.9fr) minmax(160px, 0.9fr) minmax(180px, 1fr) minmax(170px, 0.9fr)"
             },
-            gap: 2
+            gap: 1.5,
+            alignItems: "start"
           }}
         >
           <TextField
@@ -112,6 +114,7 @@ export function ReportsPeriodControls({
             startIcon={<CalendarMonthOutlinedIcon />}
             onClick={onConsult}
             disabled={dateRangeIsInvalid || isLoading || isDownloadingPdf}
+            sx={{ minHeight: 54 }}
           >
             {isLoading ? "Consultando..." : "Consultar reporte"}
           </Button>
@@ -123,6 +126,7 @@ export function ReportsPeriodControls({
             startIcon={<FileDownloadOutlinedIcon />}
             onClick={onDownloadPdf}
             disabled={dateRangeIsInvalid || isLoading || isDownloadingPdf}
+            sx={{ minHeight: 54 }}
           >
             {isDownloadingPdf ? "Descargando..." : "Descargar PDF"}
           </Button>
@@ -144,14 +148,13 @@ export function ReportsSearchPanel({
   return (
     <Card
       sx={{
-        mb: 2,
         border: "1px solid",
         borderColor: "divider",
         bgcolor: (theme) => alpha(theme.palette.background.paper, 0.92)
       }}
     >
-      <CardContent>
-        <Stack spacing={1.5}>
+      <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }}>
           <TextField
             fullWidth
             label="Buscar dentro del reporte"
@@ -167,7 +170,7 @@ export function ReportsSearchPanel({
             }}
             onChange={(event) => onSearchChange(event.target.value)}
           />
-          <Stack direction="row" flexWrap="wrap" gap={1}>
+          <Stack direction="row" flexWrap="wrap" gap={1} sx={{ minWidth: { md: 280 } }}>
             <Chip size="small" variant="outlined" label={`Vista actual: ${visibleResultsLabel}`} />
             {search && <Chip size="small" color="primary" label={`Filtro local: ${search}`} />}
           </Stack>

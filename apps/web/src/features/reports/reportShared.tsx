@@ -248,7 +248,7 @@ export function MetricCard({
           )} 58%)`
       }}
     >
-      <CardContent>
+      <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2}>
           <Box sx={{ minWidth: 0 }}>
             <Typography color="text.secondary">
@@ -297,18 +297,23 @@ export function ReportPanel({
         height: "100%",
         border: "1px solid",
         borderColor: "divider",
-        boxShadow: "0 12px 36px rgba(15, 23, 42, 0.06)"
+        boxShadow: "0 12px 36px rgba(15, 23, 42, 0.06)",
+        overflow: "hidden"
       }}
     >
-      <CardContent>
-        <Typography variant="h6" fontWeight={800}>
-          {title}
-        </Typography>
-        {subtitle && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            {subtitle}
-          </Typography>
-        )}
+      <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={1}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="h6" fontWeight={800}>
+              {title}
+            </Typography>
+            {subtitle && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+        </Stack>
         <Divider sx={{ my: 2 }} />
         {children}
       </CardContent>
@@ -317,7 +322,11 @@ export function ReportPanel({
 }
 
 export function EmptyText({ children }: { children: ReactNode }) {
-  return <Typography color="text.secondary">{children}</Typography>;
+  return (
+    <Typography color="text.secondary" sx={{ py: 1 }}>
+      {children}
+    </Typography>
+  );
 }
 
 export function DetailLine({
@@ -328,11 +337,18 @@ export function DetailLine({
   value: ReactNode;
 }) {
   return (
-    <Box>
-      <Typography variant="caption" color="text.secondary" display="block">
+    <Box
+      sx={{
+        minWidth: 0,
+        borderRadius: 1.5,
+        bgcolor: (theme) => alpha(theme.palette.action.hover, 0.45),
+        p: 1
+      }}
+    >
+      <Typography variant="caption" color="text.secondary" display="block" fontWeight={700}>
         {label}
       </Typography>
-      <Typography variant="body2" fontWeight={700}>
+      <Typography variant="body2" fontWeight={800} sx={{ overflowWrap: "anywhere" }}>
         {value}
       </Typography>
     </Box>
