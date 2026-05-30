@@ -2,7 +2,7 @@ import { Box, Button, Card, CardContent, Chip, Divider, Grid, MenuItem, Stack, T
 
 import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 
-import type { AuditFilters } from "./auditShared";
+import { formatActionLabel, formatEntityLabel, type AuditFilters } from "./auditShared";
 
 export function AuditFiltersPanel({
   actionOptions,
@@ -34,7 +34,7 @@ export function AuditFiltersPanel({
                 Panel de investigación
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Filtra por acción, entidad, severidad, fecha y evidencia textual.
+Encuentra cambios por tipo de acción, área afectada, importancia, fecha o texto.
               </Typography>
             </Box>
           </Stack>
@@ -57,7 +57,7 @@ export function AuditFiltersPanel({
               <TextField
                 select
                 fullWidth
-                label="Acción"
+                label="Qué ocurrió"
                 value={filters.action}
                 inputProps={{ "data-testid": "audit-action" }}
                 onChange={(event) => updateFilter("action", event.target.value)}
@@ -65,7 +65,7 @@ export function AuditFiltersPanel({
                 <MenuItem value="">Todas</MenuItem>
                 {actionOptions.map((option) => (
                   <MenuItem key={option} value={option}>
-                    {option}
+                    {formatActionLabel(option)}
                   </MenuItem>
                 ))}
               </TextField>
@@ -75,7 +75,7 @@ export function AuditFiltersPanel({
               <TextField
                 select
                 fullWidth
-                label="Entidad"
+                label="Área afectada"
                 value={filters.tableName}
                 inputProps={{ "data-testid": "audit-entity" }}
                 onChange={(event) => updateFilter("tableName", event.target.value)}
@@ -83,7 +83,7 @@ export function AuditFiltersPanel({
                 <MenuItem value="">Todas</MenuItem>
                 {tableOptions.map((option) => (
                   <MenuItem key={option} value={option}>
-                    {option}
+                    {formatEntityLabel(option)}
                   </MenuItem>
                 ))}
               </TextField>
@@ -93,7 +93,7 @@ export function AuditFiltersPanel({
               <TextField
                 select
                 fullWidth
-                label="Severidad"
+                label="Importancia"
                 value={filters.severity}
                 inputProps={{ "data-testid": "audit-severity" }}
                 onChange={(event) => updateFilter("severity", event.target.value as AuditFilters["severity"])}

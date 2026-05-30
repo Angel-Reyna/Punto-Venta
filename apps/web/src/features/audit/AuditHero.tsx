@@ -35,12 +35,12 @@ export function AuditHero({
             </Stack>
 
             <Typography variant="h5" fontWeight={950}>
-              Centro de investigación operativa
+              Historial claro de cambios
             </Typography>
 
             <Typography variant="body2" color="text.secondary">
-              Prioriza eventos críticos, identifica al actor y compara el antes/después sin perder contexto.
-              La auditoría debe servir para responder qué cambió, quién lo hizo y cuándo ocurrió.
+              Muestra en lenguaje simple qué se hizo, quién lo hizo, cuándo pasó y qué dato cambió.
+              Los detalles técnicos quedan disponibles, pero no estorban la lectura principal.
             </Typography>
           </Stack>
 
@@ -56,11 +56,11 @@ export function AuditHero({
             }}
           >
             <Typography variant="caption" color="text.secondary">
-              Último evento auditable
+              Último cambio registrado
             </Typography>
             <Typography fontWeight={900}>{latestEvent}</Typography>
             <Typography variant="caption" color="text.secondary">
-              {visibleCount} evento(s) visibles con los filtros actuales
+              {visibleCount} registro(s) visibles con los filtros actuales
             </Typography>
           </Stack>
         </Stack>

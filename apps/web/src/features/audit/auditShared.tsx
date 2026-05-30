@@ -7,8 +7,9 @@ import {
   Divider,
   Grid,
   Stack,
-  Typography
+  Typography,
 } from "@mui/material";
+
 
 export type AuditLog = {
   id: string;
@@ -29,6 +30,7 @@ export type AuditLog = {
 };
 
 export type AuditSeverity = "" | "critical" | "high" | "medium" | "low";
+export type AuditLayoutVariant = "mobile" | "tablet" | "desktop";
 
 export type AuditFilters = {
   q: string;
@@ -45,7 +47,7 @@ export const initialFilters: AuditFilters = {
   tableName: "",
   severity: "",
   dateFrom: "",
-  dateTo: ""
+  dateTo: "",
 };
 
 const SENSITIVE_KEY_PATTERN = /(password|token|secret|hash|pepper|credential|cookie|authorization)/i;
@@ -68,7 +70,28 @@ const ACTION_LABELS: Record<string, string> = {
   USER_CREATE: "Usuario creado",
   USER_DEACTIVATE: "Usuario desactivado",
   USER_PASSWORD_RESET: "Contraseña restablecida",
-  USER_ROLE_UPDATE: "Rol actualizado"
+  USER_ROLE_UPDATE: "Rol actualizado",
+};
+
+const ACTION_HELPERS: Record<string, string> = {
+  CASH_REGISTER_CLOSE: "Se cerró una caja y quedó guardado el corte.",
+  CASH_REGISTER_MOVEMENT: "Se agregó o retiró efectivo manualmente de caja.",
+  CASH_REGISTER_OPEN: "Se abrió una caja para control de efectivo.",
+  INVENTORY_IN: "Entraron unidades al inventario.",
+  INVENTORY_OUT: "Salieron unidades del inventario.",
+  PRODUCT_CREATE: "Se registró un producto nuevo en el catálogo.",
+  PRODUCT_DELETE: "Se eliminó físicamente un producto permitido por las reglas del sistema.",
+  PRODUCT_IMPORT: "Se cargaron productos desde un archivo Excel.",
+  PRODUCT_TOGGLE_ACTIVE: "Se activó o desactivó un producto para venta.",
+  PRODUCT_UPDATE: "Se cambió información de un producto.",
+  SALE_CANCEL: "Se canceló una venta existente.",
+  SALE_CREATE: "Se registró una venta y se actualizó inventario.",
+  SALE_RETURN: "Se registró una devolución de producto.",
+  USER_ACTIVATE: "Se permitió de nuevo el acceso de un usuario.",
+  USER_CREATE: "Se creó una cuenta de usuario.",
+  USER_DEACTIVATE: "Se bloqueó el acceso de un usuario.",
+  USER_PASSWORD_RESET: "Se cambió la contraseña de un usuario.",
+  USER_ROLE_UPDATE: "Se cambió el rol de un usuario.",
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -78,7 +101,17 @@ const ENTITY_LABELS: Record<string, string> = {
   Product: "Producto",
   Sale: "Venta",
   SaleReturn: "Devolución",
-  User: "Usuario"
+  User: "Usuario",
+};
+
+const ENTITY_HELPERS: Record<string, string> = {
+  CashRegisterMovement: "afectó el efectivo registrado en caja",
+  CashRegisterSession: "afectó una caja abierta o cerrada",
+  InventoryMovement: "afectó existencias de inventario",
+  Product: "afectó el catálogo de productos",
+  Sale: "afectó una venta",
+  SaleReturn: "afectó una devolución",
+  User: "afectó una cuenta de usuario",
 };
 
 function titleCase(value: string) {
@@ -93,11 +126,11 @@ function titleCase(value: string) {
 export function formatDate(value: string) {
   return new Date(value).toLocaleString("es-MX", {
     dateStyle: "medium",
-    timeStyle: "short"
+    timeStyle: "short",
   });
 }
 
-function formatRole(role?: "ADMIN" | "CASHIER") {
+export function formatRole(role?: "ADMIN" | "CASHIER") {
   if (role === "ADMIN") return "Administrador";
   if (role === "CASHIER") return "Vendedor";
   return "Sistema";
@@ -107,8 +140,16 @@ export function formatActionLabel(action: string) {
   return ACTION_LABELS[action] ?? titleCase(action);
 }
 
+export function formatActionHelper(action: string) {
+  return ACTION_HELPERS[action] ?? "Se registró una acción del sistema.";
+}
+
 export function formatEntityLabel(tableName: string) {
   return ENTITY_LABELS[tableName] ?? titleCase(tableName);
+}
+
+export function formatEntityHelper(tableName: string) {
+  return ENTITY_HELPERS[tableName] ?? "afectó un registro del sistema";
 }
 
 type ChipColor = "default" | "primary" | "secondary" | "success" | "warning" | "error" | "info";
@@ -128,9 +169,9 @@ export function getAuditSeverity(log: Pick<AuditLog, "action" | "tableName">): {
   ) {
     return {
       level: "critical",
-      label: "Crítica",
-      helper: "Acción destructiva, de acceso o irreversible.",
-      color: "error"
+      label: "Revisar primero",
+      helper: "Puede afectar acceso, historial o datos importantes.",
+      color: "error",
     };
   }
 
@@ -143,9 +184,9 @@ export function getAuditSeverity(log: Pick<AuditLog, "action" | "tableName">): {
   ) {
     return {
       level: "high",
-      label: "Alta",
-      helper: "Afecta permisos, caja, inventario o devoluciones.",
-      color: "warning"
+      label: "Importante",
+      helper: "Puede afectar permisos, caja, inventario o devoluciones.",
+      color: "warning",
     };
   }
 
@@ -158,17 +199,17 @@ export function getAuditSeverity(log: Pick<AuditLog, "action" | "tableName">): {
   ) {
     return {
       level: "medium",
-      label: "Media",
-      helper: "Modifica datos operativos relevantes.",
-      color: "info"
+      label: "Normal",
+      helper: "Cambio operativo que conviene poder consultar después.",
+      color: "info",
     };
   }
 
   return {
     level: "low",
-    label: "Baja",
-    helper: "Evento informativo o de baja criticidad.",
-    color: "success"
+    label: "Informativo",
+    helper: "Evento de baja prioridad.",
+    color: "success",
   };
 }
 
@@ -176,10 +217,10 @@ function getResultLabel(action: string) {
   const normalized = action.toLowerCase();
 
   if (normalized.includes("fail") || normalized.includes("blocked") || normalized.includes("denied")) {
-    return { label: "Fallido / bloqueado", color: "warning" as ChipColor };
+    return { label: "No se completó", color: "warning" as ChipColor };
   }
 
-  return { label: "Registrado", color: "success" as ChipColor };
+  return { label: "Completado", color: "success" as ChipColor };
 }
 
 function sanitizeAuditValue(value: unknown, depth = 0): unknown {
@@ -267,13 +308,136 @@ function getSeverityMainColor(color: ChipColor) {
   return `${color}.main`;
 }
 
-export function AuditLogCard({ log }: { log: AuditLog }) {
+function buildPlainSummary(log: AuditLog) {
+  const actor = log.user?.name ?? "El sistema";
+  const action = formatActionLabel(log.action).toLowerCase();
+  const entity = formatEntityHelper(log.tableName);
+  return `${actor} ${action} y ${entity}.`;
+}
+
+function TechnicalDetails({ log, defaultExpanded }: { log: AuditLog; defaultExpanded: boolean }) {
+  const beforeSummary = summarizeAuditData(log.oldData);
+  const afterSummary = summarizeAuditData(log.newData);
+
+  return (
+    <Box
+      component="details"
+      {...(defaultExpanded ? { open: true } : {})}
+      sx={{
+        border: 1,
+        borderColor: "divider",
+        borderRadius: 2,
+        overflow: "hidden",
+        "& > summary": {
+          cursor: "pointer",
+          listStyle: "none",
+          px: 1.25,
+          py: 1,
+        },
+        "& > summary::-webkit-details-marker": { display: "none" },
+      }}
+    >
+      <Box component="summary">
+        <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+          <Box>
+            <Typography fontWeight={850}>Detalles del cambio</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Datos seguros para revisión. Contraseñas, tokens y secretos se ocultan automáticamente.
+            </Typography>
+          </Box>
+          <Typography aria-hidden color="text.secondary" sx={{ fontSize: 18 }}>
+            ⌄
+          </Typography>
+        </Stack>
+      </Box>
+
+      <Box sx={{ px: 1.25, pb: 1.25 }}>
+        <Grid container spacing={1.5}>
+          <Grid item xs={12} md={6}>
+            <Box
+              data-testid={`audit-before-${log.id}`}
+              sx={{
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 2,
+                p: 1.25,
+                bgcolor: "background.default",
+              }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                Antes del cambio
+              </Typography>
+              <Typography
+                variant="body2"
+                component="pre"
+                sx={{ m: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "monospace" }}
+              >
+                {beforeSummary}
+              </Typography>
+            </Box>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Box
+              data-testid={`audit-after-${log.id}`}
+              sx={{
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 2,
+                p: 1.25,
+                bgcolor: "background.default",
+              }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                Después del cambio
+              </Typography>
+              <Typography
+                variant="body2"
+                component="pre"
+                sx={{ m: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "monospace" }}
+              >
+                {afterSummary}
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
+      </Box>
+    </Box>
+  );
+}
+
+function AuditFact({ label, value, helper }: { label: string; value: string; helper?: string }) {
+  return (
+    <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, minWidth: 0, height: "100%" }}>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography fontWeight={850} sx={{ overflowWrap: "anywhere" }}>
+        {value}
+      </Typography>
+      {helper && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
+          {helper}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+export function AuditLogCard({
+  log,
+  variant = "desktop",
+}: {
+  log: AuditLog;
+  variant?: AuditLayoutVariant;
+}) {
   const severity = getAuditSeverity(log);
   const result = getResultLabel(log.action);
   const actionLabel = formatActionLabel(log.action);
   const entityLabel = formatEntityLabel(log.tableName);
-  const beforeSummary = summarizeAuditData(log.oldData);
-  const afterSummary = summarizeAuditData(log.newData);
+  const isMobile = variant === "mobile";
+  const isTablet = variant === "tablet";
+  const compact = isMobile || isTablet;
 
   return (
     <Card
@@ -282,19 +446,19 @@ export function AuditLogCard({ log }: { log: AuditLog }) {
       sx={{
         height: "100%",
         borderColor: getSeverityBorderColor(severity.color),
-        boxShadow: "0 12px 30px rgba(15, 23, 42, 0.05)"
+        boxShadow: "0 12px 30px rgba(15, 23, 42, 0.05)",
       }}
     >
       <CardActionArea component="div" disableRipple sx={{ height: "100%", cursor: "default" }}>
-        <CardContent>
-          <Stack direction="row" spacing={2} alignItems="stretch">
+        <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+          <Stack direction="row" spacing={{ xs: 1.25, md: 2 }} alignItems="stretch">
             <Box
               aria-hidden
               sx={{
                 display: { xs: "none", sm: "flex" },
                 flexDirection: "column",
                 alignItems: "center",
-                pt: 0.5
+                pt: 0.5,
               }}
             >
               <Box
@@ -303,21 +467,21 @@ export function AuditLogCard({ log }: { log: AuditLog }) {
                   height: 14,
                   borderRadius: "50%",
                   bgcolor: getSeverityMainColor(severity.color),
-                  boxShadow: 2
+                  boxShadow: 2,
                 }}
               />
               <Box sx={{ width: 2, flex: 1, bgcolor: getSeverityBorderColor(severity.color), mt: 1 }} />
             </Box>
 
-            <Stack spacing={1.5} sx={{ minWidth: 0, flex: 1 }}>
+            <Stack spacing={compact ? 1.1 : 1.5} sx={{ minWidth: 0, flex: 1 }}>
               <Stack
-                direction={{ xs: "column", sm: "row" }}
+                direction={{ xs: "column", md: "row" }}
                 spacing={1}
-                alignItems={{ xs: "flex-start", sm: "center" }}
+                alignItems={{ xs: "flex-start", md: "center" }}
                 justifyContent="space-between"
               >
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="subtitle1" fontWeight={950} sx={{ overflowWrap: "anywhere" }}>
+                  <Typography variant={isMobile ? "subtitle2" : "subtitle1"} fontWeight={950} sx={{ overflowWrap: "anywhere" }}>
                     {actionLabel}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
@@ -326,14 +490,9 @@ export function AuditLogCard({ log }: { log: AuditLog }) {
                 </Box>
 
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                  <Chip size="small" label={`Severidad ${severity.label}`} color={severity.color} />
+                  <Chip size="small" label={severity.label} color={severity.color} />
                   <Chip size="small" label={result.label} color={result.color} variant="outlined" />
                 </Stack>
-              </Stack>
-
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                <Chip size="small" label={log.action} color="default" variant="outlined" />
-                <Chip size="small" label={entityLabel} color="primary" variant="outlined" />
               </Stack>
 
               <Box
@@ -342,109 +501,43 @@ export function AuditLogCard({ log }: { log: AuditLog }) {
                   borderColor: getSeverityBorderColor(severity.color),
                   borderRadius: 2,
                   p: 1,
-                  bgcolor: "background.default"
+                  bgcolor: "background.default",
                 }}
               >
-                <Typography variant="caption" color="text.secondary">
-                  Criterio de prioridad
+                <Typography variant="body2" fontWeight={800} sx={{ overflowWrap: "anywhere" }}>
+                  {buildPlainSummary(log)}
                 </Typography>
-                <Typography variant="body2">{severity.helper}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {formatActionHelper(log.action)} {severity.helper}
+                </Typography>
               </Box>
 
-              <Grid container spacing={1.5}>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, height: "100%" }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Actor
-                    </Typography>
-
-                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                      <Typography fontWeight={850} sx={{ overflowWrap: "anywhere" }}>
-                        {log.user?.name ?? "Sistema"}
-                      </Typography>
-
-                      <Chip
-                        size="small"
-                        label={formatRole(log.user?.role)}
-                        color={log.user?.role === "ADMIN" ? "primary" : "success"}
-                        variant="outlined"
-                      />
-                    </Stack>
-
-                    {log.user?.email && (
-                      <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
-                        {log.user.email}
-                      </Typography>
-                    )}
-                  </Box>
+              <Grid container spacing={1.25}>
+                <Grid item xs={12} md={isTablet ? 12 : 4}>
+                  <AuditFact
+                    label="Quién lo hizo"
+                    value={log.user?.name ?? "Sistema"}
+                    helper={log.user?.email ? `${formatRole(log.user.role)} · ${log.user.email}` : formatRole(log.user?.role)}
+                  />
                 </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, height: "100%" }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Entidad afectada
-                    </Typography>
-                    <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
-                      {entityLabel} · {log.recordId || "sin registro específico"}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      IP: {log.ipAddress || "No disponible"}
-                    </Typography>
-                  </Box>
+                <Grid item xs={12} md={isTablet ? 12 : 4}>
+                  <AuditFact label="Qué área afectó" value={entityLabel} helper={log.recordId || "Sin ID visible"} />
+                </Grid>
+                <Grid item xs={12} md={isTablet ? 12 : 4}>
+                  <AuditFact label="Desde dónde" value={log.ipAddress || "No disponible"} helper="IP registrada por la API" />
                 </Grid>
               </Grid>
+
+              {!isMobile && (
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                  <Chip size="small" label={`Código de acción: ${log.action}`} color="default" variant="outlined" />
+                  <Chip size="small" label={`Tabla: ${log.tableName}`} color="default" variant="outlined" />
+                </Stack>
+              )}
 
               <Divider />
 
-              <Grid container spacing={1.5}>
-                <Grid item xs={12} md={6}>
-                  <Box
-                    data-testid={`audit-before-${log.id}`}
-                    sx={{
-                      border: 1,
-                      borderColor: "divider",
-                      borderRadius: 2,
-                      p: 1.25,
-                      bgcolor: "background.default"
-                    }}
-                  >
-                    <Typography variant="caption" color="text.secondary">
-                      Antes
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      component="pre"
-                      sx={{ m: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "monospace" }}
-                    >
-                      {beforeSummary}
-                    </Typography>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <Box
-                    data-testid={`audit-after-${log.id}`}
-                    sx={{
-                      border: 1,
-                      borderColor: "divider",
-                      borderRadius: 2,
-                      p: 1.25,
-                      bgcolor: "background.default"
-                    }}
-                  >
-                    <Typography variant="caption" color="text.secondary">
-                      Después
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      component="pre"
-                      sx={{ m: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "monospace" }}
-                    >
-                      {afterSummary}
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
+              <TechnicalDetails log={log} defaultExpanded={variant === "desktop"} />
             </Stack>
           </Stack>
         </CardContent>

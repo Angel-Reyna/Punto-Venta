@@ -28,7 +28,7 @@ export function AuditPage() {
     <>
       <PageHeader
         title="Auditoría"
-        subtitle="Revisa acciones críticas del sistema, usuarios involucrados y evidencia operativa."
+        subtitle="Consulta el historial de cambios con explicaciones simples: qué pasó, quién lo hizo y cuándo ocurrió."
       />
 
       <AuditHero criticalEvents={criticalEvents} latestEvent={latestEvent} visibleCount={visibleRows.length} />
@@ -46,8 +46,8 @@ export function AuditPage() {
         visibleCount={visibleRows.length}
       />
 
-      <Grid container spacing={2} alignItems="flex-start">
-        <Grid item xs={12} lg={4}>
+      <Grid container spacing={{ xs: 1.5, md: 2 }} alignItems="flex-start">
+        <Grid item xs={12} md={5} lg={4}>
           <AuditFiltersPanel
             actionOptions={actionOptions}
             activeFilterLabels={activeFilterLabels}
@@ -60,7 +60,7 @@ export function AuditPage() {
           />
         </Grid>
 
-        <Grid item xs={12} lg={8}>
+        <Grid item xs={12} md={7} lg={8}>
           <AuditResultsSection criticalEvents={criticalEvents} visibleRows={visibleRows} />
         </Grid>
       </Grid>

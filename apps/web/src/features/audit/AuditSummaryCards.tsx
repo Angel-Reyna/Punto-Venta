@@ -83,36 +83,36 @@ export function AuditSummaryCards({
     <Grid container spacing={2} sx={{ mb: 2 }}>
       <Grid item xs={12} sm={6} lg={3}>
         <AuditMetricCard
-          label="Eventos visibles"
+          label="Registros visibles"
           value={visibleCount}
-          helper="Resultados después de filtros operativos"
+          helper="Resultados con los filtros actuales"
           icon={<HistoryIcon fontSize="small" />}
           tone="primary"
         />
       </Grid>
       <Grid item xs={12} sm={6} lg={3}>
         <AuditMetricCard
-          label="Usuarios involucrados"
+          label="Personas involucradas"
           value={uniqueUsers}
-          helper="Incluye acciones de sistema"
+          helper="Incluye cambios automáticos del sistema"
           icon={<PeopleAltIcon fontSize="small" />}
           tone="success"
         />
       </Grid>
       <Grid item xs={12} sm={6} lg={3}>
         <AuditMetricCard
-          label="Eventos críticos"
+          label="Acciones delicadas"
           value={criticalEvents}
-          helper="Acciones destructivas o de acceso"
+          helper="Cambios que conviene revisar primero"
           icon={<WarningAmberIcon fontSize="small" />}
           tone="error"
         />
       </Grid>
       <Grid item xs={12} sm={6} lg={3}>
         <AuditMetricCard
-          label="Último evento"
+          label="Último cambio"
           value={latestEvent}
-          helper="Actividad más reciente"
+          helper="Registro más reciente"
           icon={<AdminPanelSettingsIcon fontSize="small" />}
           tone="warning"
         />

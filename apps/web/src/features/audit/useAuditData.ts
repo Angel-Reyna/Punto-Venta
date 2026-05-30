@@ -4,7 +4,9 @@ import { getApiErrorMessage } from "../../utils/apiError";
 import { fetchAuditLogs } from "./auditApi";
 import {
   filterAuditLogsBySeverity,
+  formatActionLabel,
   formatDate,
+  formatEntityLabel,
   getAuditSeverity,
   initialFilters,
   type AuditFilters,
@@ -12,10 +14,10 @@ import {
 } from "./auditShared";
 
 const SEVERITY_LABELS: Record<Exclude<AuditFilters["severity"], "">, string> = {
-  critical: "Crítica",
-  high: "Alta",
-  medium: "Media",
-  low: "Baja",
+  critical: "Revisar primero",
+  high: "Importante",
+  medium: "Normal",
+  low: "Informativo",
 };
 
 export function useAuditData() {
@@ -75,9 +77,9 @@ export function useAuditData() {
   const latestEvent = visibleRows[0]?.createdAt ? formatDate(visibleRows[0].createdAt) : "Sin actividad";
 
   const activeFilterLabels = [
-    filters.severity ? `Severidad: ${SEVERITY_LABELS[filters.severity]}` : "Severidad: Todas",
-    filters.action ? `Acción: ${filters.action}` : "Acción: Todas",
-    filters.tableName ? `Entidad: ${filters.tableName}` : "Entidad: Todas",
+    filters.severity ? `Importancia: ${SEVERITY_LABELS[filters.severity]}` : "Importancia: Todas",
+    filters.action ? `Qué ocurrió: ${formatActionLabel(filters.action)}` : "Qué ocurrió: Todo",
+    filters.tableName ? `Área: ${formatEntityLabel(filters.tableName)}` : "Área: Todas",
     filters.dateFrom || filters.dateTo
       ? `Periodo: ${filters.dateFrom || "inicio"} → ${filters.dateTo || "hoy"}`
       : "Periodo: últimos registros",
