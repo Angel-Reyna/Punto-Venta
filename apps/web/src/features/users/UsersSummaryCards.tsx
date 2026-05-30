@@ -75,7 +75,11 @@ function SummaryCard({ helper, icon, label, tone, value }: SummaryCardProps) {
       }}
     >
       <CardContent>
-        <Stack direction="row" spacing={1.5} alignItems="flex-start">
+        <Stack
+          direction={{ xs: "row", lg: "column", xl: "row" }}
+          spacing={1.5}
+          alignItems={{ xs: "flex-start", lg: "stretch", xl: "flex-start" }}
+        >
           <Avatar
             variant="rounded"
             sx={(theme) => {
@@ -117,9 +121,9 @@ export function UsersSummaryCards({ userSummary }: { userSummary: UserSummary })
         gridTemplateColumns: {
           xs: "1fr",
           sm: "repeat(2, minmax(0, 1fr))",
-          lg: "repeat(4, minmax(0, 1fr))",
+          xl: "repeat(4, minmax(0, 1fr))",
         },
-        mb: 2,
+        mb: 0,
       }}
     >
       <SummaryCard

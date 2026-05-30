@@ -36,15 +36,15 @@ export function UsersDirectory({
         <CardContent>
           <Stack
             direction={{ xs: "column", sm: "row" }}
-            spacing={1}
+            spacing={1.5}
             alignItems={{ xs: "flex-start", sm: "center" }}
             justifyContent="space-between"
           >
             <Box>
-              <Typography variant="h6">Usuarios registrados</Typography>
+              <Typography variant="h6">Directorio de personas</Typography>
               <Typography variant="body2" color="text.secondary">
-                Desactiva accesos que ya no se usen. Al desactivar un usuario,
-                sus sesiones activas quedan revocadas.
+                Revisa accesos activos, bloqueados y roles antes de cambiar permisos.
+                Al desactivar un usuario, sus sesiones activas quedan revocadas.
               </Typography>
             </Box>
             <Chip
@@ -85,10 +85,10 @@ export function UsersDirectory({
         <Box
           sx={{
             display: "grid",
-            gap: 2,
+            gap: { xs: 1.5, md: 2 },
             gridTemplateColumns: {
               xs: "1fr",
-              lg: "repeat(2, minmax(0, 1fr))",
+              md: "repeat(2, minmax(0, 1fr))",
               xl: "repeat(3, minmax(0, 1fr))",
             },
           }}

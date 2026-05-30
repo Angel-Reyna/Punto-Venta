@@ -94,6 +94,8 @@ export function UserCard({
                   targetUser.role === "ADMIN" ? "primary.main" : "success.main",
                 color: "primary.contrastText",
                 flex: "0 0 auto",
+                height: 48,
+                width: 48,
               }}
             >
               {getInitials(targetUser.name, targetUser.email)}
@@ -155,7 +157,14 @@ export function UserCard({
             />
           </Stack>
 
-          <Box>
+          <Box
+            sx={(theme) => ({
+              bgcolor: alpha(theme.palette.action.hover, 0.55),
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+              p: 1.5,
+            })}
+          >
             <Typography variant="body2" color="text.secondary">
               {getRoleDescription(targetUser.role)}
             </Typography>
@@ -172,48 +181,58 @@ export function UserCard({
 
           <Divider />
 
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            useFlexGap
-            flexWrap="wrap"
-            sx={{
-              "& .MuiButton-root": {
-                justifyContent: "center",
-              },
-            }}
-          >
-            <Button
-              size="small"
-              variant="outlined"
-              data-testid={`user-toggle-${targetUser.id}`}
-              disabled={isSelf || isBusy}
-              onClick={() => onToggleUser(targetUser)}
-            >
-              {togglingUserId === targetUser.id ? "Guardando..." : toggleLabel}
-            </Button>
+          <Stack spacing={1}>
+            <Typography variant="caption" color="text.secondary" fontWeight={700}>
+              Acciones del acceso
+            </Typography>
 
-            <Button
-              size="small"
-              variant="outlined"
-              data-testid={`user-role-${targetUser.id}`}
-              startIcon={<ManageAccountsOutlinedIcon />}
-              disabled={isBusy}
-              onClick={() => onOpenRoleDialog(targetUser)}
+            <Box
+              sx={{
+                display: "grid",
+                gap: 1,
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(3, minmax(0, 1fr))",
+                  md: "1fr",
+                  xl: "repeat(3, minmax(0, 1fr))",
+                },
+              }}
             >
-              Cambiar rol
-            </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                data-testid={`user-toggle-${targetUser.id}`}
+                disabled={isSelf || isBusy}
+                onClick={() => onToggleUser(targetUser)}
+                sx={{ justifyContent: "center" }}
+              >
+                {togglingUserId === targetUser.id ? "Guardando..." : toggleLabel}
+              </Button>
 
-            <Button
-              size="small"
-              variant="outlined"
-              data-testid={`user-reset-password-${targetUser.id}`}
-              startIcon={<KeyOutlinedIcon />}
-              disabled={isBusy}
-              onClick={() => onOpenResetPasswordDialog(targetUser)}
-            >
-              Nueva contraseña
-            </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                data-testid={`user-role-${targetUser.id}`}
+                startIcon={<ManageAccountsOutlinedIcon />}
+                disabled={isBusy}
+                onClick={() => onOpenRoleDialog(targetUser)}
+                sx={{ justifyContent: "center" }}
+              >
+                Cambiar rol
+              </Button>
+
+              <Button
+                size="small"
+                variant="outlined"
+                data-testid={`user-reset-password-${targetUser.id}`}
+                startIcon={<KeyOutlinedIcon />}
+                disabled={isBusy}
+                onClick={() => onOpenResetPasswordDialog(targetUser)}
+                sx={{ justifyContent: "center" }}
+              >
+                Nueva contraseña
+              </Button>
+            </Box>
           </Stack>
         </Stack>
       </CardContent>
