@@ -1,4 +1,6 @@
-import { Alert, Box, Grid, Stack } from "@mui/material";
+import { Alert, Grid, Stack } from "@mui/material";
+
+import { ResponsiveSideLayout } from "../../components/layout";
 
 import { PageHeader } from "../../components/PageHeader";
 import { SellerActivityFiltersPanel } from "./SellerActivityFiltersPanel";
@@ -42,6 +44,37 @@ export function SellerActivityPage() {
 
   const consultActivity = () => void loadActivity();
 
+  const activitySidebar = (
+    <Stack spacing={2}>
+      <SellerActivityFiltersPanel
+        action={action}
+        activeFilterLabels={activeFilterLabels}
+        from={from}
+        invalidFilters={invalidFilters}
+        isAutoRefreshPaused={isAutoRefreshPaused}
+        isLoading={isLoading}
+        limit={limit}
+        onConsult={consultActivity}
+        onRefreshNow={consultActivity}
+        onResetFilters={resetFilters}
+        onToggleAutoRefresh={() => setIsAutoRefreshPaused((current) => !current)}
+        search={search}
+        sellerId={sellerId}
+        sellers={sellers}
+        setAction={setAction}
+        setFrom={setFrom}
+        setLimit={setLimit}
+        setSearch={setSearch}
+        setSellerId={setSellerId}
+        setTo={setTo}
+        to={to}
+        today={today}
+      />
+
+      <SellerActivitySummaryPanel summary={summary} />
+    </Stack>
+  );
+
   return (
     <>
       <PageHeader
@@ -63,49 +96,19 @@ export function SellerActivityPage() {
 
       <SellerActivityMetrics rowsCount={rows.length} summary={activitySummary} />
 
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", lg: "minmax(300px, 380px) minmax(0, 1fr)" },
-          gap: 2,
-          alignItems: "start",
-        }}
+      <ResponsiveSideLayout
+        desktopSidebarPosition="left"
+        mobileSidebarPosition="after"
+        sidebar={activitySidebar}
+        sidebarWidth="minmax(300px, 380px)"
+        stickyTop={16}
       >
-        <Stack spacing={2} sx={{ position: { lg: "sticky" }, top: { lg: 16 }, order: { xs: 2, lg: 1 } }}>
-          <SellerActivityFiltersPanel
-            action={action}
-            activeFilterLabels={activeFilterLabels}
-            from={from}
-            invalidFilters={invalidFilters}
-            isAutoRefreshPaused={isAutoRefreshPaused}
-            isLoading={isLoading}
-            limit={limit}
-            onConsult={consultActivity}
-            onRefreshNow={consultActivity}
-            onResetFilters={resetFilters}
-            onToggleAutoRefresh={() => setIsAutoRefreshPaused((current) => !current)}
-            search={search}
-            sellerId={sellerId}
-            sellers={sellers}
-            setAction={setAction}
-            setFrom={setFrom}
-            setLimit={setLimit}
-            setSearch={setSearch}
-            setSellerId={setSellerId}
-            setTo={setTo}
-            to={to}
-            today={today}
-          />
-
-          <SellerActivitySummaryPanel summary={summary} />
-        </Stack>
-
-        <Grid container spacing={2} sx={{ order: { xs: 1, lg: 2 } }}>
+        <Grid container spacing={2}>
           <Grid item xs={12}>
             <SellerActivityTimeline rows={visibleRows} totalRows={rows.length} />
           </Grid>
         </Grid>
-      </Box>
+      </ResponsiveSideLayout>
     </>
   );
 }
