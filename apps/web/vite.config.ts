@@ -3,6 +3,24 @@ import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+const MUI_CORE_PACKAGES = [
+  "/@emotion/",
+  "/@mui/base/",
+  "/@mui/core-downloads-tracker/",
+  "/@mui/material/",
+  "/@mui/private-theming/",
+  "/@mui/styled-engine/",
+  "/@mui/system/",
+  "/@mui/types/",
+  "/@mui/utils/",
+];
+
+const REACT_PACKAGES = ["/react/", "/react-dom/", "/react-router-dom/", "/scheduler/"];
+
+function includesPackage(normalizedId: string, packages: string[]) {
+  return packages.some((packagePath) => normalizedId.includes(packagePath));
+}
+
 function manualVendorChunk(id: string) {
   if (!id.includes("node_modules")) {
     return undefined;
@@ -10,7 +28,7 @@ function manualVendorChunk(id: string) {
 
   const normalizedId = id.replace(/\\/g, "/");
 
-  if (normalizedId.includes("/@mui/x-data-grid/")) {
+  if (normalizedId.includes("/@mui/x-data-grid/") || normalizedId.includes("/@mui/x-internals/")) {
     return "vendor-mui-datagrid";
   }
 
@@ -18,21 +36,11 @@ function manualVendorChunk(id: string) {
     return "vendor-mui-icons";
   }
 
-  if (
-    normalizedId.includes("/@mui/material/") ||
-    normalizedId.includes("/@mui/system/") ||
-    normalizedId.includes("/@mui/utils/") ||
-    normalizedId.includes("/@emotion/")
-  ) {
+  if (includesPackage(normalizedId, MUI_CORE_PACKAGES)) {
     return "vendor-mui-core";
   }
 
-  if (
-    normalizedId.includes("/react/") ||
-    normalizedId.includes("/react-dom/") ||
-    normalizedId.includes("/react-router-dom/") ||
-    normalizedId.includes("/scheduler/")
-  ) {
+  if (includesPackage(normalizedId, REACT_PACKAGES)) {
     return "vendor-react";
   }
 
@@ -40,7 +48,7 @@ function manualVendorChunk(id: string) {
     return "vendor-http";
   }
 
-  return "vendor";
+  return "vendor-misc";
 }
 
 export default defineConfig({
