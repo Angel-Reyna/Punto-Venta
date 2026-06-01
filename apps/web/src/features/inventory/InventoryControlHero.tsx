@@ -99,9 +99,9 @@ export function InventoryControlHero({
                   Control de inventario
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Primero revisa productos sin stock o bajo mínimo; después consulta
-                  movimientos o registra entradas y salidas manuales cuando exista
-                  una razón operativa.
+                  {canAdjustInventory
+                    ? "Primero revisa productos sin stock o bajo mínimo; después consulta movimientos o registra entradas y salidas manuales cuando exista una razón operativa."
+                    : "Consulta existencias, alertas de stock e historial operativo. Las entradas y salidas manuales las realiza el administrador."}
                 </Typography>
               </Box>
             </Stack>
@@ -154,7 +154,9 @@ export function InventoryControlHero({
             })}
           >
             <Tab value="stock" label="Existencias" />
-            <Tab value="adjustments" label="Entradas y salidas" />
+            {canAdjustInventory && (
+              <Tab value="adjustments" label="Entradas y salidas" />
+            )}
             <Tab value="movements" label="Historial" />
           </Tabs>
         </Stack>

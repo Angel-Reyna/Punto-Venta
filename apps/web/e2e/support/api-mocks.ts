@@ -341,6 +341,10 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
     }
 
     if (pathname === "/products" && method === "POST") {
+      if (role !== "ADMIN") {
+        return json(route, { message: "No autorizado" }, 403);
+      }
+
       const payload = readJsonPayload(request) as Partial<MockProduct> & {
         initialStock?: number;
       };
@@ -359,6 +363,10 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
 
     const productToggleMatch = pathname.match(/^\/products\/([^/]+)\/toggle$/);
     if (productToggleMatch && method === "PATCH") {
+      if (role !== "ADMIN") {
+        return json(route, { message: "No autorizado" }, 403);
+      }
+
       const product = products.find((item) => item.id === productToggleMatch[1]);
 
       if (!product) {
@@ -373,6 +381,10 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
 
     const productUpdateMatch = pathname.match(/^\/products\/([^/]+)$/);
     if (productUpdateMatch && method === "PATCH") {
+      if (role !== "ADMIN") {
+        return json(route, { message: "No autorizado" }, 403);
+      }
+
       const product = products.find((item) => item.id === productUpdateMatch[1]);
 
       if (!product) {
@@ -390,6 +402,10 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
 
     const productDeleteMatch = pathname.match(/^\/products\/([^/]+)$/);
     if (productDeleteMatch && method === "DELETE") {
+      if (role !== "ADMIN") {
+        return json(route, { message: "No autorizado" }, 403);
+      }
+
       const productIndex = products.findIndex((item) => item.id === productDeleteMatch[1]);
 
       if (productIndex < 0) {
@@ -417,6 +433,10 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
     }
 
     if ((pathname.endsWith("/inventory/in") || pathname.endsWith("/inventory/out")) && method === "POST") {
+      if (role !== "ADMIN") {
+        return json(route, { message: "No autorizado" }, 403);
+      }
+
       const type = pathname.endsWith("/inventory/in") ? "IN" : "OUT";
       const payload = readJsonPayload(request) as {
         productId?: string;

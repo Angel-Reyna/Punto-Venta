@@ -106,6 +106,26 @@ describe("critical route permissions", () => {
     ["importar productos", "post", "/api/products/import/excel", undefined],
     ["activar/desactivar producto", "patch", "/api/products/00000000-0000-4000-8000-000000000001/toggle", undefined],
     ["eliminar producto", "delete", "/api/products/00000000-0000-4000-8000-000000000001", undefined],
+    [
+      "registrar entrada de inventario",
+      "post",
+      "/api/inventory/in",
+      {
+        productId: "00000000-0000-4000-8000-000000000003",
+        quantity: 1,
+        reason: "Prueba de permiso"
+      }
+    ],
+    [
+      "registrar salida de inventario",
+      "post",
+      "/api/inventory/out",
+      {
+        productId: "00000000-0000-4000-8000-000000000003",
+        quantity: 1,
+        reason: "Prueba de permiso"
+      }
+    ],
     ["consultar caja actual", "get", "/api/cash-register/current", undefined],
     ["movimiento manual de caja", "post", "/api/cash-register/movements", { type: "IN", amount: 10, reason: "Ajuste manual" }],
     ["cancelar venta", "post", "/api/sales/00000000-0000-4000-8000-000000000002/cancel", { reason: "Prueba de permiso" }],

@@ -162,4 +162,27 @@ test.describe("cobertura funcional por módulos críticos", () => {
       "Coca-Cola 600 ml",
     );
   });
+
+  test("vendedor solo consulta inventario y productos sin acciones administrativas", async ({ page }) => {
+    await mockApi(page, { role: "CASHIER" });
+
+    await page.goto("/products");
+
+    await expect(page.getByRole("heading", { name: "Productos", level: 1 })).toBeVisible();
+    await expect(byTestId(page, "products-create-button")).toHaveCount(0);
+    await expect(byTestId(page, "product-edit-COCA-600")).toHaveCount(0);
+    await expect(byTestId(page, "product-toggle-COCA-600")).toHaveCount(0);
+    await expect(byTestId(page, "product-delete-COCA-600")).toHaveCount(0);
+
+    await page.goto("/inventory");
+
+    await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();
+    await expect(page.getByText("Permiso: solo consulta")).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Existencias" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Historial" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Entradas y salidas" })).toHaveCount(0);
+    await expect(byTestId(page, "inventory-submit-in")).toHaveCount(0);
+    await expect(byTestId(page, "inventory-submit-out")).toHaveCount(0);
+  });
+
 });
