@@ -317,44 +317,48 @@ export function DashboardTabletScreen(props: DashboardScreenProps) {
 
 export function DashboardDesktopScreen(props: DashboardScreenProps) {
   return (
-    <Grid data-testid="dashboard-desktop-screen" container spacing={2.5} alignItems="flex-start">
-      <Grid item xs={12} lg={8.2}>
-        <Stack spacing={2.5}>
-          <DashboardMetricsGrid
-            hasCriticalStock={props.hasCriticalStock}
-            hasLowStock={props.hasLowStock}
-            isAdmin={props.isAdmin}
-            metrics={props.metrics}
-            salesDestination={props.salesDestination}
-          />
+    <Box
+      data-testid="dashboard-desktop-screen"
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) minmax(360px, 430px)",
+        gap: 2.5,
+        alignItems: "start",
+      }}
+    >
+      <Stack spacing={2.5} sx={{ minWidth: 0 }}>
+        <DashboardMetricsGrid
+          hasCriticalStock={props.hasCriticalStock}
+          hasLowStock={props.hasLowStock}
+          isAdmin={props.isAdmin}
+          metrics={props.metrics}
+          salesDestination={props.salesDestination}
+        />
 
-          <Grid container spacing={2.5}>
-            <Grid item xs={12} xl={5}>
-              <InventoryAttentionPanel metrics={props.metrics} />
-            </Grid>
-            <Grid item xs={12} xl={7}>
-              <RecentSalesPanel
-                metrics={props.metrics}
-                isAdmin={props.isAdmin}
-                salesDestination={props.salesDestination}
-              />
-            </Grid>
+        <Grid container spacing={2.5}>
+          <Grid item xs={12} xl={5}>
+            <InventoryAttentionPanel metrics={props.metrics} />
           </Grid>
-        </Stack>
-      </Grid>
+          <Grid item xs={12} xl={7}>
+            <RecentSalesPanel
+              metrics={props.metrics}
+              isAdmin={props.isAdmin}
+              salesDestination={props.salesDestination}
+            />
+          </Grid>
+        </Grid>
+      </Stack>
 
-      <Grid item xs={12} lg={3.8}>
-        <Stack spacing={2.5} sx={{ position: "sticky", top: 96 }}>
-          <DashboardTodayCard {...props} />
-          <OperationalReadingPanel
-            hasCriticalStock={props.hasCriticalStock}
-            hasLowStock={props.hasLowStock}
-            outOfStockTotal={props.metrics?.productSummary.outOfStockTotal}
-            isLoading={props.isLoading}
-            onRefresh={props.onRefresh}
-          />
-        </Stack>
-      </Grid>
-    </Grid>
+      <Stack spacing={2.5} sx={{ minWidth: 0, position: "sticky", top: 96 }}>
+        <DashboardTodayCard {...props} />
+        <OperationalReadingPanel
+          hasCriticalStock={props.hasCriticalStock}
+          hasLowStock={props.hasLowStock}
+          outOfStockTotal={props.metrics?.productSummary.outOfStockTotal}
+          isLoading={props.isLoading}
+          onRefresh={props.onRefresh}
+        />
+      </Stack>
+    </Box>
   );
 }
