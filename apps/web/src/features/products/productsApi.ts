@@ -26,6 +26,11 @@ export type ProductDeleteResult = {
   message?: string;
 };
 
+export type ProductDeleteAllResult = {
+  deletedProducts: number;
+  message?: string;
+};
+
 export async function listProducts(query: string) {
   return getJson<Product[]>("/products", {
     params: {
@@ -65,4 +70,8 @@ export async function toggleProduct(productId: string) {
 
 export async function deleteProduct(productId: string) {
   return deleteJson<ProductDeleteResult>(`/products/${productId}`);
+}
+
+export async function deleteAllProducts() {
+  return deleteJson<ProductDeleteAllResult>("/products");
 }

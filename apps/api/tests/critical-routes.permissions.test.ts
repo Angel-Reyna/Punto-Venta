@@ -106,6 +106,7 @@ describe("critical route permissions", () => {
     ["importar productos", "post", "/api/products/import/excel", undefined],
     ["activar/desactivar producto", "patch", "/api/products/00000000-0000-4000-8000-000000000001/toggle", undefined],
     ["eliminar producto", "delete", "/api/products/00000000-0000-4000-8000-000000000001", undefined],
+    ["eliminar todos los productos", "delete", "/api/products", undefined],
     [
       "registrar entrada de inventario",
       "post",

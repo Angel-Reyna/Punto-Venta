@@ -1,8 +1,10 @@
 const txMock = {
   product: {
+    count: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
-    delete: jest.fn()
+    delete: jest.fn(),
+    deleteMany: jest.fn()
   },
   saleItem: {
     count: jest.fn()
@@ -31,7 +33,7 @@ jest.mock("../src/modules/inventory/inventory.service", () => ({
   increaseStock: jest.fn()
 }));
 
-import { deleteProductSafely } from "../src/modules/products/products.service";
+import { deleteAllProductsSafely, deleteProductSafely } from "../src/modules/products/products.service";
 
 describe("deleteProductSafely", () => {
   beforeEach(() => {
@@ -39,6 +41,7 @@ describe("deleteProductSafely", () => {
     prismaMock.$transaction.mockImplementation(async (callback: (tx: typeof txMock) => unknown) =>
       callback(txMock)
     );
+    txMock.product.count.mockResolvedValue(2);
     txMock.product.findUnique.mockResolvedValue({
       id: "product-1",
       sku: "SKU-1",
@@ -49,6 +52,7 @@ describe("deleteProductSafely", () => {
     txMock.saleReturnItem.count.mockResolvedValue(0);
     txMock.inventoryMovement.count.mockResolvedValue(0);
     txMock.inventoryBalance.deleteMany.mockResolvedValue({ count: 1 });
+    txMock.product.deleteMany.mockResolvedValue({ count: 2 });
     txMock.product.delete.mockResolvedValue({
       id: "product-1",
       sku: "SKU-1",
@@ -104,6 +108,28 @@ describe("deleteProductSafely", () => {
       }
     });
     expect(txMock.product.update).not.toHaveBeenCalled();
+  });
+
+  it("physically deletes every product and preserves operational snapshots", async () => {
+    txMock.saleItem.count.mockResolvedValue(4);
+    txMock.saleReturnItem.count.mockResolvedValue(2);
+    txMock.inventoryMovement.count.mockResolvedValue(6);
+    txMock.inventoryBalance.deleteMany.mockResolvedValue({ count: 3 });
+
+    const result = await deleteAllProductsSafely();
+
+    expect(result).toEqual({
+      mode: "deleted_all",
+      deletedProducts: 2,
+      deletedInventoryBalances: 3,
+      preservedReferences: {
+        saleItems: 4,
+        saleReturnItems: 2,
+        inventoryMovements: 6
+      }
+    });
+    expect(txMock.inventoryBalance.deleteMany).toHaveBeenCalledWith({});
+    expect(txMock.product.deleteMany).toHaveBeenCalledWith({});
   });
 
   it("throws a 404 when product does not exist", async () => {

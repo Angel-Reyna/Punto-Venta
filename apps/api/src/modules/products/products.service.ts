@@ -29,6 +29,17 @@ export type CreateProductInput = {
   initialStock: number;
 };
 
+export type DeleteAllProductsResult = {
+  mode: "deleted_all";
+  deletedProducts: number;
+  deletedInventoryBalances: number;
+  preservedReferences: {
+    saleItems: number;
+    saleReturnItems: number;
+    inventoryMovements: number;
+  };
+};
+
 export type DeleteProductResult = {
   mode: "deleted";
   product: {
@@ -171,6 +182,39 @@ export async function deleteProductSafely(
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       maxWait: 5_000,
       timeout: 15_000
+    }
+  );
+}
+
+export async function deleteAllProductsSafely(): Promise<DeleteAllProductsResult> {
+  return prisma.$transaction(
+    async (tx) => {
+      const [deletedProducts, saleItems, saleReturnItems, inventoryMovements] =
+        await Promise.all([
+          tx.product.count(),
+          tx.saleItem.count({ where: { productId: { not: null } } }),
+          tx.saleReturnItem.count({ where: { productId: { not: null } } }),
+          tx.inventoryMovement.count({ where: { productId: { not: null } } })
+        ]);
+
+      const deletedInventoryBalances = await tx.inventoryBalance.deleteMany({});
+      await tx.product.deleteMany({});
+
+      return {
+        mode: "deleted_all",
+        deletedProducts,
+        deletedInventoryBalances: deletedInventoryBalances.count,
+        preservedReferences: {
+          saleItems,
+          saleReturnItems,
+          inventoryMovements
+        }
+      };
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5_000,
+      timeout: 30_000
     }
   );
 }

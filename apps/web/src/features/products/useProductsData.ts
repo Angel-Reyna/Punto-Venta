@@ -8,6 +8,7 @@ import {
   CreateProductInput,
   UpdateProductInput,
   createProduct as createProductRequest,
+  deleteAllProducts as deleteAllProductsRequest,
   deleteProduct as deleteProductRequest,
   downloadProductTemplate,
   importProductsExcel,
@@ -37,6 +38,7 @@ export function useProductsData({ canCreateProduct }: UseProductsDataOptions) {
   const [deletingProductId, setDeletingProductId] = useState<string | null>(
     null,
   );
+  const [isDeletingAllProducts, setIsDeletingAllProducts] = useState(false);
   const [productPendingDelete, setProductPendingDelete] =
     useState<Product | null>(null);
 
@@ -216,15 +218,49 @@ export function useProductsData({ canCreateProduct }: UseProductsDataOptions) {
     }
   }, [deletingProductId, load, productPendingDelete]);
 
+  const deleteAllProducts = useCallback(async () => {
+    if (isDeletingAllProducts) return false;
+
+    setMessage("");
+    setError("");
+    setIsDeletingAllProducts(true);
+
+    try {
+      const response = await deleteAllProductsRequest();
+
+      setMessage(
+        response.message ??
+          `Se eliminaron ${response.deletedProducts} productos del catálogo.`,
+      );
+      await load("");
+      setSearchQuery("");
+
+      return true;
+    } catch (err: unknown) {
+      setError(
+        getApiErrorMessage(
+          err,
+          "No se pudieron eliminar todos los productos.",
+        ),
+      );
+
+      return false;
+    } finally {
+      setIsDeletingAllProducts(false);
+    }
+  }, [isDeletingAllProducts, load]);
+
   return {
     categories,
     createProduct,
+    deleteAllProducts,
     deletingProductId,
     deleteSelectedProduct,
     downloadTemplate,
     error,
     importExcel,
     isCreatingProduct,
+    isDeletingAllProducts,
     isDownloadingTemplate,
     isImportingExcel,
     load,

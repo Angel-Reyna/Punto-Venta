@@ -361,6 +361,22 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
       return json(route, createdProduct, 201);
     }
 
+    if (pathname === "/products" && method === "DELETE") {
+      if (role !== "ADMIN") {
+        return json(route, { message: "No autorizado" }, 403);
+      }
+
+      const deletedProducts = products.length;
+
+      products.splice(0, products.length);
+
+      return json(route, {
+        deletedProducts,
+        message: `Se eliminaron ${deletedProducts} productos del catálogo.`,
+        mode: "deleted_all",
+      });
+    }
+
     const productToggleMatch = pathname.match(/^\/products\/([^/]+)\/toggle$/);
     if (productToggleMatch && method === "PATCH") {
       if (role !== "ADMIN") {

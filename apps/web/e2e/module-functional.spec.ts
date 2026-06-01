@@ -119,6 +119,27 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(page.getByText("Busca o selecciona un producto para iniciar la venta.")).toBeVisible();
   });
 
+  test("productos permite eliminar todo el catálogo con confirmación explícita", async ({ page }) => {
+    await mockApi(page, { role: "ADMIN" });
+
+    await page.goto("/products");
+
+    await expect(page.getByRole("heading", { name: "Productos", level: 1 })).toBeVisible();
+    await expect(page.getByText("Coca-Cola 600 ml")).toBeVisible();
+
+    await clickByTestId(page, "products-delete-all-button");
+
+    const deleteAllDialog = dialogByName(page, "Eliminar todos los productos");
+    await expect(deleteAllDialog).toBeVisible();
+    await expect(byTestId(deleteAllDialog, "products-delete-all-confirm-button")).toBeDisabled();
+
+    await fillByTestId(deleteAllDialog, "products-delete-all-confirm-text", "ELIMINAR");
+    await clickByTestId(deleteAllDialog, "products-delete-all-confirm-button");
+
+    await expect(page.getByText(/Se eliminaron \d+ productos del catálogo\./)).toBeVisible();
+    await expect(byTestId(page, "product-row-COCA-600")).toHaveCount(0);
+  });
+
   test("inventario registra entrada, salida e historial operativo", async ({ page }) => {
     await mockApi(page, { role: "ADMIN" });
 
@@ -173,6 +194,7 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(byTestId(page, "product-edit-COCA-600")).toHaveCount(0);
     await expect(byTestId(page, "product-toggle-COCA-600")).toHaveCount(0);
     await expect(byTestId(page, "product-delete-COCA-600")).toHaveCount(0);
+    await expect(byTestId(page, "products-delete-all-button")).toHaveCount(0);
 
     await page.goto("/inventory");
 

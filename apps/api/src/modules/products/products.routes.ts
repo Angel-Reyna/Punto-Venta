@@ -18,6 +18,7 @@ import { PERMISSIONS } from "../auth/permissions";
 
 import {
   createProduct,
+  deleteAllProductsSafely,
   deleteProductSafely,
   importProducts,
   productTemplateBuffer
@@ -182,6 +183,30 @@ productsRouter.patch(
     });
 
     res.json(product);
+  })
+);
+
+productsRouter.delete(
+  "/",
+  requirePermission(PERMISSIONS.ProductsDelete),
+  asyncHandler(async (req, res) => {
+    const result = await deleteAllProductsSafely();
+
+    await auditLog({
+      userId: req.user?.id,
+      action: "DELETE_ALL_PRODUCTS",
+      tableName: "Product",
+      recordId: "ALL_PRODUCTS",
+      newData: result,
+      ipAddress: req.ip
+    });
+
+    res.json({
+      ...result,
+      message: `Se eliminaron ${result.deletedProducts} producto${
+        result.deletedProducts === 1 ? "" : "s"
+      } del catálogo. El historial operativo conserva nombres y SKU como evidencia.`
+    });
   })
 );
 

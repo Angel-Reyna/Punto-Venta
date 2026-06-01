@@ -2,18 +2,21 @@ import { FormEvent, useMemo, useState } from "react";
 
 import {
   Box,
+  Alert,
   Button,
   Card,
   CardContent,
   Chip,
   Grid,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
 import AddIcon from "@mui/icons-material/Add";
 import CategoryIcon from "@mui/icons-material/Category";
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import StorefrontIcon from "@mui/icons-material/Storefront";
@@ -72,18 +75,22 @@ export function ProductsPage() {
     canDeleteProducts;
 
   const [open, setOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleteConfirmation, setBulkDeleteConfirmation] = useState("");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductFormValues>(initialForm);
 
   const {
     categories,
     createProduct,
+    deleteAllProducts,
     deletingProductId,
     deleteSelectedProduct,
     downloadTemplate,
     error,
     importExcel,
     isCreatingProduct,
+    isDeletingAllProducts,
     isDownloadingTemplate,
     isImportingExcel,
     message,
@@ -99,6 +106,24 @@ export function ProductsPage() {
     updatingProductId,
     updateProduct,
   } = useProductsData({ canCreateProduct: canCreateProduct || canUpdateProducts });
+
+  function closeBulkDeleteDialog() {
+    if (isDeletingAllProducts) return;
+
+    setBulkDeleteOpen(false);
+    setBulkDeleteConfirmation("");
+  }
+
+  async function confirmDeleteAllProducts() {
+    if (bulkDeleteConfirmation !== "ELIMINAR") return;
+
+    const productsWereDeleted = await deleteAllProducts();
+
+    if (!productsWereDeleted) return;
+
+    setBulkDeleteOpen(false);
+    setBulkDeleteConfirmation("");
+  }
 
   function closeProductForm() {
     if (isCreatingProduct || updatingProductId) return;
@@ -257,16 +282,35 @@ export function ProductsPage() {
                 </Box>
               </Stack>
 
-              {canCreateProduct && (
-                <Button
-                  size="large"
-                  startIcon={<AddIcon />}
-                  onClick={openCreateProductForm}
-                  data-testid="products-create-button"
+              {(canCreateProduct || canDeleteProducts) && (
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
                   sx={{ alignSelf: { xs: "stretch", md: "flex-start" } }}
                 >
-                  Nuevo producto
-                </Button>
+                  {canCreateProduct && (
+                    <Button
+                      size="large"
+                      startIcon={<AddIcon />}
+                      onClick={openCreateProductForm}
+                      data-testid="products-create-button"
+                    >
+                      Nuevo producto
+                    </Button>
+                  )}
+                  {canDeleteProducts && (
+                    <Button
+                      color="error"
+                      size="large"
+                      startIcon={<DeleteSweepIcon />}
+                      variant="outlined"
+                      onClick={() => setBulkDeleteOpen(true)}
+                      data-testid="products-delete-all-button"
+                    >
+                      Eliminar todo
+                    </Button>
+                  )}
+                </Stack>
               )}
             </Stack>
 
@@ -356,6 +400,64 @@ export function ProductsPage() {
         onEditProduct={openEditProductForm}
         onDeleteProduct={setProductPendingDelete}
       />
+
+      {canDeleteProducts && (
+        <ResponsiveDialog
+          open={bulkDeleteOpen}
+          onClose={closeBulkDeleteDialog}
+          disableClose={isDeletingAllProducts}
+          maxWidth="sm"
+          title="Eliminar todos los productos"
+          description="Esta acción elimina todo el catálogo actual. Las ventas, devoluciones y movimientos anteriores conservarán nombre y SKU como evidencia histórica."
+          actions={
+            <>
+              <Button
+                variant="outlined"
+                onClick={closeBulkDeleteDialog}
+                disabled={isDeletingAllProducts}
+              >
+                Cancelar
+              </Button>
+              <Button
+                color="error"
+                onClick={confirmDeleteAllProducts}
+                disabled={
+                  isDeletingAllProducts || bulkDeleteConfirmation !== "ELIMINAR"
+                }
+                data-testid="products-delete-all-confirm-button"
+              >
+                {isDeletingAllProducts ? "Eliminando..." : "Eliminar todo"}
+              </Button>
+            </>
+          }
+        >
+          <Stack spacing={2}>
+            <Alert severity="warning">
+              Se eliminarán todos los productos del catálogo, no solo los visibles
+              con el filtro actual. Esta acción no debe usarse para ocultar
+              productos temporalmente; para eso usa desactivar.
+            </Alert>
+            <Box>
+              <Typography fontWeight={900}>
+                Escribe ELIMINAR para confirmar.
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                El historial operativo se conserva mediante snapshots de nombre y
+                SKU en ventas, devoluciones y movimientos de inventario.
+              </Typography>
+            </Box>
+            <TextField
+              autoComplete="off"
+              label="Confirmación"
+              value={bulkDeleteConfirmation}
+              onChange={(event) => setBulkDeleteConfirmation(event.target.value)}
+              placeholder="ELIMINAR"
+              fullWidth
+              inputProps={{ "data-testid": "products-delete-all-confirm-text" }}
+            />
+          </Stack>
+        </ResponsiveDialog>
+      )}
 
       {canDeleteProducts && (
         <ResponsiveDialog
