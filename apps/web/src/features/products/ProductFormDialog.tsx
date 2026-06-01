@@ -114,7 +114,13 @@ export function ProductFormDialog({
         </>
       }
     >
-      <Box id="product-create-form" component="form" noValidate onSubmit={onSubmit}>
+      <Box
+        id="product-create-form"
+        component="form"
+        noValidate
+        onSubmit={onSubmit}
+        sx={{ pt: { xs: 0.75, sm: 1 } }}
+      >
         <Grid container spacing={2}>
           <Grid item xs={12} md={8}>
             <TextField
