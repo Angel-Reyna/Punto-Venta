@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 
 import { Box, Card, CardContent, Stack, Typography } from "@mui/material";
-import { alpha } from "@mui/material/styles";
+import { alpha, type Theme } from "@mui/material/styles";
 
-export type VisualMetricTone = "primary" | "success" | "warning" | "info" | "error";
+export type VisualMetricTone = "primary" | "success" | "warning" | "info" | "error" | "neutral";
 
 export type VisualMetricCardProps = {
   helper: string;
@@ -12,6 +12,14 @@ export type VisualMetricCardProps = {
   value: number | string;
   tone?: VisualMetricTone;
 };
+
+function getVisualMetricToneColor(theme: Theme, tone: VisualMetricTone) {
+  if (tone === "neutral") {
+    return theme.palette.text.secondary;
+  }
+
+  return theme.palette[tone].main;
+}
 
 export function VisualMetricCard({
   helper,
@@ -24,7 +32,7 @@ export function VisualMetricCard({
     <Card
       variant="outlined"
       sx={(theme) => {
-        const toneColor = theme.palette[tone].main;
+        const toneColor = getVisualMetricToneColor(theme, tone);
         const isDark = theme.palette.mode === "dark";
 
         return {
@@ -43,22 +51,26 @@ export function VisualMetricCard({
       <CardContent>
         <Stack direction="row" spacing={1.5} alignItems="flex-start">
           <Box
-            sx={(theme) => ({
-              display: "grid",
-              placeItems: "center",
-              width: 42,
-              height: 42,
-              borderRadius: 2,
-              color: theme.palette[tone].main,
-              bgcolor: alpha(theme.palette[tone].main, theme.palette.mode === "dark" ? 0.14 : 0.11),
-              flexShrink: 0,
-            })}
+            sx={(theme) => {
+              const toneColor = getVisualMetricToneColor(theme, tone);
+
+              return {
+                display: "grid",
+                placeItems: "center",
+                width: 42,
+                height: 42,
+                borderRadius: 2,
+                color: toneColor,
+                bgcolor: alpha(toneColor, theme.palette.mode === "dark" ? 0.14 : 0.11),
+                flexShrink: 0,
+              };
+            }}
           >
             {icon}
           </Box>
 
           <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-            <Typography variant="h5" fontWeight={900} lineHeight={1.1}>
+            <Typography variant="h5" fontWeight={900} lineHeight={1.1} sx={{ overflowWrap: "anywhere" }}>
               {value}
             </Typography>
             <Typography variant="body2" fontWeight={800}>
