@@ -48,7 +48,7 @@ export function SalesTicketPanel({
             borderRadius: 2,
           }}
         >
-          Escanea o busca un producto para iniciar la venta.
+          Busca o selecciona un producto para iniciar la venta.
         </Box>
       ) : (
         <Box data-testid="sales-cart-items" sx={{ display: "grid", gap: 1 }}>

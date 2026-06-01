@@ -52,7 +52,7 @@ test.describe("cobertura funcional por módulos críticos", () => {
 
     await expect(emptyTicket).toBeVisible();
     await expect(
-      page.getByText("Enter solo agrega coincidencias exactas de SKU o código."),
+      page.getByText("Enter solo agrega coincidencias exactas de SKU."),
     ).toBeVisible();
 
     await fillByTestId(page, "sales-product-search", "COCA-600");
@@ -116,7 +116,7 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await fillByTestId(page, "sales-product-search", "AGUA-1L");
 
     await expect(page.getByRole("button", { name: /Agua Mineral 1L/i })).toHaveCount(0);
-    await expect(page.getByText("Escanea o busca un producto para iniciar la venta.")).toBeVisible();
+    await expect(page.getByText("Busca o selecciona un producto para iniciar la venta.")).toBeVisible();
   });
 
   test("inventario registra entrada, salida e historial operativo", async ({ page }) => {

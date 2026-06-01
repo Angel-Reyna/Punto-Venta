@@ -109,7 +109,7 @@ test.describe("flujo integrado real de venta", () => {
     await expect(page.getByRole("heading", { name: "Ventas", level: 1 })).toBeVisible();
     await expect(page.getByText("Vista vendedor: solo tus ventas")).toBeVisible();
 
-    await page.getByLabel("F3 · Buscar por código, SKU o nombre").fill(PRODUCT_SKU);
+    await page.getByLabel("F3 · Buscar por SKU o nombre").fill(PRODUCT_SKU);
     await page.getByRole("button", { name: /Producto integrado E2E/i }).click();
 
     await expect(page.getByText("Orden de venta")).toBeVisible();
@@ -127,7 +127,7 @@ test.describe("flujo integrado real de venta", () => {
 
     const saleFolio = await readCreatedSaleFolio(page);
 
-    await expect(page.getByText("Escanea o busca un producto para iniciar la venta.")).toBeVisible();
+    await expect(page.getByText("Busca o selecciona un producto para iniciar la venta.")).toBeVisible();
 
     await page.goto("/inventory");
     await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();

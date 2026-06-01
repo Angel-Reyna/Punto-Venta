@@ -37,7 +37,7 @@ export function SalesProductSearchPanel({
           Paso 1 · Elegir productos
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          En celular trabaja como una lista táctil; en PC puedes usar escáner, F3 y Enter con SKU exacto.
+          En celular trabaja como una lista táctil; en PC usa F3, escribe SKU o nombre y selecciona el producto correcto.
         </Typography>
       </Box>
 
@@ -53,14 +53,14 @@ export function SalesProductSearchPanel({
       >
         <TextField
           inputRef={searchInputRef}
-          label="F3 · Buscar por código, SKU o nombre"
+          label="F3 · Buscar por SKU o nombre"
           value={productSearch}
           autoFocus
-          placeholder="Escanea código de barras o escribe para buscar"
+          placeholder="Escribe SKU o nombre para buscar"
           inputProps={{
             "data-testid": "sales-product-search",
           }}
-          helperText="Enter agrega solo SKU o código exacto; en táctil selecciona una tarjeta."
+          helperText="Enter agrega solo SKU exacto; en táctil selecciona una tarjeta."
           onKeyDown={onProductSearchKeyDown}
           onChange={(event) => onProductSearchChange(event.target.value)}
           disabled={isDisabled}
@@ -77,7 +77,7 @@ export function SalesProductSearchPanel({
           title={
             canAddExactSearchMatch
               ? "Agregar coincidencia exacta"
-              : "Busca por SKU o código exacto para agregar con Enter."
+              : "Busca por SKU exacto para agregar con Enter."
           }
           sx={{ minHeight: { xs: 52, md: "auto" } }}
         >

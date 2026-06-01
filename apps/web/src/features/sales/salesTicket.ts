@@ -8,7 +8,7 @@ export const SALES_TICKET_MESSAGES = {
   productUnavailable: "Producto sin stock disponible para vender.",
   maxStockReached: "La cantidad no puede superar el stock disponible.",
   exactMatchRequired:
-    "Enter solo agrega coincidencias exactas de SKU o código. Para búsquedas parciales, selecciona el producto de la lista."
+    "Enter solo agrega coincidencias exactas de SKU. Para búsquedas parciales, selecciona el producto de la lista."
 } as const;
 
 export type AddProductToSalesTicketResult = {

@@ -11,7 +11,7 @@ test.describe("flujo crítico de ventas", () => {
     await expect(page.getByRole("heading", { name: "Ventas", level: 1 })).toBeVisible();
     await expect(page.getByText("Vista vendedor: solo tus ventas")).toBeVisible();
 
-    await page.getByLabel("F3 · Buscar por código, SKU o nombre").fill("COCA-600");
+    await page.getByLabel("F3 · Buscar por SKU o nombre").fill("COCA-600");
     await page.getByRole("button", { name: /Coca-Cola 600 ml/i }).click();
 
     await expect(page.getByText("Orden de venta")).toBeVisible();
@@ -27,6 +27,6 @@ test.describe("flujo crítico de ventas", () => {
     await expect(page.getByText("Venta registrada correctamente.")).toBeVisible();
     await expect(page.getByText("PV-E2E-0002")).toBeVisible();
     await expect(page.getByText("Cliente E2E")).toBeVisible();
-    await expect(page.getByText("Escanea o busca un producto para iniciar la venta.")).toBeVisible();
+    await expect(page.getByText("Busca o selecciona un producto para iniciar la venta.")).toBeVisible();
   });
 });
