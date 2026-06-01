@@ -92,16 +92,16 @@ Si aparecen chunks grandes como `DataGridCard` o `index`, revisar primero:
 - DataGrid usado en vistas simples donde una tabla/tarjeta ligera sea suficiente;
 - imports de iconos agregados desde barrels amplios.
 
-## 6. Code splitting aplicado en Patch 68
+## 6. Code splitting aplicado en Patch 68 y estabilizado en la ronda visual
 
-La app ya usa `React.lazy` por página en `apps/web/src/App.tsx`. Por eso Patch 68 no debe duplicar lazy loading de rutas. La optimización segura aplicada está en `apps/web/vite.config.ts` mediante `manualChunks` de Rollup/Vite para separar dependencias pesadas de terceros:
+La app ya usa `React.lazy` por página en `apps/web/src/App.tsx`. Por eso no se debe duplicar lazy loading de rutas. La optimización segura aplicada está en `apps/web/vite.config.ts` mediante `manualChunks` de Rollup/Vite para separar dependencias pesadas de terceros. Durante la ronda visual se ajustó esta separación para evitar el warning circular `vendor -> vendor-mui-core -> vendor`:
 
 - `vendor-react`: React, React DOM, React Router y Scheduler.
 - `vendor-mui-core`: Material UI, MUI System, MUI Utils y Emotion.
 - `vendor-mui-datagrid`: MUI X DataGrid.
 - `vendor-mui-icons`: iconos MUI.
 - `vendor-http`: Axios.
-- `vendor`: resto de dependencias de `node_modules`.
+- `vendor-misc`: resto de dependencias de `node_modules`.
 
 Objetivo:
 
@@ -126,3 +126,14 @@ Si el cambio toca rutas protegidas o auth:
 ```bash
 npm run web:e2e:integration
 ```
+
+## 7. Estado esperado después de la ronda visual responsive
+
+Después de estabilizar los chunks, el build web debe cumplir:
+
+- no mostrar el warning circular `vendor -> vendor-mui-core -> vendor`;
+- mantener chunks separados para MUI core, MUI DataGrid, MUI icons, React, HTTP y dependencias misceláneas;
+- permitir `WARN` de JS total mientras siga debajo del umbral `FAIL`;
+- no agregar más UI pesada sin revisar primero el reporte de bundle.
+
+Cuando el JS total quede en `WARN`, la acción correcta no es seguir partiendo vendors a ciegas. Primero revisar duplicación visual, imports de iconos, páginas con componentes grandes y dependencia real de DataGrid.

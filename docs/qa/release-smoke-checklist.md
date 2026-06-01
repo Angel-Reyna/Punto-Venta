@@ -1,6 +1,6 @@
 # Checklist de release smoke — Punta Venta
 
-Este checklist valida que Punta Venta está lista para una entrega local o despliegue interno después de una ronda de patches visuales, QA o seguridad. No reemplaza la suite automatizada; complementa lo que Playwright no puede evaluar bien: claridad visual, accesibilidad básica, descarga real de archivos y experiencia responsive.
+Este checklist valida que Punta Venta está lista para una entrega local o despliegue interno después de una ronda de patches visuales, QA o seguridad. No reemplaza la suite automatizada; complementa lo que Playwright no puede evaluar bien: claridad visual, accesibilidad básica, descarga real de archivos y experiencia responsive. Para el cierre específico de la ronda visual responsive, usar además `docs/qa/visual-release-checklist.md`.
 
 ## Alcance
 
@@ -26,7 +26,7 @@ Criterios:
 
 - `git status --short` queda limpio antes de iniciar la revisión manual.
 - `qa:full` pasa completo: guardrails, Prisma, API build, API tests críticos, Vitest, build web, bundle audit, E2E mockeado, E2E integrado, Docker config y Docker build.
-- El warning de chunk circular de Vite puede aceptarse mientras `node scripts/web/audit-bundle.js --strict` siga dentro de umbrales.
+- `node scripts/web/audit-bundle.js --strict` queda dentro de umbrales de fallo. El warning circular `vendor -> vendor-mui-core -> vendor` no debe reaparecer; quedó corregido mediante la estabilización de chunks del build web.
 
 ## Smoke ADMIN
 

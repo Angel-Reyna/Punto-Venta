@@ -62,6 +62,23 @@ Estado esperado al cerrar Patch 140:
 - `git status --short --untracked-files=all` limpio salvo archivos deliberadamente no versionados antes de `npm run clean:generated`.
 - Snapshot de continuidad generado con `bash scripts/project/create-continuity-snapshot.sh --with-qa`.
 
+Ronda visual responsive posterior:
+
+- Rediseño responsive por módulos: Auditoría, Inicio, Productos, Inventario, Ventas, Reportes, Usuarios, Actividad de vendedores, Caja y Login.
+- Fixes de sidebars estrechos en formularios/filtros.
+- Selectores E2E integrados estabilizados con `data-testid` y locators scoped.
+- Chunks de Vite estabilizados para remover el warning circular entre `vendor` y `vendor-mui-core`.
+- Layout lateral y grids de métricas visuales consolidados con componentes compartidos.
+- Cierre documentado en `docs/qa/visual-release-checklist.md`.
+
+Criterio esperado al cerrar la ronda visual:
+
+- `web:e2e` 18/18.
+- `web:e2e:integration` 2/2.
+- `docker:build` verde.
+- Bundle audit sin `FAIL`; `WARN` de JS total aceptable temporalmente si queda debajo del umbral de fallo.
+- Sin warning circular de chunks en `npm run web:build`.
+
 ## 4. Validación final recomendada antes de migrar
 
 Desde la raíz:
