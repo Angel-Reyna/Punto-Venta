@@ -131,16 +131,54 @@ export function SalesProductSearchPanel({
                 },
               })}
             >
-              <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
-                <Typography fontWeight={900} noWrap>
+              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                <Typography
+                  fontWeight={900}
+                  sx={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    minWidth: 0,
+                  }}
+                >
                   {product.name}
                 </Typography>
-                <Chip size="small" variant="outlined" label={`Stock ${product.stock}`} />
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    minWidth: 0,
+                  }}
+                >
+                  {product.sku}
+                </Typography>
               </Stack>
-              <Typography variant="caption" color="text.secondary" noWrap>
-                {product.sku}
-              </Typography>
-              <Typography fontWeight={900}>{formatMoney(finalPrice)}</Typography>
+
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ minWidth: 0 }}
+              >
+                <Typography fontWeight={900}>{formatMoney(finalPrice)}</Typography>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={`Stock ${product.stock}`}
+                  sx={{
+                    maxWidth: "100%",
+                    flexShrink: 0,
+                    ".MuiChip-label": {
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    },
+                  }}
+                />
+              </Stack>
             </Button>
           );
         })}
