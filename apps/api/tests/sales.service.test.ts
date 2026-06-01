@@ -501,16 +501,16 @@ describe("sales.service", () => {
             {
               id: "return-1",
               saleId: "sale-1",
-              cashierId: "admin-1",
+              cashierId: "cashier-1",
               reason: "Cliente pidió cancelación",
               refundMethod: "CARD",
               refundTotal: 120,
               createdAt: new Date("2026-05-18T01:00:00.000Z"),
               updatedAt: new Date("2026-05-18T01:00:00.000Z"),
               cashier: {
-                id: "admin-1",
-                name: "Admin",
-                email: "admin@pos.local"
+                id: "cashier-1",
+                name: "Vendedor",
+                email: "cashier@pos.local"
               },
               items: [
                 {
@@ -557,6 +557,7 @@ describe("sales.service", () => {
     expect(tx.saleReturn.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          cashierId: "cashier-1",
           items: {
             create: [
               expect.objectContaining({
@@ -601,7 +602,7 @@ describe("sales.service", () => {
           items: [deletedSaleItem],
           payments: [
             {
-              method: "CARD",
+              method: "CASH",
               amount: 120
             }
           ],
@@ -630,7 +631,7 @@ describe("sales.service", () => {
             {
               id: "payment-1",
               saleId: "sale-1",
-              method: "CARD",
+              method: "CASH",
               amount: 120,
               createdAt: new Date("2026-05-18T00:00:00.000Z")
             }
@@ -639,16 +640,16 @@ describe("sales.service", () => {
             {
               id: "return-1",
               saleId: "sale-1",
-              cashierId: "admin-1",
+              cashierId: "cashier-1",
               reason: "Cliente devolvió una pieza",
-              refundMethod: "CARD",
+              refundMethod: "CASH",
               refundTotal: 60,
               createdAt: new Date("2026-05-18T01:00:00.000Z"),
               updatedAt: new Date("2026-05-18T01:00:00.000Z"),
               cashier: {
-                id: "admin-1",
-                name: "Admin",
-                email: "admin@pos.local"
+                id: "cashier-1",
+                name: "Vendedor",
+                email: "cashier@pos.local"
               },
               items: [
                 {
@@ -701,6 +702,8 @@ describe("sales.service", () => {
     expect(tx.saleReturn.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          cashierId: "cashier-1",
+          refundMethod: "CASH",
           refundTotal: 60,
           items: {
             create: [
@@ -714,6 +717,14 @@ describe("sales.service", () => {
             ]
           }
         })
+      })
+    );
+    expect(cashRegisterServiceMock.tryRecordReturnCashMovement).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        cashierId: "cashier-1",
+        saleReturnId: "return-1",
+        amount: 60
       })
     );
     expect(sale.returns[0].items[0].product).toEqual({

@@ -602,7 +602,7 @@ export async function cancelSale(
       const saleReturn = await tx.saleReturn.create({
         data: {
           saleId: sale.id,
-          cashierId: user.id,
+          cashierId: sale.cashierId,
           reason: input.reason,
           refundMethod,
           refundTotal: Number(sale.total),
@@ -626,7 +626,7 @@ export async function cancelSale(
 
       if (hasCashRefund(refundMethod)) {
         await tryRecordReturnCashMovement(tx, {
-          cashierId: user.id,
+          cashierId: sale.cashierId,
           saleReturnId: saleReturn.id,
           amount: Number(sale.total),
           reason: `Devolución por cancelación ${sale.folio}`
@@ -746,7 +746,7 @@ export async function returnSaleItems(
       const saleReturn = await tx.saleReturn.create({
         data: {
           saleId: sale.id,
-          cashierId: user.id,
+          cashierId: sale.cashierId,
           reason: input.reason,
           refundMethod,
           refundTotal,
@@ -770,7 +770,7 @@ export async function returnSaleItems(
 
       if (hasCashRefund(refundMethod)) {
         await tryRecordReturnCashMovement(tx, {
-          cashierId: user.id,
+          cashierId: sale.cashierId,
           saleReturnId: saleReturn.id,
           amount: refundTotal,
           reason: `Devolución parcial ${sale.folio}`

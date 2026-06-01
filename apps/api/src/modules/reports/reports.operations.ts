@@ -50,6 +50,18 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
             email: true
           }
         },
+        sale: {
+          select: {
+            cashierId: true,
+            cashier: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
         items: true
       },
       orderBy: {
@@ -309,14 +321,15 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
   }
 
   for (const saleReturn of returns) {
-    const current = sellerTotals.get(saleReturn.cashier.id) ?? {
-      seller: saleReturn.cashier,
+    const returnSeller = saleReturn.sale.cashier;
+    const current = sellerTotals.get(returnSeller.id) ?? {
+      seller: returnSeller,
       count: 0,
       gross: 0,
       refunded: 0
     };
 
-    sellerTotals.set(saleReturn.cashier.id, {
+    sellerTotals.set(returnSeller.id, {
       ...current,
       refunded: roundMoney(current.refunded + Number(saleReturn.refundTotal))
     });
@@ -388,8 +401,15 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
       total: refundedTotal,
       byMethod: refundSummary,
       latest: returns.slice(0, 20).map((saleReturn) => ({
-        ...saleReturn,
-        refundTotal: toMoney(saleReturn.refundTotal)
+        id: saleReturn.id,
+        saleId: saleReturn.saleId,
+        cashierId: saleReturn.sale.cashier.id,
+        reason: saleReturn.reason,
+        refundMethod: saleReturn.refundMethod,
+        refundTotal: toMoney(saleReturn.refundTotal),
+        createdAt: saleReturn.createdAt,
+        updatedAt: saleReturn.updatedAt,
+        cashier: saleReturn.sale.cashier
       }))
     },
     cashRegister: {

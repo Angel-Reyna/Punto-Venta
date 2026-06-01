@@ -140,16 +140,24 @@ describe("reports.service", () => {
       {
         id: "return-1",
         saleId: "sale-1",
-        cashierId: "cashier-1",
+        cashierId: "admin-1",
         reason: "Producto regresado",
         refundMethod: PaymentMethod.CASH,
         refundTotal: 50,
         createdAt: new Date("2026-05-20T12:00:00.000Z"),
         updatedAt: new Date("2026-05-20T12:00:00.000Z"),
         cashier: {
-          id: "cashier-1",
-          name: "Caja 1",
-          email: "cashier@pos.local"
+          id: "admin-1",
+          name: "Admin",
+          email: "admin@pos.local"
+        },
+        sale: {
+          cashierId: "cashier-1",
+          cashier: {
+            id: "cashier-1",
+            name: "Caja 1",
+            email: "cashier@pos.local"
+          }
         },
         items: [
           {
@@ -264,6 +272,17 @@ describe("reports.service", () => {
     expect(report.sales.paymentSummary).toEqual({
       CASH: 200
     });
+    expect(prismaMock.saleReturn.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          sale: expect.objectContaining({
+            select: expect.objectContaining({
+              cashier: expect.any(Object)
+            })
+          })
+        })
+      })
+    );
     expect(report.returns.byMethod).toEqual({
       CASH: 50
     });
@@ -280,6 +299,16 @@ describe("reports.service", () => {
         net: 150
       }
     ]);
+    expect(report.returns.latest[0]).toEqual(
+      expect.objectContaining({
+        cashierId: "cashier-1",
+        cashier: {
+          id: "cashier-1",
+          name: "Caja 1",
+          email: "cashier@pos.local"
+        }
+      })
+    );
     expect(report.cashRegister.movements.summary).toEqual({
       SALE_CASH: 200,
       RETURN_CASH: 50
