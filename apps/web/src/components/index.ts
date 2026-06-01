@@ -7,6 +7,7 @@ export * from "./ResponsiveDialog";
 export * from "./SearchToolbar";
 export * from "./StatusFeedback";
 export * from "./VisualMetricCard";
+export * from "./VisualMetricGrid";
 export * from "./data-display";
 export * from "./layout";
 export * from "./mobile";

@@ -1,28 +1,16 @@
-import { Box } from "@mui/material";
-
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
 import { VisualMetricCard } from "../../components/VisualMetricCard";
+import { VisualMetricGrid } from "../../components/VisualMetricGrid";
 
 import type { UserSummary } from "./userShared";
 
 export function UsersSummaryCards({ userSummary }: { userSummary: UserSummary }) {
   return (
-    <Box
-      sx={{
-        display: "grid",
-        gap: 2,
-        gridTemplateColumns: {
-          xs: "1fr",
-          sm: "repeat(2, minmax(0, 1fr))",
-          xl: "repeat(4, minmax(0, 1fr))",
-        },
-        mb: 0,
-      }}
-    >
+    <VisualMetricGrid columns={{ xs: 1, sm: 2, xl: 4 }}>
       <VisualMetricCard
         icon={<CheckCircleOutlineIcon />}
         label="Usuarios activos"
@@ -51,6 +39,6 @@ export function UsersSummaryCards({ userSummary }: { userSummary: UserSummary })
         helper="Acceso bloqueado."
         tone="neutral"
       />
-    </Box>
+    </VisualMetricGrid>
   );
 }
