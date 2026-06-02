@@ -13,8 +13,12 @@ import { setPaginationHeaders } from "../../utils/pagination";
 import { auditLog } from "../audit/audit.service";
 import { PERMISSIONS } from "../auth/permissions";
 
-import { mapInventoryMovementAuditData } from "./inventory.mappers";
 import {
+  mapInventoryMovementAuditData,
+  mapWarehouseAuditData
+} from "./inventory.mappers";
+import {
+  createWarehouse,
   recordInventoryIn,
   recordInventoryOut
 } from "./inventory.service";
@@ -23,7 +27,10 @@ import {
   listProductStock,
   listWarehouses
 } from "./inventory.queries";
-import { movementSchema } from "./inventory.shared";
+import {
+  movementSchema,
+  warehouseSchema
+} from "./inventory.shared";
 
 export const inventoryRouter = Router();
 
@@ -36,6 +43,29 @@ inventoryRouter.get(
     const warehouses = await listWarehouses();
 
     res.json(warehouses);
+  })
+);
+
+inventoryRouter.post(
+  "/warehouses",
+  requirePermission(PERMISSIONS.InventoryAdjust),
+  validate(warehouseSchema),
+  asyncHandler(async (req, res) => {
+    const warehouse = await createWarehouse({
+      name: req.body.name,
+      description: req.body.description
+    });
+
+    await auditLog({
+      userId: req.user?.id,
+      action: "INVENTORY_WAREHOUSE_CREATE",
+      tableName: "Warehouse",
+      recordId: warehouse.id,
+      newData: mapWarehouseAuditData(warehouse),
+      ipAddress: req.ip
+    });
+
+    res.status(201).json(warehouse);
   })
 );
 

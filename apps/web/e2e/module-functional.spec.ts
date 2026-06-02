@@ -156,6 +156,19 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(page.getByText("24 unidades")).toBeVisible();
 
     await page.getByRole("tab", { name: "Entradas y salidas" }).click();
+    await clickByTestId(page, "inventory-create-warehouse-open");
+
+    const warehouseDialog = dialogByName(page, "Nuevo almacén");
+    await expect(warehouseDialog).toBeVisible();
+    await expect(byTestId(warehouseDialog, "inventory-create-warehouse-submit")).toBeDisabled();
+
+    await fillByTestId(warehouseDialog, "inventory-create-warehouse-name", "Bodega norte E2E");
+    await fillByTestId(warehouseDialog, "inventory-create-warehouse-description", "Mercancía de respaldo");
+    await clickByTestId(warehouseDialog, "inventory-create-warehouse-submit");
+
+    await expect(page.getByText("Almacén Bodega norte E2E creado correctamente.")).toBeVisible();
+    await expect(page.getByRole("combobox", { name: /^Almacén/i })).toHaveValue("Bodega norte E2E");
+
     await page.getByLabel("Producto").click();
     await page.getByRole("option", { name: /COCA-600 · Coca-Cola 600 ml · stock 24/i }).click();
     await fillByTestId(page, "inventory-form-quantity", "5");
@@ -192,6 +205,9 @@ test.describe("cobertura funcional por módulos críticos", () => {
     );
     await expect(byTestId(page, "inventory-movement-movement-2")).toContainText(
       "Coca-Cola 600 ml",
+    );
+    await expect(byTestId(page, "inventory-movement-movement-2")).toContainText(
+      "Bodega norte E2E",
     );
   });
 

@@ -8,7 +8,8 @@ import {
   DEFAULT_WAREHOUSE_NAME,
   EXPIRATION_REASON_LABEL,
   INVENTORY_REASON_TYPES,
-  type StockMovementInput
+  type StockMovementInput,
+  type WarehouseInput
 } from "./inventory.shared";
 
 export { DEFAULT_WAREHOUSE_NAME } from "./inventory.shared";
@@ -85,6 +86,64 @@ function normalizeMovementReason(input: StockMovementInput) {
       ? EXPIRATION_REASON_LABEL
       : input.reason?.trim() || null
   };
+}
+
+
+function normalizeWarehouseName(name: string) {
+  return name.trim().replace(/\s+/gu, " ");
+}
+
+function normalizeWarehouseDescription(description?: string | null) {
+  const normalized = description?.trim().replace(/\s+/gu, " ") ?? "";
+
+  return normalized || null;
+}
+
+function isPrismaUniqueConstraintError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
+
+export async function createWarehouse(input: WarehouseInput) {
+  const name = normalizeWarehouseName(input.name);
+  const description = normalizeWarehouseDescription(input.description);
+
+  const existingWarehouse = await prisma.warehouse.findFirst({
+    where: {
+      name: {
+        equals: name,
+        mode: "insensitive"
+      }
+    },
+    select: {
+      id: true,
+      name: true,
+      isActive: true
+    }
+  });
+
+  if (existingWarehouse?.isActive) {
+    throw new AppError(409, `Ya existe un almacén activo con el nombre ${existingWarehouse.name}.`);
+  }
+
+  if (existingWarehouse && !existingWarehouse.isActive) {
+    throw new AppError(409, `Ya existe un almacén inactivo con el nombre ${existingWarehouse.name}. Reactívalo antes de reutilizarlo.`);
+  }
+
+  try {
+    return await prisma.warehouse.create({
+      data: {
+        name,
+        description,
+        isActive: true
+      }
+    });
+  } catch (error: unknown) {
+    if (isPrismaUniqueConstraintError(error)) {
+      throw new AppError(409, "Ya existe un almacén con ese nombre.");
+    }
+
+    throw error;
+  }
 }
 
 export async function getOrCreateDefaultWarehouse(

@@ -319,6 +319,14 @@ describe("critical route permissions", () => {
     ["eliminar producto", "delete", "/api/products/00000000-0000-4000-8000-000000000001", undefined],
     ["eliminar todos los productos", "delete", "/api/products", undefined],
     [
+      "crear almacén de inventario",
+      "post",
+      "/api/inventory/warehouses",
+      {
+        name: "Bodega sin permiso"
+      }
+    ],
+    [
       "registrar entrada de inventario",
       "post",
       "/api/inventory/in",

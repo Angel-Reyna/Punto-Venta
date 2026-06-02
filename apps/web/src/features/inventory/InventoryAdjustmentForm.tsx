@@ -1,4 +1,7 @@
+import { useMemo, useState } from "react";
+
 import {
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -12,6 +15,8 @@ import {
 
 import { ActionDisabledReason } from "../../components/ActionDisabledReason";
 import { LabelWithInfo } from "../../components/InfoTooltip";
+import { ResponsiveDialog } from "../../components/ResponsiveDialog";
+import type { CreateWarehousePayload } from "./inventoryApi";
 import type {
   InventoryMovementForm,
   Product,
@@ -29,23 +34,37 @@ type InventoryAdjustmentFormProps = {
   canAdjustInventory: boolean;
   disabledReason: string;
   form: InventoryMovementForm;
+  isCreatingWarehouse: boolean;
   isInvalid: boolean;
   onChange: (form: InventoryMovementForm) => void;
+  onCreateWarehouse: (
+    payload: CreateWarehousePayload,
+  ) => Promise<Warehouse | null>;
   onSubmit: (type: InventoryAdjustmentType) => void;
   products: Product[];
   warehouses: Warehouse[];
 };
 
+function normalizeWarehouseInput(value: string) {
+  return value.trim().replace(/\s+/gu, " ");
+}
+
 export function InventoryAdjustmentForm({
   canAdjustInventory,
   disabledReason,
   form,
+  isCreatingWarehouse,
   isInvalid,
   onChange,
+  onCreateWarehouse,
   onSubmit,
   products,
   warehouses,
 }: InventoryAdjustmentFormProps) {
+  const [warehouseDialogOpen, setWarehouseDialogOpen] = useState(false);
+  const [warehouseName, setWarehouseName] = useState("");
+  const [warehouseDescription, setWarehouseDescription] = useState("");
+
   function updateForm(patch: Partial<InventoryMovementForm>) {
     onChange({
       ...form,
@@ -53,15 +72,51 @@ export function InventoryAdjustmentForm({
     });
   }
 
+  function resetWarehouseDialog() {
+    setWarehouseDialogOpen(false);
+    setWarehouseName("");
+    setWarehouseDescription("");
+  }
+
+  function closeWarehouseDialog() {
+    if (isCreatingWarehouse) {
+      return;
+    }
+
+    resetWarehouseDialog();
+  }
+
+  async function submitWarehouseCreation() {
+    const createdWarehouse = await onCreateWarehouse({
+      name: normalizeWarehouseInput(warehouseName),
+      description: normalizeWarehouseInput(warehouseDescription) || null,
+    });
+
+    if (!createdWarehouse) {
+      return;
+    }
+
+    updateForm({ warehouseId: createdWarehouse.id });
+    resetWarehouseDialog();
+  }
+
   const isExpirationReason = form.reasonType === "EXPIRATION";
   const isInDisabled = isInvalid || isExpirationReason;
   const selectedProduct = products.find(
     (product) => product.id === form.productId,
   );
+  const selectedWarehouse = useMemo(
+    () =>
+      warehouses.find((warehouse) => warehouse.id === form.warehouseId) ?? null,
+    [form.warehouseId, warehouses],
+  );
   const expirationLossPreview = isExpirationReason
     ? Number(selectedProduct?.costPrice ?? 0) *
       Math.max(Number(form.quantity) || 0, 0)
     : 0;
+  const normalizedWarehouseName = normalizeWarehouseInput(warehouseName);
+  const canCreateWarehouse =
+    normalizedWarehouseName.length >= 2 && !isCreatingWarehouse;
 
   return (
     <Card sx={{ mb: 2 }}>
@@ -128,30 +183,45 @@ export function InventoryAdjustmentForm({
               </Grid>
 
               <Grid item xs={12} md={5}>
-                <TextField
-                  select
-                  fullWidth
-                  label={
-                    <LabelWithInfo
-                      label="Almacén"
-                      info={WAREHOUSE_INFO_TEXT}
-                      ariaLabel={WAREHOUSE_INFO_TEXT}
-                    />
-                  }
-                  value={form.warehouseId}
-                  onChange={(event) =>
-                    updateForm({ warehouseId: event.target.value })
-                  }
-                  helperText="Si no eliges almacén, se usará el principal"
-                >
-                  <MenuItem value="">Almacén principal automático</MenuItem>
+                <Stack spacing={1}>
+                  <Autocomplete
+                    options={warehouses}
+                    value={selectedWarehouse}
+                    isOptionEqualToValue={(option, value) =>
+                      option.id === value.id
+                    }
+                    getOptionLabel={(option) => option.name}
+                    noOptionsText="No hay almacenes activos"
+                    onChange={(_event, warehouse) =>
+                      updateForm({ warehouseId: warehouse?.id ?? "" })
+                    }
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label={
+                          <LabelWithInfo
+                            label="Almacén"
+                            info={WAREHOUSE_INFO_TEXT}
+                            ariaLabel={WAREHOUSE_INFO_TEXT}
+                          />
+                        }
+                        helperText="Busca una ubicación o crea una nueva. Si queda vacío, se usará Principal."
+                        inputProps={{
+                          ...params.inputProps,
+                          "data-testid": "inventory-form-warehouse-search",
+                        }}
+                      />
+                    )}
+                  />
 
-                  {warehouses.map((warehouse) => (
-                    <MenuItem key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setWarehouseDialogOpen(true)}
+                    data-testid="inventory-create-warehouse-open"
+                  >
+                    Crear almacén
+                  </Button>
+                </Stack>
               </Grid>
 
               <Grid item xs={12} sm={4}>
@@ -181,7 +251,8 @@ export function InventoryAdjustmentForm({
                   }}
                   onChange={(event) =>
                     updateForm({
-                      reasonType: event.target.value as InventoryMovementForm["reasonType"],
+                      reasonType: event.target
+                        .value as InventoryMovementForm["reasonType"],
                       reason: event.target.value === "EXPIRATION" ? "" : form.reason,
                     })
                   }
@@ -282,6 +353,92 @@ export function InventoryAdjustmentForm({
           )}
         </Stack>
       </CardContent>
+
+      <ResponsiveDialog
+        open={warehouseDialogOpen}
+        onClose={closeWarehouseDialog}
+        disableClose={isCreatingWarehouse}
+        maxWidth="xs"
+        title="Nuevo almacén"
+        description="Registra una ubicación para separar existencias."
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              onClick={closeWarehouseDialog}
+              disabled={isCreatingWarehouse}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              form="inventory-create-warehouse-form"
+              disabled={!canCreateWarehouse}
+              data-testid="inventory-create-warehouse-submit"
+            >
+              {isCreatingWarehouse ? "Creando..." : "Crear almacén"}
+            </Button>
+          </>
+        }
+      >
+        <Box
+          id="inventory-create-warehouse-form"
+          component="form"
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitWarehouseCreation();
+          }}
+          sx={{ pt: { xs: 1, sm: 1.25 } }}
+        >
+          <Stack spacing={2.25}>
+            <Box
+              sx={(theme) => ({
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 2.5,
+                bgcolor: theme.palette.background.default,
+                px: 1.75,
+                py: 1.5,
+              })}
+            >
+              <Typography variant="subtitle2" fontWeight={900}>
+                Datos de la ubicación
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Usa un nombre claro para encontrarla rápido al registrar movimientos.
+              </Typography>
+            </Box>
+
+            <TextField
+              autoFocus
+              fullWidth
+              label="Nombre del almacén"
+              value={warehouseName}
+              helperText="Ejemplo: Bodega norte, Mostrador, Sucursal centro."
+              inputProps={{
+                "data-testid": "inventory-create-warehouse-name",
+                maxLength: 80,
+              }}
+              onChange={(event) => setWarehouseName(event.target.value)}
+            />
+
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="Descripción opcional"
+              value={warehouseDescription}
+              helperText="Referencia breve para distinguir la ubicación."
+              inputProps={{
+                "data-testid": "inventory-create-warehouse-description",
+                maxLength: 255,
+              }}
+              onChange={(event) => setWarehouseDescription(event.target.value)}
+            />
+          </Stack>
+        </Box>
+      </ResponsiveDialog>
     </Card>
   );
 }

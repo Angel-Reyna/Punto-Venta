@@ -4,12 +4,13 @@ import { getApiErrorMessage } from "../../utils/apiError";
 import type { InventoryMovementForm } from "./inventoryShared";
 import {
   createInventoryMovement,
+  createWarehouse,
   listInventoryMovements,
   listInventoryProducts,
   listStock,
   listWarehouses,
 } from "./inventoryApi";
-import type { InventoryMovementType } from "./inventoryApi";
+import type { CreateWarehousePayload, InventoryMovementType } from "./inventoryApi";
 import type { Movement, Product, StockItem, Warehouse } from "./inventoryShared";
 
 const INVENTORY_SEARCH_DEBOUNCE_MS = 250;
@@ -19,6 +20,7 @@ export function useInventoryData() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [stockRows, setStockRows] = useState<StockItem[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
+  const [isCreatingWarehouse, setIsCreatingWarehouse] = useState(false);
 
   const [stockSearch, setStockSearch] = useState("");
   const [movementSearch, setMovementSearch] = useState("");
@@ -88,6 +90,42 @@ export function useInventoryData() {
     return () => window.clearTimeout(timeoutId);
   }, [loadMovementRows, movementSearch]);
 
+
+  const createInventoryWarehouse = useCallback(
+    async (payload: CreateWarehousePayload) => {
+      setMessage("");
+      setError("");
+      setIsCreatingWarehouse(true);
+
+      try {
+        const warehouse = await createWarehouse(payload);
+
+        setWarehouses((currentWarehouses) => {
+          const nextWarehouses = currentWarehouses.some((item) => item.id === warehouse.id)
+            ? currentWarehouses.map((item) => (item.id === warehouse.id ? warehouse : item))
+            : [...currentWarehouses, warehouse];
+
+          return nextWarehouses.sort((left, right) => left.name.localeCompare(right.name));
+        });
+        setMessage(`Almacén ${warehouse.name} creado correctamente.`);
+
+        return warehouse;
+      } catch (err: unknown) {
+        setError(
+          getApiErrorMessage(
+            err,
+            "No se pudo crear el almacén. Revisa el nombre e intenta de nuevo.",
+          ),
+        );
+
+        return null;
+      } finally {
+        setIsCreatingWarehouse(false);
+      }
+    },
+    [],
+  );
+
   const submitInventoryMovement = useCallback(
     async (type: InventoryMovementType, form: InventoryMovementForm) => {
       setMessage("");
@@ -127,6 +165,7 @@ export function useInventoryData() {
 
   return {
     error,
+    isCreatingWarehouse,
     message,
     movementSearch,
     movements,
@@ -137,6 +176,7 @@ export function useInventoryData() {
     setStockSearch,
     stockRows,
     stockSearch,
+    createInventoryWarehouse,
     submitInventoryMovement,
     warehouses,
   };

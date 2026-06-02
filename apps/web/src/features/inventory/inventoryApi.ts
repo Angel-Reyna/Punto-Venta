@@ -4,6 +4,11 @@ import type { InventoryReasonType, Movement, Product, StockItem, Warehouse } fro
 
 export type InventoryMovementType = "in" | "out";
 
+export type CreateWarehousePayload = {
+  name: string;
+  description?: string | null;
+};
+
 export type CreateInventoryMovementPayload = {
   productId: string;
   warehouseId?: string;
@@ -22,6 +27,10 @@ export async function listInventoryProducts() {
 
 export async function listWarehouses() {
   return getJson<Warehouse[]>("/inventory/warehouses");
+}
+
+export async function createWarehouse(payload: CreateWarehousePayload) {
+  return postJson<Warehouse, CreateWarehousePayload>("/inventory/warehouses", payload);
 }
 
 export async function listStock(query: string) {

@@ -12,6 +12,11 @@ export type InventoryReasonType =
 
 export const EXPIRATION_REASON_LABEL = "Caducidad";
 
+export type WarehouseInput = {
+  name: string;
+  description?: string | null;
+};
+
 export type StockMovementInput = {
   productId: string;
   warehouseId?: string | null;
@@ -27,6 +32,23 @@ export const inventoryReasonTypes = Object.values(INVENTORY_REASON_TYPES) as [
   InventoryReasonType,
   ...InventoryReasonType[]
 ];
+
+export const warehouseSchema = z.object({
+  body: z.object({
+    name: z
+      .string()
+      .trim()
+      .min(2, "El nombre del almacén debe tener al menos 2 caracteres.")
+      .max(80, "El nombre del almacén no puede superar 80 caracteres."),
+
+    description: z
+      .string()
+      .trim()
+      .max(255, "La descripción no puede superar 255 caracteres.")
+      .optional()
+      .nullable()
+  })
+});
 
 export const movementSchema = z.object({
   body: z.object({

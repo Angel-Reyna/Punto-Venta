@@ -198,7 +198,9 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
   const products = productsResponse();
   const sales = salesResponse(role);
   const inventoryMovements = inventoryMovementsResponse(products[0]);
-  const warehouses = [{ id: "warehouse-1", name: "Principal", isActive: true }];
+  const warehouses: Array<{ id: string; name: string; description?: string | null; isActive: boolean }> = [
+    { id: "warehouse-1", name: "Principal", description: "Almacén principal", isActive: true },
+  ];
   const managedUsers = usersResponse();
   const auditLogs = auditLogsResponse(managedUsers);
   const sellerActivityLogs = sellerActivityResponse(managedUsers);
@@ -447,8 +449,43 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
       });
     }
 
-    if (pathname.endsWith("/inventory/warehouses")) {
+    if (pathname.endsWith("/inventory/warehouses") && method === "GET") {
       return json(route, warehouses);
+    }
+
+    if (pathname.endsWith("/inventory/warehouses") && method === "POST") {
+      if (role !== "ADMIN") {
+        return json(route, { message: "No autorizado" }, 403);
+      }
+
+      const payload = readJsonPayload(request) as {
+        name?: string;
+        description?: string | null;
+      };
+      const warehouseName = String(payload.name ?? "").trim().replace(/\s+/gu, " ");
+
+      if (warehouseName.length < 2) {
+        return json(route, { message: "El nombre del almacén debe tener al menos 2 caracteres." }, 400);
+      }
+
+      const existingWarehouse = warehouses.find(
+        (warehouse) => normalize(warehouse.name) === normalize(warehouseName),
+      );
+
+      if (existingWarehouse) {
+        return json(route, { message: "Ya existe un almacén activo con ese nombre." }, 409);
+      }
+
+      const warehouse = {
+        id: `warehouse-${warehouses.length + 1}`,
+        name: warehouseName,
+        description: payload.description ? String(payload.description).trim() : null,
+        isActive: true,
+      };
+
+      warehouses.push(warehouse);
+
+      return json(route, warehouse, 201);
     }
 
     if (pathname.endsWith("/inventory/stock")) {
@@ -470,12 +507,20 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
         quantity?: number;
         reason?: string;
         reasonType?: "EXPIRATION" | "OTHER";
+        warehouseId?: string;
       };
       const product = products.find((item) => item.id === payload.productId);
+      const warehouse = payload.warehouseId
+        ? warehouses.find((item) => item.id === payload.warehouseId)
+        : warehouses[0];
       const quantity = Number(payload.quantity ?? 0);
 
       if (!product) {
         return json(route, { message: "Producto no encontrado" }, 404);
+      }
+
+      if (!warehouse) {
+        return json(route, { message: "Almacén no encontrado" }, 404);
       }
 
       if (!Number.isFinite(quantity) || quantity <= 0) {
@@ -495,6 +540,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
         quantity,
         reason: payload.reasonType === "EXPIRATION" ? "Caducidad" : payload.reason ?? "Movimiento E2E",
         reasonType: payload.reasonType ?? "OTHER",
+        warehouse,
       });
 
       inventoryMovements.unshift(movement);
@@ -906,6 +952,7 @@ function buildInventoryMovement(
     quantity: number;
     reason: string;
     reasonType?: "EXPIRATION" | "OTHER";
+    warehouse?: { id: string; name: string };
   },
 ): MockInventoryMovement {
   return {
@@ -926,7 +973,7 @@ function buildInventoryMovement(
       barcode: product.barcode,
       name: product.name,
     },
-    warehouse: {
+    warehouse: input.warehouse ?? {
       id: "warehouse-1",
       name: "Principal",
     },

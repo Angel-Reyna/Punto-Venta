@@ -22,6 +22,7 @@ export function InventoryPage() {
 
   const {
     error,
+    isCreatingWarehouse,
     message,
     movementSearch,
     movements,
@@ -32,6 +33,7 @@ export function InventoryPage() {
     setStockSearch,
     stockRows,
     stockSearch,
+    createInventoryWarehouse,
     submitInventoryMovement,
     warehouses,
   } = useInventoryData();
@@ -92,8 +94,10 @@ export function InventoryPage() {
           canAdjustInventory={canAdjustInventory}
           disabledReason={inventoryFormDisabledReason}
           form={form}
+          isCreatingWarehouse={isCreatingWarehouse}
           isInvalid={formIsInvalid}
           onChange={setForm}
+          onCreateWarehouse={createInventoryWarehouse}
           onSubmit={submit}
           products={products}
           warehouses={warehouses}

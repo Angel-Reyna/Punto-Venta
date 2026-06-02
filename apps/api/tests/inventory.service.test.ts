@@ -3,6 +3,10 @@ import { AppError } from "../src/utils/AppError";
 const mockPrisma = {
   inventoryBalance: {
     groupBy: jest.fn()
+  },
+  warehouse: {
+    findFirst: jest.fn(),
+    create: jest.fn()
   }
 };
 
@@ -11,6 +15,7 @@ jest.mock("../src/config/prisma", () => ({
 }));
 
 import {
+  createWarehouse,
   decreaseStock,
   getProductStocks,
   increaseStock
@@ -38,6 +43,66 @@ function createTransactionMock() {
 describe("inventory.service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+
+  describe("createWarehouse", () => {
+    it("normalizes and creates an active warehouse", async () => {
+      mockPrisma.warehouse.findFirst.mockResolvedValue(null);
+      mockPrisma.warehouse.create.mockResolvedValue({
+        id: "warehouse-2",
+        name: "Bodega norte",
+        description: "Mercancía de respaldo",
+        isActive: true
+      });
+
+      const result = await createWarehouse({
+        name: "  Bodega   norte  ",
+        description: "  Mercancía   de respaldo  "
+      });
+
+      expect(mockPrisma.warehouse.findFirst).toHaveBeenCalledWith({
+        where: {
+          name: {
+            equals: "Bodega norte",
+            mode: "insensitive"
+          }
+        },
+        select: {
+          id: true,
+          name: true,
+          isActive: true
+        }
+      });
+      expect(mockPrisma.warehouse.create).toHaveBeenCalledWith({
+        data: {
+          name: "Bodega norte",
+          description: "Mercancía de respaldo",
+          isActive: true
+        }
+      });
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: "warehouse-2",
+          name: "Bodega norte"
+        })
+      );
+    });
+
+    it("blocks duplicated active warehouse names", async () => {
+      mockPrisma.warehouse.findFirst.mockResolvedValue({
+        id: "warehouse-1",
+        name: "Principal",
+        isActive: true
+      });
+
+      await expect(createWarehouse({ name: "principal" })).rejects.toMatchObject({
+        statusCode: 409,
+        message: "Ya existe un almacén activo con el nombre Principal."
+      } satisfies Partial<AppError>);
+
+      expect(mockPrisma.warehouse.create).not.toHaveBeenCalled();
+    });
   });
 
   describe("getProductStocks", () => {

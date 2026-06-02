@@ -52,6 +52,20 @@ export function mapProductStock(
   };
 }
 
+export function mapWarehouseAuditData(warehouse: {
+  id: string;
+  name: string;
+  description?: string | null;
+  isActive: boolean;
+}) {
+  return {
+    warehouseId: warehouse.id,
+    warehouseName: warehouse.name,
+    description: warehouse.description ?? null,
+    isActive: warehouse.isActive
+  };
+}
+
 export function mapInventoryMovementAuditData(
   movement: InventoryMovementWithProductWarehouse
 ) {
