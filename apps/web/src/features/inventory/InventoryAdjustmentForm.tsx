@@ -17,7 +17,11 @@ import type {
   Product,
   Warehouse,
 } from "./inventoryShared";
-import { WAREHOUSE_INFO_TEXT } from "./inventoryShared";
+import {
+  formatInventoryMoney,
+  INVENTORY_REASON_TYPE_LABELS,
+  WAREHOUSE_INFO_TEXT,
+} from "./inventoryShared";
 
 type InventoryAdjustmentType = "in" | "out";
 
@@ -49,6 +53,16 @@ export function InventoryAdjustmentForm({
     });
   }
 
+  const isExpirationReason = form.reasonType === "EXPIRATION";
+  const isInDisabled = isInvalid || isExpirationReason;
+  const selectedProduct = products.find(
+    (product) => product.id === form.productId,
+  );
+  const expirationLossPreview = isExpirationReason
+    ? Number(selectedProduct?.costPrice ?? 0) *
+      Math.max(Number(form.quantity) || 0, 0)
+    : 0;
+
   return (
     <Card sx={{ mb: 2 }}>
       <CardContent>
@@ -61,11 +75,11 @@ export function InventoryAdjustmentForm({
           >
             <Box>
               <Typography variant="h6" fontWeight={900}>
-                Registrar entrada o salida manual
+                Registrar movimiento manual
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Usa esta sección para ajustes justificados. Las ventas y
-                devoluciones generan movimientos automáticamente.
+                Captura entradas por compra o salidas justificadas. Caducidad se
+                reporta como merma en dinero dentro del dashboard.
               </Typography>
             </Box>
 
@@ -81,11 +95,11 @@ export function InventoryAdjustmentForm({
               })}
             >
               <Typography variant="caption" color="text.secondary" fontWeight={800}>
-                Antes de guardar
+                Control administrativo
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Verifica producto, cantidad y motivo. Este registro queda en el
-                historial de inventario.
+                Verifica producto, almacén, cantidad y motivo antes de afectar
+                existencias.
               </Typography>
             </Box>
           </Stack>
@@ -156,17 +170,70 @@ export function InventoryAdjustmentForm({
                 />
               </Grid>
 
-              <Grid item xs={12} sm={8}>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Motivo"
+                  value={form.reasonType}
+                  inputProps={{
+                    "data-testid": "inventory-form-reason-type",
+                  }}
+                  onChange={(event) =>
+                    updateForm({
+                      reasonType: event.target.value as InventoryMovementForm["reasonType"],
+                      reason: event.target.value === "EXPIRATION" ? "" : form.reason,
+                    })
+                  }
+                  helperText="Caducidad se reporta como merma en dinero"
+                >
+                  <MenuItem value="OTHER">{INVENTORY_REASON_TYPE_LABELS.OTHER}</MenuItem>
+                  <MenuItem value="EXPIRATION">{INVENTORY_REASON_TYPE_LABELS.EXPIRATION}</MenuItem>
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12} sm={4}>
                 <TextField
                   fullWidth
-                  label="Motivo del movimiento"
-                  value={form.reason}
-                  helperText="Ej. Compra a proveedor, merma, conteo físico"
+                  label="Detalle del motivo"
+                  value={isExpirationReason ? "Caducidad" : form.reason}
+                  disabled={isExpirationReason}
+                  helperText={
+                    isExpirationReason
+                      ? `Pérdida estimada: ${formatInventoryMoney(expirationLossPreview)}`
+                      : "Describe el motivo cuando elijas Otros"
+                  }
                   inputProps={{
                     "data-testid": "inventory-form-reason",
                   }}
                   onChange={(event) => updateForm({ reason: event.target.value })}
                 />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box
+                  sx={(theme) => ({
+                    border: 1,
+                    borderColor: isExpirationReason ? "warning.main" : "divider",
+                    borderRadius: 3,
+                    bgcolor: isExpirationReason
+                      ? theme.palette.warning.main + "14"
+                      : theme.palette.background.default,
+                    px: 2,
+                    py: 1.5,
+                  })}
+                >
+                  <Stack spacing={0.5}>
+                    <Typography variant="subtitle2" fontWeight={900}>
+                      {isExpirationReason ? "Salida por caducidad" : "Movimiento operativo"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {isExpirationReason
+                        ? `Se descontarán ${form.quantity || 0} unidades y se registrará una merma estimada de ${formatInventoryMoney(expirationLossPreview)}.`
+                        : "Las entradas aumentan existencias y las salidas descuentan stock con el motivo capturado."}
+                    </Typography>
+                  </Stack>
+                </Box>
               </Grid>
 
               <Grid item xs={12}>
@@ -180,7 +247,7 @@ export function InventoryAdjustmentForm({
                 >
                   <Button
                     onClick={() => onSubmit("in")}
-                    disabled={isInvalid}
+                    disabled={isInDisabled}
                     data-testid="inventory-submit-in"
                   >
                     Registrar entrada
@@ -196,7 +263,15 @@ export function InventoryAdjustmentForm({
                   </Button>
                 </Stack>
 
-                <ActionDisabledReason message={isInvalid ? disabledReason : ""} />
+                <ActionDisabledReason
+                  message={
+                    isInvalid
+                      ? disabledReason
+                      : isExpirationReason
+                        ? "Caducidad solo se registra como salida."
+                        : ""
+                  }
+                />
               </Grid>
             </Grid>
           ) : (

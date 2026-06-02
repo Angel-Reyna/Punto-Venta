@@ -3,6 +3,7 @@ export type Product = {
   name: string;
   sku: string;
   stock: number;
+  costPrice?: number | string;
 };
 
 export type StockItem = {
@@ -26,11 +27,16 @@ export type Warehouse = {
   isActive: boolean;
 };
 
+export type InventoryReasonType = "EXPIRATION" | "OTHER";
+
 export type Movement = {
   id: string;
   type: "IN" | "OUT" | "ADJUSTMENT" | "SALE" | "RETURN";
   quantity: number;
   reason?: string | null;
+  reasonType?: InventoryReasonType;
+  unitCostAtMovement?: number | string | null;
+  costAmount?: number | string | null;
   createdAt: string;
 
   productId?: string | null;
@@ -54,6 +60,7 @@ export type InventoryMovementForm = {
   productId: string;
   warehouseId: string;
   quantity: number;
+  reasonType: InventoryReasonType;
   reason: string;
 };
 
@@ -64,6 +71,7 @@ export const initialInventoryMovementForm: InventoryMovementForm = {
   productId: "",
   warehouseId: "",
   quantity: 1,
+  reasonType: "OTHER",
   reason: "",
 };
 
@@ -72,6 +80,19 @@ export const WAREHOUSE_INFO_TEXT =
 
 export const MOVEMENT_TYPE_INFO_TEXT =
   "IN es entrada, OUT salida manual, SALE venta, RETURN devolución y ADJUSTMENT ajuste de inventario.";
+
+export const INVENTORY_REASON_TYPE_LABELS: Record<InventoryReasonType, string> = {
+  EXPIRATION: "Caducidad",
+  OTHER: "Otros",
+};
+
+
+export function formatInventoryMoney(value: number | null | undefined) {
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+  }).format(Number(value ?? 0));
+}
 
 export const STOCK_FILTER_LABELS: Record<StockStatusFilter, string> = {
   all: "Todos",
@@ -90,8 +111,10 @@ export type InventoryMetricColor =
 export function getInventoryFormDisabledReason(form: InventoryMovementForm) {
   if (!form.productId) return "Selecciona un producto.";
   if (form.quantity <= 0) return "La cantidad debe ser mayor a cero.";
+  if (form.reasonType === "EXPIRATION") return "";
+
   if (!form.reason.trim() || form.reason.trim().length < 3) {
-    return "Captura un motivo de al menos 3 caracteres.";
+    return "Describe el motivo con al menos 3 caracteres.";
   }
 
   return "";

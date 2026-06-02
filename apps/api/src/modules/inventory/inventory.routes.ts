@@ -77,6 +77,7 @@ inventoryRouter.post(
       warehouseId: req.body.warehouseId,
       quantity: req.body.quantity,
       reason: req.body.reason,
+      reasonType: req.body.reasonType,
       createdBy: req.user!.id
     });
 
@@ -103,6 +104,7 @@ inventoryRouter.post(
       warehouseId: req.body.warehouseId,
       quantity: req.body.quantity,
       reason: req.body.reason,
+      reasonType: req.body.reasonType,
       createdBy: req.user!.id
     });
 

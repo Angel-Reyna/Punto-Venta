@@ -18,7 +18,12 @@ import ReplayIcon from "@mui/icons-material/Replay";
 import TuneIcon from "@mui/icons-material/Tune";
 
 import { EmptyStatePanel } from "../../components/data-display";
-import type { InventoryMetricColor, Movement } from "./inventoryShared";
+import {
+  formatInventoryMoney,
+  INVENTORY_REASON_TYPE_LABELS,
+  type InventoryMetricColor,
+  type Movement,
+} from "./inventoryShared";
 
 function getMovementTypeMeta(type: Movement["type"]): {
   color: InventoryMetricColor;
@@ -133,6 +138,12 @@ export function InventoryMovementTimeline({
             const productName =
               movement.product?.name ?? `${movement.productName} (eliminado)`;
             const barcode = movement.product?.barcode;
+            const reasonTypeLabel =
+              movement.reasonType && (movement.type === "IN" || movement.type === "OUT")
+                ? INVENTORY_REASON_TYPE_LABELS[movement.reasonType]
+                : null;
+            const isExpirationMovement = movement.reasonType === "EXPIRATION";
+            const costAmount = Number(movement.costAmount ?? 0);
 
             return (
               <Box
@@ -275,9 +286,25 @@ export function InventoryMovementTimeline({
                           >
                             Motivo
                           </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {movement.reason || "Sin motivo capturado."}
-                          </Typography>
+                          <Stack spacing={0.75}>
+                            {reasonTypeLabel && (
+                              <Chip
+                                size="small"
+                                color={movement.reasonType === "EXPIRATION" ? "warning" : "default"}
+                                variant="outlined"
+                                label={reasonTypeLabel}
+                                sx={{ alignSelf: "flex-start" }}
+                              />
+                            )}
+                            <Typography variant="body2" color="text.secondary">
+                              {movement.reason || "Sin motivo capturado."}
+                            </Typography>
+                            {isExpirationMovement && costAmount > 0 && (
+                              <Typography variant="caption" color="warning.main" fontWeight={900}>
+                                Merma estimada: {formatInventoryMoney(costAmount)}
+                              </Typography>
+                            )}
+                          </Stack>
                         </Stack>
                       </Box>
                     </Stack>

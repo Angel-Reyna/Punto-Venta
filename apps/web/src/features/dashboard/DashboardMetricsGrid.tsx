@@ -5,6 +5,7 @@ import PaidIcon from "@mui/icons-material/Paid";
 import PeopleIcon from "@mui/icons-material/People";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
 import WarningIcon from "@mui/icons-material/WarningAmber";
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 
 import { MetricGrid } from "../../components/layout";
 import { DashboardMetricCard } from "./DashboardMetricCard";
@@ -106,6 +107,24 @@ export function DashboardMetricsGrid({
                 />
                 <Chip size="small" color={hasLowStock ? "warning" : "default"} label="Revisar" />
               </Stack>
+            }
+          />
+        </Grid>
+      )}
+
+      {isAdmin && (
+        <Grid item xs={12} sm={6} lg={4} xl={2}>
+          <DashboardMetricCard
+            title="Merma hoy"
+            value={formatMoney(metrics?.productSummary.shrinkageCostToday)}
+            icon={<DeleteSweepIcon />}
+            description="Pérdida por productos caducados"
+            to="/inventory"
+            tone={(metrics?.productSummary.shrinkageCostToday ?? 0) > 0 ? "warning" : "success"}
+            footer={
+              <Typography color="text.secondary" variant="caption">
+                {formatNumber(metrics?.productSummary.shrinkageUnitsToday)} unidades caducadas
+              </Typography>
             }
           />
         </Grid>

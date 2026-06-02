@@ -6,6 +6,8 @@ import { AppError } from "../../utils/AppError";
 import { movementInclude } from "./inventory.mappers";
 import {
   DEFAULT_WAREHOUSE_NAME,
+  EXPIRATION_REASON_LABEL,
+  INVENTORY_REASON_TYPES,
   type StockMovementInput
 } from "./inventory.shared";
 
@@ -23,6 +25,7 @@ async function assertActiveProduct(
       id: true,
       sku: true,
       name: true,
+      costPrice: true,
       isActive: true
     }
   });
@@ -66,6 +69,22 @@ async function resolveWarehouse(
   }
 
   return warehouse;
+}
+
+
+function normalizeMovementReason(input: StockMovementInput) {
+  const reasonType = input.reasonType ?? INVENTORY_REASON_TYPES.OTHER;
+
+  if (reasonType === INVENTORY_REASON_TYPES.EXPIRATION && input.type !== InventoryType.OUT) {
+    throw new AppError(400, "Caducidad solo puede registrarse como salida de inventario");
+  }
+
+  return {
+    reasonType,
+    reason: reasonType === INVENTORY_REASON_TYPES.EXPIRATION
+      ? EXPIRATION_REASON_LABEL
+      : input.reason?.trim() || null
+  };
 }
 
 export async function getOrCreateDefaultWarehouse(
@@ -158,15 +177,28 @@ export async function increaseStock(
     }
   });
 
+  const movementReason = normalizeMovementReason(input);
+
   return tx.inventoryMovement.create({
     data: {
-      productId: input.productId,
+      product: {
+        connect: {
+          id: input.productId
+        }
+      },
       productSku: product.sku,
       productName: product.name,
-      warehouseId: warehouse.id,
+      warehouse: {
+        connect: {
+          id: warehouse.id
+        }
+      },
       type: input.type,
       quantity: input.quantity,
-      reason: input.reason,
+      reason: movementReason.reason,
+      reasonType: movementReason.reasonType,
+      unitCostAtMovement: product.costPrice,
+      costAmount: new Prisma.Decimal(product.costPrice).mul(input.quantity),
       createdBy: input.createdBy
     },
     include: movementInclude
@@ -217,15 +249,28 @@ export async function decreaseStock(
     );
   }
 
+  const movementReason = normalizeMovementReason(input);
+
   return tx.inventoryMovement.create({
     data: {
-      productId: input.productId,
+      product: {
+        connect: {
+          id: input.productId
+        }
+      },
       productSku: product.sku,
       productName: product.name,
-      warehouseId: warehouse.id,
+      warehouse: {
+        connect: {
+          id: warehouse.id
+        }
+      },
       type: input.type,
       quantity: input.quantity,
-      reason: input.reason,
+      reason: movementReason.reason,
+      reasonType: movementReason.reasonType,
+      unitCostAtMovement: product.costPrice,
+      costAmount: new Prisma.Decimal(product.costPrice).mul(input.quantity),
       createdBy: input.createdBy
     },
     include: movementInclude

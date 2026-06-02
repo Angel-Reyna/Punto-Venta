@@ -89,6 +89,7 @@ describe("inventory.service", () => {
         id: "product-1",
         sku: "CAFE-250",
         name: "Café",
+        costPrice: 10,
         isActive: true
       });
       tx.warehouse.findUnique.mockResolvedValue({
@@ -130,13 +131,22 @@ describe("inventory.service", () => {
       expect(tx.inventoryMovement.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            productId: "product-1",
+            product: {
+              connect: {
+                id: "product-1"
+              }
+            },
             productSku: "CAFE-250",
             productName: "Café",
-            warehouseId: "warehouse-1",
+            warehouse: {
+              connect: {
+                id: "warehouse-1"
+              }
+            },
             type: "IN",
             quantity: 5,
             reason: "Compra inicial",
+            reasonType: "OTHER",
             createdBy: "admin-1"
           }),
           include: expect.any(Object)
@@ -153,6 +163,7 @@ describe("inventory.service", () => {
         id: "product-1",
         sku: "CAFE-250",
         name: "Café",
+        costPrice: 10,
         isActive: true
       });
       tx.warehouse.findUnique.mockResolvedValue({
@@ -193,16 +204,70 @@ describe("inventory.service", () => {
       expect(tx.inventoryMovement.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            productId: "product-1",
+            product: {
+              connect: {
+                id: "product-1"
+              }
+            },
             productSku: "CAFE-250",
             productName: "Café",
-            warehouseId: "warehouse-1",
+            warehouse: {
+              connect: {
+                id: "warehouse-1"
+              }
+            },
             type: "SALE",
             quantity: 3,
             reason: "Venta",
+            reasonType: "OTHER",
             createdBy: "cashier-1"
           }),
           include: expect.any(Object)
+        })
+      );
+    });
+
+    it("records expiration shrinkage with a structured reason type", async () => {
+      const tx = createTransactionMock();
+      tx.product.findUnique.mockResolvedValue({
+        id: "product-1",
+        sku: "CAFE-250",
+        name: "Café",
+        costPrice: 10,
+        isActive: true
+      });
+      tx.warehouse.findUnique.mockResolvedValue({
+        id: "warehouse-1",
+        name: "Principal",
+        isActive: true
+      });
+      tx.inventoryBalance.updateMany.mockResolvedValue({
+        count: 1
+      });
+      tx.inventoryMovement.create.mockResolvedValue({
+        id: "movement-expiration"
+      });
+
+      await decreaseStock(tx as never, {
+        productId: "product-1",
+        warehouseId: "warehouse-1",
+        quantity: 2,
+        reasonType: "EXPIRATION",
+        reason: "Texto ignorado",
+        createdBy: "admin-1",
+        type: "OUT"
+      });
+
+      expect(tx.inventoryMovement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: "OUT",
+            quantity: 2,
+            reason: "Caducidad",
+            reasonType: "EXPIRATION",
+            unitCostAtMovement: 10,
+            costAmount: expect.any(Object)
+          })
         })
       );
     });
@@ -212,6 +277,7 @@ describe("inventory.service", () => {
       tx.product.findUnique.mockResolvedValue({
         id: "product-1",
         name: "Café",
+        costPrice: 10,
         isActive: true
       });
       tx.warehouse.findUnique.mockResolvedValue({
@@ -249,6 +315,7 @@ describe("inventory.service", () => {
       tx.product.findUnique.mockResolvedValue({
         id: "product-1",
         name: "Café",
+        costPrice: 10,
         isActive: false
       });
 

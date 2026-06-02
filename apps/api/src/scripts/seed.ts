@@ -141,8 +141,16 @@ async function seedDemoData(adminId: string) {
 
     await tx.inventoryMovement.create({
       data: {
-        productId: product.id,
-        warehouseId: warehouse.id,
+        product: {
+          connect: {
+            id: product.id,
+          },
+        },
+        warehouse: {
+          connect: {
+            id: warehouse.id,
+          },
+        },
         productSku: product.sku,
         productName: product.name,
         type: "IN",

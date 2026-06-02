@@ -60,6 +60,7 @@ export function mapInventoryMovementAuditData(
     productName: movement.product?.name ?? movement.productName,
     warehouseId: movement.warehouseId,
     quantity: movement.quantity,
+    reasonType: movement.reasonType,
     reason: movement.reason
   };
 }

@@ -42,6 +42,9 @@ type MockInventoryMovement = {
   type: "IN" | "OUT" | "SALE" | "RETURN" | "ADJUSTMENT";
   quantity: number;
   reason: string;
+  reasonType?: "EXPIRATION" | "OTHER";
+  unitCostAtMovement?: number;
+  costAmount?: number;
   createdAt: string;
   productId: string | null;
   productSku: string;
@@ -458,6 +461,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
         productId?: string;
         quantity?: number;
         reason?: string;
+        reasonType?: "EXPIRATION" | "OTHER";
       };
       const product = products.find((item) => item.id === payload.productId);
       const quantity = Number(payload.quantity ?? 0);
@@ -481,7 +485,8 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
         sequence: inventoryMovements.length + 1,
         type,
         quantity,
-        reason: payload.reason ?? "Movimiento E2E",
+        reason: payload.reasonType === "EXPIRATION" ? "Caducidad" : payload.reason ?? "Movimiento E2E",
+        reasonType: payload.reasonType ?? "OTHER",
       });
 
       inventoryMovements.unshift(movement);
@@ -654,6 +659,8 @@ function dashboardResponse(role: Role) {
       active: 4,
       lowStockTotal: 2,
       outOfStockTotal: 1,
+      shrinkageUnitsToday: isAdmin ? 3 : 0,
+      shrinkageCostToday: isAdmin ? 54 : 0,
       lowStockItems: [
         {
           id: "product-critical",
@@ -850,6 +857,7 @@ function buildInventoryMovement(
     type: MockInventoryMovement["type"];
     quantity: number;
     reason: string;
+    reasonType?: "EXPIRATION" | "OTHER";
   },
 ): MockInventoryMovement {
   return {
@@ -857,6 +865,9 @@ function buildInventoryMovement(
     type: input.type,
     quantity: input.quantity,
     reason: input.reason,
+    reasonType: input.reasonType,
+    unitCostAtMovement: product.costPrice ?? 0,
+    costAmount: (product.costPrice ?? 0) * input.quantity,
     createdAt: "2026-05-22T12:00:00.000Z",
     productId: product.id,
     productSku: product.sku,

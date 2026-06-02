@@ -1,7 +1,8 @@
-import { CashRegisterStatus, SaleStatus } from "@prisma/client";
+import { CashRegisterStatus, InventoryType, SaleStatus } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { RECENT_SALES_LIMIT } from "./dashboard.shared";
+import { INVENTORY_REASON_TYPES } from "../inventory/inventory.shared";
 
 export type DashboardScopeWhere = {
   cashierId?: string;
@@ -25,6 +26,7 @@ export async function fetchDashboardSummaryData(input: {
     activeProductRows,
     groupedUsers,
     todaySalesAggregate,
+    todayShrinkageAggregate,
     cashRegisterSessions,
     recentSales
   ] = await Promise.all([
@@ -88,6 +90,27 @@ export async function fetchDashboardSummaryData(input: {
       }
     }),
 
+    isAdmin
+      ? prisma.inventoryMovement.aggregate({
+          where: {
+            type: InventoryType.OUT,
+            reasonType: INVENTORY_REASON_TYPES.EXPIRATION,
+            createdAt: {
+              gte: todayStart
+            }
+          },
+          _sum: {
+            quantity: true,
+            costAmount: true
+          }
+        })
+      : Promise.resolve({
+          _sum: {
+            quantity: 0,
+            costAmount: 0
+          }
+        }),
+
     prisma.cashRegisterSession.findMany({
       where: {
         ...cashRegisterScopeWhere,
@@ -142,6 +165,7 @@ export async function fetchDashboardSummaryData(input: {
     activeProductRows,
     groupedUsers,
     todaySalesAggregate,
+    todayShrinkageAggregate,
     cashRegisterSessions,
     recentSales
   };

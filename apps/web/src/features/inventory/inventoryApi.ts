@@ -1,6 +1,6 @@
 import { DEFAULT_LIST_PAGE_SIZE, optionalSearchQuery } from "../../api/contracts";
 import { getJson, postJson } from "../../api/http";
-import type { Movement, Product, StockItem, Warehouse } from "./inventoryShared";
+import type { InventoryReasonType, Movement, Product, StockItem, Warehouse } from "./inventoryShared";
 
 export type InventoryMovementType = "in" | "out";
 
@@ -8,7 +8,8 @@ export type CreateInventoryMovementPayload = {
   productId: string;
   warehouseId?: string;
   quantity: number;
-  reason: string;
+  reasonType: InventoryReasonType;
+  reason?: string;
 };
 
 export async function listInventoryProducts() {

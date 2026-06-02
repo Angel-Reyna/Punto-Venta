@@ -41,6 +41,7 @@ export async function getDashboardSummary(
     activeProductRows,
     groupedUsers,
     todaySalesAggregate,
+    todayShrinkageAggregate,
     cashRegisterSessions,
     recentSales
   } = await fetchDashboardSummaryData({
@@ -64,6 +65,8 @@ export async function getDashboardSummary(
     userSummary: users,
     productSummary: {
       active: activeProducts,
+      shrinkageUnitsToday: todayShrinkageAggregate._sum.quantity ?? 0,
+      shrinkageCostToday: toMoney(todayShrinkageAggregate._sum.costAmount),
       ...lowStock
     },
     salesToday: {

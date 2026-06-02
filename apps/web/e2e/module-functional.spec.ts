@@ -162,7 +162,9 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await page.getByLabel("Producto").click();
     await page.getByRole("option", { name: /COCA-600 · Coca-Cola 600 ml · stock 29/i }).click();
     await fillByTestId(page, "inventory-form-quantity", "2");
-    await fillByTestId(page, "inventory-form-reason", "Merma controlada E2E");
+    await page.getByRole("combobox", { name: /^Motivo\b/i }).click();
+    await page.getByRole("option", { name: "Caducidad" }).click();
+    await expect(byTestId(page, "inventory-submit-in")).toBeDisabled();
     await clickByTestId(page, "inventory-submit-out");
 
     await expect(page.getByText("Salida registrada correctamente.")).toBeVisible();
@@ -172,7 +174,9 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await page.getByLabel("Buscar movimientos").fill("E2E");
 
     await expect(page.getByText("Compra proveedor E2E")).toBeVisible();
-    await expect(page.getByText("Merma controlada E2E")).toBeVisible();
+
+    await page.getByLabel("Buscar movimientos").fill("merma");
+    await expect(page.getByText("Caducidad").first()).toBeVisible();
     await expect(byTestId(page, "inventory-movement-movement-2")).toContainText(
       "COCA-600",
     );

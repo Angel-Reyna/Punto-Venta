@@ -45,6 +45,8 @@ export type DashboardMetrics = {
     active: number;
     lowStockTotal: number;
     outOfStockTotal: number;
+    shrinkageUnitsToday: number;
+    shrinkageCostToday: number;
     lowStockItems: DashboardLowStockItem[];
   };
   salesToday: {

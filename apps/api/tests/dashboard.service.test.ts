@@ -12,6 +12,9 @@ const prismaMock = {
   },
   cashRegisterSession: {
     findMany: jest.fn()
+  },
+  inventoryMovement: {
+    aggregate: jest.fn()
   }
 };
 
@@ -70,6 +73,12 @@ describe("dashboard.service", () => {
       },
       _avg: {
         total: 150
+      }
+    });
+    prismaMock.inventoryMovement.aggregate.mockResolvedValue({
+      _sum: {
+        quantity: 4,
+        costAmount: 72
       }
     });
     prismaMock.sale.findMany.mockResolvedValue([
@@ -149,6 +158,20 @@ describe("dashboard.service", () => {
         })
       })
     );
+    expect(prismaMock.inventoryMovement.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          type: "OUT",
+          reasonType: "EXPIRATION"
+        }),
+        _sum: {
+          quantity: true,
+          costAmount: true
+        }
+      })
+    );
+    expect(summary.productSummary.shrinkageUnitsToday).toBe(4);
+    expect(summary.productSummary.shrinkageCostToday).toBe(72);
     expect(prismaMock.cashRegisterSession.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
@@ -213,6 +236,7 @@ describe("dashboard.service", () => {
     });
 
     expect(prismaMock.user.groupBy).not.toHaveBeenCalled();
+    expect(prismaMock.inventoryMovement.aggregate).not.toHaveBeenCalled();
     expect(prismaMock.sale.aggregate).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -228,6 +252,8 @@ describe("dashboard.service", () => {
         }
       })
     );
+    expect(summary.productSummary.shrinkageUnitsToday).toBe(0);
+    expect(summary.productSummary.shrinkageCostToday).toBe(0);
     expect(prismaMock.cashRegisterSession.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {

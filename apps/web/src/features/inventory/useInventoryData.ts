@@ -98,7 +98,8 @@ export function useInventoryData() {
           productId: form.productId,
           warehouseId: form.warehouseId || undefined,
           quantity: form.quantity,
-          reason: form.reason.trim(),
+          reasonType: form.reasonType,
+          reason: form.reasonType === "EXPIRATION" ? undefined : form.reason.trim(),
         });
 
         setMessage(
