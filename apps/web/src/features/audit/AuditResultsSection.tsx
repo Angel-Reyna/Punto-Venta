@@ -1,10 +1,23 @@
-import { Box, Card, CardContent, Chip, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { useEffect, useMemo, useState } from "react";
 
-import SecurityIcon from "@mui/icons-material/Security";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import {
+  Box,
+  FormControl,
+  MenuItem,
+  Pagination,
+  Select,
+  Stack,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import type { SelectChangeEvent } from "@mui/material/Select";
 
 import { EmptyStatePanel } from "../../components/data-display";
 import { AuditLogCard, type AuditLayoutVariant, type AuditLog } from "./auditShared";
+
+const PAGE_SIZE_OPTIONS = [3, 10] as const;
+type AuditEventsPageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 
 function useAuditLayoutVariant(): AuditLayoutVariant {
   const theme = useTheme();
@@ -16,32 +29,21 @@ function useAuditLayoutVariant(): AuditLayoutVariant {
   return "desktop";
 }
 
-function getResultsCopy(variant: AuditLayoutVariant, visibleCount: number) {
-  if (variant === "mobile") {
-    return {
-      title: `${visibleCount} evento(s) visibles`,
-      eyebrow: "Feed móvil",
-      helper: "Una tarjeta por cambio. Lee lo esencial y abre detalles solo si hace falta.",
-    };
-  }
+function clampPage(page: number, totalPages: number) {
+  return Math.min(Math.max(page, 1), Math.max(totalPages, 1));
+}
 
-  if (variant === "tablet") {
-    return {
-      title: `${visibleCount} evento(s) visibles`,
-      eyebrow: "Tablero táctil",
-      helper: "Tarjetas amplias para comparar eventos sin forzar una tabla horizontal.",
-    };
-  }
+function getPageSummary(total: number, page: number, pageSize: AuditEventsPageSize) {
+  if (total === 0) return "Sin eventos";
 
-  return {
-    title: `${visibleCount} evento(s) visibles`,
-    eyebrow: "Línea de tiempo",
-    helper: "Vista de revisión con explicación simple, responsable, área afectada y datos técnicos solo cuando hacen falta.",
-  };
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(total, page * pageSize);
+
+  return `Mostrando ${from}-${to} de ${total}`;
 }
 
 export function AuditResultsSection({
-  criticalEvents,
+  criticalEvents: _criticalEvents,
   layoutVariant,
   visibleRows,
 }: {
@@ -51,59 +53,102 @@ export function AuditResultsSection({
 }) {
   const detectedLayoutVariant = useAuditLayoutVariant();
   const variant = layoutVariant ?? detectedLayoutVariant;
-  const copy = getResultsCopy(variant, visibleRows.length);
+  const [rowsPerPage, setRowsPerPage] = useState<AuditEventsPageSize>(3);
+  const [page, setPage] = useState(1);
+  const rowSignature = useMemo(() => visibleRows.map((log) => log.id).join("|"), [visibleRows]);
+  const totalPages = Math.max(1, Math.ceil(visibleRows.length / rowsPerPage));
+  const currentPage = clampPage(page, totalPages);
+  const pageRows = visibleRows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const summary = getPageSummary(visibleRows.length, currentPage, rowsPerPage);
+
+  useEffect(() => {
+    setPage(1);
+  }, [rowSignature, rowsPerPage]);
+
+  useEffect(() => {
+    setPage((current) => clampPage(current, totalPages));
+  }, [totalPages]);
+
+  const handleRowsPerPageChange = (event: SelectChangeEvent<number>) => {
+    const nextValue = Number(event.target.value);
+    const safeValue = PAGE_SIZE_OPTIONS.includes(nextValue as AuditEventsPageSize)
+      ? (nextValue as AuditEventsPageSize)
+      : 3;
+    setRowsPerPage(safeValue);
+  };
 
   return (
-    <Stack spacing={variant === "mobile" ? 1.25 : 1.75}>
-      <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: variant === "mobile" ? "none" : undefined }}>
-        <CardContent sx={{ p: variant === "mobile" ? 1.5 : 2 }}>
-          <Stack
-            direction={variant === "desktop" ? "row" : "column"}
-            spacing={1.25}
-            alignItems={variant === "desktop" ? "center" : "stretch"}
-            justifyContent="space-between"
-          >
-            <Box>
-              <Typography variant="overline" color="text.secondary" fontWeight={900}>
-                {copy.eyebrow}
-              </Typography>
-              <Typography
-                variant={variant === "mobile" ? "subtitle1" : "h6"}
-                fontWeight={950}
-                data-testid="audit-results-heading"
-              >
-                {copy.title}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {copy.helper}
-              </Typography>
-            </Box>
-            <Chip
-              color={criticalEvents > 0 ? "error" : "success"}
-              label={criticalEvents > 0 ? "Revisar acciones críticas" : "Sin críticas visibles"}
-              icon={criticalEvents > 0 ? <WarningAmberIcon /> : <SecurityIcon />}
-              sx={{ alignSelf: variant === "desktop" ? "center" : "flex-start" }}
-            />
-          </Stack>
-        </CardContent>
-      </Card>
-
+    <Stack data-testid="audit-events-section" spacing={variant === "mobile" ? 1.1 : 1.35}>
       {visibleRows.length === 0 ? (
         <EmptyStatePanel>
-          No hay cambios con los filtros actuales. Limpia filtros o realiza una acción administrativa para ver actividad.
+          No hay cambios con los filtros actuales. Limpia filtros o consulta otro periodo.
         </EmptyStatePanel>
       ) : (
-        <Box
-          sx={{
-            display: "grid",
-            gap: variant === "mobile" ? 1.25 : 1.5,
-            gridTemplateColumns: variant === "tablet" ? "repeat(2, minmax(0, 1fr))" : "1fr",
-          }}
-        >
-          {visibleRows.map((log, index) => (
-            <AuditLogCard key={log.id} index={index + 1} log={log} variant={variant} />
-          ))}
-        </Box>
+        <>
+          <Stack
+            direction={variant === "mobile" ? "column" : "row"}
+            spacing={1}
+            alignItems={variant === "mobile" ? "stretch" : "center"}
+            justifyContent="space-between"
+            sx={{ px: { xs: 0.25, sm: 0.5 } }}
+          >
+            <Typography
+              data-testid="audit-events-pagination-summary"
+              variant="body2"
+              color="text.secondary"
+              fontWeight={800}
+            >
+              {summary}
+            </Typography>
+
+            <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
+              <Typography variant="caption" color="text.secondary" fontWeight={800}>
+                Por página
+              </Typography>
+              <FormControl size="small" sx={{ minWidth: 92 }}>
+                <Select
+                  aria-label="Eventos por página"
+                  value={rowsPerPage}
+                  onChange={handleRowsPerPageChange}
+                  inputProps={{ "data-testid": "audit-events-page-size" }}
+                  sx={{ borderRadius: 999, fontWeight: 900 }}
+                >
+                  {PAGE_SIZE_OPTIONS.map((option) => (
+                    <MenuItem key={option} value={option}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Stack>
+          </Stack>
+
+          <Box
+            sx={{
+              display: "grid",
+              gap: variant === "mobile" ? 1 : 1.15,
+              gridTemplateColumns: "1fr",
+            }}
+          >
+            {pageRows.map((log, index) => (
+              <AuditLogCard key={log.id} index={(currentPage - 1) * rowsPerPage + index + 1} log={log} variant={variant} />
+            ))}
+          </Box>
+
+          {totalPages > 1 && (
+            <Stack direction="row" justifyContent="center" sx={{ pt: 0.25 }}>
+              <Pagination
+                color="primary"
+                count={totalPages}
+                page={currentPage}
+                onChange={(_event, nextPage) => setPage(nextPage)}
+                shape="rounded"
+                siblingCount={variant === "mobile" ? 0 : 1}
+                boundaryCount={1}
+              />
+            </Stack>
+          )}
+        </>
       )}
     </Stack>
   );

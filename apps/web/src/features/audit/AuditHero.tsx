@@ -1,176 +1,143 @@
-import { Box, Card, CardContent, Chip, Stack, Typography } from "@mui/material";
+import { Box, Card, CardContent, Chip, Stack, Tab, Tabs, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
-import FindInPageIcon from "@mui/icons-material/FindInPage";
-import PhoneAndroidIcon from "@mui/icons-material/PhoneAndroid";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import AutoAwesomeMosaicIcon from "@mui/icons-material/AutoAwesomeMosaic";
+import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import SecurityIcon from "@mui/icons-material/Security";
-import TabletMacIcon from "@mui/icons-material/TabletMac";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
-import type { AuditLayoutVariant } from "./auditShared";
+import type { AuditLayoutVariant, AuditView } from "./auditShared";
+
+function LatestChangeBlock({ latestEvent }: { latestEvent: string }) {
+  return (
+    <Box
+      sx={(theme) => ({
+        border: 1,
+        borderColor: alpha(theme.palette.warning.main, 0.22),
+        borderRadius: 2.5,
+        bgcolor: alpha(theme.palette.warning.main, 0.055),
+        minWidth: 0,
+        p: 1.35,
+      })}
+    >
+      <Stack direction="row" spacing={1.1} alignItems="center">
+        <Box
+          sx={{
+            display: "grid",
+            placeItems: "center",
+            width: 38,
+            height: 38,
+            borderRadius: 2,
+            color: "warning.main",
+            bgcolor: "background.paper",
+            border: 1,
+            borderColor: "warning.light",
+            flexShrink: 0,
+          }}
+        >
+          <AccessTimeIcon fontSize="small" />
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" fontWeight={900}>
+            Último cambio registrado
+          </Typography>
+          <Typography fontWeight={950} sx={{ overflowWrap: "anywhere" }}>
+            {latestEvent}
+          </Typography>
+        </Box>
+      </Stack>
+    </Box>
+  );
+}
 
 export function AuditHero({
+  activeView,
   criticalEvents,
   latestEvent,
   mode = "desktop",
+  onViewChange,
   visibleCount,
 }: {
+  activeView: AuditView;
   criticalEvents: number;
   latestEvent: string;
   mode?: AuditLayoutVariant;
+  onViewChange: (value: AuditView) => void;
   visibleCount: number;
 }) {
-  if (mode === "mobile") {
-    return (
-      <Card
-        sx={{
-          border: 0,
-          borderRadius: 3,
-          color: "primary.contrastText",
-          background:
-            criticalEvents > 0
-              ? "linear-gradient(145deg, #7f1d1d, #9a3412)"
-              : "linear-gradient(145deg, #0f172a, #075985)",
-        }}
-      >
-        <CardContent sx={{ p: 2 }}>
-          <Stack spacing={1.5}>
-            <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-              <Chip
-                icon={<PhoneAndroidIcon />}
-                label="Vista celular"
-                size="small"
-                sx={{ bgcolor: "rgba(255,255,255,0.14)", color: "inherit" }}
-              />
-              <Chip
-                label={criticalEvents > 0 ? `${criticalEvents} revisar` : "Sin alertas"}
-                size="small"
-                sx={{ bgcolor: "rgba(255,255,255,0.18)", color: "inherit" }}
-              />
-            </Stack>
-
-            <Box>
-              <Typography variant="h5" fontWeight={950}>
-                Bitácora rápida
-              </Typography>
-              <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.82)" }}>
-                Pensada para revisar en movimiento: primero verás la acción, el responsable y si requiere atención.
-              </Typography>
-            </Box>
-
-            <Stack direction="row" spacing={1}>
-              <Box sx={{ flex: 1, borderRadius: 2, bgcolor: "rgba(255,255,255,0.12)", p: 1 }}>
-                <Typography variant="h6" fontWeight={950}>
-                  {visibleCount}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.78)" }}>
-                  eventos
-                </Typography>
-              </Box>
-              <Box sx={{ flex: 1.4, borderRadius: 2, bgcolor: "rgba(255,255,255,0.12)", p: 1 }}>
-                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.78)" }}>
-                  Último cambio
-                </Typography>
-                <Typography variant="body2" fontWeight={900} sx={{ overflowWrap: "anywhere" }}>
-                  {latestEvent}
-                </Typography>
-              </Box>
-            </Stack>
-          </Stack>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (mode === "tablet") {
-    return (
-      <Card
-        variant="outlined"
-        sx={{
-          borderRadius: 3,
-          background: "linear-gradient(160deg, rgba(25, 118, 210, 0.13), rgba(2, 136, 209, 0.06))",
-        }}
-      >
-        <CardContent sx={{ p: 2 }}>
-          <Stack spacing={1.25}>
-            <Chip color="primary" icon={<TabletMacIcon />} label="Modo tablet" sx={{ alignSelf: "flex-start" }} />
-            <Typography variant="h6" fontWeight={950}>
-              Mesa de revisión
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Filtros fijos a la izquierda y tarjetas a la derecha para tocar, comparar y revisar sin una tabla angosta.
-            </Typography>
-            <Stack direction="row" spacing={1}>
-              <Chip color={criticalEvents > 0 ? "error" : "success"} label={`${criticalEvents} críticas`} />
-              <Chip variant="outlined" label={`${visibleCount} visibles`} />
-            </Stack>
-          </Stack>
-        </CardContent>
-      </Card>
-    );
-  }
+  const isMobile = mode === "mobile";
+  const hasCritical = criticalEvents > 0;
 
   return (
     <Card
       variant="outlined"
       sx={{
+        borderRadius: isMobile ? 3 : 3.5,
         overflow: "hidden",
-        borderRadius: 3,
-        background:
-          "linear-gradient(135deg, rgba(15, 23, 42, 0.06), rgba(25, 118, 210, 0.08) 48%, rgba(237, 108, 2, 0.06))",
+        background: "linear-gradient(135deg, rgba(25, 118, 210, 0.08), rgba(2, 136, 209, 0.04))",
       }}
     >
-      <CardContent sx={{ p: 2.5 }}>
-        <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
-          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
-            <Box
-              sx={{
-                display: "grid",
-                placeItems: "center",
-                width: 52,
-                height: 52,
-                borderRadius: 3,
-                bgcolor: "primary.main",
-                color: "primary.contrastText",
-              }}
+      <CardContent sx={{ p: isMobile ? 1.5 : 2, "&:last-child": { pb: isMobile ? 1.5 : 2 } }}>
+        <Stack spacing={1.75}>
+          <Stack
+            direction={isMobile ? "column" : "row"}
+            spacing={1.25}
+            alignItems={isMobile ? "stretch" : "center"}
+            justifyContent="space-between"
+          >
+            <LatestChangeBlock latestEvent={latestEvent} />
+
+            <Stack
+              direction="row"
+              spacing={1}
+              flexWrap="wrap"
+              useFlexGap
+              justifyContent={isMobile ? "flex-start" : "flex-end"}
             >
-              <FindInPageIcon />
-            </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Chip color="primary" label="Solo administradores" icon={<SecurityIcon />} size="small" />
-                <Chip
-                  color={criticalEvents > 0 ? "error" : "success"}
-                  label={criticalEvents > 0 ? `${criticalEvents} críticas` : "Sin críticas visibles"}
-                  size="small"
-                  variant="outlined"
-                />
-              </Stack>
-              <Typography variant="h5" fontWeight={950} sx={{ mt: 1 }}>
-                Línea de tiempo de cambios
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Vista de escritorio para investigar con filtros, evidencia antes/después y una guía lateral.
-              </Typography>
-            </Box>
+              <Chip color="primary" icon={<SecurityIcon />} label="Solo administradores" size="small" />
+              <Chip color="info" icon={<EventAvailableIcon />} label={`${visibleCount} visible(s)`} size="small" variant="outlined" />
+              <Chip
+                color={hasCritical ? "error" : "success"}
+                icon={hasCritical ? <WarningAmberIcon /> : <SecurityIcon />}
+                label={hasCritical ? `${criticalEvents} por revisar` : "Sin críticas"}
+                size="small"
+                variant={hasCritical ? "filled" : "outlined"}
+              />
+            </Stack>
           </Stack>
 
-          <Box
-            sx={{
-              minWidth: 210,
-              border: 1,
-              borderColor: "divider",
-              borderRadius: 2.5,
-              bgcolor: "background.paper",
-              p: 1.5,
-            }}
+          <Tabs
+            value={activeView}
+            onChange={(_event, value: AuditView) => onViewChange(value)}
+            variant="scrollable"
+            allowScrollButtonsMobile
+            aria-label="Secciones de auditoría"
+            sx={(theme) => ({
+              minHeight: 44,
+              "& .MuiTabs-scroller": {
+                mx: { xs: -0.5, sm: 0 },
+              },
+              "& .MuiTabs-flexContainer": {
+                gap: 1,
+              },
+              "& .MuiTab-root": {
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 999,
+                minHeight: 40,
+                px: { xs: 1.75, sm: 2.25 },
+                textTransform: "none",
+                whiteSpace: "nowrap",
+              },
+              "& .Mui-selected": {
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+              },
+            })}
           >
-            <Typography variant="caption" color="text.secondary">
-              Último cambio registrado
-            </Typography>
-            <Typography fontWeight={900}>{latestEvent}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {visibleCount} evento(s) visibles
-            </Typography>
-          </Box>
+            <Tab value="activity" icon={<AutoAwesomeMosaicIcon fontSize="small" />} iconPosition="start" label="Mapa de actividad" />
+            <Tab value="events" icon={<EventAvailableIcon fontSize="small" />} iconPosition="start" label="Eventos recientes" />
+          </Tabs>
         </Stack>
       </CardContent>
     </Card>

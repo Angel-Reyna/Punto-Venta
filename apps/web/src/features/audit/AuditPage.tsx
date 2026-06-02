@@ -1,11 +1,14 @@
-import { Alert, Box, Card, CardContent, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { useState } from "react";
+
+import { Alert, Box, Stack, useMediaQuery, useTheme } from "@mui/material";
 
 import { PageHeader } from "../../components/PageHeader";
 import { AuditFiltersPanel } from "./AuditFiltersPanel";
 import { AuditHero } from "./AuditHero";
+import { AuditInsightsPanel } from "./AuditInsightsPanel";
 import { AuditResultsSection } from "./AuditResultsSection";
-import { AuditSummaryCards } from "./AuditSummaryCards";
 import { useAuditData } from "./useAuditData";
+import type { AuditView } from "./auditShared";
 
 type AuditPageData = ReturnType<typeof useAuditData>;
 
@@ -20,22 +23,30 @@ function AuditError({ error }: { error?: string | null }) {
 }
 
 function AuditMobileScreen({ audit }: { audit: AuditPageData }) {
+  const [activeView, setActiveView] = useState<AuditView>("activity");
+
   return (
     <Box sx={{ mx: { xs: -1.5, sm: 0 }, pb: 8 }}>
       <PageHeader
         title="Auditoría"
-        subtitle="Bitácora rápida: qué pasó, quién lo hizo y si debes revisarlo."
+        subtitle="Cambios, responsables y puntos a revisar."
       />
 
       <AuditError error={audit.error} />
 
       <Stack spacing={1.25}>
         <AuditHero
+          activeView={activeView}
           criticalEvents={audit.criticalEvents}
           latestEvent={audit.latestEvent}
           mode="mobile"
+          onViewChange={setActiveView}
           visibleCount={audit.visibleRows.length}
         />
+
+        {activeView === "activity" && (
+          <AuditInsightsPanel mode="mobile" uniqueUsers={audit.uniqueUsers} visibleRows={audit.visibleRows} />
+        )}
 
         <AuditFiltersPanel
           actionOptions={audit.actionOptions}
@@ -49,22 +60,26 @@ function AuditMobileScreen({ audit }: { audit: AuditPageData }) {
           updateFilter={audit.updateFilter}
         />
 
-        <AuditResultsSection
-          criticalEvents={audit.criticalEvents}
-          layoutVariant="mobile"
-          visibleRows={audit.visibleRows}
-        />
+        {activeView === "events" && (
+          <AuditResultsSection
+            criticalEvents={audit.criticalEvents}
+            layoutVariant="mobile"
+            visibleRows={audit.visibleRows}
+          />
+        )}
       </Stack>
     </Box>
   );
 }
 
 function AuditTabletScreen({ audit }: { audit: AuditPageData }) {
+  const [activeView, setActiveView] = useState<AuditView>("activity");
+
   return (
     <Box>
       <PageHeader
         title="Auditoría"
-        subtitle="Vista de tablet: tablero de revisión con filtros fijos y eventos en tarjetas."
+        subtitle="Actividad reciente con filtros y señales claras."
       />
 
       <AuditError error={audit.error} />
@@ -79,16 +94,11 @@ function AuditTabletScreen({ audit }: { audit: AuditPageData }) {
       >
         <Stack spacing={1.5} sx={{ position: "sticky", top: 84 }}>
           <AuditHero
+            activeView={activeView}
             criticalEvents={audit.criticalEvents}
             latestEvent={audit.latestEvent}
             mode="tablet"
-            visibleCount={audit.visibleRows.length}
-          />
-          <AuditSummaryCards
-            criticalEvents={audit.criticalEvents}
-            latestEvent={audit.latestEvent}
-            mode="tablet"
-            uniqueUsers={audit.uniqueUsers}
+            onViewChange={setActiveView}
             visibleCount={audit.visibleRows.length}
           />
           <AuditFiltersPanel
@@ -104,22 +114,31 @@ function AuditTabletScreen({ audit }: { audit: AuditPageData }) {
           />
         </Stack>
 
-        <AuditResultsSection
-          criticalEvents={audit.criticalEvents}
-          layoutVariant="tablet"
-          visibleRows={audit.visibleRows}
-        />
+        <Stack spacing={1.5}>
+          {activeView === "activity" && (
+            <AuditInsightsPanel mode="tablet" uniqueUsers={audit.uniqueUsers} visibleRows={audit.visibleRows} />
+          )}
+          {activeView === "events" && (
+            <AuditResultsSection
+              criticalEvents={audit.criticalEvents}
+              layoutVariant="tablet"
+              visibleRows={audit.visibleRows}
+            />
+          )}
+        </Stack>
       </Box>
     </Box>
   );
 }
 
 function AuditDesktopScreen({ audit }: { audit: AuditPageData }) {
+  const [activeView, setActiveView] = useState<AuditView>("activity");
+
   return (
     <Box>
       <PageHeader
         title="Auditoría"
-        subtitle="Centro de investigación operativa: revisa cambios importantes con filtros, línea de tiempo y resumen ejecutivo."
+        subtitle="Cambios recientes, responsables y alertas principales."
       />
 
       <AuditError error={audit.error} />
@@ -128,61 +147,43 @@ function AuditDesktopScreen({ audit }: { audit: AuditPageData }) {
         sx={{
           display: "grid",
           gap: 2,
-          gridTemplateColumns: { md: "300px minmax(0, 1fr) 280px", xl: "320px minmax(0, 1fr) 310px" },
+          gridTemplateColumns: { md: "320px minmax(0, 1fr)", xl: "340px minmax(0, 1fr)" },
           alignItems: "start",
         }}
       >
-        <AuditFiltersPanel
-          actionOptions={audit.actionOptions}
-          activeFilterLabels={audit.activeFilterLabels}
-          clearFilters={audit.clearFilters}
-          consult={audit.consult}
-          filters={audit.filters}
-          isLoading={audit.isLoading}
-          layout="desktop"
-          tableOptions={audit.tableOptions}
-          updateFilter={audit.updateFilter}
-        />
-
-        <Stack spacing={2}>
-          <AuditHero
-            criticalEvents={audit.criticalEvents}
-            latestEvent={audit.latestEvent}
-            mode="desktop"
-            visibleCount={audit.visibleRows.length}
-          />
-          <AuditResultsSection
-            criticalEvents={audit.criticalEvents}
-            layoutVariant="desktop"
-            visibleRows={audit.visibleRows}
+        <Stack spacing={1.5} sx={{ position: "sticky", top: 84 }}>
+          <AuditFiltersPanel
+            actionOptions={audit.actionOptions}
+            activeFilterLabels={audit.activeFilterLabels}
+            clearFilters={audit.clearFilters}
+            consult={audit.consult}
+            filters={audit.filters}
+            isLoading={audit.isLoading}
+            layout="desktop"
+            tableOptions={audit.tableOptions}
+            updateFilter={audit.updateFilter}
           />
         </Stack>
 
-        <Stack spacing={2} sx={{ position: "sticky", top: 84 }}>
-          <AuditSummaryCards
+        <Stack spacing={2}>
+          <AuditHero
+            activeView={activeView}
             criticalEvents={audit.criticalEvents}
             latestEvent={audit.latestEvent}
             mode="desktop"
-            uniqueUsers={audit.uniqueUsers}
+            onViewChange={setActiveView}
             visibleCount={audit.visibleRows.length}
           />
-
-          <Card variant="outlined">
-            <CardContent>
-              <Stack spacing={1}>
-                <Typography variant="subtitle1" fontWeight={950}>
-                  Cómo leer esta pantalla
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  1. Filtra por acción o fecha. 2. Revisa primero las acciones críticas. 3. Abre detalles solo cuando
-                  necesites comparar antes/después.
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Los datos sensibles se mantienen ocultos como [redactado].
-                </Typography>
-              </Stack>
-            </CardContent>
-          </Card>
+          {activeView === "activity" && (
+            <AuditInsightsPanel mode="desktop" uniqueUsers={audit.uniqueUsers} visibleRows={audit.visibleRows} />
+          )}
+          {activeView === "events" && (
+            <AuditResultsSection
+              criticalEvents={audit.criticalEvents}
+              layoutVariant="desktop"
+              visibleRows={audit.visibleRows}
+            />
+          )}
         </Stack>
       </Box>
     </Box>

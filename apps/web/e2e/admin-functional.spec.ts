@@ -1,15 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 import { mockApi } from "./support/api-mocks";
-import {
-  byTestId,
-  clickByTestId,
-  dialogByName,
-  fillByTestId,
-} from "./support/e2e-locators";
+import { byTestId, clickByTestId, dialogByName, fillByTestId } from "./support/e2e-locators";
 
 test.describe("cobertura funcional administrativa", () => {
-  test("usuarios permite crear vendedor, cambiar rol, resetear contraseña y desactivar acceso", async ({ page }) => {
+  test("usuarios permite crear vendedor, cambiar rol, resetear contraseña y desactivar acceso", async ({
+    page,
+  }) => {
     await mockApi(page, { role: "ADMIN" });
 
     await page.goto("/users");
@@ -54,7 +51,9 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(byTestId(page, "user-card-seller-e2e")).toContainText("Inactivo");
   });
 
-  test("reportes consulta ventas por vendedor, snapshots de producto eliminado y PDF operativo", async ({ page }) => {
+  test("reportes consulta ventas por vendedor, snapshots de producto eliminado y PDF operativo", async ({
+    page,
+  }) => {
     await mockApi(page, { role: "ADMIN" });
 
     await page.goto("/reports");
@@ -100,19 +99,24 @@ test.describe("cobertura funcional administrativa", () => {
     await page.goto("/audit");
 
     await expect(page.getByRole("heading", { name: "Auditoría", level: 1 })).toBeVisible();
-    await expect(page.getByText("Centro de investigación operativa")).toBeVisible();
-    await expect(byTestId(page, "audit-results-heading")).toContainText("3 evento(s) visibles");
+    await expect(page.getByText("Último cambio registrado")).toBeVisible();
+    await expect(byTestId(page, "audit-insights-panel")).toContainText("Mapa de actividad");
+    await expect(byTestId(page, "audit-insights-panel")).toContainText("Áreas con más cambios");
+    await page.getByRole("tab", { name: "Eventos recientes" }).click();
+    await expect(byTestId(page, "audit-events-pagination-summary")).toContainText("Mostrando 1-3 de 3");
     await expect(byTestId(page, "audit-active-filters")).toContainText("Importancia: Todas");
     await expect(byTestId(page, "audit-log-audit-1")).toContainText("Producto eliminado");
-    await expect(byTestId(page, "audit-log-audit-1")).toContainText("Importancia Crítica");
-    await expect(byTestId(page, "audit-log-audit-1")).toContainText("product-deleted-snapshot");
-    await expect(byTestId(page, "audit-after-audit-1")).toContainText("e2e");
+    await expect(byTestId(page, "audit-log-audit-1")).toContainText("Crítica");
+    await expect(byTestId(page, "audit-log-audit-1")).toContainText("Área");
+    await expect(byTestId(page, "audit-log-audit-1")).toContainText("Producto eliminado");
+    await expect(byTestId(page, "audit-log-audit-1")).not.toContainText("product-deleted-snapshot");
+    await expect(byTestId(page, "audit-log-audit-1")).not.toContainText("Datos técnicos");
 
     await page.getByRole("combobox", { name: "Importancia" }).click();
     await page.getByRole("option", { name: "Media" }).click();
 
     await expect(byTestId(page, "audit-active-filters")).toContainText("Importancia: Media");
-    await expect(byTestId(page, "audit-results-heading")).toContainText("1 evento(s) visibles");
+    await expect(byTestId(page, "audit-events-pagination-summary")).toContainText("Mostrando 1-1 de 1");
     await expect(byTestId(page, "audit-log-audit-2")).toContainText("Venta registrada");
     await expect(byTestId(page, "audit-log-audit-1")).toHaveCount(0);
 
@@ -129,7 +133,9 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(byTestId(page, "audit-log-audit-1")).toBeVisible();
   });
 
-  test("actividad de vendedores consulta eventos, filtra por acción y conserva búsqueda local", async ({ page }) => {
+  test("actividad de vendedores consulta eventos, filtra por acción y conserva búsqueda local", async ({
+    page,
+  }) => {
     await mockApi(page, { role: "ADMIN" });
 
     await page.goto("/seller-activity");
@@ -156,9 +162,7 @@ test.describe("cobertura funcional administrativa", () => {
     );
 
     await clickByTestId(page, "seller-activity-quick-sales");
-    await expect(byTestId(page, "seller-activity-active-filters")).toContainText(
-      "Acción: Venta registrada",
-    );
+    await expect(byTestId(page, "seller-activity-active-filters")).toContainText("Acción: Venta registrada");
     await clickByTestId(page, "seller-activity-consult-button");
 
     await expect(byTestId(page, "seller-activity-log-seller-activity-1")).toBeVisible();
@@ -178,9 +182,7 @@ test.describe("cobertura funcional administrativa", () => {
 
     await clickByTestId(page, "seller-activity-toggle-refresh-button");
     await expect(byTestId(page, "seller-activity-refresh-status")).toContainText("Auto-refresh pausado");
-    await expect(byTestId(page, "seller-activity-refresh-helper")).toContainText(
-      "sin perder filtros",
-    );
+    await expect(byTestId(page, "seller-activity-refresh-helper")).toContainText("sin perder filtros");
 
     await clickByTestId(page, "seller-activity-refresh-now-button");
 

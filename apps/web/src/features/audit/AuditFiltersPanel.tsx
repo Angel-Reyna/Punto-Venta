@@ -1,9 +1,26 @@
-import { Box, Button, Card, CardContent, Chip, Divider, Grid, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Divider,
+  Grid,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 
-import { formatActionLabel, formatEntityLabel, type AuditFilters, type AuditLayoutVariant } from "./auditShared";
+import {
+  formatActionLabel,
+  formatEntityLabel,
+  type AuditFilters,
+  type AuditLayoutVariant,
+} from "./auditShared";
 
 type AuditFiltersPanelProps = {
   actionOptions: string[];
@@ -21,23 +38,23 @@ function getFilterCopy(layout: AuditLayoutVariant) {
   if (layout === "mobile") {
     return {
       title: "Buscar en la bitácora",
-      helper: "Primero escribe lo que recuerdes. Abre filtros solo si necesitas afinar.",
-      searchPlaceholder: "Producto, usuario, venta o IP",
+      helper: "Busca por producto, usuario o venta. Usa filtros si necesitas afinar.",
+      searchPlaceholder: "Producto, usuario o venta",
     };
   }
 
   if (layout === "tablet") {
     return {
-      title: "Controles fijos",
-      helper: "Panel lateral para tocar filtros sin perder de vista las tarjetas.",
-      searchPlaceholder: "Producto, usuario, acción o registro",
+      title: "Filtros",
+      helper: "Filtra sin perder de vista los cambios.",
+      searchPlaceholder: "Producto, usuario o acción",
     };
   }
 
   return {
-    title: "Consola de filtros",
-    helper: "Investiga por acción, área, importancia, fecha o texto libre.",
-    searchPlaceholder: "Producto, usuario, acción, ID o IP",
+    title: "Filtros",
+    helper: "Encuentra cambios por acción, área o fecha.",
+    searchPlaceholder: "Producto, usuario o área",
   };
 }
 
@@ -270,7 +287,13 @@ export function AuditFiltersPanel({
             <Button data-testid="audit-clear-button" onClick={clearFilters} disabled={isLoading} fullWidth>
               Limpiar
             </Button>
-            <Button data-testid="audit-consult-button" variant="contained" onClick={consult} disabled={isLoading} fullWidth>
+            <Button
+              data-testid="audit-consult-button"
+              variant="contained"
+              onClick={consult}
+              disabled={isLoading}
+              fullWidth
+            >
               {isLoading ? "Consultando..." : "Consultar"}
             </Button>
           </Stack>
