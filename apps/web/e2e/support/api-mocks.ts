@@ -885,20 +885,44 @@ function buildInventoryMovement(
   };
 }
 
+const expirationMovementSearchTerms = [
+  "caducidad",
+  "merma",
+  "merma economica",
+  "expiration",
+  "expired",
+  "vencimiento",
+  "vencido",
+];
+
+function matchesExpirationMovementSearch(query: string) {
+  return expirationMovementSearchTerms.some((term) => {
+    const normalizedTerm = normalize(term);
+
+    return normalizedTerm.includes(query) || query.includes(normalizedTerm);
+  });
+}
+
 function filterMovements(movements: MockInventoryMovement[], query: string | null) {
   const normalizedQuery = normalize(query);
 
   if (!normalizedQuery) return movements;
 
-  return movements.filter((movement) =>
-    [
+  return movements.filter((movement) => {
+    const searchableValues = [
       movement.type,
       movement.reason,
+      movement.reasonType,
       movement.productSku,
       movement.productName,
       movement.warehouse?.name,
-    ].some((value) => normalize(value).includes(normalizedQuery)),
-  );
+    ];
+
+    return (
+      searchableValues.some((value) => normalize(value).includes(normalizedQuery)) ||
+      (movement.reasonType === "EXPIRATION" && matchesExpirationMovementSearch(normalizedQuery))
+    );
+  });
 }
 
 

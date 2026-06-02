@@ -15,6 +15,10 @@ import {
   productStockInclude
 } from "./inventory.mappers";
 import { getProductStocks } from "./inventory.service";
+import {
+  EXPIRATION_REASON_LABEL,
+  INVENTORY_REASON_TYPES
+} from "./inventory.shared";
 
 export async function listWarehouses() {
   return prisma.warehouse.findMany({
@@ -25,6 +29,88 @@ export async function listWarehouses() {
       name: "asc"
     }
   });
+}
+
+const EXPIRATION_SEARCH_TERMS = [
+  EXPIRATION_REASON_LABEL,
+  "merma",
+  "merma economica",
+  "expiration",
+  "expired",
+  "vencimiento",
+  "vencido"
+] as const;
+
+function normalizeSearchTerm(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .trim()
+    .toLowerCase();
+}
+
+function matchesExpirationSearchTerm(q: string) {
+  const normalizedQuery = normalizeSearchTerm(q);
+
+  if (!normalizedQuery) {
+    return false;
+  }
+
+  return EXPIRATION_SEARCH_TERMS.some((term) => {
+    const normalizedTerm = normalizeSearchTerm(term);
+
+    return (
+      normalizedTerm.includes(normalizedQuery) ||
+      normalizedQuery.includes(normalizedTerm)
+    );
+  });
+}
+
+function buildMovementSearchFilters(q: string): Prisma.InventoryMovementWhereInput[] {
+  const filters: Prisma.InventoryMovementWhereInput[] = [
+    {
+      reason: {
+        contains: q,
+        mode: "insensitive"
+      }
+    },
+    {
+      productSku: {
+        contains: q,
+        mode: "insensitive"
+      }
+    },
+    {
+      productName: {
+        contains: q,
+        mode: "insensitive"
+      }
+    },
+    {
+      product: {
+        barcode: {
+          contains: q,
+          mode: "insensitive"
+        }
+      }
+    },
+    {
+      warehouse: {
+        name: {
+          contains: q,
+          mode: "insensitive"
+        }
+      }
+    }
+  ];
+
+  if (matchesExpirationSearchTerm(q)) {
+    filters.push({
+      reasonType: INVENTORY_REASON_TYPES.EXPIRATION
+    });
+  }
+
+  return filters;
 }
 
 export async function listInventoryMovements(query: Record<string, unknown>) {
@@ -56,42 +142,7 @@ export async function listInventoryMovements(query: Record<string, unknown>) {
       : {}),
     ...(q
       ? {
-          OR: [
-            {
-              reason: {
-                contains: q,
-                mode: "insensitive"
-              }
-            },
-            {
-              productSku: {
-                contains: q,
-                mode: "insensitive"
-              }
-            },
-            {
-              productName: {
-                contains: q,
-                mode: "insensitive"
-              }
-            },
-            {
-              product: {
-                barcode: {
-                  contains: q,
-                  mode: "insensitive"
-                }
-              }
-            },
-            {
-              warehouse: {
-                name: {
-                  contains: q,
-                  mode: "insensitive"
-                }
-              }
-            }
-          ]
+          OR: buildMovementSearchFilters(q)
         }
       : {})
   };

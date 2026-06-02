@@ -187,19 +187,25 @@ tar \
   --exclude="./node_modules" \
   --exclude="./apps/api/node_modules" \
   --exclude="./apps/web/node_modules" \
+  --exclude="./dist" \
   --exclude="./apps/api/dist" \
   --exclude="./apps/web/dist" \
-  --exclude="./apps/web/test-results" \
-  --exclude="./apps/web/playwright-report" \
+  --exclude="./coverage" \
+  --exclude="./apps/api/coverage" \
+  --exclude="./apps/web/coverage" \
   --exclude="./test-results" \
+  --exclude="./apps/web/test-results" \
   --exclude="./playwright-report" \
+  --exclude="./apps/web/playwright-report" \
+  --exclude="./.puntaventa_diagnostics" \
   --exclude="./.env" \
   --exclude="./.env.*" \
-  --exclude="./apps/api/.env" \
-  --exclude="./apps/api/.env.*" \
-  --exclude="./apps/web/.env" \
-  --exclude="./apps/web/.env.*" \
+  --exclude=".env" \
+  --exclude=".env.*" \
+  --exclude="*/.env" \
+  --exclude="*/.env.*" \
   --exclude="./*.log" \
+  --exclude="*.tsbuildinfo" \
   --exclude="./$OUT_DIR/*.tar.gz" \
   -czf "$ARCHIVE" .
 
