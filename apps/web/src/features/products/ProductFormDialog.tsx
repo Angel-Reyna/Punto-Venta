@@ -8,6 +8,7 @@ import { ResponsiveDialog } from "../../components/ResponsiveDialog";
 import {
   INITIAL_STOCK_INFO_TEXT,
   MIN_STOCK_INFO_TEXT,
+  OTHER_CATEGORY_VALUE,
   PRODUCT_CODE_INFO_TEXT,
   PROMO_INFO_TEXT,
   ProductCategory,
@@ -31,6 +32,10 @@ type ProductFormDialogProps = {
   open: boolean;
 };
 
+function isOtherCategorySelected(categoryId: string) {
+  return categoryId === OTHER_CATEGORY_VALUE;
+}
+
 export function ProductFormDialog({
   categories,
   form,
@@ -43,10 +48,13 @@ export function ProductFormDialog({
 }: ProductFormDialogProps) {
   const promoPercent = toNonNegativeNumber(form.promoPercent);
   const isEditMode = mode === "edit";
+  const usesCustomCategory = isOtherCategorySelected(form.categoryId);
+  const customCategoryName = safeTrim(form.categoryName);
 
   const formIsInvalid =
     !safeTrim(form.sku) ||
     !safeTrim(form.name) ||
+    (usesCustomCategory && customCategoryName.length < 2) ||
     isInvalidNonNegativeNumber(form.costPrice) ||
     isInvalidNonNegativeNumber(form.salePrice) ||
     isInvalidNonNegativeNumber(form.promoPercent) ||
@@ -58,6 +66,9 @@ export function ProductFormDialog({
   const productFormDisabledReason = (() => {
     if (!safeTrim(form.sku)) return "Captura una clave interna/SKU.";
     if (!safeTrim(form.name)) return "Captura el nombre del producto.";
+    if (usesCustomCategory && customCategoryName.length < 2) {
+      return "Escribe el nombre de la categoría nueva.";
+    }
     if (isInvalidNonNegativeNumber(form.costPrice)) {
       return "El costo debe ser un número mayor o igual a cero.";
     }
@@ -195,13 +206,23 @@ export function ProductFormDialog({
               select
               label="Categoría"
               value={form.categoryId}
-              helperText="Selecciona una categoría activa."
-              onChange={(event) =>
+              helperText={
+                usesCustomCategory
+                  ? "Se guardará como una categoría nueva."
+                  : "Selecciona una categoría activa o elige Otros."
+              }
+              inputProps={{
+                "data-testid": "product-form-category",
+              }}
+              onChange={(event) => {
+                const categoryId = event.target.value;
+
                 onFormChange({
                   ...form,
-                  categoryId: event.target.value,
-                })
-              }
+                  categoryId,
+                  categoryName: categoryId === OTHER_CATEGORY_VALUE ? form.categoryName : "",
+                });
+              }}
             >
               <MenuItem value="">Sin categoría</MenuItem>
               {categories.map((category) => (
@@ -209,8 +230,30 @@ export function ProductFormDialog({
                   {category.name}
                 </MenuItem>
               ))}
+              <MenuItem value={OTHER_CATEGORY_VALUE}>Otros</MenuItem>
             </TextField>
           </Grid>
+
+          {usesCustomCategory && (
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Nombre de categoría"
+                value={form.categoryName}
+                helperText="Ejemplo: Panadería, Limpieza, Mascotas."
+                inputProps={{
+                  "data-testid": "product-form-category-name",
+                  maxLength: 60,
+                }}
+                onChange={(event) =>
+                  onFormChange({
+                    ...form,
+                    categoryName: event.target.value,
+                  })
+                }
+              />
+            </Grid>
+          )}
 
           <Grid item xs={12}>
             <TextField

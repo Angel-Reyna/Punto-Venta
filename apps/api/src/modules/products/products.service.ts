@@ -3,6 +3,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
 
+import { resolveProductCategorySelection } from "./products.categories";
+
 import {
   getOrCreateDefaultWarehouse,
   increaseStock
@@ -18,6 +20,7 @@ export { productTemplateBuffer } from "./products.import";
 
 export type CreateProductInput = {
   categoryId?: string | null;
+  categoryName?: string | null;
   sku: string;
   barcode?: string | null;
   name: string;
@@ -55,45 +58,27 @@ export type DeleteProductResult = {
   };
 };
 
-async function assertActiveCategory(
-  tx: Prisma.TransactionClient,
-  categoryId?: string | null
-) {
-  if (!categoryId) {
-    return;
-  }
-
-  const category = await tx.productCategory.findUnique({
-    where: {
-      id: categoryId
-    },
-    select: {
-      id: true,
-      name: true,
-      isActive: true
-    }
-  });
-
-  if (!category) {
-    throw new AppError(404, "Categoría no encontrada");
-  }
-
-  if (!category.isActive) {
-    throw new AppError(400, `Categoría inactiva: ${category.name}`);
-  }
-}
-
 export async function createProduct(
   input: CreateProductInput,
   userId: string
 ) {
   return prisma.$transaction(
     async (tx) => {
-      await assertActiveCategory(tx, input.categoryId);
+      const categoryId = await resolveProductCategorySelection(tx, input, {
+        defaultToNull: true
+      });
 
       const product = await tx.product.create({
         data: {
-          categoryId: input.categoryId ?? null,
+          ...(categoryId
+            ? {
+                category: {
+                  connect: {
+                    id: categoryId
+                  }
+                }
+              }
+            : {}),
           sku: input.sku,
           barcode: input.barcode ?? null,
           name: input.name,

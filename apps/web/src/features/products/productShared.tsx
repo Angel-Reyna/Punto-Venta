@@ -26,6 +26,8 @@ export type ProductCategory = {
   name: string;
 };
 
+export const OTHER_CATEGORY_VALUE = "__OTHER_CATEGORY__";
+
 export const SKU_INFO_TEXT =
   "SKU es la clave única de inventario del producto; significa Stock Keeping Unit, es decir, una unidad para identificar y controlar existencias.";
 export const PRODUCT_CODE_INFO_TEXT =
@@ -41,6 +43,7 @@ export const MIN_STOCK_INFO_TEXT =
 
 export const initialForm = {
   categoryId: "",
+  categoryName: "",
   sku: "",
   barcode: "",
   name: "",

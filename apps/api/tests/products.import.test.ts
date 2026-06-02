@@ -23,6 +23,7 @@ import {
   importProducts,
   productTemplateBuffer
 } from "../src/modules/products/products.service";
+import { updateProduct } from "../src/modules/products/products.queries";
 
 
 const SPREADSHEETML_MAIN_NAMESPACE =
@@ -93,11 +94,23 @@ function createTxMock() {
       }),
       upsert: jest.fn().mockResolvedValue({
         id: "category-1"
+      }),
+      create: jest.fn().mockResolvedValue({
+        id: "category-other"
       })
     },
     product: {
       create: jest.fn(),
       findFirst: jest.fn(),
+      findUniqueOrThrow: jest.fn().mockResolvedValue({
+        id: "product-1",
+        sku: "SKU-1",
+        categoryId: "category-1"
+      }),
+      update: jest.fn().mockResolvedValue({
+        id: "product-1",
+        sku: "SKU-1"
+      }),
       upsert: jest.fn()
     }
   };
@@ -236,7 +249,11 @@ describe("products import", () => {
     expect(tx.product.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          categoryId: "category-1",
+          category: {
+            connect: {
+              id: "category-1"
+            }
+          },
           sku: "SKU-2",
           barcode: "750000000002",
           name: "Producto manual"
@@ -257,6 +274,98 @@ describe("products import", () => {
     expect(result).toEqual({
       id: "product-2",
       sku: "SKU-2"
+    });
+  });
+
+
+  it("creates a manual product with a new category from Otros", async () => {
+    const tx = createTxMock();
+
+    tx.productCategory.findUnique.mockResolvedValue(null);
+    tx.product.create.mockResolvedValue({
+      id: "product-other",
+      sku: "SKU-OTHER"
+    });
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback(tx)
+    );
+
+    await createProduct(
+      {
+        categoryName: "Bebidas premium",
+        sku: "SKU-OTHER",
+        barcode: null,
+        name: "Producto con categoría nueva",
+        description: null,
+        costPrice: 12,
+        salePrice: 24,
+        promoPercent: 0,
+        minStock: 1,
+        initialStock: 0
+      },
+      "admin-1"
+    );
+
+    expect(tx.productCategory.create).toHaveBeenCalledWith({
+      data: {
+        name: "Bebidas premium",
+        description: "Categoría Bebidas premium",
+        isActive: true
+      },
+      select: {
+        id: true
+      }
+    });
+    expect(tx.product.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          category: {
+            connect: {
+              id: "category-other"
+            }
+          },
+          sku: "SKU-OTHER"
+        })
+      })
+    );
+  });
+
+
+  it("updates a product with a new category from Otros", async () => {
+    const tx = createTxMock();
+
+    tx.productCategory.findUnique.mockResolvedValue(null);
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback(tx)
+    );
+
+    await updateProduct("product-1", {
+      categoryName: "Hidratación",
+      salePrice: 16
+    });
+
+    expect(tx.productCategory.create).toHaveBeenCalledWith({
+      data: {
+        name: "Hidratación",
+        description: "Categoría Hidratación",
+        isActive: true
+      },
+      select: {
+        id: true
+      }
+    });
+    expect(tx.product.update).toHaveBeenCalledWith({
+      where: {
+        id: "product-1"
+      },
+      data: expect.objectContaining({
+        category: {
+          connect: {
+            id: "category-other"
+          }
+        },
+        salePrice: 16
+      })
     });
   });
 

@@ -6,6 +6,7 @@ import type { Product, ProductCategory } from "./productShared";
 export type CreateProductInput = {
   barcode?: string | null;
   categoryId?: string | null;
+  categoryName?: string | null;
   costPrice: number;
   description?: string | null;
   initialStock: number;

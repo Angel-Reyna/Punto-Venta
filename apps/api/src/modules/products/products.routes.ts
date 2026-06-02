@@ -37,32 +37,55 @@ const upload = multer({
   }
 });
 
+const categoryWriteFieldsSchema = z.object({
+  categoryId: z.string().uuid().optional().nullable(),
+  categoryName: z.string().trim().min(2).max(60).optional().nullable()
+});
+
+const productWriteFieldsSchema = z.object({
+  sku: z.string().min(1).max(80),
+
+  barcode: z.string().max(80).optional().nullable(),
+
+  name: z.string().min(2).max(160),
+
+  description: z.string().max(500).optional().nullable(),
+
+  costPrice: z.coerce.number().min(0),
+
+  salePrice: z.coerce.number().min(0),
+
+  promoPercent: z.coerce.number().min(0).max(100).default(0),
+
+  minStock: z.coerce.number().int().min(0).default(0),
+
+  initialStock: z.coerce.number().int().min(0).max(1_000_000).default(0)
+});
+
+function validateCategorySelection(
+  value: { categoryId?: string | null; categoryName?: string | null },
+  ctx: z.RefinementCtx
+) {
+  if (value.categoryId && value.categoryName) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Elige una categoría existente o escribe una nueva, no ambas.",
+      path: ["categoryName"]
+    });
+  }
+}
+
 const createSchema = z.object({
-  body: z.object({
-    categoryId: z.string().uuid().optional().nullable(),
-
-    sku: z.string().min(1).max(80),
-
-    barcode: z.string().max(80).optional().nullable(),
-
-    name: z.string().min(2).max(160),
-
-    description: z.string().max(500).optional().nullable(),
-
-    costPrice: z.coerce.number().min(0),
-
-    salePrice: z.coerce.number().min(0),
-
-    promoPercent: z.coerce.number().min(0).max(100).default(0),
-
-    minStock: z.coerce.number().int().min(0).default(0),
-
-    initialStock: z.coerce.number().int().min(0).max(1_000_000).default(0)
-  })
+  body: categoryWriteFieldsSchema
+    .merge(productWriteFieldsSchema)
+    .superRefine(validateCategorySelection)
 });
 
 const updateSchema = z.object({
-  body: createSchema.shape.body.omit({ initialStock: true }).partial()
+  body: categoryWriteFieldsSchema
+    .partial()
+    .merge(productWriteFieldsSchema.omit({ initialStock: true }).partial())
+    .superRefine(validateCategorySelection)
 });
 
 export const productsRouter = Router();

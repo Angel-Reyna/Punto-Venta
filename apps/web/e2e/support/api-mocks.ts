@@ -194,6 +194,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
   const role = options.role ?? "ADMIN";
   const authenticated = options.authenticated ?? true;
   const user = buildMockUser(role);
+  const categories = [{ id: "category-1", name: "Bebidas" }];
   const products = productsResponse();
   const sales = salesResponse(role);
   const inventoryMovements = inventoryMovementsResponse(products[0]);
@@ -324,7 +325,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
     }
 
     if (pathname.endsWith("/products/categories")) {
-      return json(route, [{ id: "category-1", name: "Bebidas" }]);
+      return json(route, categories);
     }
 
     if (pathname.endsWith("/products/template/excel") && method === "GET") {
@@ -349,9 +350,15 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
       }
 
       const payload = readJsonPayload(request) as Partial<MockProduct> & {
+        categoryId?: string | null;
+        categoryName?: string | null;
         initialStock?: number;
       };
-      const createdProduct = buildCreatedProduct(payload, products.length + 1);
+      const createdProduct = buildCreatedProduct(
+        payload,
+        products.length + 1,
+        categories,
+      );
 
       products.push(createdProduct);
       inventoryMovements.unshift(buildInventoryMovement(createdProduct, {
@@ -412,9 +419,10 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
 
       const payload = readJsonPayload(request) as Partial<MockProduct> & {
         categoryId?: string | null;
+        categoryName?: string | null;
       };
 
-      updateMockProduct(product, payload);
+      updateMockProduct(product, payload, categories);
 
       return json(route, product);
     }
@@ -761,9 +769,45 @@ function formatProductForRole(product: MockProduct, role: Role) {
   };
 }
 
+function resolveMockCategory(
+  categories: Array<{ id: string; name: string }>,
+  payload: { categoryId?: string | null; categoryName?: string | null },
+) {
+  const categoryName = String(payload.categoryName ?? "").trim();
+
+  if (categoryName) {
+    const existingCategory = categories.find(
+      (category) => category.name.toLowerCase() === categoryName.toLowerCase(),
+    );
+
+    if (existingCategory) return existingCategory;
+
+    const createdCategory = {
+      id: `category-${categories.length + 1}`,
+      name: categoryName,
+    };
+
+    categories.push(createdCategory);
+
+    return createdCategory;
+  }
+
+  if (payload.categoryId === null) return null;
+
+  return categories.find((category) => category.id === payload.categoryId) ?? {
+    id: "category-1",
+    name: "Bebidas",
+  };
+}
+
 function buildCreatedProduct(
-  payload: Partial<MockProduct> & { initialStock?: number },
+  payload: Partial<MockProduct> & {
+    categoryId?: string | null;
+    categoryName?: string | null;
+    initialStock?: number;
+  },
   sequence: number,
+  categories: Array<{ id: string; name: string }>,
 ): MockProduct {
   const salePrice = Number(payload.salePrice ?? 0);
   const promoPercent = Number(payload.promoPercent ?? 0);
@@ -776,9 +820,7 @@ function buildCreatedProduct(
     barcode: payload.barcode ? String(payload.barcode) : null,
     name: String(payload.name ?? `Producto ${sequence}`),
     description: payload.description ? String(payload.description) : null,
-    category: payload.category?.id
-      ? payload.category
-      : { id: "category-1", name: "Bebidas" },
+    category: resolveMockCategory(categories, payload),
     salePrice,
     finalPrice,
     promoPercent,
@@ -795,7 +837,11 @@ function buildCreatedProduct(
 
 function updateMockProduct(
   product: MockProduct,
-  payload: Partial<MockProduct> & { categoryId?: string | null },
+  payload: Partial<MockProduct> & {
+    categoryId?: string | null;
+    categoryName?: string | null;
+  },
+  categories: Array<{ id: string; name: string }>,
 ) {
   const salePrice = Number(payload.salePrice ?? product.salePrice);
   const promoPercent = Number(payload.promoPercent ?? product.promoPercent);
@@ -805,11 +851,9 @@ function updateMockProduct(
   product.barcode = payload.barcode ? String(payload.barcode) : null;
   product.name = String(payload.name ?? product.name);
   product.description = payload.description ? String(payload.description) : null;
-  product.category = payload.category?.id
-    ? payload.category
-    : payload.categoryId === null
-      ? null
-      : product.category;
+  if (payload.categoryName !== undefined || payload.categoryId !== undefined) {
+    product.category = resolveMockCategory(categories, payload);
+  }
   product.salePrice = salePrice;
   product.promoPercent = promoPercent;
   product.finalPrice = Number((salePrice * (1 - promoPercent / 100)).toFixed(2));

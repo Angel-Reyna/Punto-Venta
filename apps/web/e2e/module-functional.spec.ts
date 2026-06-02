@@ -77,6 +77,9 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(productDialog).toBeVisible();
     await fillByTestId(productDialog, "product-form-sku", "AGUA-1L");
     await fillByTestId(productDialog, "product-form-barcode", "7500000000011");
+    await productDialog.getByRole("combobox", { name: "Categoría" }).click();
+    await page.getByRole("option", { name: "Otros" }).click();
+    await fillByTestId(productDialog, "product-form-category-name", "Bebidas premium");
     await fillByTestId(productDialog, "product-form-name", "Agua Mineral 1L");
     await fillByTestId(productDialog, "product-form-cost-price", "8");
     await fillByTestId(productDialog, "product-form-sale-price", "15");
@@ -91,10 +94,14 @@ test.describe("cobertura funcional por módulos críticos", () => {
     const editDialog = dialogByName(page, "Editar producto");
     await expect(editDialog).toBeVisible();
     await fillByTestId(editDialog, "product-form-sale-price", "16");
+    await editDialog.getByRole("combobox", { name: "Categoría" }).click();
+    await page.getByRole("option", { name: "Otros" }).click();
+    await fillByTestId(editDialog, "product-form-category-name", "Hidratación");
     await clickByTestId(editDialog, "product-form-submit");
 
     await expect(page.getByText("Producto actualizado correctamente.")).toBeVisible();
     await expect(byTestId(page, "product-row-AGUA-1L")).toContainText("$16.00");
+    await expect(byTestId(page, "product-row-AGUA-1L")).toContainText("Hidratación");
 
     await clickByTestId(page, "product-toggle-AGUA-1L");
 

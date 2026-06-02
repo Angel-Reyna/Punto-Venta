@@ -9,6 +9,8 @@ import {
 } from "../../utils/pagination";
 import { getProductStocks } from "../inventory/inventory.service";
 
+import { resolveProductCategorySelection } from "./products.categories";
+
 import {
   mapProductForRole,
   productWithCategoryInclude,
@@ -163,27 +165,57 @@ export async function listProductCategories() {
   });
 }
 
+export type ProductUpdateInput = Prisma.ProductUpdateInput & {
+  categoryId?: string | null;
+  categoryName?: string | null;
+};
+
 export async function updateProduct(
   productId: string,
-  data: Prisma.ProductUpdateInput
+  data: ProductUpdateInput
 ) {
-  const oldData = await prisma.product.findUniqueOrThrow({
-    where: {
-      id: productId
+  return prisma.$transaction(async (tx) => {
+    const oldData = await tx.product.findUniqueOrThrow({
+      where: {
+        id: productId
+      }
+    });
+
+    const { categoryId, categoryName, ...productData } = data;
+    const resolvedCategoryId = await resolveProductCategorySelection(
+      tx,
+      { categoryId, categoryName },
+      { defaultToNull: false }
+    );
+
+    const updateData: Prisma.ProductUpdateInput = {
+      ...productData
+    };
+
+    if (resolvedCategoryId !== undefined) {
+      updateData.category = resolvedCategoryId
+        ? {
+            connect: {
+              id: resolvedCategoryId
+            }
+          }
+        : {
+            disconnect: true
+          };
     }
-  });
 
-  const product = await prisma.product.update({
-    where: {
-      id: productId
-    },
-    data
-  });
+    const product = await tx.product.update({
+      where: {
+        id: productId
+      },
+      data: updateData
+    });
 
-  return {
-    oldData,
-    product
-  };
+    return {
+      oldData,
+      product
+    };
+  });
 }
 
 export async function toggleProductActive(productId: string) {

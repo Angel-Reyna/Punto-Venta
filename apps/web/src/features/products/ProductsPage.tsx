@@ -28,6 +28,7 @@ import { VisualMetricCard } from "../../components/VisualMetricCard";
 import { useAuth } from "../../auth/AuthContext";
 import { PERMISSIONS } from "../../auth/permissions";
 import {
+  OTHER_CATEGORY_VALUE,
   Product,
   ProductFormValues,
   initialForm,
@@ -49,6 +50,7 @@ function productToForm(product: Product): ProductFormValues {
   return {
     barcode: product.barcode ?? "",
     categoryId: product.category?.id ?? "",
+    categoryName: "",
     costPrice: numberToFormValue(product.costPrice),
     description: product.description ?? "",
     initialStock: "0",
@@ -148,8 +150,21 @@ export function ProductsPage() {
   async function submit(event: FormEvent) {
     event.preventDefault();
 
+    const customCategoryName = safeTrim(form.categoryName);
+    const selectedCategoryId = safeTrim(form.categoryId);
+    const usesCustomCategory = selectedCategoryId === OTHER_CATEGORY_VALUE;
+    const categoryPayload = usesCustomCategory
+      ? {
+          categoryId: null,
+          categoryName: customCategoryName || null,
+        }
+      : {
+          categoryId: selectedCategoryId || null,
+          categoryName: null,
+        };
+
     const payload = {
-      categoryId: safeTrim(form.categoryId) || null,
+      ...categoryPayload,
       sku: safeTrim(form.sku),
       barcode: safeTrim(form.barcode) || null,
       name: safeTrim(form.name),
@@ -165,6 +180,7 @@ export function ProductsPage() {
       : await createProduct({
           ...payload,
           categoryId: payload.categoryId || undefined,
+          categoryName: payload.categoryName || undefined,
           barcode: payload.barcode || undefined,
           description: payload.description || undefined,
           initialStock: toNonNegativeNumber(form.initialStock),
