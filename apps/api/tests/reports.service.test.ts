@@ -19,6 +19,9 @@ const prismaMock = {
     groupBy: jest.fn(),
     findMany: jest.fn()
   },
+  inventoryMovement: {
+    findMany: jest.fn()
+  },
   product: {
     findMany: jest.fn()
   }
@@ -232,6 +235,46 @@ describe("reports.service", () => {
         grossProfit: 30
       }
     ]);
+    prismaMock.inventoryMovement.findMany.mockResolvedValue([
+      {
+        id: "inventory-1",
+        productId: "product-1",
+        productSku: "CAF-001",
+        productName: "Café",
+        warehouseId: "warehouse-1",
+        type: "OUT",
+        quantity: 2,
+        reason: "Caducidad",
+        reasonType: "EXPIRATION",
+        unitCostAtMovement: 20,
+        costAmount: 40,
+        createdBy: "admin-1",
+        createdAt: new Date("2026-05-20T09:00:00.000Z"),
+        warehouse: {
+          id: "warehouse-1",
+          name: "Principal"
+        }
+      },
+      {
+        id: "inventory-2",
+        productId: "product-1",
+        productSku: "CAF-001",
+        productName: "Café",
+        warehouseId: "warehouse-1",
+        type: "IN",
+        quantity: 7,
+        reason: "Reposición",
+        reasonType: "OTHER",
+        unitCostAtMovement: 20,
+        costAmount: 140,
+        createdBy: "admin-1",
+        createdAt: new Date("2026-05-20T08:00:00.000Z"),
+        warehouse: {
+          id: "warehouse-1",
+          name: "Principal"
+        }
+      }
+    ]);
     prismaMock.product.findMany.mockResolvedValue([
       {
         id: "product-1",
@@ -326,6 +369,36 @@ describe("reports.service", () => {
         grossProfit: 70
       }
     ]);
+    expect(report.sales.activeCount).toBe(1);
+    expect(report.sales.unitsSold).toBe(5);
+    expect(report.sales.unitsReturned).toBe(1);
+    expect(report.sales.unitsNet).toBe(4);
+    expect(report.sales.unitsPerTransaction).toBe(4);
+    expect(report.sales.daily).toEqual([
+      {
+        date: "2026-05-20",
+        count: 1,
+        gross: 200,
+        refunded: 50,
+        net: 150,
+        units: 4
+      }
+    ]);
+    expect(report.inventory.movements.unitsIn).toBe(7);
+    expect(report.inventory.movements.unitsOut).toBe(2);
+    expect(report.inventory.shrinkage.totalUnits).toBe(2);
+    expect(report.inventory.shrinkage.totalCost).toBe(40);
+    expect(report.inventory.shrinkage.byProduct).toEqual([
+      {
+        product: {
+          id: "product-1",
+          sku: "CAF-001",
+          name: "Café"
+        },
+        quantity: 2,
+        cost: 40
+      }
+    ]);
     expect(report.sales.recent).toEqual([
       expect.objectContaining({
         id: "sale-1",
@@ -367,6 +440,7 @@ describe("reports.service", () => {
         grossProfit: 30
       }
     ]);
+    prismaMock.inventoryMovement.findMany.mockResolvedValue([]);
 
     const report = await getOperationsReport(range);
 

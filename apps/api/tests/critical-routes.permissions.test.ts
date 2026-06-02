@@ -95,6 +95,217 @@ function authenticateAs(user: typeof ADMIN_USER | typeof CASHIER_USER) {
   prismaMock.user.findUnique.mockResolvedValue(user);
 }
 
+function buildOperationsReportFixture() {
+  const seller = {
+    id: "cashier-1",
+    name: "Vendedor Uno",
+    email: "vendedor@pos.local"
+  };
+
+  return {
+    from: new Date("2026-05-18T00:00:00.000Z"),
+    to: new Date("2026-05-18T23:59:59.999Z"),
+    fromLabel: "2026-05-18",
+    toLabel: "2026-05-18",
+    sales: {
+      count: 1,
+      activeCount: 1,
+      unitsSold: 2,
+      unitsReturned: 1,
+      unitsNet: 1,
+      unitsPerTransaction: 1,
+      byStatus: {
+        COMPLETED: 1
+      },
+      daily: [
+        {
+          date: "2026-05-18",
+          count: 1,
+          gross: 120,
+          refunded: 20,
+          net: 100,
+          units: 1
+        }
+      ],
+      gross: 120,
+      refunded: 20,
+      net: 100,
+      paymentSummary: {
+        CASH: 120
+      },
+      profit: {
+        grossCost: 70,
+        returnedCost: 10,
+        netCost: 60,
+        grossProfit: 50,
+        returnedProfit: 10,
+        netProfit: 40,
+        marginPercent: 40
+      },
+      bySeller: [
+        {
+          seller,
+          count: 1,
+          gross: 120,
+          refunded: 20,
+          net: 100
+        }
+      ],
+      recent: [
+        {
+          id: "sale-1",
+          folio: "SALE-20260518-ABC123",
+          status: "COMPLETED",
+          total: 120,
+          createdAt: new Date("2026-05-18T12:00:00.000Z"),
+          cashier: seller,
+          payments: [
+            {
+              id: "payment-1",
+              method: "CASH",
+              amount: 120
+            }
+          ]
+        }
+      ]
+    },
+    returns: {
+      count: 1,
+      total: 20,
+      byMethod: {
+        CASH: 20
+      },
+      latest: [
+        {
+          id: "return-1",
+          saleId: "sale-1",
+          cashierId: seller.id,
+          reason: "Producto devuelto",
+          refundMethod: "CASH",
+          refundTotal: 20,
+          createdAt: new Date("2026-05-18T13:00:00.000Z"),
+          updatedAt: new Date("2026-05-18T13:00:00.000Z"),
+          cashier: seller
+        }
+      ]
+    },
+    inventory: {
+      movements: {
+        count: 1,
+        unitsIn: 0,
+        unitsOut: 2,
+        byType: {
+          OUT: 2
+        },
+        byReasonType: {
+          EXPIRATION: 2
+        },
+        latest: [
+          {
+            id: "inventory-1",
+            type: "OUT",
+            reasonType: "EXPIRATION",
+            reason: "Caducidad",
+            quantity: 2,
+            unitCostAtMovement: 10,
+            costAmount: 20,
+            product: {
+              id: "product-1",
+              sku: "SKU-1",
+              name: "Producto prueba"
+            },
+            warehouse: {
+              id: "warehouse-1",
+              name: "Principal"
+            },
+            createdAt: new Date("2026-05-18T10:00:00.000Z")
+          }
+        ]
+      },
+      shrinkage: {
+        totalUnits: 2,
+        totalCost: 20,
+        byProduct: [
+          {
+            product: {
+              id: "product-1",
+              sku: "SKU-1",
+              name: "Producto prueba"
+            },
+            quantity: 2,
+            cost: 20
+          }
+        ],
+        byWarehouse: [
+          {
+            warehouse: {
+              id: "warehouse-1",
+              name: "Principal"
+            },
+            quantity: 2,
+            cost: 20
+          }
+        ],
+        latest: [
+          {
+            id: "inventory-1",
+            type: "OUT",
+            reasonType: "EXPIRATION",
+            reason: "Caducidad",
+            quantity: 2,
+            unitCostAtMovement: 10,
+            costAmount: 20,
+            product: {
+              id: "product-1",
+              sku: "SKU-1",
+              name: "Producto prueba"
+            },
+            warehouse: {
+              id: "warehouse-1",
+              name: "Principal"
+            },
+            createdAt: new Date("2026-05-18T10:00:00.000Z")
+          }
+        ]
+      }
+    },
+    cashRegister: {
+      sessions: [
+        {
+          id: "session-1",
+          status: "CLOSED",
+          openingAmount: 100,
+          expectedClosingAmount: 200,
+          closingAmount: 200,
+          difference: 0,
+          openedAt: new Date("2026-05-18T08:00:00.000Z"),
+          closedAt: new Date("2026-05-18T18:00:00.000Z"),
+          cashier: seller
+        }
+      ],
+      movements: {
+        count: 1,
+        summary: {
+          SALE_CASH: 120
+        }
+      }
+    },
+    topProducts: [
+      {
+        product: {
+          id: "product-1",
+          sku: "SKU-1",
+          name: "Producto prueba"
+        },
+        quantity: 2,
+        total: 120,
+        cost: 70,
+        grossProfit: 50
+      }
+    ]
+  };
+}
+
 describe("critical route permissions", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -132,6 +343,7 @@ describe("critical route permissions", () => {
     ["cancelar venta", "post", "/api/sales/00000000-0000-4000-8000-000000000002/cancel", { reason: "Prueba de permiso" }],
     ["registrar devolución", "post", "/api/sales/00000000-0000-4000-8000-000000000002/returns", { reason: "Prueba de permiso", items: [] }],
     ["consultar reportes", "get", "/api/reports/operations", undefined],
+    ["descargar PDF de reportes", "get", "/api/reports/operations/pdf?from=2026-05-18&to=2026-05-18", undefined],
     ["consultar usuarios", "get", "/api/users", undefined],
     ["consultar auditoría", "get", "/api/audit", undefined],
     ["consultar actividad de vendedores", "get", "/api/seller-activity", undefined]
@@ -234,27 +446,51 @@ describe("critical route permissions", () => {
   it("allows ADMIN to reach reports endpoints protected by ReportsRead", async () => {
     authenticateAs(ADMIN_USER);
 
-    reportsServiceMock.getOperationsReport.mockResolvedValue({
-      period: {
-        from: "2026-05-18",
-        to: "2026-05-18"
-      },
-      generatedAt: "2026-05-18T00:00:00.000Z",
-      totals: {},
-      salesByStatus: [],
-      paymentsByMethod: [],
-      refundsByMethod: [],
-      cashMovementsByType: [],
-      topProducts: [],
-      recentSales: [],
-      cashRegisterSessions: [],
-      returns: []
-    });
+    reportsServiceMock.getOperationsReport.mockResolvedValue(
+      buildOperationsReportFixture()
+    );
 
     const response = await request(app)
       .get("/api/reports/operations?from=2026-05-18&to=2026-05-18")
       .set(AUTH_HEADER);
 
     expect(response.status).toBe(200);
+  });
+
+  it("streams a readable operations PDF for ADMIN", async () => {
+    authenticateAs(ADMIN_USER);
+    reportsServiceMock.getOperationsReport.mockResolvedValue(
+      buildOperationsReportFixture()
+    );
+
+    const response = await request(app)
+      .get("/api/reports/operations/pdf?from=2026-05-18&to=2026-05-18")
+      .set(AUTH_HEADER)
+      .buffer(true)
+      .parse((res, callback) => {
+        const chunks: Buffer[] = [];
+
+        res.on("data", (chunk: Buffer) => {
+          chunks.push(Buffer.from(chunk));
+        });
+        res.on("end", () => {
+          callback(null, Buffer.concat(chunks));
+        });
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toContain("application/pdf");
+    expect(response.headers["content-disposition"]).toContain(
+      'attachment; filename="reporte-operativo-2026-05-18-2026-05-18.pdf"'
+    );
+    expect(response.headers["content-disposition"]).toContain("filename*=UTF-8''");
+    expect(Buffer.isBuffer(response.body)).toBe(true);
+    expect(response.body.subarray(0, 4).toString()).toBe("%PDF");
+
+    const pdfText = response.body.toString("latin1");
+    const pageCount = pdfText.match(/\/Type\s*\/Page\b/g)?.length ?? 0;
+
+    expect(pageCount).toBeGreaterThanOrEqual(1);
+    expect(pageCount).toBeLessThanOrEqual(8);
   });
 });

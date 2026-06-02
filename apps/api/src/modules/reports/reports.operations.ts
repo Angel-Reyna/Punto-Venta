@@ -4,6 +4,16 @@ import { prisma } from "../../config/prisma";
 import { buildProfitSummary, roundMoney, toMoney } from "./reports.shared";
 import type { OperationsReport, ReportDateRange, ReportPerson } from "./reports.shared";
 
+const INVENTORY_MOVEMENT_TYPES = {
+  IN: "IN",
+  OUT: "OUT"
+} as const;
+
+const INVENTORY_REASON_TYPES = {
+  EXPIRATION: "EXPIRATION",
+  OTHER: "OTHER"
+} as const;
+
 export async function getOperationsReport(range: ReportDateRange): Promise<OperationsReport> {
   const [
     sales,
@@ -11,7 +21,8 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     cashSessions,
     cashMovements,
     soldProducts,
-    returnedProducts
+    returnedProducts,
+    inventoryMovements
   ] = await Promise.all([
     prisma.sale.findMany({
       where: {
@@ -147,6 +158,25 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
         total: true,
         unitCost: true,
         grossProfit: true
+      }
+    }),
+    prisma.inventoryMovement.findMany({
+      where: {
+        createdAt: {
+          gte: range.start,
+          lte: range.end
+        }
+      },
+      include: {
+        warehouse: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: "desc"
       }
     })
   ]);
@@ -368,6 +398,217 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     {}
   );
 
+
+  const activeSales = sales.filter((sale) => sale.status !== SaleStatus.CANCELLED);
+  const unitsSold = soldItems.reduce((sum, item) => sum + Number(item.quantity), 0);
+  const unitsReturned = returnedItems.reduce((sum, item) => sum + Number(item.quantity), 0);
+  const unitsNet = unitsSold - unitsReturned;
+  const unitsPerTransaction = activeSales.length <= 0
+    ? 0
+    : roundMoney(unitsNet / activeSales.length);
+
+  const salesByDay = new Map<
+    string,
+    {
+      count: number;
+      gross: number;
+      refunded: number;
+      net: number;
+      units: number;
+    }
+  >();
+
+  function ensureDay(date: Date) {
+    const day = date.toISOString().slice(0, 10);
+    const current = salesByDay.get(day) ?? {
+      count: 0,
+      gross: 0,
+      refunded: 0,
+      net: 0,
+      units: 0
+    };
+
+    salesByDay.set(day, current);
+
+    return current;
+  }
+
+  for (const sale of activeSales) {
+    const current = ensureDay(sale.createdAt);
+    const saleUnits = sale.items.reduce((sum, item) => sum + Number(item.quantity), 0);
+
+    current.count += 1;
+    current.gross = roundMoney(current.gross + Number(sale.total));
+    current.net = roundMoney(current.net + Number(sale.total));
+    current.units += saleUnits;
+  }
+
+  for (const saleReturn of returns) {
+    const current = ensureDay(saleReturn.createdAt);
+    const returnedUnits = saleReturn.items.reduce((sum, item) => sum + Number(item.quantity), 0);
+
+    current.refunded = roundMoney(current.refunded + Number(saleReturn.refundTotal));
+    current.net = roundMoney(current.net - Number(saleReturn.refundTotal));
+    current.units -= returnedUnits;
+  }
+
+  const dailySales = [...salesByDay.entries()]
+    .map(([date, item]) => ({
+      date,
+      count: item.count,
+      gross: roundMoney(item.gross),
+      refunded: roundMoney(item.refunded),
+      net: roundMoney(item.net),
+      units: item.units
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const inventoryUnitsIn = inventoryMovements
+    .filter((movement) => movement.type === INVENTORY_MOVEMENT_TYPES.IN)
+    .reduce((sum, movement) => sum + Number(movement.quantity), 0);
+  const inventoryUnitsOut = inventoryMovements
+    .filter((movement) => movement.type === INVENTORY_MOVEMENT_TYPES.OUT)
+    .reduce((sum, movement) => sum + Number(movement.quantity), 0);
+  const inventorySummaryByType = inventoryMovements.reduce<Record<string, number>>(
+    (summary, movement) => {
+      summary[movement.type] = (summary[movement.type] ?? 0) + Number(movement.quantity);
+
+      return summary;
+    },
+    {}
+  );
+  const inventorySummaryByReasonType = inventoryMovements.reduce<Record<string, number>>(
+    (summary, movement) => {
+      summary[movement.reasonType] = (summary[movement.reasonType] ?? 0) + Number(movement.quantity);
+
+      return summary;
+    },
+    {}
+  );
+
+  const expirationMovements = inventoryMovements.filter(
+    (movement) =>
+      movement.type === INVENTORY_MOVEMENT_TYPES.OUT &&
+      movement.reasonType === INVENTORY_REASON_TYPES.EXPIRATION
+  );
+  const expirationCost = roundMoney(
+    expirationMovements.reduce(
+      (sum, movement) =>
+        sum + Number(movement.costAmount ?? Number(movement.unitCostAtMovement ?? 0) * movement.quantity),
+      0
+    )
+  );
+  const expirationUnits = expirationMovements.reduce(
+    (sum, movement) => sum + Number(movement.quantity),
+    0
+  );
+  const shrinkageByProduct = new Map<
+    string,
+    {
+      product: {
+        id: string;
+        sku: string | null;
+        name: string;
+      };
+      quantity: number;
+      cost: number;
+    }
+  >();
+  const shrinkageByWarehouse = new Map<
+    string,
+    {
+      warehouse: {
+        id: string | null;
+        name: string;
+      };
+      quantity: number;
+      cost: number;
+    }
+  >();
+
+  for (const movement of expirationMovements) {
+    const movementCost = roundMoney(
+      Number(movement.costAmount ?? Number(movement.unitCostAtMovement ?? 0) * movement.quantity)
+    );
+    const productKey = movement.productId ?? `deleted:${movement.productSku}:${movement.productName}`;
+    const productCurrent = shrinkageByProduct.get(productKey) ?? {
+      product: {
+        id: movement.productId ?? productKey,
+        sku: movement.productSku,
+        name: movement.productId ? movement.productName : `${movement.productName} (eliminado)`
+      },
+      quantity: 0,
+      cost: 0
+    };
+
+    shrinkageByProduct.set(productKey, {
+      ...productCurrent,
+      quantity: productCurrent.quantity + Number(movement.quantity),
+      cost: roundMoney(productCurrent.cost + movementCost)
+    });
+
+    const warehouseKey = movement.warehouse?.id ?? "unassigned";
+    const warehouseCurrent = shrinkageByWarehouse.get(warehouseKey) ?? {
+      warehouse: {
+        id: movement.warehouse?.id ?? null,
+        name: movement.warehouse?.name ?? "Sin almacén"
+      },
+      quantity: 0,
+      cost: 0
+    };
+
+    shrinkageByWarehouse.set(warehouseKey, {
+      ...warehouseCurrent,
+      quantity: warehouseCurrent.quantity + Number(movement.quantity),
+      cost: roundMoney(warehouseCurrent.cost + movementCost)
+    });
+  }
+
+  const latestInventoryMovements = inventoryMovements.slice(0, 20).map((movement) => ({
+    id: movement.id,
+    type: movement.type,
+    reasonType: movement.reasonType,
+    reason: movement.reason,
+    quantity: movement.quantity,
+    unitCostAtMovement:
+      movement.unitCostAtMovement === null ? null : toMoney(movement.unitCostAtMovement),
+    costAmount: movement.costAmount === null ? null : toMoney(movement.costAmount),
+    product: {
+      id: movement.productId,
+      sku: movement.productSku,
+      name: movement.productName
+    },
+    warehouse: movement.warehouse
+      ? {
+          id: movement.warehouse.id,
+          name: movement.warehouse.name
+        }
+      : null,
+    createdAt: movement.createdAt
+  }));
+
+  const latestExpirationMovements = expirationMovements.slice(0, 15).map((movement) => ({
+    id: movement.id,
+    type: movement.type,
+    reasonType: movement.reasonType,
+    reason: movement.reason,
+    quantity: movement.quantity,
+    unitCostAtMovement:
+      movement.unitCostAtMovement === null ? null : toMoney(movement.unitCostAtMovement),
+    costAmount: movement.costAmount === null ? null : toMoney(movement.costAmount),
+    product: {
+      id: movement.productId,
+      sku: movement.productSku,
+      name: movement.productName
+    },
+    warehouse: movement.warehouse
+      ? {
+          id: movement.warehouse.id,
+          name: movement.warehouse.name
+        }
+      : null,
+    createdAt: movement.createdAt
+  }));
   return {
     from: range.start,
     to: range.end,
@@ -375,7 +616,13 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     toLabel: range.toLabel,
     sales: {
       count: sales.length,
+      activeCount: activeSales.length,
+      unitsSold,
+      unitsReturned,
+      unitsNet,
+      unitsPerTransaction,
       byStatus: salesByStatus,
+      daily: dailySales,
       gross: grossSales,
       refunded: refundedTotal,
       net: netSales,
@@ -427,6 +674,35 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
       movements: {
         count: cashMovements.length,
         summary: cashMovementSummary
+      }
+    },
+    inventory: {
+      movements: {
+        count: inventoryMovements.length,
+        unitsIn: inventoryUnitsIn,
+        unitsOut: inventoryUnitsOut,
+        byType: inventorySummaryByType,
+        byReasonType: inventorySummaryByReasonType,
+        latest: latestInventoryMovements
+      },
+      shrinkage: {
+        totalUnits: expirationUnits,
+        totalCost: expirationCost,
+        byProduct: [...shrinkageByProduct.values()]
+          .sort((a, b) =>
+            b.cost - a.cost ||
+            b.quantity - a.quantity ||
+            a.product.name.localeCompare(b.product.name)
+          )
+          .slice(0, 10),
+        byWarehouse: [...shrinkageByWarehouse.values()]
+          .sort((a, b) =>
+            b.cost - a.cost ||
+            b.quantity - a.quantity ||
+            a.warehouse.name.localeCompare(b.warehouse.name)
+          )
+          .slice(0, 10),
+        latest: latestExpirationMovements
       }
     },
     topProducts: sortedTopProducts.map((item) => ({

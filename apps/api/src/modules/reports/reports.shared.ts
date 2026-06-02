@@ -43,6 +43,26 @@ export type ProfitSummary = {
   marginPercent: number;
 };
 
+export type InventoryReportMovement = {
+  id: string;
+  type: string;
+  reasonType: string;
+  reason: string | null;
+  quantity: number;
+  unitCostAtMovement: number | null;
+  costAmount: number | null;
+  product: {
+    id: string | null;
+    sku: string;
+    name: string;
+  };
+  warehouse: {
+    id: string;
+    name: string;
+  } | null;
+  createdAt: Date;
+};
+
 export type OperationsReport = {
   from: Date;
   to: Date;
@@ -50,7 +70,20 @@ export type OperationsReport = {
   toLabel: string;
   sales: {
     count: number;
+    activeCount: number;
+    unitsSold: number;
+    unitsReturned: number;
+    unitsNet: number;
+    unitsPerTransaction: number;
     byStatus: Record<string, number>;
+    daily: Array<{
+      date: string;
+      count: number;
+      gross: number;
+      refunded: number;
+      net: number;
+      units: number;
+    }>;
     gross: number;
     refunded: number;
     net: number;
@@ -92,6 +125,38 @@ export type OperationsReport = {
       updatedAt: Date;
       cashier: ReportPerson;
     }>;
+  };
+  inventory: {
+    movements: {
+      count: number;
+      unitsIn: number;
+      unitsOut: number;
+      byType: Record<string, number>;
+      byReasonType: Record<string, number>;
+      latest: InventoryReportMovement[];
+    };
+    shrinkage: {
+      totalUnits: number;
+      totalCost: number;
+      byProduct: Array<{
+        product: {
+          id: string;
+          sku: string | null;
+          name: string;
+        };
+        quantity: number;
+        cost: number;
+      }>;
+      byWarehouse: Array<{
+        warehouse: {
+          id: string | null;
+          name: string;
+        };
+        quantity: number;
+        cost: number;
+      }>;
+      latest: InventoryReportMovement[];
+    };
   };
   cashRegister: {
     sessions: Array<{
