@@ -2,7 +2,7 @@ import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import { Box, Button, Card, CardContent, Chip, InputAdornment, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Chip, InputAdornment, Stack, TextField, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
 import type { ReportDatePreset } from "./useReportsData";
@@ -15,6 +15,7 @@ const DATE_PRESETS: Array<{ label: string; value: ReportDatePreset }> = [
 ];
 
 export function ReportsPeriodControls({
+  canDownloadPdf,
   dateRangeIsInvalid,
   from,
   isDownloadingPdf,
@@ -24,8 +25,10 @@ export function ReportsPeriodControls({
   onDownloadPdf,
   onFromChange,
   onToChange,
+  pdfDownloadBlockedReason,
   to
 }: {
+  canDownloadPdf: boolean;
   dateRangeIsInvalid: boolean;
   from: string;
   isDownloadingPdf: boolean;
@@ -35,6 +38,7 @@ export function ReportsPeriodControls({
   onDownloadPdf: () => void;
   onFromChange: (value: string) => void;
   onToChange: (value: string) => void;
+  pdfDownloadBlockedReason: string;
   to: string;
 }) {
   return (
@@ -125,12 +129,18 @@ export function ReportsPeriodControls({
             data-testid="reports-download-pdf-button"
             startIcon={<FileDownloadOutlinedIcon />}
             onClick={onDownloadPdf}
-            disabled={dateRangeIsInvalid || isLoading || isDownloadingPdf}
+            disabled={!canDownloadPdf || isLoading || isDownloadingPdf}
             sx={{ minHeight: 54 }}
           >
             {isDownloadingPdf ? "Descargando..." : "Descargar PDF"}
           </Button>
         </Box>
+
+        {pdfDownloadBlockedReason && (
+          <Alert severity="info" sx={{ mt: 1.5 }} data-testid="reports-pdf-gate-message">
+            {pdfDownloadBlockedReason}
+          </Alert>
+        )}
       </CardContent>
     </Card>
   );

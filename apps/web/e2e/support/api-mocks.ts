@@ -495,6 +495,10 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
     }
 
     if (pathname.endsWith("/reports/operations/pdf") && method === "GET") {
+      if (!url.searchParams.get("from") || !url.searchParams.get("to")) {
+        return json(route, { message: "Debes enviar fecha inicial y fecha final" }, 400);
+      }
+
       return route.fulfill({
         status: 200,
         contentType: "application/pdf",

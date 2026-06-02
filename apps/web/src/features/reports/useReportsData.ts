@@ -11,6 +11,11 @@ import { downloadOperationsReportPdf, fetchOperationsReport } from "./reportsApi
 
 export type ReportDatePreset = "today" | "last7" | "month" | "previousMonth";
 
+type SuccessfulReportQuery = {
+  from: string;
+  to: string;
+};
+
 function toDateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
 }
@@ -68,12 +73,25 @@ export function useReportsData() {
   const [from, setFrom] = useState(initialRange.from);
   const [to, setTo] = useState(initialRange.to);
   const [data, setData] = useState<OperationsReport | null>(null);
+  const [lastSuccessfulReportQuery, setLastSuccessfulReportQuery] = useState<SuccessfulReportQuery | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
   const dateRangeIsInvalid = !from || !to || from > to;
+  const reportQueryIsStale = Boolean(
+    lastSuccessfulReportQuery &&
+      (lastSuccessfulReportQuery.from !== from || lastSuccessfulReportQuery.to !== to)
+  );
+  const canDownloadPdf = Boolean(lastSuccessfulReportQuery) && !reportQueryIsStale && !dateRangeIsInvalid;
+  const pdfDownloadBlockedReason = dateRangeIsInvalid
+    ? "Corrige el rango de fechas antes de descargar el PDF."
+    : !lastSuccessfulReportQuery
+      ? "Consulta un reporte para habilitar la descarga del PDF."
+      : reportQueryIsStale
+        ? "Los filtros cambiaron. Consulta de nuevo para descargar el PDF actualizado."
+        : "";
 
   const periodLabel = data
     ? `${data.fromLabel ?? from} al ${data.toLabel ?? to}`
@@ -175,7 +193,11 @@ export function useReportsData() {
 
     try {
       setIsLoading(true);
-      setData(await fetchOperationsReport(from, to));
+      const nextData = await fetchOperationsReport(from, to);
+
+      setData(nextData);
+      setLastSuccessfulReportQuery({ from, to });
+      setSearch("");
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, "No se pudo consultar el reporte operativo."));
     } finally {
@@ -191,9 +213,19 @@ export function useReportsData() {
       return;
     }
 
+    if (!lastSuccessfulReportQuery) {
+      setError("Consulta un reporte antes de descargar el PDF.");
+      return;
+    }
+
+    if (reportQueryIsStale) {
+      setError("Los filtros cambiaron. Consulta de nuevo antes de descargar el PDF.");
+      return;
+    }
+
     try {
       setIsDownloadingPdf(true);
-      await downloadOperationsReportPdf(from, to);
+      await downloadOperationsReportPdf(lastSuccessfulReportQuery.from, lastSuccessfulReportQuery.to);
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, "No se pudo descargar el PDF."));
     } finally {
@@ -203,6 +235,7 @@ export function useReportsData() {
 
   return {
     applyPreset,
+    canDownloadPdf,
     consult,
     data,
     dateRangeIsInvalid,
@@ -217,6 +250,7 @@ export function useReportsData() {
     hasReportActivity,
     isDownloadingPdf,
     isLoading,
+    pdfDownloadBlockedReason,
     periodLabel,
     search,
     setError,

@@ -60,6 +60,9 @@ test.describe("cobertura funcional administrativa", () => {
     await page.goto("/reports");
 
     await expect(page.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
+    await expect(byTestId(page, "reports-download-pdf-button")).toBeDisabled();
+    await expect(byTestId(page, "reports-pdf-gate-message")).toContainText("Consulta un reporte");
+
     await clickByTestId(page, "reports-consult-button");
 
     await expect(page.getByText("Venta neta").first()).toBeVisible();
@@ -69,6 +72,14 @@ test.describe("cobertura funcional administrativa", () => {
       "Producto eliminado snapshot E2E",
     );
     await expect(page.getByRole("region", { name: "Ventas recientes" })).toContainText("PV-0001");
+    await expect(byTestId(page, "reports-download-pdf-button")).toBeEnabled();
+
+    await fillByTestId(page, "reports-date-from", "2026-05-01");
+    await expect(byTestId(page, "reports-download-pdf-button")).toBeDisabled();
+    await expect(byTestId(page, "reports-pdf-gate-message")).toContainText("Los filtros cambiaron");
+
+    await clickByTestId(page, "reports-consult-button");
+    await expect(byTestId(page, "reports-download-pdf-button")).toBeEnabled();
 
     await fillByTestId(page, "reports-search", "SNAP-DEL");
 

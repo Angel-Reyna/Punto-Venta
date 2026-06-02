@@ -457,6 +457,18 @@ describe("critical route permissions", () => {
     expect(response.status).toBe(200);
   });
 
+  it("rejects operations PDF downloads without an explicit date range", async () => {
+    authenticateAs(ADMIN_USER);
+
+    const response = await request(app)
+      .get("/api/reports/operations/pdf")
+      .set(AUTH_HEADER);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Debes enviar fecha inicial y fecha final");
+    expect(reportsServiceMock.getOperationsReport).not.toHaveBeenCalled();
+  });
+
   it("streams a readable operations PDF for ADMIN", async () => {
     authenticateAs(ADMIN_USER);
     reportsServiceMock.getOperationsReport.mockResolvedValue(

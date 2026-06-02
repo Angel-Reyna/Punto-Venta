@@ -26,6 +26,7 @@ export function ReportsPage() {
       >
         <Stack spacing={2} sx={{ minWidth: 0 }}>
           <ReportsPeriodControls
+            canDownloadPdf={report.canDownloadPdf}
             dateRangeIsInvalid={report.dateRangeIsInvalid}
             from={report.from}
             isDownloadingPdf={report.isDownloadingPdf}
@@ -35,6 +36,7 @@ export function ReportsPage() {
             onDownloadPdf={report.downloadPdf}
             onFromChange={report.setFrom}
             onToChange={report.setTo}
+            pdfDownloadBlockedReason={report.pdfDownloadBlockedReason}
             to={report.to}
           />
 
