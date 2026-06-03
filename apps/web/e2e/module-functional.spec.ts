@@ -158,7 +158,7 @@ test.describe("cobertura funcional por módulos críticos", () => {
     ).toBeVisible();
     await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Clave interna/SKU: COCA-600");
     await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Código del producto: 7501055300075");
-    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Ubicación: Almacén Principal");
+    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Almacén: Principal");
 
     await page.getByRole("tab", { name: "Entradas" }).click();
     await expect(byTestId(page, "inventory-form-reason")).toHaveValue("Reabastecimiento");
@@ -172,7 +172,7 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await fillByTestId(warehouseDialog, "inventory-create-warehouse-description", "Mercancía de respaldo");
     await clickByTestId(warehouseDialog, "inventory-create-warehouse-submit");
 
-    await expect(page.getByText("Almacén Bodega norte E2E creado correctamente.")).toBeVisible();
+    await expect(page.getByText("Almacén: Bodega norte E2E creado correctamente.")).toBeVisible();
     await expect(page.getByRole("combobox", { name: /^Almacén/i })).toHaveValue("Bodega norte E2E");
 
     await page.getByLabel("Producto").click();
@@ -192,14 +192,15 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(byTestId(page, "inventory-form-quantity")).toBeEnabled();
     await fillByTestId(page, "inventory-form-quantity", "999");
     await expect(byTestId(page, "inventory-form-quantity")).toHaveValue("24");
-    await expect(page.getByText("Stock disponible en Principal: 24. No puedes retirar más unidades de este almacén.")).toBeVisible();
+    await expect(page.getByText("Se ajustó la salida de 999 unidades al máximo disponible. Almacén: Principal. Disponible: 24 unidades.")).toBeVisible();
 
     await page.getByRole("combobox", { name: /^Almacén/i }).click();
     await page.getByRole("option", { name: "Bodega norte E2E" }).click();
     await expect(byTestId(page, "inventory-form-quantity")).toHaveValue("5");
-    await expect(page.getByText("Stock disponible en Bodega norte E2E: 5. No puedes retirar más unidades de este almacén.")).toBeVisible();
+    await expect(page.getByText("Se ajustó la salida de 24 unidades al máximo disponible. Almacén: Bodega norte E2E. Disponible: 5 unidades.")).toBeVisible();
     await fillByTestId(page, "inventory-form-quantity", "999");
     await expect(byTestId(page, "inventory-form-quantity")).toHaveValue("5");
+    await expect(page.getByText("Se ajustó la salida de 999 unidades al máximo disponible. Almacén: Bodega norte E2E. Disponible: 5 unidades.")).toBeVisible();
     await page.getByRole("combobox", { name: /^Motivo\b/i }).click();
     await page.getByRole("option", { name: "Caducidad" }).click();
     await expect(byTestId(page, "inventory-submit-in")).toHaveCount(0);

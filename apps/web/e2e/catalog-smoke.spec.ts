@@ -44,6 +44,6 @@ test.describe("catálogo e inventario responsive", () => {
     await expect(stockItem.getByText("Stock actual")).toBeVisible();
     await expect(stockItem.getByRole("heading", { name: "24 unidades" })).toBeVisible();
     await expect(page.getByTestId("inventory-stock-status-COCA-600")).toContainText("Disponible");
-    await expect(stockItem).toContainText("Ubicación: Almacén Principal");
+    await expect(stockItem).toContainText("Almacén: Principal");
   });
 });

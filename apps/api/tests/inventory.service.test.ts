@@ -434,7 +434,7 @@ describe("inventory.service", () => {
         })
       ).rejects.toMatchObject({
         statusCode: 409,
-        message: "Stock insuficiente para Café. Stock actual: 2."
+        message: "Stock insuficiente para Café. Almacén: Principal. Stock actual: 2."
       } satisfies Partial<AppError>);
 
       expect(tx.inventoryMovement.create).not.toHaveBeenCalled();

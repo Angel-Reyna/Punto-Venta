@@ -85,7 +85,7 @@ export const initialInventoryMovementForm: InventoryMovementForm = {
 };
 
 export const WAREHOUSE_INFO_TEXT =
-  "Ubicación donde se registra el stock. Si lo dejas vacío, el movimiento se aplica al almacén principal.";
+  "Ubicación donde se registra el stock. Si lo dejas vacío, el movimiento se aplica a Almacén: Principal.";
 
 export const MOVEMENT_TYPE_INFO_TEXT =
   "IN es entrada, OUT salida manual, SALE venta, RETURN devolución y ADJUSTMENT ajuste de inventario.";

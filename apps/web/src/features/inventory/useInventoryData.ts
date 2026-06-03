@@ -107,7 +107,7 @@ export function useInventoryData() {
 
           return nextWarehouses.sort((left, right) => left.name.localeCompare(right.name));
         });
-        setMessage(`Almacén ${warehouse.name} creado correctamente.`);
+        setMessage(`Almacén: ${warehouse.name} creado correctamente.`);
 
         return warehouse;
       } catch (err: unknown) {

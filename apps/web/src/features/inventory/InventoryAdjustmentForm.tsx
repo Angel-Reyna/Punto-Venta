@@ -57,6 +57,10 @@ function normalizeWarehouseInput(value: string) {
   return value.trim().replace(/\s+/gu, " ");
 }
 
+function formatInventoryUnits(quantity: number) {
+  return `${quantity} unidad${quantity === 1 ? "" : "es"}`;
+}
+
 function parseQuantityInput(value: string) {
   const onlyDigits = value.replace(/\D/gu, "");
 
@@ -90,6 +94,7 @@ export function InventoryAdjustmentForm({
   const [warehouseDialogOpen, setWarehouseDialogOpen] = useState(false);
   const [warehouseName, setWarehouseName] = useState("");
   const [warehouseDescription, setWarehouseDescription] = useState("");
+  const [quantityLimitMessage, setQuantityLimitMessage] = useState("");
 
   function updateForm(patch: Partial<InventoryMovementForm>) {
     onChange({
@@ -134,7 +139,7 @@ export function InventoryAdjustmentForm({
   const defaultWarehouseId = warehouses[0]?.id;
   const effectiveWarehouseId = form.warehouseId || defaultWarehouseId || "";
   const effectiveWarehouseName =
-    selectedWarehouse?.name || warehouses[0]?.name || "Almacén principal";
+    selectedWarehouse?.name || warehouses[0]?.name || "Principal";
 
   function getAvailableStockForSelection(
     productId: string,
@@ -148,15 +153,43 @@ export function InventoryAdjustmentForm({
     });
   }
 
+  function getWarehouseName(warehouseId = form.warehouseId) {
+    return (
+      warehouses.find((warehouse) => warehouse.id === warehouseId)?.name ||
+      warehouses[0]?.name ||
+      "Principal"
+    );
+  }
+
+  function describeWarehouseLimit(
+    attemptedQuantity: number,
+    availableStock: number,
+    warehouseName: string,
+  ) {
+    if (availableStock <= 0) {
+      return `Almacén: ${warehouseName}. No tiene unidades disponibles para salida.`;
+    }
+
+    return `Se ajustó la salida de ${formatInventoryUnits(attemptedQuantity)} al máximo disponible. Almacén: ${warehouseName}. Disponible: ${formatInventoryUnits(availableStock)}.`;
+  }
+
   function updateProduct(productId: string) {
     const nextProductStock = getAvailableStockForSelection(productId);
+    const shouldClampQuantity = mode === "out" && form.quantity > nextProductStock;
+
+    setQuantityLimitMessage(
+      shouldClampQuantity
+        ? describeWarehouseLimit(
+            form.quantity,
+            nextProductStock,
+            getWarehouseName(),
+          )
+        : "",
+    );
 
     updateForm({
       productId,
-      quantity:
-        mode === "out" && form.quantity > nextProductStock
-          ? nextProductStock
-          : form.quantity,
+      quantity: shouldClampQuantity ? nextProductStock : form.quantity,
       reason:
         mode === "out" && form.reason.trim() === "Reabastecimiento"
           ? ""
@@ -168,13 +201,21 @@ export function InventoryAdjustmentForm({
     const nextProductStock = form.productId
       ? getAvailableStockForSelection(form.productId, warehouseId)
       : 0;
+    const shouldClampQuantity = mode === "out" && form.quantity > nextProductStock;
+
+    setQuantityLimitMessage(
+      shouldClampQuantity
+        ? describeWarehouseLimit(
+            form.quantity,
+            nextProductStock,
+            getWarehouseName(warehouseId),
+          )
+        : "",
+    );
 
     updateForm({
       warehouseId,
-      quantity:
-        mode === "out" && form.quantity > nextProductStock
-          ? nextProductStock
-          : form.quantity,
+      quantity: shouldClampQuantity ? nextProductStock : form.quantity,
     });
   }
 
@@ -183,16 +224,29 @@ export function InventoryAdjustmentForm({
 
     if (mode === "out") {
       if (!selectedProduct) {
+        setQuantityLimitMessage("");
         updateForm({ quantity: 0 });
         return;
       }
 
-      updateForm({
-        quantity: Math.min(parsedQuantity, selectedProductWarehouseStock),
-      });
+      if (parsedQuantity > selectedProductWarehouseStock) {
+        setQuantityLimitMessage(
+          describeWarehouseLimit(
+            parsedQuantity,
+            selectedProductWarehouseStock,
+            effectiveWarehouseName,
+          ),
+        );
+        updateForm({ quantity: selectedProductWarehouseStock });
+        return;
+      }
+
+      setQuantityLimitMessage("");
+      updateForm({ quantity: parsedQuantity });
       return;
     }
 
+    setQuantityLimitMessage("");
     updateForm({ quantity: parsedQuantity });
   }
 
@@ -211,9 +265,11 @@ export function InventoryAdjustmentForm({
     form.quantity > selectedProductWarehouseStock;
   const quantityHelperText = quantityDisabled
     ? "Selecciona un producto para capturar la cantidad."
-    : mode === "out" && selectedProduct
-      ? `Stock disponible en ${effectiveWarehouseName}: ${selectedProductWarehouseStock}. No puedes retirar más unidades de este almacén.`
-      : "Escribe la cantidad exacta. Solo se aceptan números enteros.";
+    : quantityLimitMessage
+      ? quantityLimitMessage
+      : mode === "out" && selectedProduct
+        ? `Almacén: ${effectiveWarehouseName}. Stock disponible: ${selectedProductWarehouseStock}. No puedes retirar más unidades de este almacén.`
+        : "Escribe la cantidad exacta. Solo se aceptan números enteros.";
   const expirationLossPreview = isExpirationReason
     ? Number(selectedProduct?.costPrice ?? 0) *
       Math.max(Number(form.quantity) || 0, 0)
@@ -339,7 +395,7 @@ export function InventoryAdjustmentForm({
                             ariaLabel={WAREHOUSE_INFO_TEXT}
                           />
                         }
-                        helperText="Busca una ubicación o crea una nueva. Si queda vacío, se usará el almacén principal."
+                        helperText="Busca una ubicación o crea una nueva. Si queda vacío, se usará Almacén: Principal."
                         inputProps={{
                           ...params.inputProps,
                           "data-testid": "inventory-form-warehouse-search",

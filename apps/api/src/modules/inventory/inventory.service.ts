@@ -158,7 +158,7 @@ export async function getOrCreateDefaultWarehouse(
     },
     create: {
       name: DEFAULT_WAREHOUSE_NAME,
-      description: "Almacén principal",
+      description: "Almacén: Principal",
       isActive: true
     }
   });
@@ -349,7 +349,7 @@ export async function decreaseStock(
 
     throw new AppError(
       409,
-      `${input.insufficientStockMessage ?? `Stock insuficiente para ${product.name}.`} Stock actual: ${currentStock}.`
+      `${input.insufficientStockMessage ?? `Stock insuficiente para ${product.name}.`} Almacén: ${warehouse.name}. Stock actual: ${currentStock}.`
     );
   }
 

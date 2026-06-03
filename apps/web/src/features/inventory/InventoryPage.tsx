@@ -113,7 +113,7 @@ export function InventoryPage() {
     activeView === "exits" &&
     selectedProduct &&
     normalizedForm.quantity > selectedWarehouseStock
-      ? `No puedes retirar más de ${selectedWarehouseStock} unidades disponibles en ${selectedWarehouse?.name ?? "este almacén"}.`
+      ? `No puedes retirar más de ${selectedWarehouseStock} unidades disponibles. Almacén: ${selectedWarehouse?.name ?? "este almacén"}.`
       : "";
   const inventoryFormDisabledReason =
     stockDisabledReason || getInventoryFormDisabledReason(normalizedForm);

@@ -86,14 +86,14 @@ async function seedDemoData(adminId: string) {
           },
           data: {
             name: DEFAULT_WAREHOUSE_NAME,
-            description: "Almacén principal del negocio",
+            description: "Almacén: Principal del negocio",
             isActive: true
           }
         })
       : await prisma.warehouse.create({
           data: {
             name: DEFAULT_WAREHOUSE_NAME,
-            description: "Almacén principal del negocio",
+            description: "Almacén: Principal del negocio",
             isActive: true
           }
         }));

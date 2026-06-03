@@ -417,7 +417,7 @@ export function ProductFormDialog({
                     }
                     type="number"
                     value={form.initialStock}
-                    helperText="Crea inventario real en el almacén principal."
+                    helperText="Crea inventario real en Almacén: Principal."
                     inputProps={{
                       "data-testid": "product-form-initial-stock",
                       min: 0,

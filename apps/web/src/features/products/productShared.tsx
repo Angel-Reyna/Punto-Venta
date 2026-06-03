@@ -37,7 +37,7 @@ export const PROMO_INFO_TEXT =
 export const FINAL_PRICE_INFO_TEXT =
   "Precio que pagará el cliente después de aplicar la promoción configurada.";
 export const INITIAL_STOCK_INFO_TEXT =
-  "Cantidad disponible al crear el producto. Se registra como inventario real en el almacén principal.";
+  "Cantidad disponible al crear el producto. Se registra como inventario real en Almacén: Principal.";
 export const MIN_STOCK_INFO_TEXT =
   "Nivel de alerta: cuando el stock llega a este número o queda por debajo, el producto aparece como bajo inventario.";
 

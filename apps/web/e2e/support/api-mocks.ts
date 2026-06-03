@@ -201,7 +201,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
   const sales = salesResponse(role);
   const inventoryMovements = inventoryMovementsResponse(products[0]);
   const warehouses: Array<{ id: string; name: string; description?: string | null; isActive: boolean }> = [
-    { id: "warehouse-1", name: "Principal", description: "Almacén principal", isActive: true },
+    { id: "warehouse-1", name: "Principal", description: "Almacén: Principal", isActive: true },
   ];
   const inventoryBalances: MockInventoryBalanceMap = new Map(
     products.map((product) => [
@@ -547,7 +547,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
       if (type === "OUT" && currentWarehouseStock < quantity) {
         return json(
           route,
-          { message: `Stock insuficiente en ${warehouse.name}. Stock actual: ${currentWarehouseStock}.` },
+          { message: `Stock insuficiente. Almacén: ${warehouse.name}. Stock actual: ${currentWarehouseStock}.` },
           409,
         );
       }

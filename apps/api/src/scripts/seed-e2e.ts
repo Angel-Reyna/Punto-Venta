@@ -83,12 +83,12 @@ async function main() {
       name: DEFAULT_WAREHOUSE_NAME,
     },
     update: {
-      description: "Almacén principal del negocio",
+      description: "Almacén: Principal del negocio",
       isActive: true,
     },
     create: {
       name: DEFAULT_WAREHOUSE_NAME,
-      description: "Almacén principal del negocio",
+      description: "Almacén: Principal del negocio",
       isActive: true,
     },
   });

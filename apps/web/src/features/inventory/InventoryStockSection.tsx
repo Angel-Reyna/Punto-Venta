@@ -387,7 +387,7 @@ function getWarehouseDisplayName(warehouseName: string) {
 }
 
 function formatSingleStockLocation(location: { warehouseName: string }) {
-  return `Ubicación: Almacén ${getWarehouseDisplayName(location.warehouseName)}`;
+  return `Almacén: ${getWarehouseDisplayName(location.warehouseName)}`;
 }
 
 function getLocationShare(quantity: number, totalStock: number) {
@@ -587,7 +587,7 @@ function InventoryStockItem({ item }: { item: StockItem }) {
               <Typography variant="caption" color="text.secondary">
                 {singleLocation
                   ? formatSingleStockLocation(singleLocation)
-                  : "Sin unidades asignadas a almacén."}
+                  : "Sin unidades asignadas a un almacén específico."}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {stockStatus.helper}
