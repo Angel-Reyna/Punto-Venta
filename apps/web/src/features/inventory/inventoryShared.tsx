@@ -6,6 +6,12 @@ export type Product = {
   costPrice?: number | string;
 };
 
+export type StockLocation = {
+  warehouseId: string;
+  warehouseName: string;
+  quantity: number;
+};
+
 export type StockItem = {
   id: string;
   sku: string;
@@ -18,6 +24,7 @@ export type StockItem = {
   minStock: number;
   stock: number;
   lowStock: boolean;
+  locations?: StockLocation[];
 };
 
 export type Warehouse = {
@@ -65,12 +72,14 @@ export type InventoryMovementForm = {
 };
 
 export type StockStatusFilter = "all" | "available" | "low" | "out";
-export type InventoryView = "stock" | "adjustments" | "movements";
+export type InventoryView = "stock" | "entries" | "exits" | "movements";
+
+export const DEFAULT_INVENTORY_ENTRY_REASON = "Reabastecimiento";
 
 export const initialInventoryMovementForm: InventoryMovementForm = {
   productId: "",
   warehouseId: "",
-  quantity: 1,
+  quantity: 0,
   reasonType: "OTHER",
   reason: "",
 };
@@ -85,7 +94,6 @@ export const INVENTORY_REASON_TYPE_LABELS: Record<InventoryReasonType, string> =
   EXPIRATION: "Caducidad",
   OTHER: "Otros",
 };
-
 
 export function formatInventoryMoney(value: number | null | undefined) {
   return new Intl.NumberFormat("es-MX", {
@@ -107,6 +115,42 @@ export type InventoryMetricColor =
   | "warning"
   | "error"
   | "info";
+
+
+export function getWarehouseStockForProduct({
+  stockRows,
+  productId,
+  warehouseId,
+  defaultWarehouseId,
+}: {
+  stockRows: StockItem[];
+  productId: string;
+  warehouseId?: string;
+  defaultWarehouseId?: string;
+}) {
+  const stockItem = stockRows.find((item) => item.id === productId);
+
+  if (!stockItem) {
+    return 0;
+  }
+
+  const totalStock = Math.max(Number(stockItem.stock ?? 0), 0);
+  const locations = stockItem.locations ?? [];
+
+  if (locations.length === 0) {
+    return totalStock;
+  }
+
+  const effectiveWarehouseId = warehouseId || defaultWarehouseId || locations[0]?.warehouseId;
+
+  if (!effectiveWarehouseId) {
+    return totalStock;
+  }
+
+  const location = locations.find((item) => item.warehouseId === effectiveWarehouseId);
+
+  return Math.max(Number(location?.quantity ?? 0), 0);
+}
 
 export function getInventoryFormDisabledReason(form: InventoryMovementForm) {
   if (!form.productId) return "Selecciona un producto.";

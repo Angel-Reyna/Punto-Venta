@@ -40,8 +40,10 @@ test.describe("catálogo e inventario responsive", () => {
     await expect(page.getByText("Vista rápida de existencias")).toBeVisible();
     await expect(page.getByText("Coca-Cola 600 ml")).toBeVisible();
     await expect(page.getByText("Existencias actuales")).toBeVisible();
-    await expect(page.getByText("Stock actual")).toBeVisible();
-    await expect(page.getByText("24 unidades")).toBeVisible();
-    await expect(page.getByText("Disponible", { exact: true })).toBeVisible();
+    const stockItem = page.getByTestId("inventory-stock-item-COCA-600");
+    await expect(stockItem.getByText("Stock actual")).toBeVisible();
+    await expect(stockItem.getByRole("heading", { name: "24 unidades" })).toBeVisible();
+    await expect(page.getByTestId("inventory-stock-status-COCA-600")).toContainText("Disponible");
+    await expect(stockItem).toContainText("Ubicación: Almacén Principal");
   });
 });

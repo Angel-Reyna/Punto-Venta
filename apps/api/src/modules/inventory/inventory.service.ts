@@ -164,13 +164,23 @@ export async function getOrCreateDefaultWarehouse(
   });
 }
 
-export async function getProductStocks(productIds?: string[]): Promise<Map<string, number>> {
+export type ProductStockBreakdown = {
+  total: number;
+  locations: Array<{
+    warehouseId: string;
+    warehouseName: string;
+    quantity: number;
+  }>;
+};
+
+export async function getProductStockBreakdown(
+  productIds?: string[]
+): Promise<Map<string, ProductStockBreakdown>> {
   if (productIds && productIds.length === 0) {
-    return new Map<string, number>();
+    return new Map<string, ProductStockBreakdown>();
   }
 
-  const balances = await prisma.inventoryBalance.groupBy({
-    by: ["productId"],
+  const balances = await prisma.inventoryBalance.findMany({
     where: productIds
       ? {
           productId: {
@@ -178,16 +188,51 @@ export async function getProductStocks(productIds?: string[]): Promise<Map<strin
           }
         }
       : undefined,
-    _sum: {
-      quantity: true
-    }
+    include: {
+      warehouse: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    },
+    orderBy: [
+      {
+        warehouse: {
+          name: "asc"
+        }
+      }
+    ]
   });
 
+  const stockByProduct = new Map<string, ProductStockBreakdown>();
+
+  for (const balance of balances) {
+    const current = stockByProduct.get(balance.productId) ?? {
+      total: 0,
+      locations: []
+    };
+    const quantity = balance.quantity ?? 0;
+
+    current.total += quantity;
+
+    current.locations.push({
+      warehouseId: balance.warehouse.id,
+      warehouseName: balance.warehouse.name,
+      quantity
+    });
+
+    stockByProduct.set(balance.productId, current);
+  }
+
+  return stockByProduct;
+}
+
+export async function getProductStocks(productIds?: string[]): Promise<Map<string, number>> {
+  const breakdown = await getProductStockBreakdown(productIds);
+
   return new Map(
-    balances.map((balance: { productId: string; _sum: { quantity: number | null } }) => [
-      balance.productId,
-      balance._sum.quantity ?? 0
-    ])
+    [...breakdown.entries()].map(([productId, stock]) => [productId, stock.total])
   );
 }
 

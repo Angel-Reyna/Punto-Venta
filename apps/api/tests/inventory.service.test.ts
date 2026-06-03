@@ -2,7 +2,8 @@ import { AppError } from "../src/utils/AppError";
 
 const mockPrisma = {
   inventoryBalance: {
-    groupBy: jest.fn()
+    groupBy: jest.fn(),
+    findMany: jest.fn()
   },
   warehouse: {
     findFirst: jest.fn(),
@@ -17,6 +18,7 @@ jest.mock("../src/config/prisma", () => ({
 import {
   createWarehouse,
   decreaseStock,
+  getProductStockBreakdown,
   getProductStocks,
   increaseStock
 } from "../src/modules/inventory/inventory.service";
@@ -113,34 +115,97 @@ describe("inventory.service", () => {
       expect(mockPrisma.inventoryBalance.groupBy).not.toHaveBeenCalled();
     });
 
-    it("aggregates stock by product id", async () => {
-      mockPrisma.inventoryBalance.groupBy.mockResolvedValue([
+
+    it("keeps zero-stock warehouse locations in the stock breakdown", async () => {
+      mockPrisma.inventoryBalance.findMany.mockResolvedValue([
         {
           productId: "product-1",
-          _sum: {
-            quantity: 8
+          quantity: 24,
+          warehouse: {
+            id: "warehouse-1",
+            name: "Principal"
+          }
+        },
+        {
+          productId: "product-1",
+          quantity: 0,
+          warehouse: {
+            id: "warehouse-2",
+            name: "Bodega norte"
+          }
+        }
+      ]);
+
+      const result = await getProductStockBreakdown(["product-1"]);
+
+      expect(result.get("product-1")).toEqual({
+        total: 24,
+        locations: [
+          {
+            warehouseId: "warehouse-1",
+            warehouseName: "Principal",
+            quantity: 24
+          },
+          {
+            warehouseId: "warehouse-2",
+            warehouseName: "Bodega norte",
+            quantity: 0
+          }
+        ]
+      });
+    });
+
+    it("aggregates stock by product id", async () => {
+      mockPrisma.inventoryBalance.findMany.mockResolvedValue([
+        {
+          productId: "product-1",
+          quantity: 5,
+          warehouse: {
+            id: "warehouse-1",
+            name: "Principal"
+          }
+        },
+        {
+          productId: "product-1",
+          quantity: 3,
+          warehouse: {
+            id: "warehouse-2",
+            name: "Bodega norte"
           }
         },
         {
           productId: "product-2",
-          _sum: {
-            quantity: null
+          quantity: 0,
+          warehouse: {
+            id: "warehouse-1",
+            name: "Principal"
           }
         }
       ]);
 
       const result = await getProductStocks(["product-1", "product-2"]);
 
-      expect(mockPrisma.inventoryBalance.groupBy).toHaveBeenCalledWith({
-        by: ["productId"],
+      expect(mockPrisma.inventoryBalance.findMany).toHaveBeenCalledWith({
         where: {
           productId: {
             in: ["product-1", "product-2"]
           }
         },
-        _sum: {
-          quantity: true
-        }
+        include: {
+          warehouse: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: [
+          {
+            warehouse: {
+              name: "asc"
+            }
+          }
+        ]
       });
       expect(result.get("product-1")).toBe(8);
       expect(result.get("product-2")).toBe(0);

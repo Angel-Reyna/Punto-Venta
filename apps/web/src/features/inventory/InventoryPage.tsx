@@ -5,7 +5,9 @@ import { StatusFeedback } from "../../components/StatusFeedback";
 import { useAuth } from "../../auth/AuthContext";
 import { PERMISSIONS } from "../../auth/permissions";
 import {
+  DEFAULT_INVENTORY_ENTRY_REASON,
   getInventoryFormDisabledReason,
+  getWarehouseStockForProduct,
   initialInventoryMovementForm,
   isInventoryFormInvalid,
 } from "./inventoryShared";
@@ -41,8 +43,43 @@ export function InventoryPage() {
   const [activeView, setActiveView] = useState<InventoryView>("stock");
   const [form, setForm] = useState(initialInventoryMovementForm);
 
+  function changeView(view: InventoryView) {
+    setActiveView(view);
+
+    if (view === "entries") {
+      setForm((current) => ({
+        ...current,
+        reasonType: "OTHER",
+        reason:
+          current.reasonType === "EXPIRATION" || !current.reason.trim()
+            ? DEFAULT_INVENTORY_ENTRY_REASON
+            : current.reason,
+      }));
+      return;
+    }
+
+    if (view === "exits") {
+      setForm((current) => ({
+        ...current,
+        quantity: 0,
+        reasonType: current.reasonType === "EXPIRATION" ? "EXPIRATION" : "OTHER",
+        reason:
+          current.reason.trim() === DEFAULT_INVENTORY_ENTRY_REASON
+            ? ""
+            : current.reason,
+      }));
+    }
+  }
+
   async function submit(type: "in" | "out") {
-    const success = await submitInventoryMovement(type, form);
+    const movementForm =
+      type === "in"
+        ? {
+            ...form,
+            reasonType: "OTHER" as const,
+          }
+        : form;
+    const success = await submitInventoryMovement(type, movementForm);
 
     if (!success) {
       return;
@@ -52,8 +89,36 @@ export function InventoryPage() {
     setActiveView("stock");
   }
 
-  const inventoryFormDisabledReason = getInventoryFormDisabledReason(form);
-  const formIsInvalid = isInventoryFormInvalid(form);
+  const normalizedForm =
+    activeView === "entries"
+      ? {
+          ...form,
+          reasonType: "OTHER" as const,
+          reason: form.reason.trim() || DEFAULT_INVENTORY_ENTRY_REASON,
+        }
+      : form;
+  const selectedProduct = products.find(
+    (product) => product.id === normalizedForm.productId,
+  );
+  const selectedWarehouse =
+    warehouses.find((warehouse) => warehouse.id === normalizedForm.warehouseId) ??
+    warehouses[0];
+  const selectedWarehouseStock = getWarehouseStockForProduct({
+    stockRows,
+    productId: normalizedForm.productId,
+    warehouseId: normalizedForm.warehouseId,
+    defaultWarehouseId: warehouses[0]?.id,
+  });
+  const stockDisabledReason =
+    activeView === "exits" &&
+    selectedProduct &&
+    normalizedForm.quantity > selectedWarehouseStock
+      ? `No puedes retirar más de ${selectedWarehouseStock} unidades disponibles en ${selectedWarehouse?.name ?? "este almacén"}.`
+      : "";
+  const inventoryFormDisabledReason =
+    stockDisabledReason || getInventoryFormDisabledReason(normalizedForm);
+  const formIsInvalid =
+    Boolean(stockDisabledReason) || isInventoryFormInvalid(normalizedForm);
 
   return (
     <>
@@ -77,7 +142,7 @@ export function InventoryPage() {
         activeView={activeView}
         canAdjustInventory={canAdjustInventory}
         movementsCount={movements.length}
-        onViewChange={setActiveView}
+        onViewChange={changeView}
         stockRows={stockRows}
       />
 
@@ -89,17 +154,36 @@ export function InventoryPage() {
         />
       )}
 
-      {activeView === "adjustments" && (
+      {activeView === "entries" && (
+        <InventoryAdjustmentForm
+          canAdjustInventory={canAdjustInventory}
+          disabledReason={inventoryFormDisabledReason}
+          form={normalizedForm}
+          isCreatingWarehouse={isCreatingWarehouse}
+          isInvalid={formIsInvalid}
+          mode="in"
+          onChange={setForm}
+          onCreateWarehouse={createInventoryWarehouse}
+          onSubmit={submit}
+          products={products}
+          stockRows={stockRows}
+          warehouses={warehouses}
+        />
+      )}
+
+      {activeView === "exits" && (
         <InventoryAdjustmentForm
           canAdjustInventory={canAdjustInventory}
           disabledReason={inventoryFormDisabledReason}
           form={form}
           isCreatingWarehouse={isCreatingWarehouse}
           isInvalid={formIsInvalid}
+          mode="out"
           onChange={setForm}
           onCreateWarehouse={createInventoryWarehouse}
           onSubmit={submit}
           products={products}
+          stockRows={stockRows}
           warehouses={warehouses}
         />
       )}

@@ -153,9 +153,15 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await page.goto("/inventory");
 
     await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();
-    await expect(page.getByText("24 unidades")).toBeVisible();
+    await expect(
+      byTestId(page, "inventory-stock-item-COCA-600").getByRole("heading", { name: "24 unidades" }),
+    ).toBeVisible();
+    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Clave interna/SKU: COCA-600");
+    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Código del producto: 7501055300075");
+    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Ubicación: Almacén Principal");
 
-    await page.getByRole("tab", { name: "Entradas y salidas" }).click();
+    await page.getByRole("tab", { name: "Entradas" }).click();
+    await expect(byTestId(page, "inventory-form-reason")).toHaveValue("Reabastecimiento");
     await clickByTestId(page, "inventory-create-warehouse-open");
 
     const warehouseDialog = dialogByName(page, "Nuevo almacén");
@@ -178,37 +184,75 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(page.getByText("Entrada registrada correctamente.")).toBeVisible();
     await expect(page.getByText("29 unidades")).toBeVisible();
 
-    await page.getByRole("tab", { name: "Entradas y salidas" }).click();
+    await page.getByRole("tab", { name: "Salidas" }).click();
+    await expect(byTestId(page, "inventory-form-reason")).toHaveValue("");
+    await expect(byTestId(page, "inventory-form-quantity")).toBeDisabled();
     await page.getByLabel("Producto").click();
     await page.getByRole("option", { name: /COCA-600 · Coca-Cola 600 ml · stock 29/i }).click();
-    await fillByTestId(page, "inventory-form-quantity", "2");
+    await expect(byTestId(page, "inventory-form-quantity")).toBeEnabled();
+    await fillByTestId(page, "inventory-form-quantity", "999");
+    await expect(byTestId(page, "inventory-form-quantity")).toHaveValue("24");
+    await expect(page.getByText("Stock disponible en Principal: 24. No puedes retirar más unidades de este almacén.")).toBeVisible();
+
+    await page.getByRole("combobox", { name: /^Almacén/i }).click();
+    await page.getByRole("option", { name: "Bodega norte E2E" }).click();
+    await expect(byTestId(page, "inventory-form-quantity")).toHaveValue("5");
+    await expect(page.getByText("Stock disponible en Bodega norte E2E: 5. No puedes retirar más unidades de este almacén.")).toBeVisible();
+    await fillByTestId(page, "inventory-form-quantity", "999");
+    await expect(byTestId(page, "inventory-form-quantity")).toHaveValue("5");
     await page.getByRole("combobox", { name: /^Motivo\b/i }).click();
     await page.getByRole("option", { name: "Caducidad" }).click();
-    await expect(byTestId(page, "inventory-submit-in")).toBeDisabled();
+    await expect(byTestId(page, "inventory-submit-in")).toHaveCount(0);
     await clickByTestId(page, "inventory-submit-out");
 
     await expect(page.getByText("Salida registrada correctamente.")).toBeVisible();
-    await expect(page.getByText("27 unidades")).toBeVisible();
+    await expect(page.getByText("24 unidades")).toBeVisible();
+
+    await page.getByRole("tab", { name: "Existencias" }).click();
+    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Stock total");
+    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("24 unidades");
+    const principalStockLocation = byTestId(page, "inventory-stock-location-COCA-600-warehouse-1");
+    const bodegaStockLocation = page
+      .locator('[data-testid^="inventory-stock-location-COCA-600-"]')
+      .filter({ hasText: "Bodega norte E2E" })
+      .first();
+
+    await expect(principalStockLocation).toContainText("Almacén: Principal");
+    await expect(principalStockLocation).toContainText("24 disponibles");
+    await expect(principalStockLocation).toContainText("Disponible");
+    await expect(bodegaStockLocation).toContainText("Almacén: Bodega norte E2E");
+    await expect(bodegaStockLocation).toContainText("0 disponibles");
+    await expect(bodegaStockLocation).toContainText("Sin stock");
 
     await page.getByRole("tab", { name: "Historial" }).click();
+    await expect(page.getByText(/Mostrando 1-\d+ de/)).toBeVisible();
     await page.getByLabel("Buscar movimientos").fill("E2E");
 
     await expect(page.getByText("Compra proveedor E2E")).toBeVisible();
 
+    const entryMovement = page
+      .locator('[data-testid^="inventory-movement-"]')
+      .filter({ hasText: "Compra proveedor E2E" })
+      .first();
+
+    await expect(entryMovement).toContainText("Almacén: Bodega norte E2E");
+    await expect(entryMovement).not.toContainText("Otros");
+
     await page.getByLabel("Buscar movimientos").fill("merma");
     await expect(page.getByText("Caducidad").first()).toBeVisible();
-    await expect(byTestId(page, "inventory-movement-movement-2")).toContainText(
-      "COCA-600",
-    );
-    await expect(byTestId(page, "inventory-movement-movement-2")).toContainText(
-      "7501055300075",
-    );
-    await expect(byTestId(page, "inventory-movement-movement-2")).toContainText(
-      "Coca-Cola 600 ml",
-    );
-    await expect(byTestId(page, "inventory-movement-movement-2")).toContainText(
-      "Bodega norte E2E",
-    );
+
+    await page.getByLabel("Buscar movimientos").fill("Bodega norte E2E");
+
+    const expirationMovement = page
+      .locator('[data-testid^="inventory-movement-"]')
+      .filter({ hasText: "Caducidad" })
+      .filter({ hasText: "Almacén: Bodega norte E2E" })
+      .first();
+
+    await expect(expirationMovement).toContainText("Clave interna/SKU: COCA-600");
+    await expect(expirationMovement).toContainText("Código del producto: 7501055300075");
+    await expect(expirationMovement).toContainText("Coca-Cola 600 ml");
+    await expect(expirationMovement).toContainText("Almacén: Bodega norte E2E");
   });
 
   test("vendedor solo consulta inventario y productos sin acciones administrativas", async ({ page }) => {
@@ -229,7 +273,8 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(page.getByText("Permiso: solo consulta")).toBeVisible();
     await expect(page.getByRole("tab", { name: "Existencias" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Historial" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Entradas y salidas" })).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: "Entradas" })).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: "Salidas" })).toHaveCount(0);
     await expect(byTestId(page, "inventory-submit-in")).toHaveCount(0);
     await expect(byTestId(page, "inventory-submit-out")).toHaveCount(0);
   });

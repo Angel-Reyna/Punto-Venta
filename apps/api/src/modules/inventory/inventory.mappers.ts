@@ -34,11 +34,21 @@ export type ProductWithCategoryForStock = Prisma.ProductGetPayload<{
   include: typeof productStockInclude;
 }>;
 
+export type ProductStockBreakdown = {
+  total: number;
+  locations: Array<{
+    warehouseId: string;
+    warehouseName: string;
+    quantity: number;
+  }>;
+};
+
 export function mapProductStock(
   product: ProductWithCategoryForStock,
-  stocks: Map<string, number>
+  stocks: Map<string, ProductStockBreakdown>
 ) {
-  const quantity = stocks.get(product.id) ?? 0;
+  const stock = stocks.get(product.id) ?? { total: 0, locations: [] };
+  const quantity = stock.total;
 
   return {
     id: product.id,
@@ -48,7 +58,8 @@ export function mapProductStock(
     category: product.category,
     minStock: product.minStock,
     stock: quantity,
-    lowStock: quantity <= product.minStock
+    lowStock: quantity <= product.minStock,
+    locations: stock.locations
   };
 }
 

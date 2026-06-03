@@ -14,7 +14,7 @@ import {
   mapProductStock,
   productStockInclude
 } from "./inventory.mappers";
-import { getProductStocks } from "./inventory.service";
+import { getProductStockBreakdown } from "./inventory.service";
 import {
   EXPIRATION_REASON_LABEL,
   INVENTORY_REASON_TYPES
@@ -245,7 +245,7 @@ export async function listProductStock(query: Record<string, unknown>) {
       })
     ]);
 
-    const stocks = await getProductStocks(
+    const stocks = await getProductStockBreakdown(
       products.map((product) => product.id)
     );
 
@@ -263,7 +263,7 @@ export async function listProductStock(query: Record<string, unknown>) {
     }
   });
 
-  const stocks = await getProductStocks(products.map((product) => product.id));
+  const stocks = await getProductStockBreakdown(products.map((product) => product.id));
   const lowStockProducts = products
     .map((product) => mapProductStock(product, stocks))
     .filter((product) => product.lowStock);

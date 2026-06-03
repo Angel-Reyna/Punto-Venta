@@ -1,4 +1,4 @@
-import type { ReactElement } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 
 import {
   Box,
@@ -6,9 +6,15 @@ import {
   CardContent,
   Chip,
   Divider,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Pagination,
+  Select,
   Stack,
   Typography,
 } from "@mui/material";
+import type { SelectChangeEvent } from "@mui/material/Select";
 import { alpha } from "@mui/material/styles";
 
 import AddCircleIcon from "@mui/icons-material/AddCircle";
@@ -19,11 +25,40 @@ import TuneIcon from "@mui/icons-material/Tune";
 
 import { EmptyStatePanel } from "../../components/data-display";
 import {
+  DEFAULT_INVENTORY_ENTRY_REASON,
   formatInventoryMoney,
   INVENTORY_REASON_TYPE_LABELS,
   type InventoryMetricColor,
   type Movement,
 } from "./inventoryShared";
+
+const MOVEMENTS_PAGE_SIZE_OPTIONS = [5, 10] as const;
+
+type MovementsPageSize = (typeof MOVEMENTS_PAGE_SIZE_OPTIONS)[number];
+
+function getWarehouseLabel(movement: Movement) {
+  const rawName = movement.warehouse?.name?.trim();
+
+  if (!rawName || rawName.toLowerCase() === "principal") {
+    return "Almacén: Principal";
+  }
+
+  return `Almacén: ${rawName}`;
+}
+
+function getMovementReasonText(movement: Movement) {
+  const reason = movement.reason?.trim();
+
+  if (movement.type === "IN") {
+    return reason || DEFAULT_INVENTORY_ENTRY_REASON;
+  }
+
+  if (movement.reasonType === "EXPIRATION") {
+    return reason || INVENTORY_REASON_TYPE_LABELS.EXPIRATION;
+  }
+
+  return reason || "Sin motivo capturado.";
+}
 
 function getMovementTypeMeta(type: Movement["type"]): {
   color: InventoryMetricColor;
@@ -75,6 +110,13 @@ function getMovementTypeMeta(type: Movement["type"]): {
   return meta[type];
 }
 
+function getMovementRangeLabel(page: number, pageSize: number, total: number) {
+  const start = (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, total);
+
+  return `Mostrando ${start}-${end} de ${total}`;
+}
+
 export function InventoryMovementTimeline({
   movements,
   searchQuery,
@@ -82,6 +124,26 @@ export function InventoryMovementTimeline({
   movements: Movement[];
   searchQuery: string;
 }) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<MovementsPageSize>(5);
+
+  useEffect(() => {
+    setPage(1);
+  }, [movements, pageSize, searchQuery]);
+
+  const pageCount = Math.max(1, Math.ceil(movements.length / pageSize));
+  const visibleMovements = useMemo(() => {
+    const start = (page - 1) * pageSize;
+
+    return movements.slice(start, start + pageSize);
+  }, [movements, page, pageSize]);
+
+  function handlePageSizeChange(event: SelectChangeEvent) {
+    const nextPageSize = Number(event.target.value) as MovementsPageSize;
+
+    setPageSize(nextPageSize);
+  }
+
   if (movements.length === 0) {
     return (
       <Card sx={{ mb: 2 }}>
@@ -108,9 +170,9 @@ export function InventoryMovementTimeline({
           }}
         >
           <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            alignItems={{ xs: "flex-start", sm: "center" }}
+            direction={{ xs: "column", md: "row" }}
+            spacing={1.5}
+            alignItems={{ xs: "stretch", md: "center" }}
             justifyContent="space-between"
           >
             <Box>
@@ -123,25 +185,53 @@ export function InventoryMovementTimeline({
               </Typography>
             </Box>
 
-            <Chip
-              color="primary"
-              variant="outlined"
-              label={`${movements.length} movimiento${movements.length === 1 ? "" : "s"}`}
-            />
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              alignItems={{ xs: "stretch", sm: "center" }}
+              justifyContent={{ xs: "flex-start", md: "flex-end" }}
+            >
+              <Chip
+                color="primary"
+                variant="outlined"
+                label={getMovementRangeLabel(page, pageSize, movements.length)}
+              />
+
+              <FormControl size="small" sx={{ minWidth: 142 }}>
+                <InputLabel id="inventory-movements-page-size-label">
+                  Por página
+                </InputLabel>
+                <Select
+                  labelId="inventory-movements-page-size-label"
+                  id="inventory-movements-page-size"
+                  label="Por página"
+                  value={String(pageSize)}
+                  onChange={handlePageSizeChange}
+                >
+                  {MOVEMENTS_PAGE_SIZE_OPTIONS.map((option) => (
+                    <MenuItem key={option} value={String(option)}>
+                      {option} movimientos
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Stack>
           </Stack>
         </Box>
 
         <Stack sx={{ p: { xs: 1.5, sm: 2.5 } }} spacing={1.5}>
-          {movements.map((movement, index) => {
+          {visibleMovements.map((movement, index) => {
             const meta = getMovementTypeMeta(movement.type);
             const productSku = movement.product?.sku ?? movement.productSku;
             const productName =
               movement.product?.name ?? `${movement.productName} (eliminado)`;
             const barcode = movement.product?.barcode;
             const reasonTypeLabel =
-              movement.reasonType && (movement.type === "IN" || movement.type === "OUT")
-                ? INVENTORY_REASON_TYPE_LABELS[movement.reasonType]
+              movement.type === "OUT" && movement.reasonType === "EXPIRATION"
+                ? INVENTORY_REASON_TYPE_LABELS.EXPIRATION
                 : null;
+            const warehouseLabel = getWarehouseLabel(movement);
+            const reasonText = getMovementReasonText(movement);
             const isExpirationMovement = movement.reasonType === "EXPIRATION";
             const costAmount = Number(movement.costAmount ?? 0);
 
@@ -178,7 +268,7 @@ export function InventoryMovementTimeline({
                   >
                     {meta.icon}
                   </Box>
-                  {index < movements.length - 1 && (
+                  {index < visibleMovements.length - 1 && (
                     <Box
                       sx={{ width: 2, flex: 1, bgcolor: "divider", my: 0.75 }}
                     />
@@ -263,17 +353,26 @@ export function InventoryMovementTimeline({
                             color="text.secondary"
                             fontWeight={800}
                           >
-                            Producto afectado
+                            Producto y ubicación
                           </Typography>
                           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                            <Chip size="small" variant="outlined" label={productSku} />
-                            {barcode && (
-                              <Chip size="small" variant="outlined" label={barcode} />
-                            )}
                             <Chip
                               size="small"
                               variant="outlined"
-                              label={movement.warehouse?.name ?? "Sin almacén"}
+                              label={`Clave interna/SKU: ${productSku}`}
+                            />
+                            {barcode && (
+                              <Chip
+                                size="small"
+                                variant="outlined"
+                                label={`Código del producto: ${barcode}`}
+                              />
+                            )}
+                            <Chip
+                              size="small"
+                              color="info"
+                              variant="outlined"
+                              label={warehouseLabel}
                             />
                           </Stack>
                         </Stack>
@@ -297,7 +396,7 @@ export function InventoryMovementTimeline({
                               />
                             )}
                             <Typography variant="body2" color="text.secondary">
-                              {movement.reason || "Sin motivo capturado."}
+                              {reasonText}
                             </Typography>
                             {isExpirationMovement && costAmount > 0 && (
                               <Typography variant="caption" color="warning.main" fontWeight={900}>
@@ -314,6 +413,24 @@ export function InventoryMovementTimeline({
             );
           })}
         </Stack>
+
+        {pageCount > 1 && (
+          <Box
+            sx={{
+              px: { xs: 2, sm: 2.5 },
+              pb: { xs: 2, sm: 2.5 },
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <Pagination
+              color="primary"
+              count={pageCount}
+              page={page}
+              onChange={(_, value) => setPage(value)}
+            />
+          </Box>
+        )}
       </CardContent>
     </Card>
   );

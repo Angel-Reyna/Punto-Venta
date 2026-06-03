@@ -10,8 +10,10 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
+import AddCircleIcon from "@mui/icons-material/AddCircle";
 import HistoryIcon from "@mui/icons-material/History";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
+import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 
 import type { InventoryView, StockItem } from "./inventoryShared";
@@ -100,7 +102,7 @@ export function InventoryControlHero({
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {canAdjustInventory
-                    ? "Primero revisa productos sin stock o bajo mínimo; después consulta movimientos o registra entradas y salidas manuales cuando exista una razón operativa."
+                    ? "Consulta existencias, registra entradas por reposición y separa salidas cuando haya merma, corrección o retiro de producto."
                     : "Consulta existencias, alertas de stock e historial operativo. Las entradas y salidas manuales las realiza el administrador."}
                 </Typography>
               </Box>
@@ -144,9 +146,12 @@ export function InventoryControlHero({
                 borderColor: "divider",
                 borderRadius: 999,
                 minHeight: 40,
-                px: { xs: 1.75, sm: 2.25 },
+                px: { xs: 1.5, sm: 2 },
                 textTransform: "none",
                 whiteSpace: "nowrap",
+              },
+              "& .MuiTab-iconWrapper": {
+                mr: 0.75,
               },
               "& .Mui-selected": {
                 bgcolor: alpha(theme.palette.primary.main, 0.1),
@@ -155,7 +160,20 @@ export function InventoryControlHero({
           >
             <Tab value="stock" label="Existencias" />
             {canAdjustInventory && (
-              <Tab value="adjustments" label="Entradas y salidas" />
+              <Tab
+                value="entries"
+                icon={<AddCircleIcon fontSize="small" />}
+                iconPosition="start"
+                label="Entradas"
+              />
+            )}
+            {canAdjustInventory && (
+              <Tab
+                value="exits"
+                icon={<RemoveCircleIcon fontSize="small" />}
+                iconPosition="start"
+                label="Salidas"
+              />
             )}
             <Tab value="movements" label="Historial" />
           </Tabs>

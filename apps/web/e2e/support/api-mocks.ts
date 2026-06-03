@@ -37,6 +37,8 @@ export type MockProduct = {
   marginPercent?: number;
 };
 
+type MockInventoryBalanceMap = Map<string, Map<string, number>>;
+
 type MockInventoryMovement = {
   id: string;
   type: "IN" | "OUT" | "SALE" | "RETURN" | "ADJUSTMENT";
@@ -201,6 +203,12 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
   const warehouses: Array<{ id: string; name: string; description?: string | null; isActive: boolean }> = [
     { id: "warehouse-1", name: "Principal", description: "Almacén principal", isActive: true },
   ];
+  const inventoryBalances: MockInventoryBalanceMap = new Map(
+    products.map((product) => [
+      product.id,
+      new Map([["warehouse-1", product.stock]]),
+    ]),
+  );
   const managedUsers = usersResponse();
   const auditLogs = auditLogsResponse(managedUsers);
   const sellerActivityLogs = sellerActivityResponse(managedUsers);
@@ -363,6 +371,10 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
       );
 
       products.push(createdProduct);
+      inventoryBalances.set(
+        createdProduct.id,
+        new Map([["warehouse-1", createdProduct.stock]]),
+      );
       inventoryMovements.unshift(buildInventoryMovement(createdProduct, {
         sequence: inventoryMovements.length + 1,
         type: "IN",
@@ -381,6 +393,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
       const deletedProducts = products.length;
 
       products.splice(0, products.length);
+      inventoryBalances.clear();
 
       return json(route, {
         deletedProducts,
@@ -441,6 +454,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
         return json(route, { message: "Producto no encontrado" }, 404);
       }
 
+      inventoryBalances.delete(products[productIndex].id);
       products.splice(productIndex, 1);
 
       return json(route, {
@@ -489,7 +503,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
     }
 
     if (pathname.endsWith("/inventory/stock")) {
-      return json(route, inventoryStockResponse(products, url.searchParams.get("q")));
+      return json(route, inventoryStockResponse(products, warehouses, inventoryBalances, url.searchParams.get("q")));
     }
 
     if (pathname.endsWith("/inventory/movements") && method === "GET") {
@@ -527,12 +541,25 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
         return json(route, { message: "Cantidad inválida" }, 400);
       }
 
-      if (type === "OUT" && product.stock < quantity) {
-        return json(route, { message: "Stock insuficiente" }, 409);
+      const productBalances = inventoryBalances.get(product.id) ?? new Map<string, number>();
+      const currentWarehouseStock = productBalances.get(warehouse.id) ?? 0;
+
+      if (type === "OUT" && currentWarehouseStock < quantity) {
+        return json(
+          route,
+          { message: `Stock insuficiente en ${warehouse.name}. Stock actual: ${currentWarehouseStock}.` },
+          409,
+        );
       }
 
       product.stock += type === "IN" ? quantity : -quantity;
       product.currentStock = product.stock;
+
+      productBalances.set(
+        warehouse.id,
+        type === "IN" ? currentWarehouseStock + quantity : currentWarehouseStock - quantity,
+      );
+      inventoryBalances.set(product.id, productBalances);
 
       const movement = buildInventoryMovement(product, {
         sequence: inventoryMovements.length + 1,
@@ -910,27 +937,47 @@ function updateMockProduct(
     : 0;
 }
 
-function inventoryStockResponse(products: MockProduct[], query: string | null) {
+function inventoryStockResponse(
+  products: MockProduct[],
+  warehouses: Array<{ id: string; name: string }>,
+  balances: MockInventoryBalanceMap,
+  query: string | null,
+) {
   const normalizedQuery = normalize(query);
 
   return products
     .filter((product) => matchesProduct(product, normalizedQuery))
-    .map((product) => ({
-      id: product.id,
-      productId: product.id,
-      sku: product.sku,
-      barcode: product.barcode,
-      name: product.name,
-      category: product.category,
-      categoryName: product.category?.name ?? "Sin categoría",
-      warehouseId: "warehouse-1",
-      warehouseName: "Principal",
-      stock: product.stock,
-      currentStock: product.stock,
-      minStock: product.minStock ?? 0,
-      lowStock: product.stock > 0 && product.stock <= Number(product.minStock ?? 0),
-      severity: product.stock <= 0 ? "critical" : "normal",
-    }));
+    .map((product) => {
+      const productBalances = balances.get(product.id) ?? new Map<string, number>();
+      const locations = [...productBalances.entries()]
+        .map(([warehouseId, quantity]) => {
+          const warehouse = warehouses.find((item) => item.id === warehouseId);
+
+          return {
+            warehouseId,
+            warehouseName: warehouse?.name ?? "Principal",
+            quantity,
+          };
+        });
+
+      return {
+        id: product.id,
+        productId: product.id,
+        sku: product.sku,
+        barcode: product.barcode,
+        name: product.name,
+        category: product.category,
+        categoryName: product.category?.name ?? "Sin categoría",
+        warehouseId: "warehouse-1",
+        warehouseName: "Principal",
+        stock: product.stock,
+        currentStock: product.stock,
+        minStock: product.minStock ?? 0,
+        lowStock: product.stock > 0 && product.stock <= Number(product.minStock ?? 0),
+        severity: product.stock <= 0 ? "critical" : "normal",
+        locations,
+      };
+    });
 }
 
 function inventoryMovementsResponse(product: MockProduct): MockInventoryMovement[] {
