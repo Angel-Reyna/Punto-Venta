@@ -141,7 +141,7 @@ export function InventoryPage() {
       <InventoryControlHero
         activeView={activeView}
         canAdjustInventory={canAdjustInventory}
-        movementsCount={movements.length}
+        movements={movements}
         onViewChange={changeView}
         stockRows={stockRows}
       />

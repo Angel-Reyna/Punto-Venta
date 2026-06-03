@@ -182,7 +182,9 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await clickByTestId(page, "inventory-submit-in");
 
     await expect(page.getByText("Entrada registrada correctamente.")).toBeVisible();
-    await expect(page.getByText("29 unidades")).toBeVisible();
+    await expect(
+      byTestId(page, "inventory-stock-item-COCA-600").getByRole("heading", { name: "29 unidades" }),
+    ).toBeVisible();
 
     await page.getByRole("tab", { name: "Salidas" }).click();
     await expect(byTestId(page, "inventory-form-reason")).toHaveValue("");
@@ -207,7 +209,9 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await clickByTestId(page, "inventory-submit-out");
 
     await expect(page.getByText("Salida registrada correctamente.")).toBeVisible();
-    await expect(page.getByText("24 unidades")).toBeVisible();
+    await expect(
+      byTestId(page, "inventory-stock-item-COCA-600").getByRole("heading", { name: "24 unidades" }),
+    ).toBeVisible();
 
     await page.getByRole("tab", { name: "Existencias" }).click();
     await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Stock total");

@@ -36,8 +36,8 @@ test.describe("catálogo e inventario responsive", () => {
     ).toBeVisible();
     await expect(page.getByTestId("inventory-visual-dashboard")).toBeVisible();
     await expect(page.getByText("Control de inventario")).toBeVisible();
-    await expect(page.getByText("Stock saludable")).toBeVisible();
-    await expect(page.getByText("Vista rápida de existencias")).toBeVisible();
+    await expect(page.getByText("Estado de existencias")).toBeVisible();
+    await expect(page.getByText("Revisar por estado")).toBeVisible();
     await expect(page.getByText("Coca-Cola 600 ml")).toBeVisible();
     await expect(page.getByText("Existencias actuales")).toBeVisible();
     const stockItem = page.getByTestId("inventory-stock-item-COCA-600");

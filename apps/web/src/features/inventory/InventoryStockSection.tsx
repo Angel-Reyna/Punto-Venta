@@ -12,14 +12,12 @@ import {
 import { alpha, type Theme } from "@mui/material/styles";
 
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import Inventory2Icon from "@mui/icons-material/Inventory2";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 
 import { EmptyStatePanel } from "../../components/data-display";
 import { SearchToolbar } from "../../components/SearchToolbar";
-import { VisualMetricCard } from "../../components/VisualMetricCard";
 import { CategoryPill } from "../products/categoryVisuals";
 import type { StockItem, StockStatusFilter } from "./inventoryShared";
 import {
@@ -52,11 +50,7 @@ export function InventoryStockSection({
         helperText="Busca productos por nombre, clave interna/SKU, código o categoría para revisar su stock real."
       />
 
-      <InventoryPriorityPanel rows={rows} />
-
-      <InventorySummaryCards rows={rows} />
-
-      <InventoryStatusFilterBar
+      <InventoryStockHealthPanel
         rows={rows}
         value={statusFilter}
         onChange={setStatusFilter}
@@ -71,151 +65,7 @@ export function InventoryStockSection({
   );
 }
 
-function InventoryPriorityPanel({ rows }: { rows: StockItem[] }) {
-  const summary = getInventoryStockSummary(rows);
-  const hasAlerts = summary.attention > 0;
-  const headline = summary.outOfStock
-    ? "Primero revisa productos sin stock"
-    : summary.lowStock
-      ? "Hay productos cerca del mínimo"
-      : "Inventario listo para operar";
-  const helper = summary.outOfStock
-    ? "Hay productos que no deberían prometerse en venta hasta reponer existencias."
-    : summary.lowStock
-      ? "Todavía pueden venderse, pero conviene preparar reposición antes de agotarlos."
-      : "No hay alertas críticas visibles. Mantén seguimiento de movimientos y ventas.";
-
-  return (
-    <Card
-      variant="outlined"
-      sx={(theme) => ({
-        mb: 2,
-        borderColor: alpha(
-          hasAlerts ? theme.palette.warning.main : theme.palette.success.main,
-          0.24,
-        ),
-        bgcolor: alpha(
-          hasAlerts ? theme.palette.warning.main : theme.palette.success.main,
-          theme.palette.mode === "dark" ? 0.08 : 0.05,
-        ),
-      })}
-    >
-      <CardContent>
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={2}
-          alignItems={{ xs: "stretch", md: "center" }}
-          justifyContent="space-between"
-        >
-          <Stack direction="row" spacing={1.5} alignItems="flex-start">
-            <Box
-              sx={(theme) => ({
-                display: "grid",
-                placeItems: "center",
-                flex: "0 0 auto",
-                width: 44,
-                height: 44,
-                borderRadius: 3,
-                color: hasAlerts
-                  ? theme.palette.warning.main
-                  : theme.palette.success.main,
-                bgcolor: alpha(
-                  hasAlerts ? theme.palette.warning.main : theme.palette.success.main,
-                  0.14,
-                ),
-              })}
-            >
-              {summary.outOfStock ? <ErrorOutlineIcon /> : <WarningAmberIcon />}
-            </Box>
-
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle1" fontWeight={900}>
-                {headline}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {helper}
-              </Typography>
-            </Box>
-          </Stack>
-
-          <Stack
-            direction="row"
-            spacing={1}
-            useFlexGap
-            flexWrap="wrap"
-            sx={{ justifyContent: { xs: "flex-start", md: "flex-end" } }}
-          >
-            <Chip color="error" variant="outlined" label={`Sin stock · ${summary.outOfStock}`} />
-            <Chip color="warning" variant="outlined" label={`Bajo stock · ${summary.lowStock}`} />
-            <Chip color="success" variant="outlined" label={`Listos · ${summary.available}`} />
-          </Stack>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
-
-function InventorySummaryCards({ rows }: { rows: StockItem[] }) {
-  const summary = getInventoryStockSummary(rows);
-  const cards = [
-    {
-      label: "Productos monitoreados",
-      value: summary.total,
-      description: "Registros de stock visibles en inventario.",
-      color: "primary" as const,
-      icon: <Inventory2Icon />,
-    },
-    {
-      label: "Stock saludable",
-      value: summary.available,
-      description: "Productos con unidades por encima del mínimo.",
-      color: "success" as const,
-      icon: <CheckCircleIcon />,
-    },
-    {
-      label: "Requieren atención",
-      value: summary.attention,
-      description: `${summary.lowStock} bajo stock · ${summary.outOfStock} sin stock`,
-      color: summary.attention > 0 ? ("warning" as const) : ("info" as const),
-      icon: <WarningAmberIcon />,
-    },
-    {
-      label: "Unidades totales",
-      value: summary.units,
-      description: `${summary.categories} categoría${summary.categories === 1 ? "" : "s"} visible${summary.categories === 1 ? "" : "s"}`,
-      color: "info" as const,
-      icon: <LocalShippingIcon />,
-    },
-  ];
-
-  return (
-    <Box
-      sx={{
-        display: "grid",
-        gap: { xs: 1.5, sm: 2 },
-        gridTemplateColumns: {
-          xs: "1fr",
-          sm: "repeat(2, minmax(0, 1fr))",
-          lg: "repeat(4, minmax(0, 1fr))",
-        },
-        mb: 2,
-      }}
-    >
-      {cards.map((card) => (
-        <VisualMetricCard
-          key={card.label}
-          tone={card.color}
-          helper={card.description}
-          icon={card.icon}
-          label={card.label}
-          value={card.value}
-        />
-      ))}
-    </Box>
-  );
-}
-
-function InventoryStatusFilterBar({
+function InventoryStockHealthPanel({
   rows,
   value,
   onChange,
@@ -225,6 +75,24 @@ function InventoryStatusFilterBar({
   onChange: (value: StockStatusFilter) => void;
 }) {
   const summary = getInventoryStockSummary(rows);
+  const hasOutOfStock = summary.outOfStock > 0;
+  const hasLowStock = summary.lowStock > 0;
+  const tone = hasOutOfStock ? "error" : hasLowStock ? "warning" : "success";
+  const StatusIcon = hasOutOfStock
+    ? ErrorOutlineIcon
+    : hasLowStock
+      ? WarningAmberIcon
+      : CheckCircleIcon;
+  const title = hasOutOfStock
+    ? "Reponer antes de vender"
+    : hasLowStock
+      ? "Preparar reposición"
+      : "Inventario estable";
+  const description = hasOutOfStock
+    ? "Hay productos sin unidades. Revisa los almacenes afectados y programa reposición antes de prometer venta."
+    : hasLowStock
+      ? "Algunos productos están cerca del mínimo. Usa los filtros para concentrarte solo en lo que requiere revisión."
+      : "No hay alertas críticas visibles. Mantén seguimiento de entradas, salidas e historial.";
   const options: Array<{
     value: StockStatusFilter;
     count: number;
@@ -241,45 +109,154 @@ function InventoryStatusFilterBar({
       variant="outlined"
       sx={(theme) => ({
         mb: 2,
-        borderColor: alpha(theme.palette.primary.main, 0.16),
+        overflow: "hidden",
+        borderColor: alpha(theme.palette[tone].main, 0.28),
+        background: `linear-gradient(135deg, ${alpha(
+          theme.palette[tone].main,
+          theme.palette.mode === "dark" ? 0.1 : 0.052,
+        )}, transparent 48%), ${alpha(
+          theme.palette.background.paper,
+          theme.palette.mode === "dark" ? 0.72 : 0.96,
+        )}`,
       })}
     >
       <CardContent>
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={2}
-          alignItems={{ xs: "flex-start", md: "center" }}
-          justifyContent="space-between"
-        >
-          <Box>
-            <Typography variant="subtitle1" fontWeight={900}>
-              Vista rápida de existencias
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Divide el catálogo por salud de stock para priorizar reposición,
-              merma o revisión de productos sin unidades.
-            </Typography>
-          </Box>
-
+        <Stack spacing={2.2}>
           <Stack
-            direction="row"
-            spacing={1}
-            useFlexGap
-            flexWrap="wrap"
-            sx={{ width: { xs: "100%", md: "auto" } }}
+            direction={{ xs: "column", md: "row" }}
+            spacing={2}
+            alignItems={{ xs: "stretch", md: "center" }}
+            justifyContent="space-between"
           >
-            {options.map((option) => (
-              <Chip
-                key={option.value}
-                clickable
-                color={option.color}
-                variant={value === option.value ? "filled" : "outlined"}
-                label={`${STOCK_FILTER_LABELS[option.value]} · ${option.count}`}
-                onClick={() => onChange(option.value)}
-                sx={{ flexGrow: { xs: 1, sm: 0 } }}
-              />
-            ))}
+            <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ minWidth: 0 }}>
+              <Box
+                sx={(theme) => ({
+                  display: "grid",
+                  placeItems: "center",
+                  flex: "0 0 auto",
+                  width: 48,
+                  height: 48,
+                  borderRadius: 3,
+                  color: theme.palette[tone].contrastText,
+                  bgcolor: theme.palette[tone].main,
+                  boxShadow: `0 14px 28px ${alpha(theme.palette[tone].main, 0.24)}`,
+                })}
+              >
+                <StatusIcon />
+              </Box>
+
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  fontWeight={900}
+                  sx={{ display: "block", letterSpacing: 0.4, textTransform: "uppercase" }}
+                >
+                  Estado de existencias
+                </Typography>
+                <Typography variant="h6" fontWeight={950} sx={{ overflowWrap: "anywhere" }}>
+                  {title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                  {description}
+                </Typography>
+              </Box>
+            </Stack>
+
+            <Box
+              sx={(theme) => ({
+                display: "grid",
+                gridTemplateColumns: "auto 1fr",
+                gap: 1.15,
+                alignItems: "center",
+                border: 1,
+                borderColor: alpha(theme.palette.info.main, 0.2),
+                borderRadius: 3,
+                bgcolor: alpha(theme.palette.info.main, theme.palette.mode === "dark" ? 0.08 : 0.045),
+                px: { xs: 1.35, sm: 1.5 },
+                py: { xs: 1.1, sm: 1.25 },
+                minWidth: { md: 260 },
+              })}
+            >
+              <Box
+                sx={(theme) => ({
+                  display: "grid",
+                  placeItems: "center",
+                  width: 38,
+                  height: 38,
+                  borderRadius: 2.25,
+                  color: theme.palette.info.main,
+                  bgcolor: alpha(theme.palette.info.main, 0.13),
+                })}
+              >
+                <LocalShippingIcon fontSize="small" />
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="h5" fontWeight={950} lineHeight={1.05}>
+                  {summary.units}
+                </Typography>
+                <Typography variant="body2" fontWeight={900} sx={{ overflowWrap: "anywhere" }}>
+                  Unidades totales
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                  Stock registrado en productos visibles
+                </Typography>
+              </Box>
+            </Box>
           </Stack>
+
+          <Box
+            sx={(theme) => ({
+              display: "grid",
+              gap: { xs: 1, sm: 1.25 },
+              border: 1,
+              borderColor: alpha(theme.palette.primary.main, 0.16),
+              borderRadius: 2.75,
+              bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.055 : 0.035),
+              px: { xs: 1.25, sm: 1.5 },
+              py: { xs: 1.15, sm: 1.35 },
+            })}
+          >
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              spacing={1.25}
+              alignItems={{ xs: "stretch", md: "center" }}
+              justifyContent="space-between"
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={900}>
+                  Revisar por estado
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                  Filtra la lista por prioridad sin duplicar el total visible.
+                </Typography>
+              </Box>
+
+              <Stack
+                direction="row"
+                spacing={1}
+                useFlexGap
+                flexWrap="wrap"
+                sx={{ justifyContent: { xs: "flex-start", md: "flex-end" } }}
+              >
+                {options.map((option) => (
+                  <Chip
+                    key={option.value}
+                    clickable
+                    color={option.color}
+                    variant={value === option.value ? "filled" : "outlined"}
+                    label={
+                      option.value === "all"
+                        ? STOCK_FILTER_LABELS[option.value]
+                        : `${STOCK_FILTER_LABELS[option.value]} · ${option.count}`
+                    }
+                    onClick={() => onChange(option.value)}
+                    sx={{ flexGrow: { xs: 1, sm: 0 }, fontWeight: 900 }}
+                  />
+                ))}
+              </Stack>
+            </Stack>
+          </Box>
         </Stack>
       </CardContent>
     </Card>
