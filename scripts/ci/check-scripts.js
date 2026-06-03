@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 const { execFileSync, spawnSync } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
@@ -20,6 +21,11 @@ function listTrackedFiles() {
   } catch (error) {
     throw new Error(`No se pudieron listar archivos versionados con git ls-files: ${error.message}`);
   }
+}
+
+
+function hasCarriageReturn(filePath) {
+  return fs.readFileSync(path.join(repoRoot, filePath)).includes(0x0d);
 }
 
 function commandExists(command) {
@@ -96,6 +102,16 @@ if (!shellChecker && shellScripts.length > 0) {
   });
 } else if (shellChecker) {
   for (const scriptPath of shellScripts) {
+    if (hasCarriageReturn(scriptPath)) {
+      failures.push({
+        label: scriptPath,
+        command: 'line-ending-check',
+        details:
+          'El script contiene CRLF. Normalízalo a LF para que funcione igual en Git Bash, Linux y Docker.'
+      });
+      continue;
+    }
+
     const failure = runSyntaxCheck(scriptPath, shellChecker.command, [
       ...shellChecker.argsPrefix,
       scriptPath

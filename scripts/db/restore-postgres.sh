@@ -22,8 +22,18 @@ echo "Restoring ${BACKUP_FILE} into database ${POSTGRES_DB}"
 echo "This will drop and recreate the public schema. Press Ctrl+C within 5 seconds to abort."
 sleep 5
 
-cat "${BACKUP_FILE}" | docker compose -f "${COMPOSE_FILE}" exec -T "${SERVICE}" sh -c "cat > '${CONTAINER_BACKUP}'"
+cat "${BACKUP_FILE}" | docker compose -f "${COMPOSE_FILE}" exec -T "${SERVICE}" \
+  sh -c "cat > '${CONTAINER_BACKUP}'"
 
-docker compose -f "${COMPOSE_FILE}" exec -T "${SERVICE}" sh -c "psql -U '${POSTGRES_USER}' -d '${POSTGRES_DB}' -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' && pg_restore -U '${POSTGRES_USER}' -d '${POSTGRES_DB}' --no-owner --no-acl '${CONTAINER_BACKUP}' && rm -f '${CONTAINER_BACKUP}'"
+docker compose -f "${COMPOSE_FILE}" exec -T \
+  -e POSTGRES_USER="${POSTGRES_USER}" \
+  -e POSTGRES_DB="${POSTGRES_DB}" \
+  -e CONTAINER_BACKUP="${CONTAINER_BACKUP}" \
+  "${SERVICE}" sh -eu <<'CONTAINER_SH'
+psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -v ON_ERROR_STOP=1 \
+  -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;'
+pg_restore -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" --no-owner --no-acl "${CONTAINER_BACKUP}"
+rm -f "${CONTAINER_BACKUP}"
+CONTAINER_SH
 
 echo "Restore completed. Restart the API container if it was running."

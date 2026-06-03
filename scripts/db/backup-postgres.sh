@@ -16,4 +16,9 @@ docker compose -f "${COMPOSE_FILE}" exec -T "${SERVICE}" \
   pg_dump -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" --format=custom --no-owner --no-acl \
   > "${OUTPUT_FILE}"
 
+if [ ! -s "${OUTPUT_FILE}" ]; then
+  echo "Backup file was not created or is empty: ${OUTPUT_FILE}" >&2
+  exit 1
+fi
+
 echo "Backup completed: ${OUTPUT_FILE}"
