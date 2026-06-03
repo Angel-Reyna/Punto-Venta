@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -12,9 +13,13 @@ import {
 import { alpha, type Theme } from "@mui/material/styles";
 
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import LocalShippingIcon from "@mui/icons-material/LocalShipping";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import GridViewIcon from "@mui/icons-material/GridView";
+import LocalShippingIcon from "@mui/icons-material/LocalShipping";
+import SortIcon from "@mui/icons-material/Sort";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 import { EmptyStatePanel } from "../../components/data-display";
 import { SearchToolbar } from "../../components/SearchToolbar";
@@ -83,15 +88,13 @@ function InventoryStockHealthPanel({
     : hasLowStock
       ? WarningAmberIcon
       : CheckCircleIcon;
-  const title = hasOutOfStock
-    ? "Reponer antes de vender"
-    : hasLowStock
-      ? "Preparar reposición"
-      : "Inventario estable";
+  const title = hasOutOfStock || hasLowStock
+    ? "Algunos productos requieren atención"
+    : "Inventario estable";
   const description = hasOutOfStock
-    ? "Hay productos sin unidades. Revisa los almacenes afectados y programa reposición antes de prometer venta."
+    ? "Hay productos sin unidades. Revisa la distribución por almacén y programa reposición antes de prometer venta."
     : hasLowStock
-      ? "Algunos productos están cerca del mínimo. Usa los filtros para concentrarte solo en lo que requiere revisión."
+      ? "Algunos productos están cerca del mínimo. Revisa la distribución por almacén y programa reposición."
       : "No hay alertas críticas visibles. Mantén seguimiento de entradas, salidas e historial.";
   const options: Array<{
     value: StockStatusFilter;
@@ -292,34 +295,57 @@ function InventoryStockOverview({
     <Card sx={{ mb: 2 }}>
       <CardContent sx={{ p: 0, "&:last-child": { pb: 0 } }}>
         <Box
-          sx={{
+          sx={(theme) => ({
             px: { xs: 2, sm: 2.5 },
             py: 2,
             borderBottom: 1,
-            borderColor: "divider",
-          }}
+            borderColor: alpha(theme.palette.primary.main, 0.16),
+            background: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.035 : 0.02),
+          })}
         >
           <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            alignItems={{ xs: "flex-start", sm: "center" }}
+            direction={{ xs: "column", md: "row" }}
+            spacing={1.5}
+            alignItems={{ xs: "stretch", md: "center" }}
             justifyContent="space-between"
           >
-            <Box>
-              <Typography variant="h6" fontWeight={900}>
-                Existencias actuales
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Control rápido del stock real por producto, con estado visual
-                para reposición.
-              </Typography>
-            </Box>
+            <Stack direction="row" spacing={1.4} alignItems="center" sx={{ minWidth: 0 }}>
+              <Box
+                sx={(theme) => ({
+                  alignItems: "center",
+                  bgcolor: alpha(theme.palette.primary.main, 0.13),
+                  borderRadius: 2.35,
+                  color: "primary.main",
+                  display: "inline-flex",
+                  flex: "0 0 auto",
+                  height: 48,
+                  justifyContent: "center",
+                  width: 48,
+                })}
+              >
+                <GridViewIcon />
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="h5" fontWeight={950} sx={{ letterSpacing: -0.35 }}>
+                  Existencias actuales
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Control rápido del stock real por producto, con estado visual para reposición.
+                </Typography>
+              </Box>
+            </Stack>
 
-            <Chip
-              color="primary"
-              variant="outlined"
-              label={`${rows.length} producto${rows.length === 1 ? "" : "s"}`}
-            />
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent={{ xs: "flex-start", md: "flex-end" }}>
+              <Button variant="outlined" startIcon={<SortIcon />} sx={{ borderRadius: 2.5 }}>
+                Ordenar
+              </Button>
+              <Button variant="outlined" startIcon={<FilterListIcon />} sx={{ borderRadius: 2.5 }}>
+                Filtros
+              </Button>
+              <Button variant="contained" startIcon={<FileDownloadIcon />} sx={{ borderRadius: 2.5 }}>
+                Exportar
+              </Button>
+            </Stack>
           </Stack>
         </Box>
 
