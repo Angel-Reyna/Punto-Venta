@@ -16,7 +16,6 @@ import Inventory2Icon from "@mui/icons-material/Inventory2";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import WarehouseIcon from "@mui/icons-material/Warehouse";
 
 import { EmptyStatePanel } from "../../components/data-display";
 import { SearchToolbar } from "../../components/SearchToolbar";
@@ -575,6 +574,18 @@ function getAttentionSurfaceStyles(theme: Theme, color: StockVisualColor) {
   };
 }
 
+function StockStatusIcon({ color }: { color: StockVisualColor }) {
+  if (color === "error") {
+    return <ErrorOutlineIcon fontSize="small" />;
+  }
+
+  if (color === "warning") {
+    return <WarningAmberIcon fontSize="small" />;
+  }
+
+  return <CheckCircleIcon fontSize="small" />;
+}
+
 function WarehouseIdentity({
   color,
   warehouseName,
@@ -592,13 +603,13 @@ function WarehouseIdentity({
           flex: "0 0 auto",
           width: 42,
           height: 42,
-          borderRadius: 2.25,
+          borderRadius: "50%",
           color: theme.palette[color].contrastText,
           bgcolor: theme.palette[color].main,
-          boxShadow: `0 10px 20px ${alpha(theme.palette[color].main, 0.24)}`,
+          boxShadow: `0 10px 22px ${alpha(theme.palette[color].main, 0.28)}`,
         })}
       >
-        <WarehouseIcon fontSize="small" />
+        <StockStatusIcon color={color} />
       </Box>
 
       <Box sx={{ minWidth: 0 }}>
