@@ -15,7 +15,16 @@ import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 
 type CategoryIconComponent = ComponentType<SvgIconProps>;
 
-type CategoryTone = "default" | "hotDrink" | "coldDrink" | "sweets" | "bakery" | "snacks" | "other";
+type CategoryTone =
+  | "default"
+  | "hotDrink"
+  | "coldDrink"
+  | "sweets"
+  | "bakery"
+  | "snacks"
+  | "other";
+
+type CategoryPaletteColor = "primary" | "secondary" | "info" | "warning" | "error";
 
 type CategoryVisual = {
   label: string;
@@ -105,7 +114,7 @@ export function getCategoryVisual(label?: string | null): CategoryVisual {
   };
 }
 
-function getToneColor(tone: CategoryTone) {
+function getToneColor(tone: CategoryTone): CategoryPaletteColor {
   switch (tone) {
     case "hotDrink":
       return "warning";
@@ -179,3 +188,30 @@ export function CategoryInlineLabel({ label }: { label?: string | null }) {
         <Icon sx={{ fontSize: 17 }} />
       </Box>
       <Typography variant="body2" color="text.secondary" fontWeight={800} sx={{ overflowWrap: "anywhere" }}>
+        {visual.label}
+      </Typography>
+    </Stack>
+  );
+}
+
+export function CategoryPill({ label }: { label?: string | null }) {
+  const visual = getCategoryVisual(label);
+  const { Icon } = visual;
+  const color = getToneColor(visual.tone);
+
+  return (
+    <Chip
+      size="small"
+      color={color}
+      variant="outlined"
+      icon={<Icon sx={{ fontSize: "1rem" }} />}
+      label={visual.label}
+      sx={{
+        fontWeight: 800,
+        "& .MuiChip-icon": {
+          color: "inherit",
+        },
+      }}
+    />
+  );
+}
