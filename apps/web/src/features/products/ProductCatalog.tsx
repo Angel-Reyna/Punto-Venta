@@ -17,6 +17,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import ToggleOffIcon from "@mui/icons-material/ToggleOff";
 
 import { EmptyStatePanel } from "../../components/data-display";
+import { CategoryInlineLabel } from "./categoryVisuals";
 import { InfoTooltip } from "../../components/InfoTooltip";
 import {
   FINAL_PRICE_INFO_TEXT,
@@ -282,9 +283,9 @@ function ProductCatalogItem({
               >
                 {product.name}
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>
-                {product.category?.name ?? "Sin categoría"}
-              </Typography>
+              <Box sx={{ mt: 0.5 }}>
+                <CategoryInlineLabel label={product.category?.name} />
+              </Box>
             </Box>
 
             <Chip

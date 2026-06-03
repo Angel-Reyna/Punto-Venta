@@ -5,6 +5,7 @@ import { Box, Button, Grid, MenuItem, Stack, TextField, Typography } from "@mui/
 import { ActionDisabledReason } from "../../components/ActionDisabledReason";
 import { LabelWithInfo } from "../../components/InfoTooltip";
 import { ResponsiveDialog } from "../../components/ResponsiveDialog";
+import { CategoryOptionContent } from "./categoryVisuals";
 import {
   INITIAL_STOCK_INFO_TEXT,
   MIN_STOCK_INFO_TEXT,
@@ -50,6 +51,9 @@ export function ProductFormDialog({
   const isEditMode = mode === "edit";
   const usesCustomCategory = isOtherCategorySelected(form.categoryId);
   const customCategoryName = safeTrim(form.categoryName);
+  const selectedCategoryLabel = usesCustomCategory
+    ? "Otros"
+    : categories.find((category) => category.id === form.categoryId)?.name ?? "Sin categoría";
 
   const formIsInvalid =
     !safeTrim(form.sku) ||
@@ -235,6 +239,9 @@ export function ProductFormDialog({
                       ? "Se guardará como una categoría nueva."
                       : "Selecciona una categoría activa o elige Otros."
                   }
+                  SelectProps={{
+                    renderValue: () => <CategoryOptionContent label={selectedCategoryLabel} />,
+                  }}
                   inputProps={{
                     "data-testid": "product-form-category",
                   }}
@@ -248,13 +255,17 @@ export function ProductFormDialog({
                     });
                   }}
                 >
-                  <MenuItem value="">Sin categoría</MenuItem>
+                  <MenuItem value="">
+                    <CategoryOptionContent label="Sin categoría" />
+                  </MenuItem>
                   {categories.map((category) => (
                     <MenuItem key={category.id} value={category.id}>
-                      {category.name}
+                      <CategoryOptionContent label={category.name} />
                     </MenuItem>
                   ))}
-                  <MenuItem value={OTHER_CATEGORY_VALUE}>Otros</MenuItem>
+                  <MenuItem value={OTHER_CATEGORY_VALUE}>
+                    <CategoryOptionContent label="Otros" />
+                  </MenuItem>
                 </TextField>
               </Grid>
 

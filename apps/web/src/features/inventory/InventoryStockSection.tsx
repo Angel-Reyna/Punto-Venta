@@ -6,21 +6,22 @@ import {
   CardContent,
   Chip,
   Divider,
-  LinearProgress,
   Stack,
   Typography,
 } from "@mui/material";
-import { alpha } from "@mui/material/styles";
+import { alpha, type Theme } from "@mui/material/styles";
 
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import WarehouseIcon from "@mui/icons-material/Warehouse";
 
 import { EmptyStatePanel } from "../../components/data-display";
 import { SearchToolbar } from "../../components/SearchToolbar";
 import { VisualMetricCard } from "../../components/VisualMetricCard";
+import { CategoryPill } from "../products/categoryVisuals";
 import type { StockItem, StockStatusFilter } from "./inventoryShared";
 import {
   STOCK_FILTER_LABELS,
@@ -146,7 +147,7 @@ function InventoryPriorityPanel({ rows }: { rows: StockItem[] }) {
             sx={{ justifyContent: { xs: "flex-start", md: "flex-end" } }}
           >
             <Chip color="error" variant="outlined" label={`Sin stock · ${summary.outOfStock}`} />
-            <Chip color="warning" variant="outlined" label={`Bajo mínimo · ${summary.lowStock}`} />
+            <Chip color="warning" variant="outlined" label={`Bajo stock · ${summary.lowStock}`} />
             <Chip color="success" variant="outlined" label={`Listos · ${summary.available}`} />
           </Stack>
         </Stack>
@@ -386,13 +387,8 @@ function getWarehouseDisplayName(warehouseName: string) {
   return normalized.toLowerCase() === "principal" ? "Principal" : normalized;
 }
 
-function formatSingleStockLocation(location: { warehouseName: string }) {
-  return `Almacén: ${getWarehouseDisplayName(location.warehouseName)}`;
-}
-
-function getLocationShare(quantity: number, totalStock: number) {
-  if (quantity <= 0 || totalStock <= 0) return 0;
-  return Math.max(4, Math.min((quantity / totalStock) * 100, 100));
+function formatAvailableUnits(quantity: number) {
+  return `${quantity} disponible${quantity === 1 ? "" : "s"}`;
 }
 
 function getLocationStatus(quantity: number, minStock: number) {
@@ -406,7 +402,7 @@ function getLocationStatus(quantity: number, minStock: number) {
   if (minStock > 0 && quantity <= minStock) {
     return {
       color: "warning" as const,
-      label: "Bajo mínimo",
+      label: "Bajo stock",
     };
   }
 
@@ -420,7 +416,6 @@ function InventoryStockItem({ item }: { item: StockItem }) {
   const stockStatus = getStockStatus(item);
   const minStock = Math.max(Number(item.minStock ?? 0), 0);
   const stock = Math.max(Number(item.stock ?? 0), 0);
-  const progressValue = minStock > 0 ? Math.min((stock / minStock) * 100, 100) : 100;
   const stockLocations = getStockLocations(item);
   const hasMultipleLocations = stockLocations.length > 1;
   const singleLocation = stockLocations[0];
@@ -429,29 +424,35 @@ function InventoryStockItem({ item }: { item: StockItem }) {
     <Box
       data-testid={`inventory-stock-item-${item.sku}`}
       sx={(theme) => ({
-        display: "grid",
-        gap: { xs: 1, md: 1.5 },
-        gridTemplateColumns: {
-          xs: "1fr",
-          md: "minmax(0, 1.15fr) minmax(270px, 0.85fr)",
-        },
-        px: { xs: 1.5, sm: 2 },
-        py: { xs: 1.35, sm: 1.55 },
-        borderLeft: 4,
-        borderColor: `${stockStatus.color}.main`,
-        background: alpha(theme.palette[stockStatus.color].main, 0.035),
+        px: { xs: 1.5, sm: 2.25 },
+        py: { xs: 1.5, sm: 1.75 },
+        bgcolor: alpha(theme.palette[stockStatus.color].main, 0.026),
         "&:hover": {
-          backgroundColor: alpha(theme.palette[stockStatus.color].main, 0.07),
+          bgcolor: alpha(theme.palette[stockStatus.color].main, 0.055),
         },
       })}
     >
-      <Stack spacing={0.9} sx={{ minWidth: 0 }}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1}
-          alignItems={{ xs: "flex-start", sm: "center" }}
-          justifyContent="space-between"
-        >
+      <Box
+        sx={(theme) => ({
+          display: "grid",
+          gap: { xs: 1.5, md: 2.5 },
+          gridTemplateColumns: {
+            xs: "1fr",
+            md: hasMultipleLocations
+              ? "minmax(240px, 0.72fr) minmax(0, 1.28fr)"
+              : "minmax(240px, 0.82fr) minmax(0, 1.18fr)",
+          },
+          border: 1,
+          borderColor: alpha(theme.palette[stockStatus.color].main, 0.16),
+          borderRadius: 3,
+          bgcolor: alpha(
+            theme.palette.background.paper,
+            theme.palette.mode === "dark" ? 0.18 : 0.82,
+          ),
+          p: { xs: 1.5, sm: 2 },
+        })}
+      >
+        <Stack spacing={1.35} sx={{ minWidth: 0 }}>
           <Box sx={{ minWidth: 0 }}>
             <Typography
               variant="subtitle1"
@@ -460,142 +461,321 @@ function InventoryStockItem({ item }: { item: StockItem }) {
             >
               {item.name}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {item.category?.name ?? "Sin categoría"}
-            </Typography>
+            <Stack spacing={0.25} sx={{ mt: 0.25 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
+                Clave interna/SKU: {item.sku}
+              </Typography>
+              {item.barcode && (
+                <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
+                  Código del producto: {item.barcode}
+                </Typography>
+              )}
+            </Stack>
           </Box>
 
-          <Chip
-            data-testid={`inventory-stock-status-${item.sku}`}
-            color={hasMultipleLocations ? "info" : stockStatus.color}
-            variant="outlined"
-            label={hasMultipleLocations ? `${stockLocations.length} almacenes` : stockStatus.label}
-          />
-        </Stack>
+          <Box>
+            <Typography variant="caption" color="text.secondary" fontWeight={800}>
+              {hasMultipleLocations ? "Stock total" : "Stock actual"}
+            </Typography>
+            <Stack
+              direction="row"
+              spacing={0.75}
+              useFlexGap
+              flexWrap="wrap"
+              alignItems="center"
+            >
+              <Typography variant="h4" fontWeight={950} lineHeight={1.05}>
+                {stock} unidad{stock === 1 ? "" : "es"}
+              </Typography>
+              {hasMultipleLocations && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={`${stockLocations.length} almacenes`}
+                />
+              )}
+            </Stack>
+          </Box>
 
-        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-          <Chip size="small" variant="outlined" label={`Clave interna/SKU: ${item.sku}`} />
-          {item.barcode && (
+          <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+            <Chip
+              data-testid={`inventory-stock-status-${item.sku}`}
+              color={stockStatus.color}
+              size="small"
+              variant="outlined"
+              label={stockStatus.label === "Bajo mínimo" ? "Bajo stock" : stockStatus.label}
+            />
             <Chip
               size="small"
               variant="outlined"
-              label={`Código del producto: ${item.barcode}`}
+              label={`Mínimo: ${minStock}`}
             />
-          )}
+            <CategoryPill label={item.category?.name} />
+          </Stack>
         </Stack>
-      </Stack>
 
+        {hasMultipleLocations ? (
+          <WarehouseDistribution
+            item={item}
+            locations={stockLocations}
+            minStock={minStock}
+          />
+        ) : (
+          <SingleWarehouseStock
+            helper={stockStatus.helper}
+            location={singleLocation}
+            statusColor={stockStatus.color}
+            statusLabel={stockStatus.label === "Bajo mínimo" ? "Bajo stock" : stockStatus.label}
+          />
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+type NormalizedStockLocation = ReturnType<typeof getStockLocations>[number];
+
+type StockVisualColor = "success" | "warning" | "error";
+
+function getAttentionSurfaceStyles(theme: Theme, color: StockVisualColor) {
+  const baseAlpha = theme.palette.mode === "dark" ? 0.12 : 0.055;
+
+  if (color === "success") {
+    return {
+      bgcolor: alpha(theme.palette[color].main, baseAlpha),
+      boxShadow: `inset 0 0 0 1px ${alpha(theme.palette[color].main, 0.12)}`,
+    };
+  }
+
+  const stripeAlpha = color === "error"
+    ? theme.palette.mode === "dark"
+      ? 0.22
+      : 0.16
+    : theme.palette.mode === "dark"
+      ? 0.22
+      : 0.18;
+  const glowAlpha = color === "error"
+    ? theme.palette.mode === "dark"
+      ? 0.24
+      : 0.16
+    : theme.palette.mode === "dark"
+      ? 0.22
+      : 0.14;
+
+  return {
+    bgcolor: alpha(theme.palette[color].main, baseAlpha),
+    backgroundImage: `linear-gradient(90deg, ${alpha(
+      theme.palette[color].main,
+      theme.palette.mode === "dark" ? 0.08 : 0.04,
+    )}, transparent 45%), repeating-linear-gradient(135deg, ${alpha(
+      theme.palette[color].main,
+      stripeAlpha,
+    )} 0, ${alpha(theme.palette[color].main, stripeAlpha)} 8px, transparent 8px, transparent 26px)`,
+    boxShadow: `0 12px 28px ${alpha(theme.palette[color].main, glowAlpha)}, inset 0 0 0 1px ${alpha(theme.palette[color].main, 0.24)}`,
+  };
+}
+
+function WarehouseIdentity({
+  color,
+  warehouseName,
+}: {
+  color: StockVisualColor;
+  warehouseName: string;
+}) {
+  return (
+    <Stack direction="row" spacing={1.15} alignItems="center" sx={{ minWidth: 0 }}>
       <Box
+        aria-hidden="true"
         sx={(theme) => ({
-          border: 1,
-          borderColor: alpha(theme.palette[stockStatus.color].main, 0.18),
-          borderRadius: 3,
-          p: { xs: 1.1, sm: 1.25 },
-          bgcolor: alpha(
-            theme.palette.background.paper,
-            theme.palette.mode === "dark" ? 0.18 : 0.72,
-          ),
-          minWidth: 0,
+          display: "grid",
+          placeItems: "center",
+          flex: "0 0 auto",
+          width: 42,
+          height: 42,
+          borderRadius: 2.25,
+          color: theme.palette[color].contrastText,
+          bgcolor: theme.palette[color].main,
+          boxShadow: `0 10px 20px ${alpha(theme.palette[color].main, 0.24)}`,
         })}
       >
-        <Stack spacing={hasMultipleLocations ? 0.95 : 0.8}>
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="flex-start"
-            justifyContent="space-between"
-          >
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={800}>
-                {hasMultipleLocations ? "Stock total" : "Stock actual"}
-              </Typography>
-              <Typography variant="h5" fontWeight={900} lineHeight={1.08}>
-                {item.stock} unidad{item.stock === 1 ? "" : "es"}
-              </Typography>
-            </Box>
-
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ pt: 0.35, textAlign: "right", flex: "0 0 auto" }}
-            >
-              Mínimo: {item.minStock}
-            </Typography>
-          </Stack>
-
-          {hasMultipleLocations ? (
-            <Stack spacing={0.85}>
-              <Typography variant="caption" color="text.secondary">
-                {stockStatus.helper}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" fontWeight={800}>
-                Distribución por almacén
-              </Typography>
-
-              {stockLocations.map((location) => {
-                const locationStatus = getLocationStatus(location.quantity, minStock);
-                return (
-                  <Box
-                    key={`${item.id}-${location.warehouseId}`}
-                    data-testid={`inventory-stock-location-${item.sku}-${location.warehouseId}`}
-                    sx={(theme) => ({
-                      border: 1,
-                      borderColor: alpha(theme.palette[locationStatus.color].main, 0.2),
-                      borderRadius: 2,
-                      bgcolor: alpha(theme.palette[locationStatus.color].main, 0.045),
-                      p: 0.85,
-                    })}
-                  >
-                    <Stack spacing={0.65}>
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                        justifyContent="space-between"
-                      >
-                        <Typography variant="body2" fontWeight={850} sx={{ overflowWrap: "anywhere" }}>
-                          Almacén: {getWarehouseDisplayName(location.warehouseName)}
-                        </Typography>
-                        <Typography variant="body2" fontWeight={900}>
-                          {location.quantity} disponible{location.quantity === 1 ? "" : "s"}
-                        </Typography>
-                      </Stack>
-
-                      <LinearProgress
-                        color={locationStatus.color}
-                        variant="determinate"
-                        value={getLocationShare(location.quantity, stock)}
-                        sx={{ height: 7, borderRadius: 99 }}
-                      />
-
-                      <Typography variant="caption" color="text.secondary">
-                        {locationStatus.label}
-                      </Typography>
-                    </Stack>
-                  </Box>
-                );
-              })}
-            </Stack>
-          ) : (
-            <>
-              <LinearProgress
-                color={stockStatus.color}
-                variant="determinate"
-                value={progressValue}
-                sx={{ height: 8, borderRadius: 99 }}
-              />
-              <Typography variant="caption" color="text.secondary">
-                {singleLocation
-                  ? formatSingleStockLocation(singleLocation)
-                  : "Sin unidades asignadas a un almacén específico."}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {stockStatus.helper}
-              </Typography>
-            </>
-          )}
-        </Stack>
+        <WarehouseIcon fontSize="small" />
       </Box>
+
+      <Box sx={{ minWidth: 0 }}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          fontWeight={900}
+          sx={{ display: "block", letterSpacing: 0.4, textTransform: "uppercase" }}
+        >
+          Ubicación de stock
+        </Typography>
+        <Typography
+          variant="h6"
+          fontWeight={950}
+          lineHeight={1.05}
+          sx={{
+            color: "text.primary",
+            overflowWrap: "anywhere",
+            textShadow: (theme) =>
+              theme.palette.mode === "dark"
+                ? `0 1px 0 ${alpha(theme.palette.common.black, 0.35)}`
+                : `0 1px 0 ${alpha(theme.palette.common.white, 0.65)}`,
+          }}
+        >
+          <Box component="span" sx={{ color: "text.secondary", fontWeight: 900 }}>
+            Almacén:{" "}
+          </Box>
+          {getWarehouseDisplayName(warehouseName)}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+}
+
+function SingleWarehouseStock({
+  helper,
+  location,
+  statusColor,
+  statusLabel,
+}: {
+  helper: string;
+  location: NormalizedStockLocation | undefined;
+  statusColor: "success" | "warning" | "error";
+  statusLabel: string;
+}) {
+  return (
+    <Box
+      sx={(theme) => ({
+        alignSelf: "stretch",
+        border: 1,
+        borderLeft: 5,
+        borderColor: alpha(theme.palette[statusColor].main, 0.22),
+        borderLeftColor: theme.palette[statusColor].main,
+        borderRadius: 2.5,
+        ...getAttentionSurfaceStyles(theme, statusColor),
+        px: { xs: 1.25, sm: 1.5 },
+        py: { xs: 1.05, sm: 1.25 },
+      })}
+    >
+      <Stack spacing={0.75} sx={{ minHeight: "100%", justifyContent: "center" }}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          alignItems={{ xs: "flex-start", sm: "center" }}
+          justifyContent="space-between"
+        >
+          {location ? (
+            <WarehouseIdentity color={statusColor} warehouseName={location.warehouseName} />
+          ) : (
+            <Typography variant="body2" fontWeight={900} sx={{ overflowWrap: "anywhere" }}>
+              Sin unidades asignadas a un almacén específico.
+            </Typography>
+          )}
+          <Chip
+            color={statusColor}
+            size="medium"
+            variant={statusColor === "success" ? "outlined" : "filled"}
+            label={statusLabel}
+            sx={{
+              fontWeight: 950,
+              letterSpacing: 0.2,
+              px: statusColor === "success" ? 0.25 : 0.75,
+            }}
+          />
+        </Stack>
+
+        <Typography variant="body2" color="text.secondary" fontWeight={700}>
+          {helper}
+        </Typography>
+      </Stack>
+    </Box>
+  );
+}
+
+function WarehouseDistribution({
+  item,
+  locations,
+  minStock,
+}: {
+  item: StockItem;
+  locations: NormalizedStockLocation[];
+  minStock: number;
+}) {
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <Typography variant="subtitle1" fontWeight={900} sx={{ mb: 0.85 }}>
+        Distribución
+      </Typography>
+
+      <Stack spacing={0.8}>
+        {locations.map((location) => (
+          <WarehouseDistributionRow
+            key={`${item.id}-${location.warehouseId}`}
+            item={item}
+            location={location}
+            minStock={minStock}
+          />
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
+function WarehouseDistributionRow({
+  item,
+  location,
+  minStock,
+}: {
+  item: StockItem;
+  location: NormalizedStockLocation;
+  minStock: number;
+}) {
+  const locationStatus = getLocationStatus(location.quantity, minStock);
+
+  return (
+    <Box
+      data-testid={`inventory-stock-location-${item.sku}-${location.warehouseId}`}
+      sx={(theme) => ({
+        display: "grid",
+        gridTemplateColumns: {
+          xs: "1fr",
+          sm: "minmax(0, 1.15fr) auto",
+          lg: "minmax(0, 1.2fr) minmax(130px, auto) auto",
+        },
+        gap: { xs: 0.75, sm: 1.15 },
+        alignItems: "center",
+        borderLeft: 5,
+        borderLeftColor: theme.palette[locationStatus.color].main,
+        borderRadius: 2.5,
+        ...getAttentionSurfaceStyles(theme, locationStatus.color),
+        px: { xs: 1.15, sm: 1.4 },
+        py: { xs: 1.05, sm: 1.2 },
+        minWidth: 0,
+      })}
+    >
+      <WarehouseIdentity color={locationStatus.color} warehouseName={location.warehouseName} />
+
+      <Typography
+        variant="h6"
+        fontWeight={950}
+        sx={{ color: "text.primary", whiteSpace: { sm: "nowrap" } }}
+      >
+        {formatAvailableUnits(location.quantity)}
+      </Typography>
+
+      <Chip
+        color={locationStatus.color}
+        size="medium"
+        variant={locationStatus.color === "success" ? "outlined" : "filled"}
+        label={locationStatus.label}
+        sx={{
+          justifySelf: { xs: "flex-start", lg: "end" },
+          fontWeight: 950,
+          letterSpacing: 0.2,
+          px: locationStatus.color === "success" ? 0.25 : 0.75,
+        }}
+      />
     </Box>
   );
 }
