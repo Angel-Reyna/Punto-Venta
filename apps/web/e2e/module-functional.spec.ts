@@ -136,11 +136,13 @@ test.describe("cobertura funcional por módulos críticos", () => {
 
     await clickByTestId(page, "products-delete-all-button");
 
-    const deleteAllDialog = dialogByName(page, "Eliminar todos los productos");
+    const deleteAllDialog = dialogByName(page, "Eliminar catálogo completo");
     await expect(deleteAllDialog).toBeVisible();
     await expect(byTestId(deleteAllDialog, "products-delete-all-confirm-button")).toBeDisabled();
 
-    await fillByTestId(deleteAllDialog, "products-delete-all-confirm-text", "ELIMINAR");
+    await expect(deleteAllDialog).toContainText("Escribe ELIMINAR TODO para confirmar.");
+    await expect(deleteAllDialog).toContainText("no se puede deshacer");
+    await fillByTestId(deleteAllDialog, "products-delete-all-confirm-text", "ELIMINAR TODO");
     await clickByTestId(deleteAllDialog, "products-delete-all-confirm-button");
 
     await expect(page.getByText(/Se eliminaron \d+ productos del catálogo\./)).toBeVisible();

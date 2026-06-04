@@ -117,7 +117,7 @@ export function ProductsPage() {
   }
 
   async function confirmDeleteAllProducts() {
-    if (bulkDeleteConfirmation !== "ELIMINAR") return;
+    if (bulkDeleteConfirmation !== "ELIMINAR TODO") return;
 
     const productsWereDeleted = await deleteAllProducts();
 
@@ -323,7 +323,7 @@ export function ProductsPage() {
                       onClick={() => setBulkDeleteOpen(true)}
                       data-testid="products-delete-all-button"
                     >
-                      Eliminar todo
+                      Eliminar catálogo
                     </Button>
                   )}
                 </Stack>
@@ -423,8 +423,10 @@ export function ProductsPage() {
           onClose={closeBulkDeleteDialog}
           disableClose={isDeletingAllProducts}
           maxWidth="sm"
-          title="Eliminar todos los productos"
-          description="Esta acción elimina todo el catálogo actual. Las ventas, devoluciones y movimientos anteriores conservarán nombre y SKU como evidencia histórica."
+          title="Eliminar catálogo completo"
+          description={`Esta acción elimina todo el catálogo actual, no solo los ${rows.length} producto${
+            rows.length === 1 ? "" : "s"
+          } visibles en esta pantalla. Las ventas, devoluciones y movimientos anteriores conservarán nombre y SKU como evidencia histórica.`}
           actions={
             <>
               <Button
@@ -438,11 +440,11 @@ export function ProductsPage() {
                 color="error"
                 onClick={confirmDeleteAllProducts}
                 disabled={
-                  isDeletingAllProducts || bulkDeleteConfirmation !== "ELIMINAR"
+                  isDeletingAllProducts || bulkDeleteConfirmation !== "ELIMINAR TODO"
                 }
                 data-testid="products-delete-all-confirm-button"
               >
-                {isDeletingAllProducts ? "Eliminando..." : "Eliminar todo"}
+                {isDeletingAllProducts ? "Eliminando..." : "Eliminar catálogo"}
               </Button>
             </>
           }
@@ -455,11 +457,12 @@ export function ProductsPage() {
             </Alert>
             <Box>
               <Typography fontWeight={900}>
-                Escribe ELIMINAR para confirmar.
+                Escribe ELIMINAR TODO para confirmar.
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                 El historial operativo se conserva mediante snapshots de nombre y
-                SKU en ventas, devoluciones y movimientos de inventario.
+                SKU en ventas, devoluciones y movimientos de inventario. Esta acción
+                no se puede deshacer desde la aplicación.
               </Typography>
             </Box>
             <TextField
@@ -467,7 +470,7 @@ export function ProductsPage() {
               label="Confirmación"
               value={bulkDeleteConfirmation}
               onChange={(event) => setBulkDeleteConfirmation(event.target.value)}
-              placeholder="ELIMINAR"
+              placeholder="ELIMINAR TODO"
               fullWidth
               inputProps={{ "data-testid": "products-delete-all-confirm-text" }}
             />
