@@ -7,7 +7,7 @@ Este checklist cierra la ronda visual responsive aplicada después del checkpoin
 La ronda visual incluye:
 
 - modo noche y shell visual general;
-- rediseño responsive de Auditoría, Inicio, Productos, Inventario, Ventas, Reportes, Usuarios, Actividad de vendedores, Caja y Login;
+- rediseño responsive de Auditoría, Inicio, Productos, Inventario, Ventas, Reportes, Usuarios, Actividad de vendedores, Control de efectivo retirado y Login;
 - correcciones de paneles laterales estrechos;
 - estabilización de selectores E2E integrados con `data-testid` y locators scoped;
 - estabilización de chunks Vite para eliminar el warning circular entre `vendor` y `vendor-mui-core`;
@@ -63,14 +63,14 @@ Probar en DevTools con estos tamaños mínimos:
 | Módulo | Punto crítico de revisión | Resultado esperado |
 | --- | --- | --- |
 | Login | Alternar modo noche/día antes de iniciar sesión. | El formulario sigue centrado y accesible en móvil; el panel informativo no estorba en desktop. |
-| Inicio | Resumen operativo por rol. | No reaparecen acciones rápidas duplicadas ni lenguaje de caja obligatoria. |
+| Inicio | Resumen operativo por rol. | No reaparecen acciones rápidas duplicadas ni lenguaje de control de efectivo retirado obligatoria. |
 | Productos | Búsqueda, cards, acciones admin y estados. | SKU/estado/precio se entienden sin depender solo de color; vendedor no ve acciones admin. |
 | Inventario | Existencias, alertas, ajustes e historial. | Los items tienen contenedor estable y no dependen de jerarquía DOM frágil para pruebas. |
 | Ventas | Catálogo, ticket y cobro. | El SKU puede aparecer en catálogo y ticket sin romper E2E; el test debe scoped al ticket. |
 | Reportes | Panel lateral y detalle. | Controles y resumen conservan textos E2E; el layout lateral no aplasta filtros. |
 | Usuarios | Crear usuario y filtros. | Formularios dentro de sidebar usan una columna; no hay campos cortados. |
 | Actividad de vendedores | Filtros laterales y timeline. | Fechas, botones y búsqueda no se comprimen en pantallas anchas con sidebar estrecho. |
-| Caja | Estado, apertura/cierre y movimientos. | Comunica control de efectivo, no requisito para vender. |
+| Control de efectivo retirado | Estado, apertura/cierre y movimientos. | Comunica control de efectivo, no requisito para vender. |
 | Auditoría | Filtros y eventos. | Eventos son entendibles y mantienen actor, entidad, severidad y cambios. |
 
 ## Riesgos que deben vigilarse en próximos patches

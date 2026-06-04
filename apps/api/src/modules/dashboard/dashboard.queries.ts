@@ -1,4 +1,4 @@
-import { CashRegisterStatus, InventoryType, SaleStatus } from "@prisma/client";
+import { InventoryType, SaleStatus } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { RECENT_SALES_LIMIT } from "./dashboard.shared";
@@ -12,13 +12,11 @@ export async function fetchDashboardSummaryData(input: {
   isAdmin: boolean;
   todayStart: Date;
   salesScopeWhere: DashboardScopeWhere;
-  cashRegisterScopeWhere: DashboardScopeWhere;
 }) {
   const {
     isAdmin,
     todayStart,
     salesScopeWhere,
-    cashRegisterScopeWhere
   } = input;
 
   const [
@@ -27,7 +25,6 @@ export async function fetchDashboardSummaryData(input: {
     groupedUsers,
     todaySalesAggregate,
     todayShrinkageAggregate,
-    cashRegisterSessions,
     recentSales
   ] = await Promise.all([
     prisma.product.count({
@@ -111,32 +108,6 @@ export async function fetchDashboardSummaryData(input: {
           }
         }),
 
-    prisma.cashRegisterSession.findMany({
-      where: {
-        ...cashRegisterScopeWhere,
-        status: CashRegisterStatus.OPEN
-      },
-      select: {
-        id: true,
-        cashierId: true,
-        openedAt: true,
-        cashier: {
-          select: {
-            name: true
-          }
-        },
-        movements: {
-          select: {
-            type: true,
-            amount: true
-          }
-        }
-      },
-      orderBy: {
-        openedAt: "desc"
-      }
-    }),
-
     prisma.sale.findMany({
       where: salesScopeWhere,
       select: {
@@ -166,7 +137,6 @@ export async function fetchDashboardSummaryData(input: {
     groupedUsers,
     todaySalesAggregate,
     todayShrinkageAggregate,
-    cashRegisterSessions,
     recentSales
   };
 }

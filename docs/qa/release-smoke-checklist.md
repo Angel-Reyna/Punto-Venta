@@ -7,7 +7,7 @@ Este checklist valida que Punta Venta está lista para una entrega local o despl
 Ejecuta este checklist cuando se cumpla cualquiera de estas condiciones:
 
 - se rediseñó un módulo visible;
-- se tocaron ventas, productos, inventario, reportes, auditoría, usuarios o caja;
+- se tocaron ventas, productos, inventario, reportes, auditoría, usuarios o control de efectivo retirado;
 - se actualizaron dependencias de seguridad;
 - se cerrará una ronda grande de patches;
 - se va a crear un snapshot de continuidad o tag interno.
@@ -32,7 +32,7 @@ Criterios:
 
 | Módulo | Verificación manual | Resultado esperado |
 | --- | --- | --- |
-| Inicio | Abrir `/` como admin. | Se ve un resumen operativo claro, sin acciones rápidas duplicadas ni dependencia visual de caja para vender. |
+| Inicio | Abrir `/` como admin. | Se ve un resumen operativo claro, sin acciones rápidas duplicadas ni dependencia visual de control de efectivo retirado para vender. |
 | Productos | Buscar por SKU, crear producto, desactivar y revisar tarjeta. | La búsqueda es clara, los estados activo/inactivo no son ambiguos y las acciones admin están visibles solo para admin. |
 | Inventario | Revisar existencias y registrar entrada/salida. | Stock, alertas y timeline/historial son legibles en desktop y móvil. |
 | Nueva venta | Buscar producto, usar Enter con texto parcial y con SKU exacto, crear venta. | Enter no agrega el primer producto con búsqueda parcial; solo agrega coincidencia exacta. |
@@ -40,7 +40,7 @@ Criterios:
 | Usuarios | Crear vendedor, cambiar rol, resetear contraseña y desactivar. | El estado y rol del usuario se entienden sin depender solo del color. |
 | Auditoría | Filtrar por texto/evento crítico. | El timeline permite identificar actor, entidad, severidad y antes/después. |
 | Actividad de vendedores | Filtrar por acción, búsqueda local y auto-refresh. | La actividad es escaneable como timeline y los filtros activos se entienden. |
-| Caja | Abrir/cerrar caja y registrar movimiento manual. | Caja comunica control de efectivo, pero no se interpreta como requisito para vender. |
+| Control de efectivo retirado | Abrir/cerrar control de efectivo retirado y registrar movimiento manual. | Control de efectivo retirado comunica control de efectivo, pero no se interpreta como requisito para vender. |
 
 ## Smoke VENDEDOR
 
@@ -49,7 +49,7 @@ Criterios:
 | Inicio | Login como vendedor. | Solo ve accesos operativos permitidos. |
 | Productos | Revisar catálogo. | No ve costo, margen, importación, toggle ni eliminación. |
 | Inventario | Revisar existencias. | No ve controles de ajuste ni acciones administrativas. |
-| Nueva venta | Registrar venta en efectivo. | La venta se registra sin caja abierta. |
+| Nueva venta | Registrar venta en efectivo. | La venta se registra sin control de efectivo retirado abierta. |
 | Rutas admin directas | Navegar manualmente a `/users`, `/reports`, `/audit`, `/seller-activity`. | Acceso bloqueado y sin fuga de datos administrativos. |
 
 ## Responsive visual mínimo

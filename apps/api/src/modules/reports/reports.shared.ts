@@ -158,23 +158,6 @@ export type OperationsReport = {
       latest: InventoryReportMovement[];
     };
   };
-  cashRegister: {
-    sessions: Array<{
-      id: string;
-      status: string;
-      openingAmount: number;
-      expectedClosingAmount: number | null;
-      closingAmount: number | null;
-      difference: number | null;
-      openedAt: Date;
-      closedAt: Date | null;
-      cashier: ReportPerson;
-    }>;
-    movements: {
-      count: number;
-      summary: Record<string, number>;
-    };
-  };
   topProducts: Array<{
     product: {
       id: string;

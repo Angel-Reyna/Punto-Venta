@@ -24,7 +24,7 @@ flowchart TD
   G --> G5[Usuarios]
   G --> G6[Auditoría]
   G --> G7[Actividad de vendedores]
-  G --> G8[Caja secundaria]
+  G --> G8[Control de efectivo retirado secundaria]
 
   H --> H1[Consultar productos activos]
   H --> H2[Consultar inventario]
@@ -53,7 +53,7 @@ flowchart LR
   ADMIN --> Users[Usuarios]
   ADMIN --> Audit[Auditoría]
   ADMIN --> SellerActivity[Actividad vendedores]
-  ADMIN --> Cash[Caja]
+  ADMIN --> Cash[Control de efectivo retirado]
 
   SELLER[Vendedor / CASHIER técnico] --> DashboardSeller[Inicio operativo]
   SELLER --> ProductsRead[Productos solo lectura]
@@ -144,8 +144,8 @@ erDiagram
   User ||--o{ RefreshSession : owns
   User ||--o{ Sale : creates
   User ||--o{ SaleReturn : registers
-  User ||--o{ CashRegisterSession : owns
-  User ||--o{ CashMovement : creates
+  User ||--o{ DeprecatedMoneySession : owns
+  User ||--o{ DeprecatedMoneyMovement : creates
   User ||--o{ AuditLog : produces
   User ||--o{ SellerActivityLog : produces
 
@@ -162,17 +162,17 @@ erDiagram
   Sale ||--o{ SaleItem : contains
   Sale ||--o{ Payment : paid_by
   Sale ||--o{ SaleReturn : has
-  Sale ||--o{ CashMovement : may_generate
+  Sale ||--o{ DeprecatedMoneyMovement : may_generate
 
   SaleReturn ||--o{ SaleReturnItem : contains
   SaleItem ||--o{ SaleReturnItem : references
 
-  CashRegisterSession ||--o{ CashMovement : contains
+  DeprecatedMoneySession ||--o{ DeprecatedMoneyMovement : contains
 ```
 
 ## Reglas de integridad relevantes
 
-- Una venta no depende de una caja abierta.
+- Una venta no depende de una control de efectivo retirado abierta.
 - El vendedor solo puede ver sus ventas; el admin puede ver operación completa.
 - La venta debe descontar inventario real en una transacción.
 - Las devoluciones deben reponer inventario y actualizar el estado de venta.
@@ -193,5 +193,5 @@ erDiagram
 | Usuarios | crear, cambiar rol, reset contraseña, activar/desactivar, bloqueo vendedor. |
 | Actividad vendedores | filtros por vendedor, acción, fecha y búsqueda. |
 | Auditoría | filtros por usuario, acción, tabla, registro y fechas. |
-| Caja | abrir, cerrar, movimiento manual, bloqueo por permisos. |
+| Control de efectivo retirado | abrir, cerrar, movimiento manual, bloqueo por permisos. |
 ```

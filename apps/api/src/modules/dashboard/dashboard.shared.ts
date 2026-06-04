@@ -30,13 +30,6 @@ export type DashboardRecentSale = {
   };
 };
 
-export type DashboardCashRegisterSession = {
-  id: string;
-  cashierId: string;
-  cashierName: string;
-  openedAt: Date;
-  expectedCash: number;
-};
 
 export type DashboardSummary = {
   role: Role;
@@ -60,13 +53,6 @@ export type DashboardSummary = {
     total: number;
     averageTicket: number;
   };
-  cashRegister: {
-    scope: "global" | "cashier";
-    hasOpenRegister: boolean;
-    openSessions: number;
-    currentBalance: number;
-    sessions: DashboardCashRegisterSession[];
-  };
   recentSales: DashboardRecentSale[];
 
   /**
@@ -81,7 +67,6 @@ export type DashboardSummary = {
 };
 
 export const LOW_STOCK_ITEMS_LIMIT = 8;
-export const CASH_REGISTER_SESSIONS_LIMIT = 5;
 export const RECENT_SALES_LIMIT = 8;
 
 export function startOfToday() {

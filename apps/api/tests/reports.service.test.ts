@@ -5,12 +5,6 @@ const prismaMock = {
   saleReturn: {
     findMany: jest.fn()
   },
-  cashRegisterSession: {
-    findMany: jest.fn()
-  },
-  cashMovement: {
-    findMany: jest.fn()
-  },
   saleItem: {
     groupBy: jest.fn(),
     findMany: jest.fn()
@@ -43,17 +37,10 @@ jest.mock("@prisma/client", () => ({
     CARD: "CARD",
     TRANSFER: "TRANSFER",
     MIXED: "MIXED"
-  },
-  CashMovementType: {
-    OPENING: "OPENING",
-    CASH_IN: "CASH_IN",
-    CASH_OUT: "CASH_OUT",
-    SALE_CASH: "SALE_CASH",
-    RETURN_CASH: "RETURN_CASH"
   }
 }));
 
-import { CashMovementType, PaymentMethod, SaleStatus } from "@prisma/client";
+import { PaymentMethod, SaleStatus } from "@prisma/client";
 
 import {
   getOperationsReport,
@@ -92,8 +79,8 @@ describe("reports.service", () => {
         createdAt: new Date("2026-05-20T10:00:00.000Z"),
         cashier: {
           id: "cashier-1",
-          name: "Caja 1",
-          email: "cashier@pos.local"
+          name: "Vendedor 1",
+          email: "vendedor@punta-venta.local"
         },
         payments: [
           {
@@ -119,8 +106,8 @@ describe("reports.service", () => {
         createdAt: new Date("2026-05-20T11:00:00.000Z"),
         cashier: {
           id: "cashier-1",
-          name: "Caja 1",
-          email: "cashier@pos.local"
+          name: "Vendedor 1",
+          email: "vendedor@punta-venta.local"
         },
         payments: [
           {
@@ -158,8 +145,8 @@ describe("reports.service", () => {
           cashierId: "cashier-1",
           cashier: {
             id: "cashier-1",
-            name: "Caja 1",
-            email: "cashier@pos.local"
+            name: "Vendedor 1",
+            email: "vendedor@punta-venta.local"
           }
         },
         items: [
@@ -170,47 +157,6 @@ describe("reports.service", () => {
             grossProfit: 30
           }
         ]
-      }
-    ]);
-    prismaMock.cashRegisterSession.findMany.mockResolvedValue([
-      {
-        id: "session-1",
-        status: "CLOSED",
-        openingAmount: 100,
-        expectedClosingAmount: 250,
-        closingAmount: 250,
-        difference: 0,
-        openedAt: new Date("2026-05-20T08:00:00.000Z"),
-        closedAt: new Date("2026-05-20T18:00:00.000Z"),
-        cashier: {
-          id: "cashier-1",
-          name: "Caja 1",
-          email: "cashier@pos.local"
-        }
-      }
-    ]);
-    prismaMock.cashMovement.findMany.mockResolvedValue([
-      {
-        id: "movement-1",
-        type: CashMovementType.SALE_CASH,
-        amount: 200,
-        createdAt: new Date("2026-05-20T10:00:00.000Z"),
-        cashier: {
-          id: "cashier-1",
-          name: "Caja 1",
-          email: "cashier@pos.local"
-        }
-      },
-      {
-        id: "movement-2",
-        type: CashMovementType.RETURN_CASH,
-        amount: 50,
-        createdAt: new Date("2026-05-20T12:00:00.000Z"),
-        cashier: {
-          id: "cashier-1",
-          name: "Caja 1",
-          email: "cashier@pos.local"
-        }
       }
     ]);
     prismaMock.saleItem.findMany.mockResolvedValue([
@@ -333,8 +279,8 @@ describe("reports.service", () => {
       {
         seller: {
           id: "cashier-1",
-          name: "Caja 1",
-          email: "cashier@pos.local"
+          name: "Vendedor 1",
+          email: "vendedor@punta-venta.local"
         },
         count: 1,
         gross: 200,
@@ -347,15 +293,11 @@ describe("reports.service", () => {
         cashierId: "cashier-1",
         cashier: {
           id: "cashier-1",
-          name: "Caja 1",
-          email: "cashier@pos.local"
+          name: "Vendedor 1",
+          email: "vendedor@punta-venta.local"
         }
       })
     );
-    expect(report.cashRegister.movements.summary).toEqual({
-      SALE_CASH: 200,
-      RETURN_CASH: 50
-    });
     expect(report.topProducts).toEqual([
       {
         product: {
@@ -416,8 +358,6 @@ describe("reports.service", () => {
 
     prismaMock.sale.findMany.mockResolvedValue([]);
     prismaMock.saleReturn.findMany.mockResolvedValue([]);
-    prismaMock.cashRegisterSession.findMany.mockResolvedValue([]);
-    prismaMock.cashMovement.findMany.mockResolvedValue([]);
     prismaMock.saleItem.findMany.mockResolvedValue([
       {
         productId: null,

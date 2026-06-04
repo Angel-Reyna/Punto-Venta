@@ -29,7 +29,7 @@ La suite mockeada cubre:
 - navegación móvil operativa;
 - carga de Productos con búsqueda por SKU;
 - carga de Inventario con existencias visibles;
-- venta en efectivo reportada por vendedor sin depender de caja abierta.
+- venta en efectivo reportada por vendedor sin depender de control de efectivo retirado abierta.
 
 ## Diferencia contra E2E integrado
 

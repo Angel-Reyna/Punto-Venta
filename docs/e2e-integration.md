@@ -35,7 +35,7 @@ La prueba integrada valida que:
 - el login real del vendedor funciona;
 - el vendedor puede entrar a Ventas;
 - el producto físico sembrado aparece en búsqueda por SKU;
-- la venta en efectivo se registra sin caja obligatoria;
+- la venta en efectivo se registra sin control de efectivo retirado obligatoria;
 - la venta queda visible en el historial;
 - el ticket se limpia después de cobrar;
 - el inventario real descuenta stock de 24 a 23;

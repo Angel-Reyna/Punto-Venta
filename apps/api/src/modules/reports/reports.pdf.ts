@@ -225,33 +225,6 @@ function paymentMethodLabel(method: string) {
   }
 }
 
-function cashMovementLabel(type: string) {
-  switch (type) {
-    case "OPENING":
-      return "Aperturas";
-    case "CASH_IN":
-      return "Entradas manuales";
-    case "CASH_OUT":
-      return "Salidas manuales";
-    case "SALE_CASH":
-      return "Ventas en efectivo";
-    case "RETURN_CASH":
-      return "Devoluciones en efectivo";
-    default:
-      return type;
-  }
-}
-
-function cashSessionStatusLabel(status: string) {
-  switch (status) {
-    case "OPEN":
-      return "Abierta";
-    case "CLOSED":
-      return "Cerrada";
-    default:
-      return status;
-  }
-}
 
 function inventoryMovementTypeLabel(type: string) {
   switch (type) {
@@ -294,9 +267,6 @@ function topPaymentMethod(report: OperationsReport) {
   return Object.entries(report.sales.paymentSummary).sort((a, b) => b[1] - a[1])[0];
 }
 
-function openCashSessions(report: OperationsReport) {
-  return report.cashRegister.sessions.filter((session) => session.status === "OPEN").length;
-}
 
 function drawHero(cursor: ReportCursor, report: OperationsReport, generatedAt: Date) {
   const { doc } = cursor;
@@ -329,7 +299,7 @@ function drawHero(cursor: ReportCursor, report: OperationsReport, generatedAt: D
   doc
     .fillColor("#dbeafe")
     .fontSize(8)
-    .text("Caja aparece únicamente como control de efectivo; no bloquea ventas en efectivo.", x + 24, y + 96, {
+    .text("Las ventas se registran sin depender de un módulos adicionales.", x + 24, y + 96, {
       lineBreak: false,
       width: cursor.width - metaWidth - 58
     });
@@ -954,12 +924,6 @@ export function writeOperationsPdf(doc: PDFKit.PDFDocument, report: OperationsRe
       label: "Efectivo",
       value: formatPercent(percentOf(report.sales.paymentSummary.CASH ?? 0, paymentTotal(report.sales.paymentSummary))),
       helper: "Participación en cobros"
-    },
-    {
-      label: "Cortes abiertos",
-      value: openCashSessions(report),
-      helper: "Sesiones sin cierre",
-      tone: openCashSessions(report) > 0 ? "warning" : "success"
     }
   ]);
 
@@ -1047,21 +1011,6 @@ export function writeOperationsPdf(doc: PDFKit.PDFDocument, report: OperationsRe
     "Sin movimientos de inventario en el periodo."
   );
 
-  drawKeyValue(cursor, "Movimientos de caja", Object.entries(report.cashRegister.movements.summary).map(([type, amount]) => [cashMovementLabel(type), formatMoney(amount)]), "Sin movimientos de caja.");
-  drawSection(cursor, "Cortes de caja", "Sesiones de caja del periodo. Este apartado es solo control de efectivo.");
-  drawTable(
-    cursor,
-    [
-      { header: "Vendedor", value: (session: OperationsReport["cashRegister"]["sessions"][number]) => session.cashier.name, width: 105 },
-      { header: "Estado", value: (session) => cashSessionStatusLabel(session.status), width: 58 },
-      { align: "right", header: "Apertura", value: (session) => formatMoney(session.openingAmount), width: 76 },
-      { align: "right", header: "Esperado", value: (session) => formatMoney(session.expectedClosingAmount), width: 76 },
-      { align: "right", header: "Cierre", value: (session) => formatMoney(session.closingAmount), width: 72 },
-      { align: "right", header: "Diferencia", value: (session) => formatMoney(session.difference), width: cursor.width - 105 - 58 - 76 - 76 - 72 }
-    ],
-    report.cashRegister.sessions,
-    "Sin cortes de caja en el periodo."
-  );
 }
 
 function contentDisposition(filename: string) {

@@ -123,7 +123,7 @@ Adjunto:
 Reconstruye el estado real desde los adjuntos, sin asumir código viejo ni generar cambios a ciegas.
 
 Modelo funcional obligatorio:
-Punta Venta no es un POS clásico dependiente de caja abierta. El flujo correcto es admin/dueño + vendedores. La venta en efectivo no debe depender de caja abierta. CASHIER se conserva como enum técnico, pero en UI/documentación debe tratarse como Vendedor.
+Punta Venta no es un POS clásico dependiente de control de efectivo retirado abierta. El flujo correcto es admin/dueño + vendedores. La venta en efectivo no debe depender de control de efectivo retirado abierta. CASHIER se conserva como enum técnico, pero en UI/documentación debe tratarse como Vendedor.
 
 Estado esperado:
 Ya quedaron aplicados los patches 50a–70: cobertura E2E/API, auditoría operativa, actividad de vendedores con auto-refresh, eliminación física de productos con historial preservado, refactor backend modular, docs de arquitectura, guardrails de bundle y guardrails de calidad de patches.

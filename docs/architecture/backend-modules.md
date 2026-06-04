@@ -217,22 +217,22 @@ Reglas críticas:
 ### Cash Register
 
 ```txt
-cash-register.routes.ts
-cash-register.service.ts
-cash-register.shared.ts
-cash-register.mappers.ts
+modulo-efectivo-retirado.routes.ts
+modulo-efectivo-retirado.service.ts
+modulo-efectivo-retirado.shared.ts
+modulo-efectivo-retirado.mappers.ts
 ```
 
 Responsabilidades:
 
-- abrir/cerrar caja;
+- abrir/cerrar control de efectivo retirado;
 - registrar movimientos manuales;
 - registrar movimientos por venta/devolución;
 - mapear cortes y movimientos.
 
 Reglas críticas:
 
-- La caja no debe bloquear ventas en efectivo.
+- La control de efectivo retirado no debe bloquear ventas en efectivo.
 - Es un módulo secundario que puede evolucionar a liquidaciones/entrega de efectivo.
 - Movimientos manuales requieren permisos administrativos.
 
@@ -250,7 +250,7 @@ Responsabilidades:
 - resumen por rol;
 - ventas recientes;
 - bajo stock;
-- caja abierta;
+- control de efectivo retirado abierta;
 - métricas administrativas.
 
 Reglas críticas:
@@ -271,7 +271,7 @@ Responsabilidades:
 
 - reportes de ventas;
 - reporte operativo;
-- agregados por vendedor, estado, pago, caja y productos;
+- agregados por vendedor, estado, pago, control de efectivo retirado y productos;
 - top productos con snapshot histórico.
 
 Reglas críticas:
@@ -324,7 +324,7 @@ Responsabilidades:
 
 Reglas críticas:
 
-- Venta en efectivo no requiere caja abierta.
+- Venta en efectivo no requiere control de efectivo retirado abierta.
 - Pago recibido no puede ser menor al total.
 - Creación/cancelación/devolución deben ser transaccionales.
 - Si `productId` es `null`, no intentar restaurar stock; conservar historial por snapshot.
@@ -338,7 +338,7 @@ Usar transacciones cuando una operación modifique dos o más agregados relacion
 - venta + inventario + pagos + actividad;
 - cancelación + devolución + inventario + auditoría;
 - importación masiva + stock inicial;
-- cierre de caja + movimientos;
+- cierre de control de efectivo retirado + movimientos;
 - cambios de usuario + revocación de sesiones.
 
 Preferir aislar lógica transaccional en servicios. Las rutas no deben abrir transacciones.
@@ -352,7 +352,7 @@ Auditar operaciones críticas:
 - cambios de rol;
 - reset de contraseña;
 - activación/desactivación de usuarios;
-- movimientos manuales de caja;
+- movimientos manuales de control de efectivo retirado;
 - importaciones.
 
 Antes de guardar snapshots de auditoría, revisar que no incluyan secretos, hashes, tokens, cookies o contraseñas.

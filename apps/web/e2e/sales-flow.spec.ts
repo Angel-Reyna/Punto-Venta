@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { mockApi } from "./support/api-mocks";
 
 test.describe("flujo crítico de ventas", () => {
-  test("vendedor registra venta en efectivo sin depender de caja abierta", async ({ page }) => {
+  test("vendedor registra venta en efectivo sin prerrequisitos operativos", async ({ page }) => {
     await mockApi(page, { role: "CASHIER" });
 
     await page.goto("/sales");

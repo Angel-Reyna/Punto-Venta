@@ -39,19 +39,6 @@ enum PaymentMethod {
   MIXED
 }
 
-enum CashRegisterStatus {
-  OPEN
-  CLOSED
-}
-
-enum CashMovementType {
-  OPENING
-  CASH_IN
-  CASH_OUT
-  SALE_CASH
-  RETURN_CASH
-}
-
 enum SellerAction {
   SELLER_LOGIN
   SELLER_LOGOUT
@@ -73,8 +60,6 @@ model User {
 
   sales                Sale[]
   saleReturns          SaleReturn[]
-  cashRegisterSessions CashRegisterSession[]
-  cashMovements        CashMovement[]
   audits               AuditLog[]
   sessions             RefreshSession[]
   sellerLogs           SellerActivityLog[]
@@ -256,7 +241,6 @@ model Sale {
   items         SaleItem[]
   payments      Payment[]
   returns       SaleReturn[]
-  cashMovements CashMovement[]
 
   @@index([cashierId])
   @@index([customerId])
@@ -313,7 +297,6 @@ model SaleReturn {
   sale          Sale             @relation(fields: [saleId], references: [id])
   cashier       User             @relation(fields: [cashierId], references: [id])
   items         SaleReturnItem[]
-  cashMovements CashMovement[]
 
   @@index([saleId])
   @@index([cashierId])
@@ -345,52 +328,6 @@ model SaleReturnItem {
   @@index([productId])
 }
 
-model CashRegisterSession {
-  id                    String             @id @default(uuid())
-  cashierId             String
-  status                CashRegisterStatus @default(OPEN)
-  openingAmount         Decimal            @db.Decimal(12, 2)
-  expectedClosingAmount Decimal?           @db.Decimal(12, 2)
-  closingAmount         Decimal?           @db.Decimal(12, 2)
-  difference            Decimal?           @db.Decimal(12, 2)
-  openedAt              DateTime           @default(now())
-  closedAt              DateTime?
-  notes                 String?
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
-
-  cashier   User           @relation(fields: [cashierId], references: [id])
-  movements CashMovement[]
-
-  @@index([cashierId])
-  @@index([status])
-  @@index([openedAt])
-  @@index([closedAt])
-}
-
-model CashMovement {
-  id             String           @id @default(uuid())
-  sessionId      String
-  cashierId      String
-  saleId         String?
-  saleReturnId   String?
-  type           CashMovementType
-  amount         Decimal          @db.Decimal(12, 2)
-  reason         String
-  createdAt      DateTime         @default(now())
-
-  session    CashRegisterSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  cashier    User                @relation(fields: [cashierId], references: [id])
-  sale       Sale?               @relation(fields: [saleId], references: [id])
-  saleReturn SaleReturn?         @relation(fields: [saleReturnId], references: [id])
-
-  @@index([sessionId])
-  @@index([cashierId])
-  @@index([saleId])
-  @@index([saleReturnId])
-  @@index([type])
-  @@index([createdAt])
-}
 
 model AuditLog {
   id        String   @id @default(uuid())

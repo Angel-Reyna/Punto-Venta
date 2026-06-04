@@ -10,9 +10,6 @@ const prismaMock = {
     aggregate: jest.fn(),
     findMany: jest.fn()
   },
-  cashRegisterSession: {
-    findMany: jest.fn()
-  },
   inventoryMovement: {
     aggregate: jest.fn()
   }
@@ -28,7 +25,7 @@ const inventoryServiceMock = {
 
 jest.mock("../src/modules/inventory/inventory.service", () => inventoryServiceMock);
 
-import { CashMovementType, Role, SaleStatus } from "@prisma/client";
+import { Role, SaleStatus } from "@prisma/client";
 
 import { getDashboardSummary } from "../src/modules/dashboard/dashboard.service";
 
@@ -90,33 +87,9 @@ describe("dashboard.service", () => {
         createdAt: new Date("2026-05-20T10:00:00.000Z"),
         cashier: {
           id: "cashier-1",
-          name: "Caja 1",
-          email: "cashier@pos.local"
+          name: "Vendedor 1",
+          email: "vendedor@punta-venta.local"
         }
-      }
-    ]);
-    prismaMock.cashRegisterSession.findMany.mockResolvedValue([
-      {
-        id: "session-1",
-        cashierId: "cashier-1",
-        openedAt: new Date("2026-05-20T09:00:00.000Z"),
-        cashier: {
-          name: "Caja 1"
-        },
-        movements: [
-          {
-            type: CashMovementType.OPENING,
-            amount: 100
-          },
-          {
-            type: CashMovementType.SALE_CASH,
-            amount: 250
-          },
-          {
-            type: CashMovementType.CASH_OUT,
-            amount: 50
-          }
-        ]
       }
     ]);
   });
@@ -172,13 +145,6 @@ describe("dashboard.service", () => {
     );
     expect(summary.productSummary.shrinkageUnitsToday).toBe(4);
     expect(summary.productSummary.shrinkageCostToday).toBe(72);
-    expect(prismaMock.cashRegisterSession.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          status: "OPEN"
-        }
-      })
-    );
     expect(summary.role).toBe(Role.ADMIN);
     expect(summary.userSummary).toEqual({
       totalActive: 3,
@@ -205,14 +171,6 @@ describe("dashboard.service", () => {
       total: 300,
       averageTicket: 150
     });
-    expect(summary.cashRegister).toEqual(
-      expect.objectContaining({
-        scope: "global",
-        hasOpenRegister: true,
-        openSessions: 1,
-        currentBalance: 300
-      })
-    );
     expect(summary.recentSales).toEqual([
       expect.objectContaining({
         id: "sale-1",
@@ -228,10 +186,10 @@ describe("dashboard.service", () => {
     expect(summary.todaySalesTotal).toBe(300);
   });
 
-  it("limits cashier dashboard scope to own sales and own cash register without exposing users", async () => {
+  it("limits seller dashboard scope to own sales without exposing users", async () => {
     const summary = await getDashboardSummary({
       id: "cashier-1",
-      email: "cashier@pos.local",
+      email: "vendedor@punta-venta.local",
       role: Role.CASHIER
     });
 
@@ -254,21 +212,12 @@ describe("dashboard.service", () => {
     );
     expect(summary.productSummary.shrinkageUnitsToday).toBe(0);
     expect(summary.productSummary.shrinkageCostToday).toBe(0);
-    expect(prismaMock.cashRegisterSession.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          cashierId: "cashier-1",
-          status: "OPEN"
-        }
-      })
-    );
     expect(summary.userSummary).toEqual({
       totalActive: 0,
       activeAdmins: 0,
       activeCashiers: 0
     });
     expect(summary.salesToday.scope).toBe("cashier");
-    expect(summary.cashRegister.scope).toBe("cashier");
     expect(summary.users).toBe(0);
   });
 });

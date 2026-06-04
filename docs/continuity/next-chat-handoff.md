@@ -21,15 +21,15 @@ No sigas acumulando patches largos en un chat degradado si vas a tocar Auth, Pri
 
 ## 2. Estado funcional que debe preservarse
 
-Punta Venta no debe tratarse como POS clásico con caja obligatoria.
+Punta Venta no debe tratarse como POS clásico con control de efectivo retirado obligatoria.
 
 Modelo correcto:
 
 - Admin/dueño gestiona productos, inventario, usuarios, reportes, auditoría y actividad.
 - Vendedores registran ventas físicas en la app.
-- La venta en efectivo no debe depender de caja abierta.
+- La venta en efectivo no debe depender de control de efectivo retirado abierta.
 - `CASHIER` se conserva como enum técnico, pero en UI/documentación debe tratarse como `Vendedor`.
-- Caja queda como módulo secundario; no debe bloquear ventas.
+- Control de efectivo retirado queda como módulo secundario; no debe bloquear ventas.
 
 ## 3. Estado de patches al cierre de esta ronda
 
@@ -41,11 +41,11 @@ Aplicados y validados durante la ronda principal de estabilización histórica:
 - Patch 126: finalización de Reportes en frontend con controles, resumen, detalle y API client dedicado.
 - Patch 127 + 127a: finalización de Usuarios en frontend y estabilización de accesibilidad E2E.
 - Patch 128: finalización de Auditoría y Actividad de vendedores en frontend.
-- Patch 129: limpieza de Caja/control de efectivo e Inicio/Dashboard, manteniendo venta sin dependencia de caja abierta.
+- Patch 129: limpieza de Control de efectivo retirado/control de efectivo e Inicio/Dashboard, manteniendo venta sin dependencia de control de efectivo retirado abierta.
 - Patch 130: checkpoint de estado 1.
 - Patch 131: contratos HTTP frontend centralizados.
 - Patch 132: cleanup backend de módulos core: productos, inventario y ventas.
-- Patch 133: cleanup backend de módulos administrativos/reporting: reportes, dashboard, usuarios, actividad de vendedores y caja.
+- Patch 133: cleanup backend de módulos administrativos/reporting: reportes, dashboard, usuarios, actividad de vendedores y control de efectivo retirado.
 - Patch 134: checkpoint de estado 2.
 - Patch 135: costos históricos y utilidad bruta en ventas, devoluciones, reportes y PDF.
 - Patch 136 + 136a + 136b: redacción de datos sensibles en auditoría/actividad y serialización segura de payloads JSON.
@@ -64,7 +64,7 @@ Estado esperado al cerrar Patch 140:
 
 Ronda visual responsive posterior:
 
-- Rediseño responsive por módulos: Auditoría, Inicio, Productos, Inventario, Ventas, Reportes, Usuarios, Actividad de vendedores, Caja y Login.
+- Rediseño responsive por módulos: Auditoría, Inicio, Productos, Inventario, Ventas, Reportes, Usuarios, Actividad de vendedores, Control de efectivo retirado y Login.
 - Fixes de sidebars estrechos en formularios/filtros.
 - Selectores E2E integrados estabilizados con `data-testid` y locators scoped.
 - Chunks de Vite estabilizados para remover el warning circular entre `vendor` y `vendor-mui-core`.
@@ -152,7 +152,7 @@ Stack:
 - Docker Compose para Postgres/API/Web
 
 Modelo funcional obligatorio:
-Punta Venta no es un POS clásico dependiente de caja abierta. El flujo correcto es admin/dueño + vendedores. La venta en efectivo no debe depender de caja abierta. CASHIER se conserva como enum técnico, pero en UI/documentación debe tratarse como Vendedor.
+Punta Venta no es un POS clásico dependiente de control de efectivo retirado abierta. El flujo correcto es admin/dueño + vendedores. La venta en efectivo no debe depender de control de efectivo retirado abierta. CASHIER se conserva como enum técnico, pero en UI/documentación debe tratarse como Vendedor.
 
 Estado esperado:
 Ya quedaron aplicados los patches 50a–70 y la ronda 120–140. El proyecto incluye cobertura E2E/API, auditoría operativa con redacción de datos sensibles, actividad de vendedores con auto-refresh, eliminación física de productos con historial preservado, costos históricos y utilidad bruta en reportes, refactor frontend/backend modular, contratos HTTP frontend centralizados, factories E2E, documentación de arquitectura, guardrails de bundle y guardrails de calidad para patches.

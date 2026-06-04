@@ -22,9 +22,6 @@ export const PERMISSIONS = {
   SalesCancel: "sales:cancel",
   SalesReturn: "sales:return",
 
-  CashRegisterRead: "cash-register:read",
-  CashRegisterOperate: "cash-register:operate",
-  CashRegisterManage: "cash-register:manage",
 
   ReportsRead: "reports:read",
   DashboardRead: "dashboard:read",

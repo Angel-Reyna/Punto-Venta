@@ -53,7 +53,7 @@ describe("permissions", () => {
     expect(hasPermission(Role.CASHIER, PERMISSIONS.SalesReturn)).toBe(false);
   });
 
-  it("grants seller workflow permissions without requiring cash-register access", () => {
+  it("grants seller workflow permissions without extra operational modules", () => {
     expect(hasAllPermissions(Role.CASHIER, [
       PERMISSIONS.ProductsRead,
       PERMISSIONS.InventoryRead,
@@ -61,15 +61,5 @@ describe("permissions", () => {
       PERMISSIONS.SalesCreate,
       PERMISSIONS.DashboardRead
     ])).toBe(true);
-  });
-
-  it("keeps cash-register operations restricted to admins until liquidations are modeled", () => {
-    expect(hasPermission(Role.ADMIN, PERMISSIONS.CashRegisterRead)).toBe(true);
-    expect(hasPermission(Role.ADMIN, PERMISSIONS.CashRegisterOperate)).toBe(true);
-    expect(hasPermission(Role.ADMIN, PERMISSIONS.CashRegisterManage)).toBe(true);
-
-    expect(hasPermission(Role.CASHIER, PERMISSIONS.CashRegisterOperate)).toBe(false);
-    expect(hasPermission(Role.CASHIER, PERMISSIONS.CashRegisterRead)).toBe(false);
-    expect(hasPermission(Role.CASHIER, PERMISSIONS.CashRegisterManage)).toBe(false);
   });
 });

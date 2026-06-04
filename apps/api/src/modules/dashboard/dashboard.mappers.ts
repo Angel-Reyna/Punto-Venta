@@ -1,7 +1,6 @@
-import { CashMovementType, Prisma, Role, SaleStatus } from "@prisma/client";
+import { Prisma, Role, SaleStatus } from "@prisma/client";
 
 import {
-  CASH_REGISTER_SESSIONS_LIMIT,
   LOW_STOCK_ITEMS_LIMIT,
   type DashboardProductStockItem,
   type DashboardRecentSale,
@@ -9,34 +8,6 @@ import {
   toMoney
 } from "./dashboard.shared";
 
-function signedCashMovementAmount(type: CashMovementType, amount: number) {
-  switch (type) {
-    case CashMovementType.OPENING:
-    case CashMovementType.CASH_IN:
-    case CashMovementType.SALE_CASH:
-      return amount;
-    case CashMovementType.CASH_OUT:
-    case CashMovementType.RETURN_CASH:
-      return -amount;
-    default:
-      return 0;
-  }
-}
-
-export function calculateExpectedCash(
-  movements: Array<{
-    type: CashMovementType;
-    amount: Prisma.Decimal | number;
-  }>
-) {
-  return roundMoney(
-    movements.reduce(
-      (sum, movement) =>
-        sum + signedCashMovementAmount(movement.type, Number(movement.amount)),
-      0
-    )
-  );
-}
 
 export function buildLowStockItems(
   products: Array<{
@@ -119,42 +90,6 @@ export function mapUserCounts(
     totalActive: activeAdmins + activeCashiers,
     activeAdmins,
     activeCashiers
-  };
-}
-
-export function mapCashRegisterSessions(
-  sessions: Array<{
-    id: string;
-    cashierId: string;
-    openedAt: Date;
-    cashier: {
-      name: string;
-    };
-    movements: Array<{
-      type: CashMovementType;
-      amount: Prisma.Decimal | number;
-    }>;
-  }>
-) {
-  const mappedSessions = sessions
-    .map((session) => ({
-      id: session.id,
-      cashierId: session.cashierId,
-      cashierName: session.cashier.name,
-      openedAt: session.openedAt,
-      expectedCash: calculateExpectedCash(session.movements)
-    }))
-    .sort((left, right) => right.openedAt.getTime() - left.openedAt.getTime());
-
-  const currentBalance = roundMoney(
-    mappedSessions.reduce((sum, session) => sum + session.expectedCash, 0)
-  );
-
-  return {
-    hasOpenRegister: mappedSessions.length > 0,
-    openSessions: mappedSessions.length,
-    currentBalance,
-    sessions: mappedSessions.slice(0, CASH_REGISTER_SESSIONS_LIMIT)
   };
 }
 

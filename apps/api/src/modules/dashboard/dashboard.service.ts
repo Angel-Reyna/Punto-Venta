@@ -3,8 +3,6 @@ import { Role } from "@prisma/client";
 import { getProductStocks } from "../inventory/inventory.service";
 import {
   buildLowStockItems,
-  calculateExpectedCash,
-  mapCashRegisterSessions,
   mapRecentSales,
   mapUserCounts
 } from "./dashboard.mappers";
@@ -30,11 +28,6 @@ export async function getDashboardSummary(
         cashierId: user.id
       };
 
-  const cashRegisterScopeWhere = isAdmin
-    ? {}
-    : {
-        cashierId: user.id
-      };
 
   const {
     activeProducts,
@@ -42,20 +35,17 @@ export async function getDashboardSummary(
     groupedUsers,
     todaySalesAggregate,
     todayShrinkageAggregate,
-    cashRegisterSessions,
     recentSales
   } = await fetchDashboardSummaryData({
     isAdmin,
     todayStart,
-    salesScopeWhere,
-    cashRegisterScopeWhere
+    salesScopeWhere
   });
   const stocks = await getProductStocks(
     activeProductRows.map((product) => product.id)
   );
   const lowStock = buildLowStockItems(activeProductRows, stocks);
   const users = mapUserCounts(groupedUsers, isAdmin);
-  const cashRegister = mapCashRegisterSessions(cashRegisterSessions);
   const todaySalesCount = todaySalesAggregate._count._all;
   const todaySalesTotal = toMoney(todaySalesAggregate._sum.total);
 
@@ -75,10 +65,6 @@ export async function getDashboardSummary(
       total: todaySalesTotal,
       averageTicket: toMoney(todaySalesAggregate._avg.total)
     },
-    cashRegister: {
-      scope: isAdmin ? "global" : "cashier",
-      ...cashRegister
-    },
     recentSales: mapRecentSales(recentSales),
 
     products: activeProducts,
@@ -91,6 +77,5 @@ export async function getDashboardSummary(
 
 export const dashboardInternalsForTests = {
   buildLowStockItems,
-  calculateExpectedCash,
   mapUserCounts
 };

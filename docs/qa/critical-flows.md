@@ -30,7 +30,7 @@ Variables esperadas en desarrollo local:
 | Importar Excel | Crea productos válidos con inventario real; rechaza filas inválidas con mensaje accionable. |
 | Activar/desactivar producto | Cambia estado; producto inactivo no aparece para vendedor. |
 | Eliminar producto con historial | El producto desaparece de catálogo/nueva venta, pero ventas, devoluciones, inventario y reportes conservan SKU/nombre snapshot. |
-| Crear venta | Valida stock, descuenta inventario y registra pago sin exigir caja abierta. |
+| Crear venta | Valida stock, descuenta inventario y registra pago sin exigir control de efectivo retirado abierta. |
 | Cancelar venta | Solo admin; revierte inventario si el producto todavía existe; si fue eliminado físicamente, conserva snapshots sin recrear stock. |
 | Registrar devolución | Solo admin; respeta cantidades máximas, restaura inventario si el producto existe y conserva snapshots si fue eliminado. |
 | Consultar reporte | Muestra venta bruta, devoluciones, venta neta, pagos y productos vendidos netos. |
@@ -47,10 +47,10 @@ Variables esperadas en desarrollo local:
 | Login vendedor | Entra con permisos operativos, sin permisos admin. |
 | Ver productos | Ve productos activos, stock y precio; no ve costo ni margen. |
 | Ver inventario | Ve inventario sin botones de ajuste. |
-| Crear venta en efectivo | Puede registrar la venta sin abrir caja. |
+| Crear venta en efectivo | Puede registrar la venta sin abrir control de efectivo retirado. |
 | Crear venta con otros métodos de pago | Puede reportar tarjeta, transferencia o método mixto. |
 | Rutas admin directas | Devuelven `403 No autorizado` y registran intento fallido auditable. |
-| Botones admin | No aparecen importación, toggle producto, reportes, usuarios, auditoría, movimientos manuales de caja, cancelación ni devolución. |
+| Botones admin | No aparecen importación, toggle producto, reportes, usuarios, auditoría, movimientos manuales de control de efectivo retirado, cancelación ni devolución. |
 
 ## Pruebas automatizadas cubiertas por `qa:critical`
 
@@ -58,7 +58,7 @@ Variables esperadas en desarrollo local:
 - Menú y CTA principal según permisos reales.
 - Rutas directas admin bloqueadas para vendedores.
 - Vendedor puede leer productos sin campos administrativos.
-- Vendedor no puede acceder a caja por ruta directa.
+- Vendedor no puede acceder a control de efectivo retirado por ruta directa.
 - Vendedor puede crear ventas válidas por ruta autorizada.
 - ADMIN puede alcanzar reportes protegidos por `ReportsRead`.
 - Eliminación física de productos preserva historial en reportes integrados.
@@ -69,7 +69,7 @@ Variables esperadas en desarrollo local:
 La suite Playwright mockeada debe cubrir, como mínimo:
 
 - navegación por rol y bloqueo de rutas administrativas para vendedores;
-- venta en efectivo sin caja abierta;
+- venta en efectivo sin control de efectivo retirado abierta;
 - bloqueo visual de pago insuficiente;
 - alta, desactivación y eliminación de productos desde UI;
 - entrada/salida de inventario e historial operativo;
@@ -77,7 +77,7 @@ La suite Playwright mockeada debe cubrir, como mínimo:
 - reportes: ventas por vendedor, snapshots históricos y descarga PDF mockeada;
 - auditoría: búsqueda, severidad operativa y snapshots resumidos;
 - actividad de vendedores: filtros, auto-refresh, pausa/reanudación y preservación de búsqueda;
-- caja: apertura, movimiento manual, cierre y permisos.
+- control de efectivo retirado: apertura, movimiento manual, cierre y permisos.
 
 La suite integrada debe cubrir al menos venta real con PostgreSQL y eliminación física de producto con historial preservado.
 

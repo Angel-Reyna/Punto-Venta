@@ -127,7 +127,7 @@ npm run web:e2e:integration
 
 Criterios funcionales mínimos:
 
-- El vendedor puede registrar venta sin caja obligatoria.
+- El vendedor puede registrar venta sin control de efectivo retirado obligatoria.
 - La venta descuenta inventario real.
 - La venta aparece en historial.
 - El admin puede verla reflejada en reportes.

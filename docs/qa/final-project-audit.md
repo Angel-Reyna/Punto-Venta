@@ -33,15 +33,15 @@ Patch 139 cerró los puntos menores detectados en ese checkpoint: warnings de `n
 
 | Área | Estado | Evidencia esperada |
 | --- | --- | --- |
-| Modelo admin + vendedores | Cerrado | Venta en efectivo validada sin caja obligatoria en E2E mockeado e integrado. |
+| Modelo admin + vendedores | Cerrado | Venta en efectivo validada sin control de efectivo retirado obligatoria en E2E mockeado e integrado. |
 | Productos | Cerrado | Crear, editar, importar, activar/desactivar y eliminar físicamente preservando historial. |
 | Inventario | Cerrado | Entradas, salidas, balance, historial y snapshots de producto eliminado. |
-| Ventas | Cerrado | Validación de pago insuficiente, Enter seguro, descuento real de inventario y venta sin caja abierta. |
+| Ventas | Cerrado | Validación de pago insuficiente, Enter seguro, descuento real de inventario y venta sin control de efectivo retirado abierta. |
 | Reportes | Cerrado | Ventas por vendedor, snapshots históricos, PDF operativo, costos históricos y utilidad bruta. |
 | Usuarios/RBAC | Cerrado | Crear vendedor, cambiar rol, resetear contraseña, activar/desactivar y revocar sesiones. |
 | Auditoría | Cerrado | Eventos críticos consultables con redacción de datos sensibles. |
 | Actividad de vendedores | Cerrado | Auto-refresh, filtros, búsqueda local y eventos operativos. |
-| Caja/control de efectivo | Cerrado como módulo secundario | Apertura, movimientos y cierre sin bloquear ventas. |
+| Control de efectivo retirado/control de efectivo | Cerrado como módulo secundario | Apertura, movimientos y cierre sin bloquear ventas. |
 | Responsive | Cubierto por baseline | E2E valida ausencia de overflow horizontal en módulos principales; release smoke conserva revisión manual. |
 | Seguridad | Baseline cerrado | CSRF, cookies `httpOnly`, refresh sessions persistidas/revocables, redacción de auditoría y guardrails sensibles. |
 | Backend modular | Cerrado | Rutas más delgadas, servicios por dominio, queries/mappers/schemas separados. |
@@ -79,7 +79,7 @@ Después de la validación automatizada, ejecuta `docs/qa/release-smoke-checklis
 - lectura de costos/utilidad en reportes por admin;
 - ausencia de controles administrativos para vendedor;
 - mensajes de error y foco después de formularios fallidos;
-- confirmación de que Caja se entiende como control de efectivo, no como requisito para venta.
+- confirmación de que Control de efectivo retirado se entiende como control de efectivo, no como requisito para venta.
 
 ## Deuda técnica no bloqueante
 
@@ -94,7 +94,7 @@ Estas tareas no impiden cerrar la ronda, pero conviene priorizarlas antes de nue
 
 ## Reglas para próximos cambios
 
-- No volver a introducir dependencia de caja abierta para vender.
+- No volver a introducir dependencia de control de efectivo retirado abierta para vender.
 - No exponer costo, margen, utilidad, usuarios, auditoría ni reportes a vendedores.
 - No guardar contraseñas, tokens, cookies, secretos o headers de autorización en auditoría.
 - No cambiar contratos HTTP sin actualizar frontend, mocks, E2E y documentación.

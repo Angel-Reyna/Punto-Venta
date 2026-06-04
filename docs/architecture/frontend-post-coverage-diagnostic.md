@@ -9,13 +9,13 @@ Este documento registra la deuda frontend observable después de ampliar la cobe
 La cobertura funcional mockeada ya cubre flujos críticos por módulo:
 
 - autenticación y navegación por rol;
-- ventas con efectivo sin caja abierta;
+- ventas con efectivo sin control de efectivo retirado abierta;
 - bloqueo de pago insuficiente;
 - productos: creación, desactivación y eliminación;
 - inventario: entradas, salidas e historial;
 - usuarios: creación, rol, reset de contraseña y activación/desactivación;
 - reportes, auditoría y actividad de vendedores;
-- caja y permisos;
+- control de efectivo retirado y permisos;
 - selectores E2E endurecidos con `data-testid` en controles críticos.
 
 La cobertura integrada real ya valida venta y eliminación física con historial preservado. Esto habilita refactors frontend más seguros, pero todavía conviene hacerlos por pantalla y con alcance pequeño.
@@ -31,7 +31,7 @@ Tamaño aproximado actual por archivo relevante:
 | `apps/web/src/pages/ProductsPage.tsx` | 705 | Medio-alto |
 | `apps/web/src/pages/UsersPage.tsx` | 672 | Medio |
 | `apps/web/src/pages/products/productShared.tsx` | 517 | Medio |
-| `apps/web/src/pages/CashRegisterPage.tsx` | 508 | Medio |
+| `apps/web/src/pages/DeprecatedMoneyRegisterPage.tsx` | 508 | Medio |
 | `apps/web/src/pages/inventory/inventoryShared.tsx` | 500 | Medio |
 | `apps/web/src/pages/InventoryPage.tsx` | 445 | Medio |
 | `apps/web/src/pages/audit/auditShared.tsx` | 429 | Bajo-medio |

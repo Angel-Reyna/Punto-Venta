@@ -38,7 +38,7 @@ Antes de usar Punta Venta con datos reales, valida esta lista.
 - Se cambió la contraseña temporal del administrador.
 - PgAdmin no queda expuesto públicamente.
 - Los logs de API y PostgreSQL se revisan después del primer arranque.
-- Se probó login, venta, devolución, cierre de caja y reporte operativo.
+- Se probó login, venta, devolución, cierre de control de efectivo retirado y reporte operativo.
 
 ## GitHub Actions
 

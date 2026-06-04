@@ -263,27 +263,6 @@ function buildOperationsReportFixture() {
         ]
       }
     },
-    cashRegister: {
-      sessions: [
-        {
-          id: "session-1",
-          status: "CLOSED",
-          openingAmount: 100,
-          expectedClosingAmount: 200,
-          closingAmount: 200,
-          difference: 0,
-          openedAt: new Date("2026-05-18T08:00:00.000Z"),
-          closedAt: new Date("2026-05-18T18:00:00.000Z"),
-          cashier: seller
-        }
-      ],
-      movements: {
-        count: 1,
-        summary: {
-          SALE_CASH: 120
-        }
-      }
-    },
     topProducts: [
       {
         product: {

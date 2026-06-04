@@ -18,8 +18,6 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
   const [
     sales,
     returns,
-    cashSessions,
-    cashMovements,
     soldProducts,
     returnedProducts,
     inventoryMovements
@@ -74,46 +72,6 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
           }
         },
         items: true
-      },
-      orderBy: {
-        createdAt: "desc"
-      }
-    }),
-    prisma.cashRegisterSession.findMany({
-      where: {
-        openedAt: {
-          gte: range.start,
-          lte: range.end
-        }
-      },
-      include: {
-        cashier: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      },
-      orderBy: {
-        openedAt: "desc"
-      }
-    }),
-    prisma.cashMovement.findMany({
-      where: {
-        createdAt: {
-          gte: range.start,
-          lte: range.end
-        }
-      },
-      include: {
-        cashier: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
       },
       orderBy: {
         createdAt: "desc"
@@ -387,17 +345,6 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     return summary;
   }, {});
 
-  const cashMovementSummary = cashMovements.reduce<Record<string, number>>(
-    (summary, movement) => {
-      summary[movement.type] = roundMoney(
-        (summary[movement.type] ?? 0) + Number(movement.amount)
-      );
-
-      return summary;
-    },
-    {}
-  );
-
 
   const activeSales = sales.filter((sale) => sale.status !== SaleStatus.CANCELLED);
   const unitsSold = soldItems.reduce((sum, item) => sum + Number(item.quantity), 0);
@@ -658,23 +605,6 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
         updatedAt: saleReturn.updatedAt,
         cashier: saleReturn.sale.cashier
       }))
-    },
-    cashRegister: {
-      sessions: cashSessions.map((session) => ({
-        ...session,
-        openingAmount: toMoney(session.openingAmount),
-        expectedClosingAmount:
-          session.expectedClosingAmount === null
-            ? null
-            : toMoney(session.expectedClosingAmount),
-        closingAmount:
-          session.closingAmount === null ? null : toMoney(session.closingAmount),
-        difference: session.difference === null ? null : toMoney(session.difference)
-      })),
-      movements: {
-        count: cashMovements.length,
-        summary: cashMovementSummary
-      }
     },
     inventory: {
       movements: {
