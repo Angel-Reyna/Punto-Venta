@@ -50,7 +50,10 @@ export function UserCard({
   const isSelf = targetUser.id === currentUserId;
   const roleLabel = getRoleLabel(targetUser.role);
   const statusLabel = targetUser.isActive ? "Activo" : "Inactivo";
-  const toggleLabel = targetUser.isActive ? "Desactivar" : "Activar";
+  const toggleLabel = targetUser.isActive ? "Desactivar acceso" : "Activar acceso";
+  const toggleHelper = targetUser.isActive
+    ? "Bloquea el inicio de sesión y revoca sesiones activas."
+    : "Permite que esta persona vuelva a iniciar sesión.";
 
   return (
     <Card
@@ -182,20 +185,20 @@ export function UserCard({
           <Divider />
 
           <Stack spacing={1}>
-            <Typography variant="caption" color="text.secondary" fontWeight={700}>
-              Acciones del acceso
-            </Typography>
+            <Box>
+              <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                Acciones del acceso
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {toggleHelper}
+              </Typography>
+            </Box>
 
             <Box
               sx={{
                 display: "grid",
                 gap: 1,
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "repeat(3, minmax(0, 1fr))",
-                  md: "1fr",
-                  xl: "repeat(3, minmax(0, 1fr))",
-                },
+                gridTemplateColumns: "minmax(0, 1fr)",
               }}
             >
               <Button
@@ -209,29 +212,42 @@ export function UserCard({
                 {togglingUserId === targetUser.id ? "Guardando..." : toggleLabel}
               </Button>
 
-              <Button
-                size="small"
-                variant="outlined"
-                data-testid={`user-role-${targetUser.id}`}
-                startIcon={<ManageAccountsOutlinedIcon />}
-                disabled={isBusy}
-                onClick={() => onOpenRoleDialog(targetUser)}
-                sx={{ justifyContent: "center" }}
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 1,
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "repeat(2, minmax(0, 1fr))",
+                    md: "1fr",
+                    xl: "repeat(2, minmax(0, 1fr))",
+                  },
+                }}
               >
-                Cambiar rol
-              </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  data-testid={`user-role-${targetUser.id}`}
+                  startIcon={<ManageAccountsOutlinedIcon />}
+                  disabled={isBusy}
+                  onClick={() => onOpenRoleDialog(targetUser)}
+                  sx={{ justifyContent: "center" }}
+                >
+                  Cambiar rol
+                </Button>
 
-              <Button
-                size="small"
-                variant="outlined"
-                data-testid={`user-reset-password-${targetUser.id}`}
-                startIcon={<KeyOutlinedIcon />}
-                disabled={isBusy}
-                onClick={() => onOpenResetPasswordDialog(targetUser)}
-                sx={{ justifyContent: "center" }}
-              >
-                Nueva contraseña
-              </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  data-testid={`user-reset-password-${targetUser.id}`}
+                  startIcon={<KeyOutlinedIcon />}
+                  disabled={isBusy}
+                  onClick={() => onOpenResetPasswordDialog(targetUser)}
+                  sx={{ justifyContent: "center" }}
+                >
+                  Nueva contraseña
+                </Button>
+              </Box>
             </Box>
           </Stack>
         </Stack>

@@ -16,6 +16,9 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(byTestId(page, "users-hero-chips")).toContainText("activos");
     await expect(byTestId(page, "users-active-filters")).toContainText("Rol: Todos los roles");
     await expect(byTestId(page, "users-results-heading")).toContainText("3 de 3 usuarios visibles");
+    await expect(byTestId(page, "users-role-sections")).toContainText("Administradores");
+    await expect(byTestId(page, "users-role-sections")).toContainText("Vendedores");
+    await expect(byTestId(page, "users-role-section-CASHIER")).toContainText("Vendedor E2E");
     await expect(byTestId(page, "user-card-seller-e2e")).toContainText("Vendedor E2E");
 
     await fillByTestId(page, "users-form-name", "Vendedor Funcional E2E");
@@ -35,6 +38,7 @@ test.describe("cobertura funcional administrativa", () => {
 
     await expect(page.getByText("Rol actualizado para Vendedor E2E.")).toBeVisible();
     await expect(byTestId(page, "user-card-seller-e2e")).toContainText("Administrador");
+    await expect(byTestId(page, "users-role-section-ADMIN")).toContainText("Vendedor E2E");
 
     await clickByTestId(page, "user-reset-password-seller-e2e");
     const passwordDialog = dialogByName(page, "Asignar nueva contraseña");
