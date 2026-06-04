@@ -14,10 +14,6 @@ import {
   getOrCreateDefaultWarehouse
 } from "../inventory/inventory.service";
 import {
-  tryRecordReturnCashMovement,
-  tryRecordSaleCashMovement
-} from "../cash-register/cash-register.service";
-import {
   createdSaleInclude,
   mapCreatedSale,
   mapSaleDetails,
@@ -502,15 +498,6 @@ async function createSaleAttempt(
         });
       }
 
-      if (input.paymentMethod === PaymentMethod.CASH) {
-        await tryRecordSaleCashMovement(tx, {
-          cashierId: user.id,
-          saleId: createdSale.id,
-          amount: total,
-          reason: `Venta en efectivo ${createdSale.folio}`
-        });
-      }
-
       if (user.role === Role.CASHIER) {
         await tx.sellerActivityLog.create({
           data: {
@@ -623,15 +610,6 @@ export async function cancelSale(
           }
         }
       });
-
-      if (hasCashRefund(refundMethod)) {
-        await tryRecordReturnCashMovement(tx, {
-          cashierId: sale.cashierId,
-          saleReturnId: saleReturn.id,
-          amount: Number(sale.total),
-          reason: `Devolución por cancelación ${sale.folio}`
-        });
-      }
 
       const updatedSale = await tx.sale.update({
         where: {
@@ -767,15 +745,6 @@ export async function returnSaleItems(
           }
         }
       });
-
-      if (hasCashRefund(refundMethod)) {
-        await tryRecordReturnCashMovement(tx, {
-          cashierId: sale.cashierId,
-          saleReturnId: saleReturn.id,
-          amount: refundTotal,
-          reason: `Devolución parcial ${sale.folio}`
-        });
-      }
 
       const nextStatus = computeNextReturnStatus(sale, requestedQuantities);
 

@@ -58,7 +58,6 @@ function getWorkArea(row: AuditLog): CountItem["label"] {
   if (row.tableName === "Product") return "Catálogo";
   if (row.tableName === "InventoryMovement") return "Inventario";
   if (row.tableName === "User") return "Usuarios";
-  if (row.tableName === "CashRegisterSession" || row.tableName === "CashRegisterMovement") return "Caja";
   return formatEntityLabel(row.tableName);
 }
 
@@ -66,7 +65,6 @@ function getWorkAreaTone(label: string): Tone {
   if (label === "Ventas") return "success";
   if (label === "Inventario") return "warning";
   if (label === "Usuarios") return "error";
-  if (label === "Caja") return "info";
   return "primary";
 }
 

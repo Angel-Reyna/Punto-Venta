@@ -39,9 +39,6 @@ const SalesPage = lazy(() =>
 const ReportsPage = lazy(() =>
   import("./features/reports/ReportsPage").then((module) => ({ default: module.ReportsPage }))
 );
-const CashRegisterPage = lazy(() =>
-  import("./features/cash-control/CashRegisterPage").then((module) => ({ default: module.CashRegisterPage }))
-);
 const UsersPage = lazy(() =>
   import("./features/users/UsersPage").then((module) => ({ default: module.UsersPage }))
 );
@@ -96,22 +93,6 @@ function PermissionRoute({
   const { can } = useAuth();
 
   if (!can(permission)) {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
-}
-
-function AnyPermissionRoute({
-  permissions,
-  children
-}: {
-  permissions: Permission[];
-  children: ReactNode;
-}) {
-  const { can } = useAuth();
-
-  if (!permissions.some((permission) => can(permission))) {
     return <Navigate to="/" replace />;
   }
 
@@ -180,21 +161,6 @@ export default function App() {
           )}
         />
 
-        <Route
-          path="/cash-register"
-          element={withSuspense(
-            <ProtectedLayout>
-              <AnyPermissionRoute
-                permissions={[
-                  PERMISSIONS.CashRegisterOperate,
-                  PERMISSIONS.CashRegisterRead
-                ]}
-              >
-                <CashRegisterPage />
-              </AnyPermissionRoute>
-            </ProtectedLayout>
-          )}
-        />
 
         <Route
           path="/reports"

@@ -19,13 +19,6 @@ const inventoryServiceMock = {
 
 jest.mock("../src/modules/inventory/inventory.service", () => inventoryServiceMock);
 
-const cashRegisterServiceMock = {
-  tryRecordSaleCashMovement: jest.fn(),
-  tryRecordReturnCashMovement: jest.fn()
-};
-
-jest.mock("../src/modules/cash-register/cash-register.service", () => cashRegisterServiceMock);
-
 import { Role } from "@prisma/client";
 
 import {
@@ -201,14 +194,6 @@ describe("sales.service", () => {
         type: "SALE"
       })
     );
-    expect(cashRegisterServiceMock.tryRecordSaleCashMovement).toHaveBeenCalledWith(
-      tx,
-      expect.objectContaining({
-        cashierId: "cashier-1",
-        saleId: "sale-1",
-        amount: 270
-      })
-    );
     expect(tx.sellerActivityLog.create).toHaveBeenCalled();
     expect(sale.total).toBe(270);
   });
@@ -255,8 +240,6 @@ describe("sales.service", () => {
     inventoryServiceMock.getOrCreateDefaultWarehouse.mockResolvedValue({
       id: "warehouse-1"
     });
-    cashRegisterServiceMock.tryRecordSaleCashMovement.mockResolvedValueOnce(null);
-
     const sale = await createSale(
       {
         id: "cashier-1",
@@ -278,15 +261,6 @@ describe("sales.service", () => {
         ipAddress: "127.0.0.1",
         userAgent: "jest"
       }
-    );
-
-    expect(cashRegisterServiceMock.tryRecordSaleCashMovement).toHaveBeenCalledWith(
-      tx,
-      expect.objectContaining({
-        cashierId: "cashier-1",
-        saleId: "sale-1",
-        amount: 100
-      })
     );
     expect(tx.sellerActivityLog.create).toHaveBeenCalled();
     expect(sale.total).toBe(100);
@@ -717,14 +691,6 @@ describe("sales.service", () => {
             ]
           }
         })
-      })
-    );
-    expect(cashRegisterServiceMock.tryRecordReturnCashMovement).toHaveBeenCalledWith(
-      tx,
-      expect.objectContaining({
-        cashierId: "cashier-1",
-        saleReturnId: "return-1",
-        amount: 60
       })
     );
     expect(sale.returns[0].items[0].product).toEqual({

@@ -207,8 +207,8 @@ export function OperationalReadingPanel({
 
         {!hasLowStock && !hasCriticalStock && (
           <Alert severity="success">
-            Operación estable: ventas registrables sin dependencia de caja y sin
-            alertas críticas de inventario.
+            Operación estable: ventas registrables sin alertas críticas de
+            inventario.
           </Alert>
         )}
 

@@ -150,23 +150,6 @@ export type OperationsReport = {
       }>;
     };
   };
-  cashRegister: {
-    sessions: Array<{
-      id: string;
-      status: "OPEN" | "CLOSED";
-      openingAmount: number;
-      expectedClosingAmount: number | null;
-      closingAmount: number | null;
-      difference: number | null;
-      openedAt: string;
-      closedAt: string | null;
-      cashier?: ReportPerson;
-    }>;
-    movements: {
-      count: number;
-      summary: MoneySummary;
-    };
-  };
   topProducts: Array<{
     product: {
       id: string;
@@ -199,10 +182,6 @@ export const REPORT_INFO_TEXT = {
   netSold: "Importe vendido menos devoluciones asociadas al producto dentro del periodo.",
   productProfit:
     "Utilidad del producto dentro del periodo: venta neta menos costo histórico neto.",
-  expectedCash:
-    "Efectivo calculado por el sistema: apertura más entradas y ventas en efectivo, menos salidas y devoluciones en efectivo.",
-  cashDifference:
-    "Diferencia entre el efectivo contado al cerrar caja y el efectivo esperado por el sistema.",
   shrinkage:
     "Costo estimado de las salidas de inventario marcadas como caducidad dentro del periodo consultado."
 } as const;
@@ -259,23 +238,6 @@ export function paymentMethodLabel(method: string) {
       return "Mixto";
     default:
       return method;
-  }
-}
-
-export function cashMovementLabel(type: string) {
-  switch (type) {
-    case "OPENING":
-      return "Aperturas";
-    case "CASH_IN":
-      return "Entradas manuales";
-    case "CASH_OUT":
-      return "Salidas manuales";
-    case "SALE_CASH":
-      return "Ventas en efectivo";
-    case "RETURN_CASH":
-      return "Devoluciones en efectivo";
-    default:
-      return type;
   }
 }
 

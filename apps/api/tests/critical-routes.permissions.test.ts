@@ -34,12 +34,6 @@ const inventoryServiceMock = {
 
 jest.mock("../src/modules/inventory/inventory.service", () => inventoryServiceMock);
 
-const cashRegisterServiceMock = {
-  getCurrentCashRegister: jest.fn()
-};
-
-jest.mock("../src/modules/cash-register/cash-register.service", () => cashRegisterServiceMock);
-
 const salesServiceMock = {
   createSale: jest.fn(),
   listSales: jest.fn(),
@@ -346,8 +340,6 @@ describe("critical route permissions", () => {
         reason: "Prueba de permiso"
       }
     ],
-    ["consultar caja actual", "get", "/api/cash-register/current", undefined],
-    ["movimiento manual de caja", "post", "/api/cash-register/movements", { type: "IN", amount: 10, reason: "Ajuste manual" }],
     ["cancelar venta", "post", "/api/sales/00000000-0000-4000-8000-000000000002/cancel", { reason: "Prueba de permiso" }],
     ["registrar devolución", "post", "/api/sales/00000000-0000-4000-8000-000000000002/returns", { reason: "Prueba de permiso", items: [] }],
     ["consultar reportes", "get", "/api/reports/operations", undefined],

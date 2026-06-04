@@ -10,8 +10,6 @@ export function panelTitleActionLabel(to: string) {
       return "Ir a ventas";
     case "/reports":
       return "Ver reportes";
-    case "/cash-register":
-      return "Ir a caja";
     default:
       return "Abrir";
   }

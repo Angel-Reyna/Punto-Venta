@@ -89,9 +89,7 @@ export function useReportsData() {
       (data.sales.count > 0 ||
         data.returns.count > 0 ||
         (data.inventory?.movements.count ?? 0) > 0 ||
-        (data.inventory?.shrinkage.totalUnits ?? 0) > 0 ||
-        data.cashRegister.movements.count > 0 ||
-        data.cashRegister.sessions.length > 0)
+        (data.inventory?.shrinkage.totalUnits ?? 0) > 0)
   );
   const reportHasDownloadableData = Boolean(data && hasReportActivity);
   const canDownloadPdf =
@@ -113,9 +111,6 @@ export function useReportsData() {
     ? `${data.fromLabel ?? from} al ${data.toLabel ?? to}`
     : `${from || "—"} al ${to || "—"}`;
 
-  const hasCashActivity = Boolean(
-    data && (data.cashRegister.movements.count > 0 || data.cashRegister.sessions.length > 0)
-  );
 
   const filteredSellers = useMemo(
     () =>
@@ -259,7 +254,6 @@ export function useReportsData() {
     filteredSellers,
     filteredTopProducts,
     from,
-    hasCashActivity,
     hasReportActivity,
     isDownloadingPdf,
     isLoading,

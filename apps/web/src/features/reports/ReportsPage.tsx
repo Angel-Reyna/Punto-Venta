@@ -63,7 +63,6 @@ export function ReportsPage() {
                 filteredReturns={report.filteredReturns}
                 filteredSellers={report.filteredSellers}
                 filteredTopProducts={report.filteredTopProducts}
-                hasCashActivity={report.hasCashActivity}
               />
             </>
           )}

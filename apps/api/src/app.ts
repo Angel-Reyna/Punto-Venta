@@ -19,7 +19,6 @@ import { reportsRouter } from "./modules/reports/reports.routes";
 import { auditRouter } from "./modules/audit/audit.routes";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes";
 import { sellerActivityRouter } from "./modules/seller-activity/seller-activity.routes";
-import { cashRegisterRouter } from "./modules/cash-register/cash-register.routes";
 
 export const app = express();
 
@@ -101,7 +100,6 @@ app.use("/api/users", usersRouter);
 app.use("/api/products", productsRouter);
 app.use("/api/inventory", inventoryRouter);
 app.use("/api/sales", salesRouter);
-app.use("/api/cash-register", cashRegisterRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/audit", auditRouter);
 app.use("/api/seller-activity", sellerActivityRouter);

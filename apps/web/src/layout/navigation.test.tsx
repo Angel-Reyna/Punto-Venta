@@ -44,7 +44,6 @@ describe("navigation visibility", () => {
         "/audit",
       ]),
     );
-    expect(visiblePaths).not.toContain("/cash-register");
   });
 
   it("hides admin-only routes for cashiers", () => {

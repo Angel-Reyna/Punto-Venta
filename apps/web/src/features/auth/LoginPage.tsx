@@ -100,7 +100,7 @@ export function LoginPage() {
               Punta Venta
             </Typography>
             <Typography color="text.secondary" fontSize={20} lineHeight={1.65}>
-              Entra para vender, revisar existencias y supervisar la operación diaria sin depender de una caja abierta.
+              Entra para vender, revisar existencias y supervisar la operación diaria.
             </Typography>
           </Stack>
 

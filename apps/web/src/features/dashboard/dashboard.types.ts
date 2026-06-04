@@ -25,14 +25,6 @@ export type DashboardRecentSale = {
   };
 };
 
-export type DashboardCashRegisterSession = {
-  id: string;
-  cashierId: string;
-  cashierName: string;
-  openedAt: string;
-  expectedCash: number;
-};
-
 export type DashboardMetrics = {
   role: "ADMIN" | "CASHIER";
   generatedAt: string;
@@ -54,13 +46,6 @@ export type DashboardMetrics = {
     count: number;
     total: number;
     averageTicket: number;
-  };
-  cashRegister: {
-    scope: "global" | "cashier";
-    hasOpenRegister: boolean;
-    openSessions: number;
-    currentBalance: number;
-    sessions: DashboardCashRegisterSession[];
   };
   recentSales: DashboardRecentSale[];
 };

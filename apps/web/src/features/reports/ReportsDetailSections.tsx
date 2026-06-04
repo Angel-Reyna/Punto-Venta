@@ -8,7 +8,6 @@ import {
   EmptyText,
   REPORT_INFO_TEXT,
   ReportPanel,
-  cashMovementLabel,
   formatDate,
   formatMoney,
   paymentMethodLabel,
@@ -27,15 +26,13 @@ export function ReportsDetailSections({
   filteredRecentSales,
   filteredReturns,
   filteredSellers,
-  filteredTopProducts,
-  hasCashActivity
+  filteredTopProducts
 }: {
   data: OperationsReport;
   filteredRecentSales: RecentSaleItem[];
   filteredReturns: ReturnReportItem[];
   filteredSellers: SellerReportItem[];
   filteredTopProducts: ProductReportItem[];
-  hasCashActivity: boolean;
 }) {
   return (
     <>
@@ -60,15 +57,9 @@ export function ReportsDetailSections({
       </Grid>
 
       <Grid container spacing={2}>
-        <Grid item xs={12} lg={hasCashActivity ? 7 : 12}>
+        <Grid item xs={12}>
           <ReturnsPanel returns={filteredReturns} />
         </Grid>
-
-        {hasCashActivity && (
-          <Grid item xs={12} lg={5}>
-            <CashActivityPanel data={data} />
-          </Grid>
-        )}
       </Grid>
     </>
   );
@@ -375,84 +366,6 @@ function ReturnsPanel({ returns }: { returns: ReturnReportItem[] }) {
           ))}
         </Stack>
       )}
-    </ReportPanel>
-  );
-}
-
-function CashActivityPanel({ data }: { data: OperationsReport }) {
-  return (
-    <ReportPanel title="Movimientos de efectivo registrados" subtitle="Control secundario de caja; no es requisito para registrar ventas.">
-      <Stack spacing={2}>
-        <SummaryChipGroup title={`Movimientos: ${data.cashRegister.movements.count}`}>
-          {Object.entries(data.cashRegister.movements.summary).length === 0 ? (
-            <EmptyText>Sin movimientos de efectivo.</EmptyText>
-          ) : (
-            Object.entries(data.cashRegister.movements.summary).map(([type, amount]) => (
-              <Chip key={type} variant="outlined" label={`${cashMovementLabel(type)}: ${formatMoney(amount)}`} />
-            ))
-          )}
-        </SummaryChipGroup>
-
-        <Box>
-          <Typography variant="body2" color="text.secondary" mb={1}>
-            Cortes históricos
-          </Typography>
-          {data.cashRegister.sessions.length === 0 ? (
-            <EmptyText>Sin cortes registrados.</EmptyText>
-          ) : (
-            <Stack spacing={1}>
-              {data.cashRegister.sessions.slice(0, 5).map((session) => (
-                <Card key={session.id} variant="outlined">
-                  <CardContent>
-                    <Stack direction="row" justifyContent="space-between" gap={1}>
-                      <Typography fontWeight={800}>{session.cashier?.name ?? "Sin vendedor"}</Typography>
-                      <Chip
-                        size="small"
-                        label={session.status === "OPEN" ? "Abierta" : "Cerrada"}
-                        color={session.status === "OPEN" ? "success" : "default"}
-                      />
-                    </Stack>
-                    <Box
-                      sx={{
-                        mt: 1.5,
-                        display: "grid",
-                        gridTemplateColumns: {
-                          xs: "1fr",
-                          sm: "repeat(2, minmax(0, 1fr))"
-                        },
-                        gap: 1
-                      }}
-                    >
-                      <DetailLine label="Apertura" value={formatDate(session.openedAt)} />
-                      <DetailLine label="Cierre" value={formatDate(session.closedAt)} />
-                      <DetailLine
-                        label="Esperado"
-                        value={
-                          <LabelWithInfo
-                            label={formatMoney(session.expectedClosingAmount)}
-                            info={REPORT_INFO_TEXT.expectedCash}
-                            ariaLabel={REPORT_INFO_TEXT.expectedCash}
-                          />
-                        }
-                      />
-                      <DetailLine
-                        label="Diferencia"
-                        value={
-                          <LabelWithInfo
-                            label={formatMoney(session.difference)}
-                            info={REPORT_INFO_TEXT.cashDifference}
-                            ariaLabel={REPORT_INFO_TEXT.cashDifference}
-                          />
-                        }
-                      />
-                    </Box>
-                  </CardContent>
-                </Card>
-              ))}
-            </Stack>
-          )}
-        </Box>
-      </Stack>
     </ReportPanel>
   );
 }

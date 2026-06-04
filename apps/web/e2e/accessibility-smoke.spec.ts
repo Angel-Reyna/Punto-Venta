@@ -9,7 +9,6 @@ const ADMIN_MODULES = [
   { path: "/products", heading: "Productos" },
   { path: "/inventory", heading: "Inventario" },
   { path: "/sales", heading: "Ventas" },
-  { path: "/cash-register", heading: "Caja" },
   { path: "/reports", heading: "Reportes" },
   { path: "/users", heading: "Usuarios y vendedores" },
   { path: "/audit", heading: "Auditoría" },

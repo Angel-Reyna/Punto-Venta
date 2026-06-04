@@ -53,12 +53,6 @@ const currencyFormatter = new Intl.NumberFormat("es-MX", {
 });
 
 const ACTION_LABELS: Record<string, string> = {
-  CASH_REGISTER_CLOSE: "Cierre de caja",
-  CLOSE_CASH_REGISTER: "Cierre de caja",
-  CASH_REGISTER_MOVEMENT: "Movimiento manual de caja",
-  CREATE_CASH_MOVEMENT: "Movimiento manual de caja",
-  CASH_REGISTER_OPEN: "Apertura de caja",
-  OPEN_CASH_REGISTER: "Apertura de caja",
   INVENTORY_IN: "Entrada de inventario",
   CREATE_INVENTORY_IN: "Entrada de inventario",
   INVENTORY_OUT: "Salida de inventario",
@@ -93,12 +87,6 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 const ACTION_HELPERS: Record<string, string> = {
-  CASH_REGISTER_CLOSE: "Se cerró una caja y quedó guardado el corte.",
-  CLOSE_CASH_REGISTER: "Se cerró una caja y quedó guardado el corte.",
-  CASH_REGISTER_MOVEMENT: "Se agregó o retiró efectivo manualmente de caja.",
-  CREATE_CASH_MOVEMENT: "Se agregó o retiró efectivo manualmente de caja.",
-  CASH_REGISTER_OPEN: "Se abrió una caja para control de efectivo.",
-  OPEN_CASH_REGISTER: "Se abrió una caja para control de efectivo.",
   INVENTORY_IN: "Entraron unidades al inventario.",
   CREATE_INVENTORY_IN: "Entraron unidades al inventario.",
   INVENTORY_OUT: "Salieron unidades del inventario.",
@@ -133,14 +121,6 @@ const ACTION_HELPERS: Record<string, string> = {
 };
 
 const ACTION_MEANINGS: Record<string, string> = {
-  CASH_REGISTER_CLOSE: "El corte de efectivo quedó registrado para consulta del administrador.",
-  CLOSE_CASH_REGISTER: "El corte de efectivo quedó registrado para consulta del administrador.",
-  CASH_REGISTER_MOVEMENT: "El efectivo controlado en caja cambió por una entrada o salida manual.",
-  CREATE_CASH_MOVEMENT: "El efectivo controlado en caja cambió por una entrada o salida manual.",
-  CASH_REGISTER_OPEN:
-    "La caja quedó disponible para control de efectivo, pero las ventas no dependen de esto.",
-  OPEN_CASH_REGISTER:
-    "La caja quedó disponible para control de efectivo, pero las ventas no dependen de esto.",
   INVENTORY_IN: "Aumentaron las existencias de uno o más productos.",
   CREATE_INVENTORY_IN: "Aumentaron las existencias de uno o más productos.",
   INVENTORY_OUT: "Disminuyeron las existencias por una salida manual.",
@@ -175,12 +155,6 @@ const ACTION_MEANINGS: Record<string, string> = {
 };
 
 const ACTION_REVIEW_HINTS: Record<string, string> = {
-  CASH_REGISTER_CLOSE: "Revisa si el corte de efectivo no coincide con lo entregado.",
-  CLOSE_CASH_REGISTER: "Revisa si el corte de efectivo no coincide con lo entregado.",
-  CASH_REGISTER_MOVEMENT: "Revisa si no reconoces la entrada o salida de efectivo.",
-  CREATE_CASH_MOVEMENT: "Revisa si no reconoces la entrada o salida de efectivo.",
-  CASH_REGISTER_OPEN: "Revisa si la caja se abrió fuera del horario esperado.",
-  OPEN_CASH_REGISTER: "Revisa si la caja se abrió fuera del horario esperado.",
   INVENTORY_IN: "Revisa si las unidades agregadas no coinciden con la mercancía recibida.",
   CREATE_INVENTORY_IN: "Revisa si las unidades agregadas no coinciden con la mercancía recibida.",
   INVENTORY_OUT: "Revisa si no reconoces la salida o si el stock quedó incorrecto.",
@@ -215,8 +189,6 @@ const ACTION_REVIEW_HINTS: Record<string, string> = {
 };
 
 const ENTITY_LABELS: Record<string, string> = {
-  CashRegisterMovement: "Movimiento de caja",
-  CashRegisterSession: "Caja",
   InventoryMovement: "Inventario",
   Warehouse: "Almacén",
   Product: "Producto",
@@ -226,8 +198,6 @@ const ENTITY_LABELS: Record<string, string> = {
 };
 
 const ENTITY_HELPERS: Record<string, string> = {
-  CashRegisterMovement: "afectó el efectivo registrado en caja",
-  CashRegisterSession: "afectó una caja abierta o cerrada",
   InventoryMovement: "afectó existencias de inventario",
   Product: "afectó el catálogo de productos",
   Sale: "afectó una venta",
@@ -327,14 +297,13 @@ export function getAuditSeverity(log: Pick<AuditLog, "action" | "tableName">): {
   if (
     normalized.includes("role") ||
     normalized.includes("permission") ||
-    normalized.includes("cash_register_close") ||
     normalized.includes("inventory_out") ||
     normalized.includes("return")
   ) {
     return {
       level: "high",
       label: "Alta",
-      helper: "Cambio importante: puede afectar permisos, caja, inventario o devoluciones.",
+      helper: "Cambio importante: puede afectar permisos, inventario o devoluciones.",
       color: "warning",
     };
   }
