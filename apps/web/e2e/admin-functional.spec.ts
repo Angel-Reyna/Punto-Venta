@@ -118,6 +118,16 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(byTestId(page, "audit-active-filters")).toContainText("Importancia: Media");
     await expect(byTestId(page, "audit-events-pagination-summary")).toContainText("Mostrando 1-1 de 1");
     await expect(byTestId(page, "audit-log-audit-2")).toContainText("Venta registrada");
+    await expect(byTestId(page, "audit-log-audit-2")).toContainText("Qué revisar");
+    await expect(byTestId(page, "audit-log-audit-1")).toHaveCount(0);
+
+    await clickByTestId(page, "audit-clear-button");
+
+    await page.getByRole("combobox", { name: "Responsable" }).click();
+    await page.getByRole("option", { name: "Vendedor E2E · Vendedor" }).click();
+
+    await expect(byTestId(page, "audit-active-filters")).toContainText("Responsable: Vendedor E2E · Vendedor");
+    await expect(byTestId(page, "audit-log-audit-2")).toContainText("Venta registrada");
     await expect(byTestId(page, "audit-log-audit-1")).toHaveCount(0);
 
     await clickByTestId(page, "audit-clear-button");

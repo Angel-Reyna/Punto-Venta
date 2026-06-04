@@ -4,10 +4,12 @@ import { getApiErrorMessage } from "../../utils/apiError";
 import { fetchAuditLogs } from "./auditApi";
 import {
   filterAuditLogsBySeverity,
+  filterAuditLogsByUser,
   formatActionLabel,
   formatDate,
   formatEntityLabel,
   getAuditSeverity,
+  getAuditUserFilterLabel,
   initialFilters,
   type AuditFilters,
   type AuditLog,
@@ -62,7 +64,25 @@ export function useAuditData() {
 
   const tableOptions = useMemo(() => Array.from(new Set(rows.map((row) => row.tableName))).sort(), [rows]);
 
-  const visibleRows = useMemo(() => filterAuditLogsBySeverity(rows, filters.severity), [rows, filters.severity]);
+  const severityRows = useMemo(() => filterAuditLogsBySeverity(rows, filters.severity), [rows, filters.severity]);
+
+  const visibleRows = useMemo(
+    () => filterAuditLogsByUser(severityRows, filters.userId),
+    [severityRows, filters.userId],
+  );
+
+  const userOptions = useMemo(() => {
+    const options = new Map<string, string>();
+
+    for (const row of rows) {
+      const id = row.user?.id ?? "system";
+      if (!options.has(id)) options.set(id, getAuditUserFilterLabel(row));
+    }
+
+    return Array.from(options, ([id, label]) => ({ id, label })).sort((a, b) =>
+      a.label.localeCompare(b.label, "es"),
+    );
+  }, [rows]);
 
   const uniqueUsers = useMemo(
     () => new Set(visibleRows.map((row) => row.user?.id ?? "system")).size,
@@ -78,6 +98,9 @@ export function useAuditData() {
 
   const activeFilterLabels = [
     filters.severity ? `Importancia: ${SEVERITY_LABELS[filters.severity]}` : "Importancia: Todas",
+    filters.userId
+      ? `Responsable: ${userOptions.find((option) => option.id === filters.userId)?.label ?? "Seleccionado"}`
+      : "Responsable: Todos",
     filters.action ? `Qué ocurrió: ${formatActionLabel(filters.action)}` : "Qué ocurrió: Todo",
     filters.tableName ? `Área: ${formatEntityLabel(filters.tableName)}` : "Área: Todas",
     filters.dateFrom || filters.dateTo
@@ -99,6 +122,7 @@ export function useAuditData() {
     tableOptions,
     uniqueUsers,
     updateFilter,
+    userOptions,
     visibleRows,
   };
 }

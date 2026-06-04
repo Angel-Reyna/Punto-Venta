@@ -57,6 +57,7 @@ function AuditMobileScreen({ audit }: { audit: AuditPageData }) {
           isLoading={audit.isLoading}
           layout="mobile"
           tableOptions={audit.tableOptions}
+          userOptions={audit.userOptions}
           updateFilter={audit.updateFilter}
         />
 
@@ -110,6 +111,7 @@ function AuditTabletScreen({ audit }: { audit: AuditPageData }) {
             isLoading={audit.isLoading}
             layout="tablet"
             tableOptions={audit.tableOptions}
+            userOptions={audit.userOptions}
             updateFilter={audit.updateFilter}
           />
         </Stack>
@@ -161,6 +163,7 @@ function AuditDesktopScreen({ audit }: { audit: AuditPageData }) {
             isLoading={audit.isLoading}
             layout="desktop"
             tableOptions={audit.tableOptions}
+            userOptions={audit.userOptions}
             updateFilter={audit.updateFilter}
           />
         </Stack>

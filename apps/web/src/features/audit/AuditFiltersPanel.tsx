@@ -31,6 +31,7 @@ type AuditFiltersPanelProps = {
   isLoading: boolean;
   layout?: AuditLayoutVariant;
   tableOptions: string[];
+  userOptions: Array<{ id: string; label: string }>;
   updateFilter: <K extends keyof AuditFilters>(key: K, value: AuditFilters[K]) => void;
 };
 
@@ -64,8 +65,9 @@ function AuditFilterFields({
   isMobile,
   isDesktop,
   tableOptions,
+  userOptions,
   updateFilter,
-}: Pick<AuditFiltersPanelProps, "actionOptions" | "filters" | "tableOptions" | "updateFilter"> & {
+}: Pick<AuditFiltersPanelProps, "actionOptions" | "filters" | "tableOptions" | "userOptions" | "updateFilter"> & {
   isDesktop: boolean;
   isMobile: boolean;
 }) {
@@ -129,6 +131,25 @@ function AuditFilterFields({
 
       <Grid item xs={12} sm={isMobile ? 12 : 6} lg={isDesktop ? 12 : 6}>
         <TextField
+          select
+          fullWidth
+          label="Responsable"
+          size={isMobile ? "small" : "medium"}
+          value={filters.userId}
+          inputProps={{ "data-testid": "audit-user" }}
+          onChange={(event) => updateFilter("userId", event.target.value)}
+        >
+          <MenuItem value="">Todos</MenuItem>
+          {userOptions.map((option) => (
+            <MenuItem key={option.id} value={option.id}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Grid>
+
+      <Grid item xs={12} sm={isMobile ? 12 : 6} lg={isDesktop ? 12 : 6}>
+        <TextField
           fullWidth
           label="Desde"
           type="date"
@@ -165,6 +186,7 @@ export function AuditFiltersPanel({
   isLoading,
   layout = "desktop",
   tableOptions,
+  userOptions,
   updateFilter,
 }: AuditFiltersPanelProps) {
   const copy = getFilterCopy(layout);
@@ -254,6 +276,7 @@ export function AuditFiltersPanel({
                   isDesktop={isDesktop}
                   isMobile={isMobile}
                   tableOptions={tableOptions}
+                  userOptions={userOptions}
                   updateFilter={updateFilter}
                 />
               </Box>
@@ -267,6 +290,7 @@ export function AuditFiltersPanel({
                 isDesktop={isDesktop}
                 isMobile={isMobile}
                 tableOptions={tableOptions}
+                userOptions={userOptions}
                 updateFilter={updateFilter}
               />
             </>

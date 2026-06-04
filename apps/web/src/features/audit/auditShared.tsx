@@ -29,6 +29,7 @@ export type AuditFilters = {
   action: string;
   tableName: string;
   severity: AuditSeverity;
+  userId: string;
   dateFrom: string;
   dateTo: string;
 };
@@ -38,6 +39,7 @@ export const initialFilters: AuditFilters = {
   action: "",
   tableName: "",
   severity: "",
+  userId: "",
   dateFrom: "",
   dateTo: "",
 };
@@ -375,6 +377,17 @@ export function filterAuditLogsBySeverity(logs: AuditLog[], severity: AuditSever
   return logs.filter((log) => getAuditSeverity(log).level === severity);
 }
 
+export function filterAuditLogsByUser(logs: AuditLog[], userId: string) {
+  if (!userId) return logs;
+  if (userId === "system") return logs.filter((log) => !log.user?.id);
+  return logs.filter((log) => log.user?.id === userId);
+}
+
+export function getAuditUserFilterLabel(log: AuditLog) {
+  if (!log.user) return "Sistema";
+  return `${log.user.name} · ${formatRole(log.user.role)}`;
+}
+
 export function buildAuditQuery(filters: AuditFilters) {
   const params = new URLSearchParams();
 
@@ -596,6 +609,7 @@ export function AuditLogCard({
   const actor = log.user?.name ?? "Sistema";
   const actorHelper = formatRole(log.user?.role);
   const facts = extractImportantFacts(log);
+  const details = getReadableActionDetails(log);
   const summary = buildPlainSummary(log);
 
   if (variant === "mobile") {
@@ -626,6 +640,9 @@ export function AuditLogCard({
             </Stack>
 
             <ClampedText lines={1}>{summary}</ClampedText>
+            <Typography variant="caption" color="text.secondary" fontWeight={800}>
+              Impacto: {details.meaning}
+            </Typography>
             <Box
               sx={{
                 display: "grid",
@@ -674,6 +691,9 @@ export function AuditLogCard({
             </Stack>
 
             <ClampedText lines={1}>{summary}</ClampedText>
+            <Typography variant="caption" color="text.secondary" fontWeight={800}>
+              Qué revisar: {details.reviewHint}
+            </Typography>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
               <AuditFactChip label="Responsable" value={actor} />
               <AuditFactChip label="Área" value={entityLabel} />
@@ -731,6 +751,9 @@ export function AuditLogCard({
                   {actionLabel}
                 </Typography>
                 <ClampedText lines={1}>{summary}</ClampedText>
+                <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ display: "block", mt: 0.35 }}>
+                  Qué revisar: {details.reviewHint}
+                </Typography>
               </Box>
               <Chip size="small" label={result.label} color={result.color} variant="outlined" sx={{ flexShrink: 0 }} />
             </Stack>
