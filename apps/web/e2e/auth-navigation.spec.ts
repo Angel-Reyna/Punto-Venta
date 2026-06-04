@@ -13,7 +13,15 @@ test.describe("autenticación y navegación principal", () => {
 
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByTestId("dashboard-operational-hero")).toBeVisible();
-    await expect(page.getByRole("button", { name: /Ver usuarios/i })).toBeVisible();
+    await expect(page.getByText("Pulso operativo")).toBeVisible();
+    await expect(page.getByText("Administradores activos")).toBeVisible();
+    await expect(page.getByText("Vendedores activos")).toBeVisible();
+    await expect(page.getByText("Acciones rápidas")).toHaveCount(0);
+
+    const userMetricButtons = page.getByRole("button", { name: "Ver usuarios" });
+    await expect(userMetricButtons).toHaveCount(2);
+    await expect(userMetricButtons.first()).toBeVisible();
+
     await expect(page.getByRole("link", { name: /Usuarios/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Reportes/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Auditoría/i })).toBeVisible();

@@ -2,7 +2,8 @@ import { Chip, Grid, Stack, Typography } from "@mui/material";
 
 import InventoryIcon from "@mui/icons-material/Inventory2";
 import PaidIcon from "@mui/icons-material/Paid";
-import PeopleIcon from "@mui/icons-material/People";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import StorefrontIcon from "@mui/icons-material/Storefront";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
 import WarningIcon from "@mui/icons-material/WarningAmber";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
@@ -62,16 +63,34 @@ export function DashboardMetricsGrid({
       {isAdmin && (
         <Grid item xs={12} sm={6} lg={4} xl={2}>
           <DashboardMetricCard
-            title="Usuarios activos"
-            value={formatNumber(metrics?.userSummary.totalActive)}
-            icon={<PeopleIcon />}
-            description="Administradores y vendedores activos"
+            title="Administradores activos"
+            value={formatNumber(metrics?.userSummary.activeAdmins)}
+            icon={<AdminPanelSettingsIcon />}
+            description="Cuentas con permisos de gestión"
             to="/users"
+            tone="info"
             footer={
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Chip size="small" label={`Admins ${formatNumber(metrics?.userSummary.activeAdmins)}`} />
-                <Chip size="small" label={`Vendedores ${formatNumber(metrics?.userSummary.activeCashiers)}`} />
-              </Stack>
+              <Typography color="text.secondary" variant="caption">
+                Total activo {formatNumber(metrics?.userSummary.totalActive)}
+              </Typography>
+            }
+          />
+        </Grid>
+      )}
+
+      {isAdmin && (
+        <Grid item xs={12} sm={6} lg={4} xl={2}>
+          <DashboardMetricCard
+            title="Vendedores activos"
+            value={formatNumber(metrics?.userSummary.activeCashiers)}
+            icon={<StorefrontIcon />}
+            description="Usuarios operativos que registran ventas"
+            to="/users"
+            tone="success"
+            footer={
+              <Typography color="text.secondary" variant="caption">
+                Separado de administradores
+              </Typography>
             }
           />
         </Grid>

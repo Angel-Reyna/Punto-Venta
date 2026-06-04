@@ -26,8 +26,8 @@ export function DashboardOperationalHero({
   return (
     <PageHero
       testId="dashboard-operational-hero"
-      title="Cómo va el negocio hoy"
-      subtitle="Una lectura rápida para decidir si vender, reponer inventario o revisar actividad. Caja sigue siendo control secundario."
+      title="Pulso operativo"
+      subtitle="Ventas del día, alertas de inventario y lectura rápida para decidir el siguiente paso."
       tone={
         operationalStateColor === "error"
           ? "error"
@@ -54,8 +54,12 @@ export function DashboardOperationalHero({
           value: formatMoney(metrics?.salesToday.total),
         },
         {
-          label: "Productos activos",
-          value: formatNumber(metrics?.productSummary.active),
+          label: "Ventas hoy",
+          value: formatNumber(metrics?.salesToday.count),
+        },
+        {
+          label: "Inventario en alerta",
+          value: formatNumber(metrics?.productSummary.lowStockTotal),
         },
         {
           label: "Última actualización",
