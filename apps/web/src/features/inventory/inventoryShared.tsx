@@ -168,49 +168,6 @@ export function isInventoryFormInvalid(form: InventoryMovementForm) {
   return Boolean(getInventoryFormDisabledReason(form));
 }
 
-function getLocationQuantity(location: StockLocation) {
-  return Math.max(Number(location.quantity ?? 0), 0);
-}
-
-function hasLocations(item: StockItem) {
-  return Boolean(item.locations?.length);
-}
-
-function isLocationOutOfStock(location: StockLocation) {
-  return getLocationQuantity(location) <= 0;
-}
-
-function isLocationLowStock(location: StockLocation, minStock: number) {
-  const quantity = getLocationQuantity(location);
-  return minStock > 0 && quantity > 0 && quantity <= minStock;
-}
-
-function hasOutOfStockLocation(item: StockItem) {
-  return (item.locations ?? []).some(isLocationOutOfStock);
-}
-
-function hasLowStockLocation(item: StockItem) {
-  const minStock = Math.max(Number(item.minStock ?? 0), 0);
-  return (item.locations ?? []).some((location) => isLocationLowStock(location, minStock));
-}
-
-function isStockOutForFilter(item: StockItem) {
-  if (hasLocations(item)) {
-    return hasOutOfStockLocation(item);
-  }
-
-  return Math.max(Number(item.stock ?? 0), 0) <= 0;
-}
-
-function isStockLowForFilter(item: StockItem) {
-  if (hasLocations(item)) {
-    return hasLowStockLocation(item);
-  }
-
-  const stock = Math.max(Number(item.stock ?? 0), 0);
-  return stock > 0 && Boolean(item.lowStock);
-}
-
 function normalizeStockLocations(item: StockItem) {
   const locations = (item.locations ?? []).map((location) => ({
     ...location,
