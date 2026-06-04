@@ -1,0 +1,13 @@
+diff --git a/apps/web/e2e/catalog-smoke.spec.ts b/apps/web/e2e/catalog-smoke.spec.ts
+index 406dd63..f42a0bc 100644
+--- a/apps/web/e2e/catalog-smoke.spec.ts
++++ b/apps/web/e2e/catalog-smoke.spec.ts
+@@ -37,7 +37,7 @@ test.describe("catálogo e inventario responsive", () => {
+     await expect(page.getByTestId("inventory-visual-dashboard")).toBeVisible();
+     await expect(page.getByText("Control de inventario")).toBeVisible();
+     await expect(page.getByText("Estado de existencias")).toBeVisible();
+-    await expect(page.getByText("Revisar por estado")).toBeVisible();
++    await expect(page.getByRole("button", { name: /Filtros/i })).toBeVisible();
+     await expect(page.getByText("Coca-Cola 600 ml")).toBeVisible();
+     await expect(page.getByText("Existencias actuales")).toBeVisible();
+     const stockItem = page.getByTestId("inventory-stock-item-COCA-600");

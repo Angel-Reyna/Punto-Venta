@@ -1,0 +1,167 @@
+diff --git a/apps/web/src/features/inventory/inventoryShared.tsx b/apps/web/src/features/inventory/inventoryShared.tsx
+index 3260c7c..41feb84 100644
+--- a/apps/web/src/features/inventory/inventoryShared.tsx
++++ b/apps/web/src/features/inventory/inventoryShared.tsx
+@@ -168,13 +168,116 @@ export function isInventoryFormInvalid(form: InventoryMovementForm) {
+   return Boolean(getInventoryFormDisabledReason(form));
+ }
+ 
++function getLocationQuantity(location: StockLocation) {
++  return Math.max(Number(location.quantity ?? 0), 0);
++}
++
++function hasLocations(item: StockItem) {
++  return Boolean(item.locations?.length);
++}
++
++function isLocationOutOfStock(location: StockLocation) {
++  return getLocationQuantity(location) <= 0;
++}
++
++function isLocationLowStock(location: StockLocation, minStock: number) {
++  const quantity = getLocationQuantity(location);
++  return minStock > 0 && quantity > 0 && quantity <= minStock;
++}
++
++function isLocationAvailable(location: StockLocation, minStock: number) {
++  const quantity = getLocationQuantity(location);
++  return quantity > 0 && (minStock <= 0 || quantity > minStock);
++}
++
++function hasOutOfStockLocation(item: StockItem) {
++  return (item.locations ?? []).some(isLocationOutOfStock);
++}
++
++function hasLowStockLocation(item: StockItem) {
++  const minStock = Math.max(Number(item.minStock ?? 0), 0);
++  return (item.locations ?? []).some((location) => isLocationLowStock(location, minStock));
++}
++
++function hasAvailableLocation(item: StockItem) {
++  const minStock = Math.max(Number(item.minStock ?? 0), 0);
++  return (item.locations ?? []).some((location) => isLocationAvailable(location, minStock));
++}
++
++function isStockOutForFilter(item: StockItem) {
++  if (hasLocations(item)) {
++    return hasOutOfStockLocation(item);
++  }
++
++  return Math.max(Number(item.stock ?? 0), 0) <= 0;
++}
++
++function isStockLowForFilter(item: StockItem) {
++  if (hasLocations(item)) {
++    return hasLowStockLocation(item);
++  }
++
++  const stock = Math.max(Number(item.stock ?? 0), 0);
++  return stock > 0 && Boolean(item.lowStock);
++}
++
++function isStockAvailableForFilter(item: StockItem) {
++  if (hasLocations(item)) {
++    return hasAvailableLocation(item);
++  }
++
++  const stock = Math.max(Number(item.stock ?? 0), 0);
++  return stock > 0 && !item.lowStock;
++}
++
++function hasAttentionStock(item: StockItem) {
++  return isStockLowForFilter(item) || isStockOutForFilter(item);
++}
++
++function normalizeStockLocations(item: StockItem) {
++  const locations = (item.locations ?? []).map((location) => ({
++    ...location,
++    quantity: Math.max(Number(location.quantity ?? 0), 0),
++  }));
++
++  if (locations.length > 0) {
++    return locations;
++  }
++
++  return [
++    {
++      warehouseId: "default",
++      warehouseName: "Principal",
++      quantity: Math.max(Number(item.stock ?? 0), 0),
++    },
++  ];
++}
++
++function getStockLocationFlags(item: StockItem) {
++  const minStock = Math.max(Number(item.minStock ?? 0), 0);
++  const locations = normalizeStockLocations(item);
++  const hasOutOfStockLocation = locations.some((location) => location.quantity <= 0);
++  const hasLowStockLocation = locations.some(
++    (location) => location.quantity > 0 && minStock > 0 && location.quantity <= minStock,
++  );
++  const hasAvailableLocation = locations.some((location) => location.quantity > 0);
++
++  return {
++    hasAvailableLocation,
++    hasLowStockLocation,
++    hasOutOfStockLocation,
++  };
++}
++
+ export function getInventoryStockSummary(rows: StockItem[]) {
+-  const outOfStock = rows.filter((item) => item.stock <= 0).length;
++  const outOfStock = rows.filter(
++    (item) => getStockLocationFlags(item).hasOutOfStockLocation,
++  ).length;
+   const lowStock = rows.filter(
+-    (item) => item.stock > 0 && item.lowStock,
++    (item) => getStockLocationFlags(item).hasLowStockLocation,
+   ).length;
+   const available = rows.filter(
+-    (item) => item.stock > 0 && !item.lowStock,
++    (item) => getStockLocationFlags(item).hasAvailableLocation,
+   ).length;
+   const units = rows.reduce((total, item) => total + item.stock, 0);
+   const categories = new Set(
+@@ -197,33 +300,35 @@ export function filterStockRowsByStatus(
+   status: StockStatusFilter,
+ ) {
+   if (status === "available") {
+-    return rows.filter((item) => item.stock > 0 && !item.lowStock);
++    return rows.filter((item) => getStockLocationFlags(item).hasAvailableLocation);
+   }
+ 
+   if (status === "low") {
+-    return rows.filter((item) => item.stock > 0 && item.lowStock);
++    return rows.filter((item) => getStockLocationFlags(item).hasLowStockLocation);
+   }
+ 
+   if (status === "out") {
+-    return rows.filter((item) => item.stock <= 0);
++    return rows.filter((item) => getStockLocationFlags(item).hasOutOfStockLocation);
+   }
+ 
+   return rows;
+ }
+ 
+ export function getStockStatus(item: StockItem) {
+-  if (item.stock <= 0) {
++  const flags = getStockLocationFlags(item);
++
++  if (!flags.hasAvailableLocation || flags.hasOutOfStockLocation) {
+     return {
+       color: "error" as const,
+-      helper: "Producto sin unidades disponibles.",
++      helper: "Hay una ubicación sin unidades disponibles.",
+       label: "Sin stock",
+     };
+   }
+ 
+-  if (item.lowStock) {
++  if (flags.hasLowStockLocation || item.lowStock) {
+     return {
+       color: "warning" as const,
+-      helper: "EstÃ¡ en el umbral de reposiciÃ³n.",
++      helper: "Está en el umbral de reposición.",
+       label: "Bajo inventario",
+     };
+   }

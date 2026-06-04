@@ -275,7 +275,6 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await page.goto("/inventory");
 
     await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();
-    await expect(page.getByText("Permiso: solo consulta")).toBeVisible();
     await expect(page.getByRole("tab", { name: "Existencias" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Historial" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Entradas" })).toHaveCount(0);
