@@ -38,6 +38,17 @@ export type SummaryItem = {
   count: number;
 };
 
+export type SellerActivityBySeller = {
+  sellerId: string;
+  sellerName: string;
+  sellerEmail: string;
+  isActive: boolean;
+  total: number;
+  saleCreatedCount: number;
+  failedAccessCount: number;
+  lastActivityAt: string | null;
+};
+
 export const SELLER_ACTIVITY_AUTO_REFRESH_INTERVAL_MS = 30_000;
 
 export const DEFAULT_SELLER_ACTIVITY_LIMIT = 200;
@@ -177,6 +188,45 @@ export function matchesSearch(log: SellerActivityLog, search: string) {
     ],
     search
   );
+}
+
+export function summarizeActivityBySeller(rows: SellerActivityLog[]): SellerActivityBySeller[] {
+  const sellers = new Map<string, SellerActivityBySeller>();
+
+  for (const row of rows) {
+    const current = sellers.get(row.sellerId) ?? {
+      sellerId: row.sellerId,
+      sellerName: row.seller.name,
+      sellerEmail: row.seller.email,
+      isActive: row.seller.isActive,
+      total: 0,
+      saleCreatedCount: 0,
+      failedAccessCount: 0,
+      lastActivityAt: null,
+    };
+
+    current.total += 1;
+    current.saleCreatedCount += row.action === "SALE_CREATED" ? 1 : 0;
+    current.failedAccessCount += row.action === "FAILED_ACCESS_ATTEMPT" ? 1 : 0;
+
+    if (
+      !current.lastActivityAt ||
+      new Date(row.createdAt).getTime() > new Date(current.lastActivityAt).getTime()
+    ) {
+      current.lastActivityAt = row.createdAt;
+    }
+
+    sellers.set(row.sellerId, current);
+  }
+
+  return Array.from(sellers.values()).sort((left, right) => {
+    if (right.total !== left.total) return right.total - left.total;
+
+    return (
+      new Date(right.lastActivityAt ?? 0).getTime() -
+      new Date(left.lastActivityAt ?? 0).getTime()
+    );
+  });
 }
 
 export function buildQuery(args: {

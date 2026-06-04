@@ -172,6 +172,9 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(byTestId(page, "seller-activity-results-heading")).toContainText(
       "3 de 3 movimientos visibles",
     );
+    await expect(byTestId(page, "seller-activity-seller-focus")).toContainText("Actividad por vendedor");
+    await expect(byTestId(page, "seller-activity-seller-focus")).toContainText("Vendedor E2E");
+    await expect(byTestId(page, "seller-activity-seller-focus")).toContainText("Vendedor Inactivo E2E");
 
     await clickByTestId(page, "seller-activity-quick-sales");
     await expect(byTestId(page, "seller-activity-active-filters")).toContainText("Acción: Venta registrada");
@@ -179,6 +182,7 @@ test.describe("cobertura funcional administrativa", () => {
 
     await expect(byTestId(page, "seller-activity-log-seller-activity-1")).toBeVisible();
     await expect(byTestId(page, "seller-activity-log-seller-activity-3")).toHaveCount(0);
+    await expect(byTestId(page, "seller-activity-seller-focus")).toContainText("1 vendedor visible");
 
     await page.getByRole("combobox", { name: "Acción" }).click();
     await page.getByRole("option", { name: "Acceso bloqueado" }).click();

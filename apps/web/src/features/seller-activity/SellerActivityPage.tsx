@@ -6,6 +6,7 @@ import { PageHeader } from "../../components/PageHeader";
 import { SellerActivityFiltersPanel } from "./SellerActivityFiltersPanel";
 import { SellerActivityHero } from "./SellerActivityHero";
 import { SellerActivityMetrics } from "./SellerActivityMetrics";
+import { SellerActivitySellerFocus } from "./SellerActivitySellerFocus";
 import { SellerActivitySummaryPanel } from "./SellerActivitySummaryPanel";
 import { SellerActivityTimeline } from "./SellerActivityTimeline";
 import { useSellerActivityData } from "./useSellerActivityData";
@@ -27,6 +28,7 @@ export function SellerActivityPage() {
     resetFilters,
     rows,
     search,
+    sellerBreakdown,
     sellerId,
     sellers,
     setAction,
@@ -95,6 +97,7 @@ export function SellerActivityPage() {
       )}
 
       <SellerActivityMetrics rowsCount={rows.length} summary={activitySummary} />
+      <SellerActivitySellerFocus summaries={sellerBreakdown} />
 
       <ResponsiveSideLayout
         desktopSidebarPosition="left"
