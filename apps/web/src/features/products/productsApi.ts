@@ -21,6 +21,10 @@ export type UpdateProductInput = Omit<CreateProductInput, "initialStock">;
 
 export type ProductImportResult = {
   imported: number;
+  created: number;
+  updated: number;
+  withInitialStock: number;
+  message?: string;
 };
 
 export type ProductDeleteResult = {

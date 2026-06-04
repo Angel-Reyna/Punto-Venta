@@ -58,6 +58,13 @@ export type DeleteProductResult = {
   };
 };
 
+export type ProductImportSummary = {
+  imported: number;
+  created: number;
+  updated: number;
+  withInitialStock: number;
+};
+
 export async function createProduct(
   input: CreateProductInput,
   userId: string
@@ -227,14 +234,19 @@ export function calculateFinalPrice(
 export async function importProducts(
   buffer: Buffer,
   userId: string
-) {
+): Promise<ProductImportSummary> {
   const rows = await readProductRows(buffer);
 
   return prisma.$transaction(
     async (tx) => {
       const warehouse = await getOrCreateDefaultWarehouse(tx);
 
-      const imported = [];
+      const summary: ProductImportSummary = {
+        imported: 0,
+        created: 0,
+        updated: 0,
+        withInitialStock: 0
+      };
       const seenSkus = new Set<string>();
       const seenBarcodes = new Set<string>();
 
@@ -298,6 +310,15 @@ export async function importProducts(
           }
         }
 
+        const existingProduct = await tx.product.findFirst({
+          where: {
+            sku
+          },
+          select: {
+            id: true
+          }
+        });
+
         const product = await tx.product.upsert({
           where: {
             sku
@@ -329,7 +350,17 @@ export async function importProducts(
           }
         });
 
+        if (existingProduct) {
+          summary.updated += 1;
+        } else {
+          summary.created += 1;
+        }
+
+        summary.imported += 1;
+
         if (initialStock > 0) {
+          summary.withInitialStock += 1;
+
           await increaseStock(tx, {
             productId: product.id,
             warehouseId: warehouse.id,
@@ -339,11 +370,9 @@ export async function importProducts(
             type: "IN"
           });
         }
-
-        imported.push(product);
       }
 
-      return imported;
+      return summary;
     },
     {
       maxWait: 5_000,

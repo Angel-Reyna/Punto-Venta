@@ -22,6 +22,31 @@ type UseProductsDataOptions = {
   canCreateProduct: boolean;
 };
 
+function isValidExcelFile(file: File) {
+  return file.name.toLowerCase().endsWith(".xlsx");
+}
+
+function formatImportMessage(response: {
+  imported: number;
+  created: number;
+  updated: number;
+  withInitialStock: number;
+  message?: string;
+}) {
+  const details = [
+    `${response.created} creado${response.created === 1 ? "" : "s"}`,
+    `${response.updated} actualizado${response.updated === 1 ? "" : "s"}`
+  ];
+
+  if (response.withInitialStock > 0) {
+    details.push(
+      `${response.withInitialStock} con stock inicial`
+    );
+  }
+
+  return `${response.message ?? `Productos procesados: ${response.imported}`} (${details.join(", ")}).`;
+}
+
 export function useProductsData({ canCreateProduct }: UseProductsDataOptions) {
   const [rows, setRows] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -151,16 +176,27 @@ export function useProductsData({ canCreateProduct }: UseProductsDataOptions) {
 
   const importExcel = useCallback(
     async (file?: File) => {
-      if (!file || isImportingExcel) return;
+      if (isImportingExcel) return;
 
       setMessage("");
       setError("");
+
+      if (!file) {
+        setError("Selecciona un archivo Excel .xlsx para importar productos.");
+        return;
+      }
+
+      if (!isValidExcelFile(file)) {
+        setError("El archivo debe tener extensión .xlsx. Descarga el formato desde Punta Venta y vuelve a intentarlo.");
+        return;
+      }
+
       setIsImportingExcel(true);
 
       try {
         const response = await importProductsExcel(file);
 
-        setMessage(`Productos importados: ${response.imported}`);
+        setMessage(formatImportMessage(response));
         await load();
       } catch (err: unknown) {
         setError(

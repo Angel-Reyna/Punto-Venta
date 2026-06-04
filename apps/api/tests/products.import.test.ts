@@ -418,12 +418,12 @@ describe("products import", () => {
         type: "IN"
       })
     );
-    expect(result).toEqual([
-      {
-        id: "product-1",
-        sku: "SKU-1"
-      }
-    ]);
+    expect(result).toEqual({
+      imported: 1,
+      created: 1,
+      updated: 0,
+      withInitialStock: 1
+    });
   });
 
   it("imports .xlsx files that use prefixed spreadsheet namespace XML", async () => {
@@ -474,12 +474,12 @@ describe("products import", () => {
         type: "IN"
       })
     );
-    expect(result).toEqual([
-      {
-        id: "product-prefixed",
-        sku: "SKU-PREFIXED"
-      }
-    ]);
+    expect(result).toEqual({
+      imported: 1,
+      created: 1,
+      updated: 0,
+      withInitialStock: 1
+    });
   });
 
   it("generates a product template that the importer can read", async () => {
@@ -514,12 +514,12 @@ describe("products import", () => {
         type: "IN"
       })
     );
-    expect(result).toEqual([
-      {
-        id: "product-template",
-        sku: "SKU-001"
-      }
-    ]);
+    expect(result).toEqual({
+      imported: 1,
+      created: 1,
+      updated: 0,
+      withInitialStock: 1
+    });
   });
 
 });

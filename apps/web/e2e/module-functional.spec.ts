@@ -149,6 +149,23 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(byTestId(page, "product-row-COCA-600")).toHaveCount(0);
   });
 
+  test("productos importa Excel y muestra resumen operativo", async ({ page }) => {
+    await mockApi(page, { role: "ADMIN" });
+
+    await page.goto("/products");
+
+    await expect(page.getByRole("heading", { name: "Productos", level: 1 })).toBeVisible();
+
+    await page.locator('input[type="file"][accept=".xlsx"]').setInputFiles({
+      name: "productos-punta-venta.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: Buffer.from("punta-venta-e2e")
+    });
+
+    await expect(page.getByText("Importación finalizada: 1 producto procesado. (1 creado, 0 actualizados, 1 con stock inicial)."))
+      .toBeVisible();
+  });
+
   test("inventario registra entrada, salida e historial operativo", async ({ page }) => {
     await mockApi(page, { role: "ADMIN" });
 

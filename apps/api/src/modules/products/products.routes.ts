@@ -294,14 +294,15 @@ productsRouter.post(
       userId: req.user?.id,
       action: "IMPORT_PRODUCTS_EXCEL",
       tableName: "Product",
-      newData: {
-        count: imported.length
-      },
+      newData: imported,
       ipAddress: req.ip
     });
 
     res.json({
-      imported: imported.length
+      ...imported,
+      message: `Importación finalizada: ${imported.imported} producto${
+        imported.imported === 1 ? "" : "s"
+      } procesado${imported.imported === 1 ? "" : "s"}.`
     });
   })
 );

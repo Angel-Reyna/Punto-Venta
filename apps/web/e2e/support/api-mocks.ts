@@ -347,7 +347,13 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
     }
 
     if (pathname.endsWith("/products/import/excel") && method === "POST") {
-      return json(route, { imported: 1 });
+      return json(route, {
+        imported: 1,
+        created: 1,
+        updated: 0,
+        withInitialStock: 1,
+        message: "Importación finalizada: 1 producto procesado."
+      });
     }
 
     if (pathname === "/products" && method === "GET") {
