@@ -60,12 +60,14 @@ test.describe("cobertura funcional administrativa", () => {
 
     await expect(page.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
     await expect(byTestId(page, "reports-download-pdf-button")).toBeDisabled();
-    await expect(byTestId(page, "reports-pdf-gate-message")).toContainText("Consulta un reporte");
+    await expect(byTestId(page, "reports-pdf-gate-message")).toContainText("Consulta un reporte con datos");
 
     await clickByTestId(page, "reports-consult-button");
 
     await expect(page.getByText("Venta neta").first()).toBeVisible();
     await expect(page.getByText("$470.00").first()).toBeVisible();
+    await expect(page.getByText("Merma por caducidad")).toBeVisible();
+    await expect(page.getByText("$48.00").first()).toBeVisible();
     await expect(page.getByRole("region", { name: "Ventas por vendedor" })).toContainText("Vendedor E2E");
     await expect(page.getByRole("region", { name: "Productos más vendidos" })).toContainText(
       "Producto eliminado snapshot E2E",

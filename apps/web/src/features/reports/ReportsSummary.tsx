@@ -38,6 +38,13 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
       tone: "info" as const
     },
     {
+      label: "Merma por caducidad",
+      value: formatMoney(data.inventory?.shrinkage.totalCost ?? 0),
+      helper: `${data.inventory?.shrinkage.totalUnits ?? 0} unidades dadas de baja.`,
+      info: REPORT_INFO_TEXT.shrinkage,
+      tone: "error" as const
+    },
+    {
       label: "Costo neto",
       value: formatMoney(data.sales.profit.netCost),
       helper: "Costo histórico neto del periodo.",

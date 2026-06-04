@@ -84,26 +84,34 @@ export function useReportsData() {
     lastSuccessfulReportQuery &&
       (lastSuccessfulReportQuery.from !== from || lastSuccessfulReportQuery.to !== to)
   );
-  const canDownloadPdf = Boolean(lastSuccessfulReportQuery) && !reportQueryIsStale && !dateRangeIsInvalid;
-  const pdfDownloadBlockedReason = dateRangeIsInvalid
-    ? "Corrige el rango de fechas antes de descargar el PDF."
-    : !lastSuccessfulReportQuery
-      ? "Consulta un reporte para habilitar la descarga del PDF."
-      : reportQueryIsStale
-        ? "Los filtros cambiaron. Consulta de nuevo para descargar el PDF actualizado."
-        : "";
-
-  const periodLabel = data
-    ? `${data.fromLabel ?? from} al ${data.toLabel ?? to}`
-    : `${from || "—"} al ${to || "—"}`;
-
   const hasReportActivity = Boolean(
     data &&
       (data.sales.count > 0 ||
         data.returns.count > 0 ||
+        (data.inventory?.movements.count ?? 0) > 0 ||
+        (data.inventory?.shrinkage.totalUnits ?? 0) > 0 ||
         data.cashRegister.movements.count > 0 ||
         data.cashRegister.sessions.length > 0)
   );
+  const reportHasDownloadableData = Boolean(data && hasReportActivity);
+  const canDownloadPdf =
+    Boolean(lastSuccessfulReportQuery) &&
+    reportHasDownloadableData &&
+    !reportQueryIsStale &&
+    !dateRangeIsInvalid;
+  const pdfDownloadBlockedReason = dateRangeIsInvalid
+    ? "Corrige el rango de fechas antes de descargar el PDF."
+    : !lastSuccessfulReportQuery
+      ? "Consulta un reporte con datos para habilitar la descarga del PDF."
+      : reportQueryIsStale
+        ? "Los filtros cambiaron. Consulta de nuevo para descargar el PDF actualizado."
+        : !reportHasDownloadableData
+          ? "Primero consulta un reporte con datos para descargar el PDF."
+          : "";
+
+  const periodLabel = data
+    ? `${data.fromLabel ?? from} al ${data.toLabel ?? to}`
+    : `${from || "—"} al ${to || "—"}`;
 
   const hasCashActivity = Boolean(
     data && (data.cashRegister.movements.count > 0 || data.cashRegister.sessions.length > 0)
@@ -214,7 +222,12 @@ export function useReportsData() {
     }
 
     if (!lastSuccessfulReportQuery) {
-      setError("Consulta un reporte antes de descargar el PDF.");
+      setError("Consulta un reporte con datos antes de descargar el PDF.");
+      return;
+    }
+
+    if (!reportHasDownloadableData) {
+      setError("Primero consulta un reporte con datos para descargar el PDF.");
       return;
     }
 

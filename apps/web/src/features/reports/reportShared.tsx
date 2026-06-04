@@ -82,6 +82,74 @@ export type OperationsReport = {
       cashier?: ReportPerson;
     }>;
   };
+  inventory?: {
+    movements: {
+      count: number;
+      unitsIn: number;
+      unitsOut: number;
+      byType: Record<string, number>;
+      byReasonType: Record<string, number>;
+      latest: Array<{
+        id: string;
+        type: string;
+        reasonType: string;
+        reason: string | null;
+        quantity: number;
+        unitCostAtMovement: number | null;
+        costAmount: number | null;
+        product: {
+          id: string | null;
+          sku: string;
+          name: string;
+        };
+        warehouse: {
+          id: string;
+          name: string;
+        } | null;
+        createdAt: string;
+      }>;
+    };
+    shrinkage: {
+      totalUnits: number;
+      totalCost: number;
+      byProduct: Array<{
+        product: {
+          id: string;
+          sku: string | null;
+          name: string;
+        };
+        quantity: number;
+        cost: number;
+      }>;
+      byWarehouse: Array<{
+        warehouse: {
+          id: string | null;
+          name: string;
+        };
+        quantity: number;
+        cost: number;
+      }>;
+      latest: Array<{
+        id: string;
+        type: string;
+        reasonType: string;
+        reason: string | null;
+        quantity: number;
+        unitCostAtMovement: number | null;
+        costAmount: number | null;
+        product: {
+          id: string | null;
+          sku: string;
+          name: string;
+        };
+        warehouse: {
+          id: string;
+          name: string;
+        } | null;
+        createdAt: string;
+      }>;
+    };
+  };
   cashRegister: {
     sessions: Array<{
       id: string;
@@ -134,7 +202,9 @@ export const REPORT_INFO_TEXT = {
   expectedCash:
     "Efectivo calculado por el sistema: apertura más entradas y ventas en efectivo, menos salidas y devoluciones en efectivo.",
   cashDifference:
-    "Diferencia entre el efectivo contado al cerrar caja y el efectivo esperado por el sistema."
+    "Diferencia entre el efectivo contado al cerrar caja y el efectivo esperado por el sistema.",
+  shrinkage:
+    "Costo estimado de las salidas de inventario marcadas como caducidad dentro del periodo consultado."
 } as const;
 
 export function formatMoney(value: number | null | undefined) {

@@ -1415,6 +1415,88 @@ function operationsReportResponse() {
         },
       ],
     },
+    inventory: {
+      movements: {
+        count: 3,
+        unitsIn: 42,
+        unitsOut: 6,
+        byType: {
+          IN: 42,
+          OUT: 6,
+        },
+        byReasonType: {
+          EXPIRATION: 4,
+          OTHER: 2,
+        },
+        latest: [
+          {
+            id: "inventory-movement-expiration-e2e",
+            type: "OUT",
+            reasonType: "EXPIRATION",
+            reason: "Caducidad detectada en almacén",
+            quantity: 4,
+            unitCostAtMovement: 12,
+            costAmount: 48,
+            product: {
+              id: "product-1",
+              sku: "COCA-600",
+              name: "Coca-Cola 600 ml",
+            },
+            warehouse: {
+              id: "warehouse-1",
+              name: "Principal",
+            },
+            createdAt: "2026-05-22T09:30:00.000Z",
+          },
+        ],
+      },
+      shrinkage: {
+        totalUnits: 4,
+        totalCost: 48,
+        byProduct: [
+          {
+            product: {
+              id: "product-1",
+              sku: "COCA-600",
+              name: "Coca-Cola 600 ml",
+            },
+            quantity: 4,
+            cost: 48,
+          },
+        ],
+        byWarehouse: [
+          {
+            warehouse: {
+              id: "warehouse-1",
+              name: "Principal",
+            },
+            quantity: 4,
+            cost: 48,
+          },
+        ],
+        latest: [
+          {
+            id: "inventory-movement-expiration-e2e",
+            type: "OUT",
+            reasonType: "EXPIRATION",
+            reason: "Caducidad detectada en almacén",
+            quantity: 4,
+            unitCostAtMovement: 12,
+            costAmount: 48,
+            product: {
+              id: "product-1",
+              sku: "COCA-600",
+              name: "Coca-Cola 600 ml",
+            },
+            warehouse: {
+              id: "warehouse-1",
+              name: "Principal",
+            },
+            createdAt: "2026-05-22T09:30:00.000Z",
+          },
+        ],
+      },
+    },
     cashRegister: {
       sessions: [],
       movements: {
