@@ -1,5 +1,0 @@
-M	apps/web/e2e/catalog-smoke.spec.ts
-M	apps/web/e2e/module-functional.spec.ts
-M	apps/web/src/features/inventory/InventoryControlHero.tsx
-M	apps/web/src/features/inventory/InventoryStockSection.tsx
-M	apps/web/src/features/inventory/inventoryShared.tsx

@@ -1,4 +1,3 @@
-
 import type { ElementType } from "react";
 
 import { Box, Card, CardContent, Stack, Tab, Tabs, Typography } from "@mui/material";
@@ -19,13 +18,14 @@ import SyncIcon from "@mui/icons-material/Sync";
 import type { InventoryView, Movement, StockItem } from "./inventoryShared";
 import { getInventoryStockSummary } from "./inventoryShared";
 
-type DashboardTone = "primary" | "success" | "error" | "info" | "secondary";
+type HeroTone = "success" | "warning" | "error";
+type MovementTone = "primary" | "success" | "error" | "secondary";
 
 type MovementMetric = {
-  color: DashboardTone;
-  helper: string;
+  color: MovementTone;
   icon: ElementType;
   label: string;
+  shortLabel: string;
   unitsLabel: string;
   value: { count: number; units: number };
 };
@@ -37,16 +37,98 @@ const viewTabs: Array<{ icon: ElementType; label: string; value: InventoryView; 
   { icon: HistoryIcon, label: "Historial", value: "movements" },
 ];
 
-const heroPanelSx = (theme: Theme) => ({
-  minWidth: 0,
+const heroShellSx = (theme: Theme) => ({
+  mb: 2,
+  overflow: "hidden",
   border: 1,
-  borderColor: alpha(theme.palette.primary.main, 0.18),
+  borderColor: alpha(theme.palette.primary.main, 0.28),
   borderRadius: { xs: 3, md: 4 },
   background:
     theme.palette.mode === "dark"
-      ? `linear-gradient(145deg, ${alpha(theme.palette.primary.main, 0.08)}, transparent 48%), ${alpha(theme.palette.background.paper, 0.18)}`
-      : `linear-gradient(145deg, ${alpha(theme.palette.primary.light, 0.16)}, transparent 48%), ${alpha(theme.palette.background.paper, 0.9)}`,
-  boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, theme.palette.mode === "dark" ? 0.045 : 0.58)}`,
+      ? `radial-gradient(circle at 4% 0%, ${alpha(theme.palette.primary.main, 0.28)}, transparent 34%), linear-gradient(118deg, ${alpha(
+          theme.palette.primary.dark,
+          0.28,
+        )}, ${alpha(theme.palette.background.paper, 0.96)} 48%, ${alpha(theme.palette.success.dark, 0.14)})`
+      : `radial-gradient(circle at 4% 0%, ${alpha(theme.palette.primary.light, 0.26)}, transparent 34%), linear-gradient(118deg, ${alpha(
+          theme.palette.primary.light,
+          0.2,
+        )}, ${alpha(theme.palette.background.paper, 0.98)} 48%, ${alpha(theme.palette.success.light, 0.16)})`,
+  boxShadow:
+    theme.palette.mode === "dark"
+      ? `0 18px 50px ${alpha(theme.palette.common.black, 0.28)}`
+      : `0 18px 50px ${alpha(theme.palette.primary.main, 0.1)}`,
+});
+
+const heroContentSx = {
+  p: { xs: 1.15, sm: 1.35, md: 1.5 },
+  "&:last-child": { pb: { xs: 1.15, sm: 1.35, md: 1.5 } },
+};
+
+const heroGridSx = {
+  display: "grid",
+  gridTemplateColumns: { xs: "1fr", lg: "minmax(282px, 0.3fr) minmax(0, 0.7fr)" },
+  gap: { xs: 1.15, md: 1.25 },
+  alignItems: "stretch",
+};
+
+const commandPanelSx = (theme: Theme) => ({
+  position: "relative",
+  minWidth: 0,
+  minHeight: { xs: "auto", lg: 152 },
+  p: { xs: 1.35, md: 1.55 },
+  overflow: "hidden",
+  border: 1,
+  borderColor: alpha(theme.palette.primary.main, 0.18),
+  borderRadius: 3,
+  bgcolor: alpha(theme.palette.background.default, theme.palette.mode === "dark" ? 0.2 : 0.56),
+  "&::before": {
+    content: '""',
+    position: "absolute",
+    insetBlock: 14,
+    left: 0,
+    width: 4,
+    borderRadius: 999,
+    bgcolor: theme.palette.primary.main,
+    boxShadow: `0 0 18px ${alpha(theme.palette.primary.main, 0.42)}`,
+  },
+});
+
+const compactStatsGridSx = {
+  display: "grid",
+  gridTemplateColumns: { xs: "1fr", sm: "1.15fr 0.85fr", lg: "1fr" },
+  gap: 0.8,
+  mt: 1.05,
+};
+
+const operationsPanelSx = (theme: Theme) => ({
+  minWidth: 0,
+  minHeight: { xs: "auto", lg: 152 },
+  p: { xs: 1.2, md: 1.35 },
+  border: 1,
+  borderColor: alpha(theme.palette.primary.main, 0.22),
+  borderRadius: 3,
+  bgcolor: alpha(theme.palette.background.default, theme.palette.mode === "dark" ? 0.16 : 0.48),
+  background:
+    theme.palette.mode === "dark"
+      ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, transparent 52%), ${alpha(theme.palette.background.default, 0.18)}`
+      : `linear-gradient(135deg, ${alpha(theme.palette.primary.light, 0.16)}, transparent 52%), ${alpha(theme.palette.background.paper, 0.72)}`,
+});
+
+const movementGridSx = {
+  display: "grid",
+  gridTemplateColumns: {
+    xs: "1fr",
+    sm: "repeat(2, minmax(0, 1fr))",
+    xl: "repeat(4, minmax(0, 1fr))",
+  },
+  gap: { xs: 0.8, md: 0.9 },
+};
+
+const tabsRailSx = (theme: Theme) => ({
+  mt: 1.15,
+  pt: 1.05,
+  borderTop: 1,
+  borderColor: alpha(theme.palette.primary.main, 0.16),
 });
 
 export function InventoryControlHero({
@@ -64,82 +146,25 @@ export function InventoryControlHero({
 }) {
   const stockSummary = getInventoryStockSummary(stockRows);
   const movementSummary = getMovementSummary(movements);
+  const availableTabs = viewTabs.filter((tab) => canAdjustInventory || !tab.requiresAdjustment);
 
   return (
-    <Card
-      data-testid="inventory-visual-dashboard"
-      sx={(theme) => ({
-        mb: 2,
-        overflow: "hidden",
-        border: 1,
-        borderColor: alpha(theme.palette.primary.main, 0.2),
-        borderRadius: { xs: 3, md: 4.5 },
-        background:
-          theme.palette.mode === "dark"
-            ? `radial-gradient(circle at 12% 0%, ${alpha(theme.palette.primary.main, 0.16)}, transparent 34%), radial-gradient(circle at 92% 4%, ${alpha(theme.palette.success.main, 0.1)}, transparent 26%), ${alpha(theme.palette.background.paper, 0.94)}`
-            : `radial-gradient(circle at 12% 0%, ${alpha(theme.palette.primary.light, 0.18)}, transparent 34%), radial-gradient(circle at 92% 4%, ${alpha(theme.palette.success.light, 0.14)}, transparent 26%), ${alpha(theme.palette.background.paper, 0.98)}`,
-        boxShadow:
-          theme.palette.mode === "dark"
-            ? `0 22px 70px ${alpha(theme.palette.common.black, 0.3)}`
-            : `0 22px 70px ${alpha(theme.palette.primary.main, 0.1)}`,
-      })}
-    >
-      <CardContent sx={{ p: { xs: 1.5, sm: 2, md: 2.25 }, "&:last-child": { pb: { xs: 1.5, sm: 2, md: 2.25 } } }}>
-        <Box
-          sx={{
-            display: "grid",
-            gap: { xs: 1.5, lg: 2 },
-            gridTemplateColumns: { xs: "1fr", lg: "minmax(420px, 0.44fr) minmax(560px, 0.56fr)" },
-            alignItems: "stretch",
-          }}
-        >
-          <InventoryControlPanel
-            activeView={activeView}
-            canAdjustInventory={canAdjustInventory}
-            onViewChange={onViewChange}
-            summary={stockSummary}
-          />
-          <InventoryMovementPanel summary={movementSummary} />
+    <Card data-testid="inventory-visual-dashboard" sx={heroShellSx}>
+      <CardContent sx={heroContentSx}>
+        <Box sx={heroGridSx}>
+          <InventoryCommandPanel canAdjustInventory={canAdjustInventory} stockSummary={stockSummary} />
+          <OperationsRibbon activeView={activeView} availableTabs={availableTabs} movementSummary={movementSummary} onViewChange={onViewChange} />
         </Box>
       </CardContent>
     </Card>
   );
 }
 
-function InventoryControlPanel({
-  activeView,
-  canAdjustInventory,
-  onViewChange,
-  summary,
-}: {
-  activeView: InventoryView;
-  canAdjustInventory: boolean;
-  onViewChange: (value: InventoryView) => void;
-  summary: ReturnType<typeof getInventoryStockSummary>;
-}) {
-  const hasOutOfStock = summary.outOfStock > 0;
-  const hasAttention = summary.attention > 0;
-  const tone: "error" | "warning" | "success" = hasOutOfStock ? "error" : hasAttention ? "warning" : "success";
-  const availableTabs = viewTabs.filter((tab) => canAdjustInventory || !tab.requiresAdjustment);
-  const statusTitle = hasAttention ? "Algunos productos requieren atención" : "Inventario estable";
-  const statusCopy = hasOutOfStock
-    ? "Hay ubicaciones sin unidades. Revisa por almacén antes de reponer."
-    : hasAttention
-      ? "Hay ubicaciones cerca del mínimo. Prioriza reposición por almacén."
-      : "No hay alertas críticas visibles.";
-
+function InventoryCommandPanel({ canAdjustInventory, stockSummary }: { canAdjustInventory: boolean; stockSummary: ReturnType<typeof getInventoryStockSummary> }) {
   return (
-    <Box
-      sx={(theme) => ({
-        ...heroPanelSx(theme),
-        p: { xs: 1.45, sm: 1.75, md: 2 },
-        display: "grid",
-        gridTemplateRows: "auto auto auto",
-        gap: { xs: 1.2, sm: 1.35 },
-      })}
-    >
-      <Box sx={{ minWidth: 0 }}>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+    <Box sx={commandPanelSx}>
+      <Stack spacing={0.15} sx={{ pl: 0.45, minWidth: 0 }}>
+        <Stack direction="row" spacing={0.9} alignItems="center" sx={{ minWidth: 0 }}>
           <Box
             aria-hidden="true"
             sx={(theme) => ({
@@ -148,44 +173,256 @@ function InventoryControlPanel({
               width: 34,
               height: 34,
               flex: "0 0 auto",
-              borderRadius: 2.3,
+              borderRadius: 2.1,
               color: "primary.main",
-              bgcolor: alpha(theme.palette.primary.main, 0.12),
+              bgcolor: alpha(theme.palette.primary.main, 0.14),
               border: 1,
-              borderColor: alpha(theme.palette.primary.main, 0.22),
+              borderColor: alpha(theme.palette.primary.main, 0.26),
             })}
           >
-            <HistoryIcon fontSize="small" />
+            <Inventory2Icon sx={{ fontSize: 19 }} />
           </Box>
           <Typography
             component="h2"
-            variant="h4"
             fontWeight={950}
-            sx={{ letterSpacing: -0.5, lineHeight: 1.05, fontSize: { xs: 23, sm: 27, md: 29 }, overflowWrap: "anywhere" }}
+            sx={{ minWidth: 0, overflowWrap: "anywhere", lineHeight: 1.02, letterSpacing: -0.42, fontSize: { xs: 22, sm: 24, md: 25 } }}
           >
             Control de inventario
           </Typography>
         </Stack>
-        <Typography color="text.secondary" sx={{ mt: 0.75, fontSize: { xs: 13, sm: 13.8 }, lineHeight: 1.42 }}>
-          {canAdjustInventory
-            ? "Consulta existencias y registra ajustes manuales con trazabilidad."
-            : "Consulta existencias e historial operativo. Los ajustes requieren permiso administrativo."}
+        <Typography color="text.secondary" sx={{ maxWidth: 420, fontSize: { xs: 12.3, md: 12.8 }, lineHeight: 1.34 }}>
+          {canAdjustInventory ? "Stock, alertas y ajustes trazables." : "Stock y movimientos visibles. Los ajustes requieren permiso administrativo."}
+        </Typography>
+      </Stack>
+
+      <Box sx={compactStatsGridSx}>
+        <StockStateTile summary={stockSummary} />
+        <TotalUnitsTile units={stockSummary.units} />
+      </Box>
+    </Box>
+  );
+}
+
+function OperationsRibbon({
+  activeView,
+  availableTabs,
+  movementSummary,
+  onViewChange,
+}: {
+  activeView: InventoryView;
+  availableTabs: typeof viewTabs;
+  movementSummary: ReturnType<typeof getMovementSummary>;
+  onViewChange: (value: InventoryView) => void;
+}) {
+  const metrics = getMovementMetrics(movementSummary);
+
+  return (
+    <Box component="section" aria-label="Resumen operativo de inventario" sx={operationsPanelSx}>
+      <Stack spacing={1.1}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between">
+          <Stack direction="row" spacing={0.9} alignItems="center" sx={{ minWidth: 0 }}>
+            <Box
+              aria-hidden="true"
+              sx={(theme) => ({
+                display: "grid",
+                placeItems: "center",
+                width: 36,
+                height: 36,
+                flex: "0 0 auto",
+                borderRadius: 999,
+                color: "primary.main",
+                bgcolor: alpha(theme.palette.primary.main, 0.14),
+                border: 1,
+                borderColor: alpha(theme.palette.primary.main, 0.26),
+              })}
+            >
+              <SyncIcon sx={{ fontSize: 19 }} />
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography component="h3" fontWeight={950} sx={{ lineHeight: 1, letterSpacing: -0.35, fontSize: { xs: 22, sm: 24, md: 26 } }}>
+                Movimientos
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.2, fontSize: { xs: 11.8, md: 12.4 }, lineHeight: 1.22 }}>
+                Entradas, salidas, ventas y devoluciones.
+              </Typography>
+            </Box>
+          </Stack>
+
+          <TotalMovementsBadge total={movementSummary.total} />
+        </Stack>
+
+        <Box sx={movementGridSx}>
+          {metrics.map((metric) => (
+            <MovementMetricCard key={metric.label} metric={metric} />
+          ))}
+        </Box>
+
+        <Box sx={tabsRailSx}>
+          <InventoryViewTabs activeView={activeView} availableTabs={availableTabs} onViewChange={onViewChange} />
+        </Box>
+      </Stack>
+    </Box>
+  );
+}
+
+function StockStateTile({ summary }: { summary: ReturnType<typeof getInventoryStockSummary> }) {
+  const hasOutOfStock = summary.outOfStock > 0;
+  const hasAttention = summary.attention > 0;
+  const tone: HeroTone = hasOutOfStock ? "error" : hasAttention ? "warning" : "success";
+  const title = hasAttention ? "Requieren atención" : "Inventario estable";
+  const description = hasOutOfStock ? "Ubicaciones sin unidades." : hasAttention ? "Cerca del mínimo." : "Sin alertas críticas.";
+
+  return (
+    <CompactTile tone={tone} icon={ReportProblemIcon} label="Estado de existencias" title={title} description={description} />
+  );
+}
+
+function TotalUnitsTile({ units }: { units: number }) {
+  return <CompactTile tone="success" icon={LocalShippingIcon} label="Unidades totales" title={formatInventoryCount(units)} description="Stock visible" />;
+}
+
+function CompactTile({
+  description,
+  icon: Icon,
+  label,
+  title,
+  tone,
+}: {
+  description: string;
+  icon: ElementType;
+  label: string;
+  title: string;
+  tone: HeroTone;
+}) {
+  return (
+    <Box
+      sx={(theme) => ({
+        minWidth: 0,
+        minHeight: 56,
+        p: 0.9,
+        border: 1,
+        borderColor: alpha(theme.palette[tone].main, 0.3),
+        borderRadius: 2.25,
+        display: "grid",
+        gridTemplateColumns: "32px minmax(0, 1fr)",
+        gap: 0.8,
+        alignItems: "center",
+        bgcolor: alpha(theme.palette[tone].main, theme.palette.mode === "dark" ? 0.07 : 0.045),
+      })}
+    >
+      <Box
+        aria-hidden="true"
+        sx={(theme) => ({
+          display: "grid",
+          placeItems: "center",
+          width: 32,
+          height: 32,
+          borderRadius: 1.8,
+          color: theme.palette[tone].contrastText,
+          bgcolor: theme.palette[tone].main,
+        })}
+      >
+        <Icon sx={{ fontSize: 17 }} />
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ display: "block", lineHeight: 1, letterSpacing: 0.32 }}>
+          {label}
+        </Typography>
+        <Typography fontWeight={950} sx={{ mt: 0.25, lineHeight: 1.06, overflowWrap: "anywhere", fontSize: 14.6 }}>
+          {title}
+        </Typography>
+        <Typography color="text.secondary" sx={{ mt: 0.15, fontSize: 11.2, lineHeight: 1.15 }}>
+          {description}
         </Typography>
       </Box>
+    </Box>
+  );
+}
 
+function TotalMovementsBadge({ total }: { total: number }) {
+  return (
+    <Box
+      sx={(theme) => ({
+        minWidth: { xs: "100%", sm: 118 },
+        px: 1.2,
+        py: 0.75,
+        border: 1,
+        borderColor: alpha(theme.palette.primary.main, 0.26),
+        borderRadius: 2.25,
+        textAlign: { xs: "left", sm: "center" },
+        bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.08 : 0.05),
+      })}
+    >
+      <Typography fontWeight={950} sx={{ lineHeight: 0.95, letterSpacing: -0.35, fontSize: 24 }}>
+        {formatInventoryCount(total)}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" fontWeight={850} sx={{ display: "block", mt: 0.2, lineHeight: 1 }}>
+        Total movimientos
+      </Typography>
+    </Box>
+  );
+}
+
+function MovementMetricCard({ metric }: { metric: MovementMetric }) {
+  const Icon = metric.icon;
+
+  return (
+    <Box
+      sx={(theme) => ({
+        position: "relative",
+        minWidth: 0,
+        minHeight: { xs: 64, md: 70 },
+        p: { xs: 0.85, md: 0.95 },
+        overflow: "hidden",
+        border: 1,
+        borderColor: alpha(theme.palette[metric.color].main, 0.34),
+        borderRadius: 2.4,
+        display: "grid",
+        gridTemplateColumns: "34px minmax(0, 1fr) auto",
+        gap: 0.85,
+        alignItems: "center",
+        bgcolor: alpha(theme.palette[metric.color].main, theme.palette.mode === "dark" ? 0.065 : 0.04),
+        "&::after": {
+          content: '""',
+          position: "absolute",
+          insetInline: 12,
+          bottom: 0,
+          height: 3,
+          borderRadius: 999,
+          bgcolor: theme.palette[metric.color].main,
+        },
+      })}
+    >
       <Box
-        sx={{
+        aria-hidden="true"
+        sx={(theme) => ({
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "minmax(0, 1fr) minmax(138px, 0.35fr)" },
-          gap: { xs: 1, sm: 1.1 },
-          alignItems: "stretch",
-        }}
+          placeItems: "center",
+          width: 34,
+          height: 34,
+          borderRadius: 2,
+          color: theme.palette[metric.color].main,
+          bgcolor: alpha(theme.palette[metric.color].main, 0.14),
+          border: 1,
+          borderColor: alpha(theme.palette[metric.color].main, 0.24),
+        })}
       >
-        <StockAttentionCard tone={tone} title={statusTitle} description={statusCopy} />
-        <TotalUnitsCard units={summary.units} />
+        <Icon sx={{ fontSize: 20 }} />
       </Box>
-
-      <InventoryViewTabs activeView={activeView} availableTabs={availableTabs} onViewChange={onViewChange} />
+      <Box sx={{ minWidth: 0 }}>
+        <Typography fontWeight={950} sx={{ overflowWrap: "anywhere", lineHeight: 1.05, fontSize: 13.8 }}>
+          {metric.label}
+        </Typography>
+        <Typography color="text.secondary" sx={{ mt: 0.15, overflowWrap: "anywhere", lineHeight: 1.1, fontSize: 11.3 }}>
+          {metric.shortLabel}
+        </Typography>
+        <Typography color="text.secondary" fontWeight={850} sx={{ mt: 0.25, overflowWrap: "anywhere", lineHeight: 1.05, fontSize: 10.8 }}>
+          {formatInventoryCount(metric.value.units)} {metric.unitsLabel}
+        </Typography>
+      </Box>
+      <Typography fontWeight={950} sx={{ lineHeight: 1, letterSpacing: -0.28, fontSize: { xs: 23, md: 26 }, textAlign: "right" }}>
+        {formatInventoryCount(metric.value.count)}
+      </Typography>
     </Box>
   );
 }
@@ -208,301 +445,33 @@ function InventoryViewTabs({
       aria-label="Secciones de inventario"
       sx={(theme) => ({
         minHeight: 34,
-        borderTop: 1,
-        borderColor: alpha(theme.palette.primary.main, 0.1),
-        pt: 0.9,
         "& .MuiTabs-indicator": { height: 3, borderRadius: 999 },
         "& .MuiTab-root": {
           minHeight: 32,
           border: 1,
-          borderColor: alpha(theme.palette.primary.main, 0.14),
+          borderColor: alpha(theme.palette.primary.main, 0.16),
           borderRadius: 999,
           color: "text.secondary",
-          fontSize: 12.5,
+          fontSize: 12.2,
           fontWeight: 850,
           gap: 0.55,
-          mr: 0.65,
+          mr: 0.7,
           minWidth: "auto",
-          px: 1.2,
+          px: 1.15,
           textTransform: "none",
           "&.Mui-selected": {
             color: "primary.main",
-            bgcolor: alpha(theme.palette.primary.main, 0.12),
-            borderColor: alpha(theme.palette.primary.main, 0.34),
+            bgcolor: alpha(theme.palette.primary.main, 0.14),
+            borderColor: alpha(theme.palette.primary.main, 0.36),
           },
         },
       })}
     >
       {availableTabs.map((tab) => {
         const Icon = tab.icon;
-        return <Tab key={tab.value} value={tab.value} icon={<Icon sx={{ fontSize: 16 }} />} iconPosition="start" label={tab.label} />;
+        return <Tab key={tab.value} value={tab.value} icon={<Icon sx={{ fontSize: 15 }} />} iconPosition="start" label={tab.label} />;
       })}
     </Tabs>
-  );
-}
-
-function StockAttentionCard({ description, title, tone }: { description: string; title: string; tone: "error" | "warning" | "success" }) {
-  return (
-    <Box
-      sx={(theme) => ({
-        minWidth: 0,
-        minHeight: { xs: 88, sm: 96 },
-        border: 1,
-        borderColor: alpha(theme.palette[tone].main, 0.3),
-        borderRadius: 2.75,
-        p: { xs: 1.1, sm: 1.25 },
-        display: "grid",
-        gridTemplateColumns: "38px minmax(0, 1fr)",
-        gap: 1,
-        alignItems: "center",
-        bgcolor: alpha(theme.palette[tone].main, theme.palette.mode === "dark" ? 0.07 : 0.04),
-        background:
-          theme.palette.mode === "dark"
-            ? `linear-gradient(135deg, ${alpha(theme.palette[tone].main, 0.14)}, transparent 58%), ${alpha(theme.palette.background.paper, 0.13)}`
-            : `linear-gradient(135deg, ${alpha(theme.palette[tone].main, 0.1)}, transparent 58%), ${alpha(theme.palette.background.paper, 0.78)}`,
-      })}
-    >
-      <Box
-        sx={(theme) => ({
-          display: "grid",
-          placeItems: "center",
-          width: 38,
-          height: 38,
-          borderRadius: 999,
-          color: theme.palette[tone].contrastText,
-          bgcolor: theme.palette[tone].main,
-          boxShadow: `0 12px 26px ${alpha(theme.palette[tone].main, 0.22)}`,
-        })}
-      >
-        <ReportProblemIcon fontSize="small" />
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={950} sx={{ letterSpacing: 0.45, textTransform: "uppercase" }}>
-          Estado de existencias
-        </Typography>
-        <Typography fontWeight={950} sx={{ mt: 0.1, lineHeight: 1.1, overflowWrap: "anywhere", fontSize: { xs: 15.2, sm: 16.2 } }}>
-          {title}
-        </Typography>
-        <Typography color="text.secondary" sx={{ mt: 0.3, fontSize: { xs: 12.2, sm: 12.8 }, lineHeight: 1.3 }}>
-          {description}
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
-
-function TotalUnitsCard({ units }: { units: number }) {
-  return (
-    <Box
-      sx={(theme) => ({
-        minWidth: 0,
-        minHeight: { xs: 82, sm: 96 },
-        border: 1,
-        borderColor: alpha(theme.palette.info.main, 0.24),
-        borderRadius: 2.75,
-        p: { xs: 1.05, sm: 1.2 },
-        display: "grid",
-        gridTemplateColumns: { xs: "36px minmax(0, 1fr)", sm: "1fr" },
-        gap: { xs: 0.9, sm: 0.45 },
-        alignItems: "center",
-        bgcolor: alpha(theme.palette.info.main, theme.palette.mode === "dark" ? 0.075 : 0.04),
-        background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.12)}, transparent 62%)`,
-      })}
-    >
-      <Box
-        sx={(theme) => ({
-          display: "grid",
-          placeItems: "center",
-          width: 34,
-          height: 34,
-          borderRadius: 2.3,
-          color: "info.main",
-          bgcolor: alpha(theme.palette.info.main, 0.13),
-        })}
-      >
-        <LocalShippingIcon fontSize="small" />
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="h5" fontWeight={950} sx={{ lineHeight: 0.95, letterSpacing: -0.3 }}>
-          {units}
-        </Typography>
-        <Typography fontWeight={950} sx={{ mt: 0.15, lineHeight: 1.08, fontSize: 12.5 }}>
-          Unidades totales
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25, lineHeight: 1.2 }}>
-          Stock visible
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
-
-function InventoryMovementPanel({ summary }: { summary: ReturnType<typeof getMovementSummary> }) {
-  const metrics = getMovementMetrics(summary);
-
-  return (
-    <Box
-      sx={(theme) => ({
-        ...heroPanelSx(theme),
-        p: { xs: 1.45, sm: 1.75, md: 2 },
-        display: "grid",
-        gridTemplateRows: "auto auto",
-        gap: { xs: 1.2, sm: 1.35 },
-        background:
-          theme.palette.mode === "dark"
-            ? `radial-gradient(circle at 0% 0%, ${alpha(theme.palette.primary.main, 0.2)}, transparent 36%), ${alpha(theme.palette.background.paper, 0.16)}`
-            : `radial-gradient(circle at 0% 0%, ${alpha(theme.palette.primary.main, 0.13)}, transparent 36%), ${alpha(theme.palette.background.paper, 0.82)}`,
-      })}
-    >
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "minmax(0, 1fr) auto" }, gap: 1.1, alignItems: "center" }}>
-        <Stack direction="row" spacing={1.05} alignItems="center" sx={{ minWidth: 0 }}>
-          <Box
-            sx={(theme) => ({
-              display: "grid",
-              placeItems: "center",
-              flex: "0 0 auto",
-              width: 38,
-              height: 38,
-              borderRadius: 999,
-              color: "primary.main",
-              bgcolor: alpha(theme.palette.primary.main, 0.14),
-              border: 1,
-              borderColor: alpha(theme.palette.primary.main, 0.24),
-            })}
-          >
-            <SyncIcon fontSize="small" />
-          </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              component="h3"
-              variant="h4"
-              fontWeight={950}
-              sx={{ lineHeight: 1, letterSpacing: -0.6, fontSize: { xs: 26, sm: 31, md: 34 }, overflowWrap: "anywhere" }}
-            >
-              Movimientos
-            </Typography>
-            <Typography color="text.secondary" fontWeight={800} sx={{ mt: 0.35, fontSize: { xs: 12.5, sm: 13 } }}>
-              Resumen de actividad del inventario
-            </Typography>
-          </Box>
-        </Stack>
-
-        <Box
-          sx={(theme) => ({
-            minWidth: { xs: "100%", sm: 130 },
-            border: 1,
-            borderColor: alpha(theme.palette.primary.main, 0.22),
-            borderRadius: 2.8,
-            px: 1.4,
-            py: 1,
-            textAlign: { xs: "left", sm: "center" },
-            bgcolor: alpha(theme.palette.background.default, theme.palette.mode === "dark" ? 0.18 : 0.58),
-          })}
-        >
-          <Typography variant="h3" fontWeight={950} sx={{ lineHeight: 0.9, letterSpacing: -0.7 }}>
-            {summary.total}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" fontWeight={850} sx={{ mt: 0.35 }}>
-            Total movimientos
-          </Typography>
-        </Box>
-      </Box>
-
-      <Box
-        sx={{
-          display: "grid",
-          gap: { xs: 1, sm: 1.1 },
-          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", xl: "repeat(4, minmax(0, 1fr))" },
-          alignItems: "stretch",
-        }}
-      >
-        {metrics.map((metric) => (
-          <MovementMetricCard key={metric.label} metric={metric} />
-        ))}
-      </Box>
-    </Box>
-  );
-}
-
-function MovementMetricCard({ metric }: { metric: MovementMetric }) {
-  const Icon = metric.icon;
-
-  return (
-    <Box
-      sx={(theme) => ({
-        position: "relative",
-        minWidth: 0,
-        minHeight: { xs: 100, xl: 126 },
-        border: 1,
-        borderColor: alpha(theme.palette[metric.color].main, 0.32),
-        borderRadius: 3,
-        p: { xs: 1.15, sm: 1.25 },
-        display: "grid",
-        gridTemplateRows: "auto 1fr auto",
-        gap: { xs: 0.75, xl: 1 },
-        overflow: "hidden",
-        bgcolor: alpha(theme.palette[metric.color].main, theme.palette.mode === "dark" ? 0.06 : 0.035),
-        background:
-          theme.palette.mode === "dark"
-            ? `linear-gradient(135deg, ${alpha(theme.palette[metric.color].main, 0.13)}, transparent 58%), ${alpha(theme.palette.background.default, 0.18)}`
-            : `linear-gradient(135deg, ${alpha(theme.palette[metric.color].main, 0.09)}, transparent 58%), ${alpha(theme.palette.background.paper, 0.82)}`,
-        "&::after": {
-          content: '""',
-          position: "absolute",
-          left: 12,
-          right: 12,
-          bottom: 0,
-          height: 3,
-          borderRadius: 999,
-          bgcolor: theme.palette[metric.color].main,
-        },
-      })}
-    >
-      <Stack
-        direction={{ xs: "row", xl: "column" }}
-        spacing={{ xs: 0.9, xl: 0.6 }}
-        alignItems={{ xs: "center", xl: "flex-start" }}
-        sx={{ minWidth: 0 }}
-      >
-        <Box
-          sx={(theme) => ({
-            display: "grid",
-            placeItems: "center",
-            width: { xs: 36, xl: 48 },
-            height: { xs: 36, xl: 48 },
-            flex: "0 0 auto",
-            borderRadius: 999,
-            color: theme.palette[metric.color].main,
-            bgcolor: alpha(theme.palette[metric.color].main, 0.13),
-            border: 1,
-            borderColor: alpha(theme.palette[metric.color].main, 0.22),
-          })}
-        >
-          <Icon sx={{ fontSize: { xs: 19, xl: 29 } }} />
-        </Box>
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography variant="h4" fontWeight={950} sx={{ lineHeight: 0.95, letterSpacing: -0.45, fontSize: { xs: 23, xl: 30 } }}>
-            {metric.value.count}
-          </Typography>
-          <Typography fontWeight={900} sx={{ mt: 0.25, lineHeight: 1.1, fontSize: { xs: 12.8, xl: 14.5 } }}>
-            {metric.label}
-          </Typography>
-        </Box>
-      </Stack>
-
-      <Typography
-        color="text.secondary"
-        sx={{ alignSelf: "center", display: { xs: "none", sm: "block" }, fontSize: { sm: 11.6, xl: 12.4 }, lineHeight: 1.28 }}
-      >
-        {metric.helper}
-      </Typography>
-
-      <Box sx={(theme) => ({ borderTop: 1, borderColor: alpha(theme.palette[metric.color].main, 0.22), pt: 0.75 })}>
-        <Typography fontWeight={900} sx={{ fontSize: { xs: 12.5, xl: 13.5 }, lineHeight: 1.15, overflowWrap: "anywhere" }}>
-          {metric.value.units} {metric.unitsLabel}
-        </Typography>
-      </Box>
-    </Box>
   );
 }
 
@@ -542,35 +511,39 @@ function getMovementMetrics(summary: ReturnType<typeof getMovementSummary>): Mov
   return [
     {
       color: "success",
-      helper: "Unidades recibidas por reposición",
       icon: KeyboardArrowDownIcon,
       label: "Entradas",
-      unitsLabel: "unidades recibidas",
+      shortLabel: "Stock recibido",
+      unitsLabel: "recibidas",
       value: summary.entries,
     },
     {
       color: "error",
-      helper: "Unidades retiradas por ajuste o merma",
       icon: KeyboardArrowUpIcon,
       label: "Salidas",
-      unitsLabel: "unidades retiradas",
+      shortLabel: "Retiros y merma",
+      unitsLabel: "retiradas",
       value: summary.exits,
     },
     {
       color: "primary",
-      helper: "Unidades descontadas por ventas",
       icon: ShoppingCartIcon,
       label: "Ventas",
-      unitsLabel: "unidades vendidas",
+      shortLabel: "Stock vendido",
+      unitsLabel: "vendidas",
       value: summary.sales,
     },
     {
       color: "secondary",
-      helper: "Unidades devueltas al inventario",
       icon: KeyboardReturnIcon,
       label: "Devoluciones",
-      unitsLabel: "unidades devueltas",
+      shortLabel: "Stock devuelto",
+      unitsLabel: "devueltas",
       value: summary.returns,
     },
   ];
+}
+
+function formatInventoryCount(value: number) {
+  return new Intl.NumberFormat("es-MX").format(value);
 }
