@@ -23,6 +23,7 @@ jest.mock("../src/config/prisma", () => ({
 }));
 
 import {
+  approveInventoryTransferRequest,
   createInventoryTransferRequest,
   createWarehouse,
   decreaseStock,
@@ -363,6 +364,170 @@ describe("inventory.service", () => {
       } satisfies Partial<AppError>);
 
       expect(tx.inventoryTransferRequest.create).not.toHaveBeenCalled();
+    });
+  });
+
+
+  describe("approveInventoryTransferRequest", () => {
+    function mockPendingTransferRequest() {
+      return {
+        id: "transfer-request-1",
+        status: "PENDING",
+        fromWarehouseId: "warehouse-1",
+        toWarehouseId: "seller-warehouse-1",
+        requestedById: "seller-1",
+        fromWarehouse: {
+          id: "warehouse-1",
+          name: "Principal",
+          type: "STORAGE",
+          sellerId: null,
+          isActive: true
+        },
+        toWarehouse: {
+          id: "seller-warehouse-1",
+          name: "Stock vendedor: Vendedor Uno",
+          type: "SELLER",
+          sellerId: "seller-1",
+          isActive: true
+        },
+        items: [
+          {
+            id: "transfer-request-item-1",
+            productId: "product-1",
+            productSku: "CAFE-250",
+            productName: "Café",
+            quantity: 4
+          }
+        ]
+      };
+    }
+
+    it("approves a pending request by moving stock from storage to seller warehouse", async () => {
+      const tx = createTransactionMock();
+      mockPrisma.$transaction.mockImplementation(async (callback) => callback(tx));
+      tx.inventoryTransferRequest.findUnique.mockResolvedValue(mockPendingTransferRequest());
+      tx.product.findUnique.mockResolvedValue({
+        id: "product-1",
+        sku: "CAFE-250",
+        name: "Café",
+        costPrice: 10,
+        isActive: true
+      });
+      tx.warehouse.findUnique.mockImplementation(async ({ where }: { where: { id: string } }) => ({
+        id: where.id,
+        name: where.id === "warehouse-1" ? "Principal" : "Stock vendedor: Vendedor Uno",
+        isActive: true
+      }));
+      tx.inventoryBalance.updateMany.mockResolvedValue({
+        count: 1
+      });
+      tx.inventoryMovement.create.mockResolvedValue({
+        id: "movement-1"
+      });
+      tx.inventoryTransferRequest.update.mockResolvedValue({
+        id: "transfer-request-1",
+        status: "APPROVED",
+        reviewNote: "Aprobado"
+      });
+
+      const result = await approveInventoryTransferRequest({
+        requestId: "transfer-request-1",
+        reviewedById: "admin-1",
+        reviewNote: " Aprobado "
+      });
+
+      expect(tx.inventoryBalance.updateMany).toHaveBeenCalledWith({
+        where: {
+          productId: "product-1",
+          warehouseId: "warehouse-1",
+          quantity: {
+            gte: 4
+          }
+        },
+        data: {
+          quantity: {
+            decrement: 4
+          }
+        }
+      });
+      expect(tx.inventoryBalance.upsert).toHaveBeenCalledWith({
+        where: {
+          productId_warehouseId: {
+            productId: "product-1",
+            warehouseId: "seller-warehouse-1"
+          }
+        },
+        update: {
+          quantity: {
+            increment: 4
+          }
+        },
+        create: {
+          productId: "product-1",
+          warehouseId: "seller-warehouse-1",
+          quantity: 4
+        }
+      });
+      expect(tx.inventoryMovement.create).toHaveBeenCalledTimes(2);
+      expect(tx.inventoryTransferRequest.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: "transfer-request-1"
+          },
+          data: expect.objectContaining({
+            status: "APPROVED",
+            reviewedBy: {
+              connect: {
+                id: "admin-1"
+              }
+            },
+            reviewNote: "Aprobado",
+            reviewedAt: expect.any(Date)
+          })
+        })
+      );
+      expect(result).toEqual({
+        id: "transfer-request-1",
+        status: "APPROVED",
+        reviewNote: "Aprobado"
+      });
+    });
+
+    it("keeps a request pending when source stock is no longer enough", async () => {
+      const tx = createTransactionMock();
+      mockPrisma.$transaction.mockImplementation(async (callback) => callback(tx));
+      tx.inventoryTransferRequest.findUnique.mockResolvedValue(mockPendingTransferRequest());
+      tx.product.findUnique.mockResolvedValue({
+        id: "product-1",
+        sku: "CAFE-250",
+        name: "Café",
+        costPrice: 10,
+        isActive: true
+      });
+      tx.warehouse.findUnique.mockResolvedValue({
+        id: "warehouse-1",
+        name: "Principal",
+        isActive: true
+      });
+      tx.inventoryBalance.updateMany.mockResolvedValue({
+        count: 0
+      });
+      tx.inventoryBalance.findUnique.mockResolvedValue({
+        quantity: 1
+      });
+
+      await expect(
+        approveInventoryTransferRequest({
+          requestId: "transfer-request-1",
+          reviewedById: "admin-1"
+        })
+      ).rejects.toMatchObject({
+        statusCode: 409,
+        message: "Stock insuficiente para aprobar retiro de Café. Almacén: Principal. Stock actual: 1."
+      } satisfies Partial<AppError>);
+
+      expect(tx.inventoryBalance.upsert).not.toHaveBeenCalled();
+      expect(tx.inventoryTransferRequest.update).not.toHaveBeenCalled();
     });
   });
 

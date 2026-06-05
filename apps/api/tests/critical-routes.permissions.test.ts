@@ -38,6 +38,7 @@ const inventoryServiceMock = {
   getProductStocks: jest.fn(),
   ensureSellerStockWarehouse: jest.fn(),
   createInventoryTransferRequest: jest.fn(),
+  approveInventoryTransferRequest: jest.fn(),
   rejectInventoryTransferRequest: jest.fn()
 };
 
@@ -321,6 +322,14 @@ describe("critical route permissions", () => {
       undefined
     ],
     [
+      "aprobar solicitud de retiro de stock",
+      "post",
+      "/api/inventory/transfer-requests/00000000-0000-4000-8000-000000000007/approve",
+      {
+        reviewNote: "Procede"
+      }
+    ],
+    [
       "rechazar solicitud de retiro de stock",
       "post",
       "/api/inventory/transfer-requests/00000000-0000-4000-8000-000000000007/reject",
@@ -487,6 +496,34 @@ describe("critical route permissions", () => {
         reason: "Necesito stock para ruta"
       })
     );
+  });
+
+
+  it("allows ADMIN to approve pending inventory transfer requests", async () => {
+    authenticateAs(ADMIN_USER);
+    inventoryServiceMock.approveInventoryTransferRequest.mockResolvedValue({
+      id: "transfer-request-1",
+      status: "APPROVED",
+      requestedById: CASHIER_USER.id,
+      reviewedById: ADMIN_USER.id,
+      reason: "Necesito stock",
+      reviewNote: "Procede",
+      items: []
+    });
+
+    const response = await request(app)
+      .post("/api/inventory/transfer-requests/00000000-0000-4000-8000-000000000007/approve")
+      .set(AUTH_HEADER)
+      .send({
+        reviewNote: "Procede"
+      });
+
+    expect(response.status).toBe(200);
+    expect(inventoryServiceMock.approveInventoryTransferRequest).toHaveBeenCalledWith({
+      requestId: "00000000-0000-4000-8000-000000000007",
+      reviewedById: ADMIN_USER.id,
+      reviewNote: "Procede"
+    });
   });
 
   it("allows ADMIN to reject pending inventory transfer requests", async () => {

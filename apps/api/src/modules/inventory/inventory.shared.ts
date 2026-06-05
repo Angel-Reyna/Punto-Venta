@@ -142,6 +142,21 @@ export const inventoryTransferRequestSchema = z.object({
   })
 });
 
+
+export const inventoryTransferRequestApprovalSchema = z.object({
+  params: z.object({
+    requestId: z.string().uuid()
+  }),
+  body: z.object({
+    reviewNote: z
+      .string()
+      .trim()
+      .max(255, "La nota de revisión no puede superar 255 caracteres.")
+      .optional()
+      .nullable()
+  })
+});
+
 export const inventoryTransferRequestReviewSchema = z.object({
   params: z.object({
     requestId: z.string().uuid()

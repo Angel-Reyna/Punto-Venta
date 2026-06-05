@@ -19,6 +19,7 @@ import {
   mapWarehouseAuditData
 } from "./inventory.mappers";
 import {
+  approveInventoryTransferRequest,
   createInventoryTransferRequest,
   createWarehouse,
   ensureSellerStockWarehouse,
@@ -34,6 +35,7 @@ import {
   listWarehouses
 } from "./inventory.queries";
 import {
+  inventoryTransferRequestApprovalSchema,
   inventoryTransferRequestReviewSchema,
   inventoryTransferRequestSchema,
   movementSchema,
@@ -159,6 +161,31 @@ inventoryRouter.post(
     });
 
     res.status(201).json(request);
+  })
+);
+
+
+inventoryRouter.post(
+  "/transfer-requests/:requestId/approve",
+  requirePermission(PERMISSIONS.InventoryTransferRequestReview),
+  validate(inventoryTransferRequestApprovalSchema),
+  asyncHandler(async (req, res) => {
+    const request = await approveInventoryTransferRequest({
+      requestId: req.params.requestId,
+      reviewedById: req.user!.id,
+      reviewNote: req.body.reviewNote
+    });
+
+    await auditLog({
+      userId: req.user?.id,
+      action: "INVENTORY_TRANSFER_REQUEST_APPROVE",
+      tableName: "InventoryTransferRequest",
+      recordId: request.id,
+      newData: mapInventoryTransferRequestAuditData(request),
+      ipAddress: req.ip
+    });
+
+    res.json(request);
   })
 );
 

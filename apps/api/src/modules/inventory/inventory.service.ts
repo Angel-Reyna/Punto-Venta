@@ -433,7 +433,8 @@ export const inventoryTransferRequestInclude = {
       id: true,
       name: true,
       type: true,
-      sellerId: true
+      sellerId: true,
+      isActive: true
     }
   },
   toWarehouse: {
@@ -441,7 +442,8 @@ export const inventoryTransferRequestInclude = {
       id: true,
       name: true,
       type: true,
-      sellerId: true
+      sellerId: true,
+      isActive: true
     }
   },
   requestedBy: {
@@ -470,6 +472,99 @@ export const inventoryTransferRequestInclude = {
 export type InventoryTransferRequestWithDetails = Prisma.InventoryTransferRequestGetPayload<{
   include: typeof inventoryTransferRequestInclude;
 }>;
+
+
+export async function approveInventoryTransferRequest(input: {
+  requestId: string;
+  reviewedById: string;
+  reviewNote?: string | null;
+}) {
+  const reviewNote = input.reviewNote?.trim() || null;
+
+  return prisma.$transaction(async (tx) => {
+    const request = await tx.inventoryTransferRequest.findUnique({
+      where: {
+        id: input.requestId
+      },
+      include: inventoryTransferRequestInclude
+    });
+
+    if (!request) {
+      throw new AppError(404, "Solicitud de retiro no encontrada");
+    }
+
+    if (request.status !== InventoryTransferRequestStatus.PENDING) {
+      throw new AppError(409, "Solo se pueden aprobar solicitudes pendientes.");
+    }
+
+    if (!request.fromWarehouse.isActive) {
+      throw new AppError(400, `Almacén origen inactivo: ${request.fromWarehouse.name}`);
+    }
+
+    if (request.fromWarehouse.type !== WarehouseType.STORAGE) {
+      throw new AppError(400, "El almacén origen debe ser un almacén operativo.");
+    }
+
+    if (!request.toWarehouse.isActive) {
+      throw new AppError(400, `Almacén destino inactivo: ${request.toWarehouse.name}`);
+    }
+
+    if (request.toWarehouse.type !== WarehouseType.SELLER) {
+      throw new AppError(400, "El almacén destino debe ser stock de vendedor.");
+    }
+
+    if (request.toWarehouse.sellerId !== request.requestedById) {
+      throw new AppError(409, "La solicitud no apunta al stock del vendedor solicitante.");
+    }
+
+    for (const item of request.items) {
+      if (!item.productId) {
+        throw new AppError(
+          409,
+          `No se puede aprobar el retiro de ${item.productName} porque el producto ya no existe.`
+        );
+      }
+
+      await decreaseStock(tx, {
+        productId: item.productId,
+        warehouseId: request.fromWarehouseId,
+        quantity: item.quantity,
+        reason: `Retiro aprobado para ${request.toWarehouse.name}`,
+        type: InventoryType.OUT,
+        createdBy: input.reviewedById,
+        insufficientStockMessage: `Stock insuficiente para aprobar retiro de ${item.productName}.`
+      });
+
+      await increaseStock(tx, {
+        productId: item.productId,
+        warehouseId: request.toWarehouseId,
+        quantity: item.quantity,
+        reason: `Stock asignado desde ${request.fromWarehouse.name}`,
+        type: InventoryType.IN,
+        createdBy: input.reviewedById
+      });
+    }
+
+    return tx.inventoryTransferRequest.update({
+      where: {
+        id: input.requestId
+      },
+      data: {
+        status: InventoryTransferRequestStatus.APPROVED,
+        reviewedBy: {
+          connect: {
+            id: input.reviewedById
+          }
+        },
+        reviewNote,
+        reviewedAt: new Date()
+      },
+      include: inventoryTransferRequestInclude
+    });
+  }, {
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+  });
+}
 
 export async function rejectInventoryTransferRequest(input: {
   requestId: string;
