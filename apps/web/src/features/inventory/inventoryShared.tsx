@@ -9,6 +9,8 @@ export type Product = {
 export type StockLocation = {
   warehouseId: string;
   warehouseName: string;
+  warehouseType?: "STORAGE" | "SELLER";
+  sellerId?: string | null;
   quantity: number;
 };
 
@@ -31,6 +33,8 @@ export type Warehouse = {
   id: string;
   name: string;
   description?: string | null;
+  type?: "STORAGE" | "SELLER";
+  sellerId?: string | null;
   isActive: boolean;
 };
 
@@ -60,6 +64,8 @@ export type Movement = {
   warehouse?: {
     id: string;
     name: string;
+    type?: "STORAGE" | "SELLER";
+    sellerId?: string | null;
   } | null;
 };
 

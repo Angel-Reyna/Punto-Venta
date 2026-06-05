@@ -20,6 +20,11 @@ enum InventoryType {
   RETURN
 }
 
+enum WarehouseType {
+  STORAGE
+  SELLER
+}
+
 enum InventoryReasonType {
   EXPIRATION
   OTHER
@@ -77,6 +82,7 @@ model User {
   audits               AuditLog[]
   sessions             RefreshSession[]
   sellerLogs           SellerActivityLog[]
+  sellerWarehouse      Warehouse? @relation("SellerWarehouse")
 
   @@index([role])
   @@index([isActive])
@@ -164,17 +170,21 @@ model Product {
 }
 
 model Warehouse {
-  id          String   @id @default(uuid())
-  name        String   @unique
+  id          String        @id @default(uuid())
+  name        String        @unique
   description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  type        WarehouseType @default(STORAGE)
+  sellerId    String?       @unique
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
+  seller             User?               @relation("SellerWarehouse", fields: [sellerId], references: [id], onDelete: SetNull)
   inventoryMoves     InventoryMovement[]
-  inventoryBalances InventoryBalance[]
+  inventoryBalances  InventoryBalance[]
 
   @@index([isActive])
+  @@index([type])
 }
 
 

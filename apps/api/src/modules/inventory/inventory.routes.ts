@@ -19,16 +19,19 @@ import {
 } from "./inventory.mappers";
 import {
   createWarehouse,
+  ensureSellerStockWarehouse,
   recordInventoryIn,
   recordInventoryOut
 } from "./inventory.service";
 import {
   listInventoryMovements,
   listProductStock,
+  listSellerStock,
   listWarehouses
 } from "./inventory.queries";
 import {
   movementSchema,
+  sellerStockWarehouseParamsSchema,
   warehouseSchema
 } from "./inventory.shared";
 
@@ -59,6 +62,43 @@ inventoryRouter.post(
     await auditLog({
       userId: req.user?.id,
       action: "INVENTORY_WAREHOUSE_CREATE",
+      tableName: "Warehouse",
+      recordId: warehouse.id,
+      newData: mapWarehouseAuditData(warehouse),
+      ipAddress: req.ip
+    });
+
+    res.status(201).json(warehouse);
+  })
+);
+
+
+inventoryRouter.get(
+  "/seller-stock",
+  requirePermission(PERMISSIONS.InventoryRead),
+  asyncHandler(async (req, res) => {
+    const result = await listSellerStock(
+      {
+        id: req.user!.id,
+        role: req.user!.role
+      },
+      req.query as Record<string, unknown>
+    );
+
+    res.json(result);
+  })
+);
+
+inventoryRouter.post(
+  "/seller-stock/:sellerId/warehouse",
+  requirePermission(PERMISSIONS.InventoryAdjust),
+  validate(sellerStockWarehouseParamsSchema),
+  asyncHandler(async (req, res) => {
+    const warehouse = await ensureSellerStockWarehouse(String(req.params.sellerId));
+
+    await auditLog({
+      userId: req.user?.id,
+      action: "INVENTORY_SELLER_WAREHOUSE_ENSURE",
       tableName: "Warehouse",
       recordId: warehouse.id,
       newData: mapWarehouseAuditData(warehouse),

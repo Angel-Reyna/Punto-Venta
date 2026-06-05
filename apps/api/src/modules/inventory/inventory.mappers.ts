@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, WarehouseType } from "@prisma/client";
 
 export const movementInclude = {
   product: {
@@ -11,7 +11,9 @@ export const movementInclude = {
   warehouse: {
     select: {
       id: true,
-      name: true
+      name: true,
+      type: true,
+      sellerId: true
     }
   }
 } satisfies Prisma.InventoryMovementInclude;
@@ -39,6 +41,8 @@ export type ProductStockBreakdown = {
   locations: Array<{
     warehouseId: string;
     warehouseName: string;
+    warehouseType: WarehouseType;
+    sellerId: string | null;
     quantity: number;
   }>;
 };
@@ -68,11 +72,15 @@ export function mapWarehouseAuditData(warehouse: {
   name: string;
   description?: string | null;
   isActive: boolean;
+  type?: WarehouseType;
+  sellerId?: string | null;
 }) {
   return {
     warehouseId: warehouse.id,
     warehouseName: warehouse.name,
     description: warehouse.description ?? null,
+    type: warehouse.type ?? WarehouseType.STORAGE,
+    sellerId: warehouse.sellerId ?? null,
     isActive: warehouse.isActive
   };
 }

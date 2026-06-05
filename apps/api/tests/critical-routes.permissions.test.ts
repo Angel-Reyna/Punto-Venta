@@ -8,6 +8,9 @@ const prismaMock = {
   product: {
     count: jest.fn(),
     findMany: jest.fn()
+  },
+  warehouse: {
+    findMany: jest.fn()
   }
 };
 
@@ -29,7 +32,8 @@ const sellerActivityMock = {
 jest.mock("../src/modules/seller-activity/seller-activity.service", () => sellerActivityMock);
 
 const inventoryServiceMock = {
-  getProductStocks: jest.fn()
+  getProductStocks: jest.fn(),
+  ensureSellerStockWarehouse: jest.fn()
 };
 
 jest.mock("../src/modules/inventory/inventory.service", () => inventoryServiceMock);
@@ -286,6 +290,7 @@ function buildOperationsReportFixture() {
 describe("critical route permissions", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    prismaMock.warehouse.findMany.mockResolvedValue([]);
     authenticateAs(CASHIER_USER);
   });
 
@@ -302,6 +307,12 @@ describe("critical route permissions", () => {
       {
         name: "Bodega sin permiso"
       }
+    ],
+    [
+      "crear almacén de stock de vendedor",
+      "post",
+      "/api/inventory/seller-stock/00000000-0000-4000-8000-000000000006/warehouse",
+      undefined
     ],
     [
       "registrar entrada de inventario",
@@ -390,6 +401,62 @@ describe("critical route permissions", () => {
     ]);
     expect(response.body[0]).not.toHaveProperty("costPrice");
     expect(response.body[0]).not.toHaveProperty("marginPercent");
+  });
+
+
+
+  it("allows CASHIER to read only own seller stock", async () => {
+    prismaMock.warehouse.findMany.mockResolvedValue([
+      {
+        id: "seller-warehouse-1",
+        name: "Stock vendedor: Vendedor Uno",
+        description: null,
+        type: "SELLER",
+        isActive: true,
+        seller: {
+          id: CASHIER_USER.id,
+          name: "Vendedor Uno",
+          email: CASHIER_USER.email
+        },
+        inventoryBalances: []
+      }
+    ]);
+
+    const response = await request(app)
+      .get("/api/inventory/seller-stock")
+      .set(AUTH_HEADER);
+
+    expect(response.status).toBe(200);
+    expect(prismaMock.warehouse.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          type: "SELLER",
+          isActive: true,
+          sellerId: CASHIER_USER.id
+        })
+      })
+    );
+  });
+
+  it("allows ADMIN to ensure a seller stock warehouse", async () => {
+    authenticateAs(ADMIN_USER);
+    inventoryServiceMock.ensureSellerStockWarehouse.mockResolvedValue({
+      id: "seller-warehouse-1",
+      name: "Stock vendedor: Vendedor Uno",
+      description: null,
+      type: "SELLER",
+      sellerId: "00000000-0000-4000-8000-000000000006",
+      isActive: true
+    });
+
+    const response = await request(app)
+      .post("/api/inventory/seller-stock/00000000-0000-4000-8000-000000000006/warehouse")
+      .set(AUTH_HEADER);
+
+    expect(response.status).toBe(201);
+    expect(inventoryServiceMock.ensureSellerStockWarehouse).toHaveBeenCalledWith(
+      "00000000-0000-4000-8000-000000000006"
+    );
   });
 
   it("allows CASHIER to create sales when request is valid", async () => {

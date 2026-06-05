@@ -89,3 +89,9 @@ export const movementSchema = z.object({
     }
   })
 });
+
+export const sellerStockWarehouseParamsSchema = z.object({
+  params: z.object({
+    sellerId: z.string().uuid()
+  })
+});

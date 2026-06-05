@@ -8,7 +8,8 @@ const mockPrisma = {
   warehouse: {
     findFirst: jest.fn(),
     create: jest.fn()
-  }
+  },
+  $transaction: jest.fn()
 };
 
 jest.mock("../src/config/prisma", () => ({
@@ -18,6 +19,7 @@ jest.mock("../src/config/prisma", () => ({
 import {
   createWarehouse,
   decreaseStock,
+  getOrCreateSellerWarehouse,
   getProductStockBreakdown,
   getProductStocks,
   increaseStock
@@ -28,8 +30,12 @@ function createTransactionMock() {
     product: {
       findUnique: jest.fn()
     },
-    warehouse: {
+    user: {
       findUnique: jest.fn()
+    },
+    warehouse: {
+      findUnique: jest.fn(),
+      upsert: jest.fn()
     },
     inventoryBalance: {
       upsert: jest.fn(),
@@ -80,6 +86,7 @@ describe("inventory.service", () => {
         data: {
           name: "Bodega norte",
           description: "Mercancía de respaldo",
+          type: "STORAGE",
           isActive: true
         }
       });
@@ -107,6 +114,89 @@ describe("inventory.service", () => {
     });
   });
 
+
+
+  describe("getOrCreateSellerWarehouse", () => {
+    it("creates or reactivates a seller warehouse for active cashiers", async () => {
+      const tx = createTransactionMock();
+      tx.user.findUnique.mockResolvedValue({
+        id: "seller-1",
+        name: "Vendedor Uno",
+        email: "vendedor@pos.local",
+        role: "CASHIER",
+        isActive: true
+      });
+      tx.warehouse.upsert.mockResolvedValue({
+        id: "seller-warehouse-1",
+        name: "Stock vendedor: Vendedor Uno (vendedor@pos.local)",
+        type: "SELLER",
+        sellerId: "seller-1",
+        isActive: true
+      });
+
+      const result = await getOrCreateSellerWarehouse(tx as never, "seller-1");
+
+      expect(tx.user.findUnique).toHaveBeenCalledWith({
+        where: {
+          id: "seller-1"
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isActive: true
+        }
+      });
+      expect(tx.warehouse.upsert).toHaveBeenCalledWith({
+        where: {
+          sellerId: "seller-1"
+        },
+        update: expect.objectContaining({
+          name: "Stock vendedor: Vendedor Uno (vendedor@pos.local)",
+          type: "SELLER",
+          isActive: true
+        }),
+        create: expect.objectContaining({
+          name: "Stock vendedor: Vendedor Uno (vendedor@pos.local)",
+          type: "SELLER",
+          seller: {
+            connect: {
+              id: "seller-1"
+            }
+          },
+          isActive: true
+        })
+      });
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: "seller-warehouse-1",
+          type: "SELLER"
+        })
+      );
+    });
+
+    it("rejects admin users as seller stock owners", async () => {
+      const tx = createTransactionMock();
+      tx.user.findUnique.mockResolvedValue({
+        id: "admin-1",
+        name: "Admin",
+        email: "admin@pos.local",
+        role: "ADMIN",
+        isActive: true
+      });
+
+      await expect(
+        getOrCreateSellerWarehouse(tx as never, "admin-1")
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: "El usuario seleccionado no es vendedor."
+      } satisfies Partial<AppError>);
+
+      expect(tx.warehouse.upsert).not.toHaveBeenCalled();
+    });
+  });
+
   describe("getProductStocks", () => {
     it("returns an empty map without querying when product list is empty", async () => {
       const result = await getProductStocks([]);
@@ -123,7 +213,9 @@ describe("inventory.service", () => {
           quantity: 24,
           warehouse: {
             id: "warehouse-1",
-            name: "Principal"
+            name: "Principal",
+            type: "STORAGE",
+            sellerId: null
           }
         },
         {
@@ -131,7 +223,9 @@ describe("inventory.service", () => {
           quantity: 0,
           warehouse: {
             id: "warehouse-2",
-            name: "Bodega norte"
+            name: "Bodega norte",
+            type: "STORAGE",
+            sellerId: null
           }
         }
       ]);
@@ -144,11 +238,15 @@ describe("inventory.service", () => {
           {
             warehouseId: "warehouse-1",
             warehouseName: "Principal",
+            warehouseType: "STORAGE",
+            sellerId: null,
             quantity: 24
           },
           {
             warehouseId: "warehouse-2",
             warehouseName: "Bodega norte",
+            warehouseType: "STORAGE",
+            sellerId: null,
             quantity: 0
           }
         ]
@@ -162,7 +260,9 @@ describe("inventory.service", () => {
           quantity: 5,
           warehouse: {
             id: "warehouse-1",
-            name: "Principal"
+            name: "Principal",
+            type: "STORAGE",
+            sellerId: null
           }
         },
         {
@@ -170,7 +270,9 @@ describe("inventory.service", () => {
           quantity: 3,
           warehouse: {
             id: "warehouse-2",
-            name: "Bodega norte"
+            name: "Bodega norte",
+            type: "STORAGE",
+            sellerId: null
           }
         },
         {
@@ -178,7 +280,9 @@ describe("inventory.service", () => {
           quantity: 0,
           warehouse: {
             id: "warehouse-1",
-            name: "Principal"
+            name: "Principal",
+            type: "STORAGE",
+            sellerId: null
           }
         }
       ]);
@@ -195,7 +299,9 @@ describe("inventory.service", () => {
           warehouse: {
             select: {
               id: true,
-              name: true
+              name: true,
+              type: true,
+              sellerId: true
             }
           }
         },

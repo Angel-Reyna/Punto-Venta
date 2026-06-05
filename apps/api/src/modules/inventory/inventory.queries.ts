@@ -1,4 +1,4 @@
-import { InventoryType, Prisma } from "@prisma/client";
+import { InventoryType, Prisma, Role, WarehouseType } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
@@ -23,6 +23,7 @@ import {
 export async function listWarehouses() {
   return prisma.warehouse.findMany({
     where: {
+      type: WarehouseType.STORAGE,
       isActive: true
     },
     orderBy: {
@@ -277,4 +278,119 @@ export async function listProductStock(query: Record<string, unknown>) {
     data: pageItems,
     meta: buildPaginationMeta(pagination, lowStockProducts.length)
   };
+}
+
+
+type CurrentUser = {
+  id: string;
+  role: Role;
+};
+
+type SellerStockWarehouse = {
+  id: string;
+  name: string;
+  description: string | null;
+  type: WarehouseType;
+  isActive: boolean;
+  seller: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+  inventoryBalances: Array<{
+    productId: string;
+    quantity: number;
+    product: {
+      id: string;
+      sku: string;
+      barcode: string | null;
+      name: string;
+      minStock: number;
+      isActive: boolean;
+    };
+  }>;
+};
+
+function mapSellerStockWarehouse(warehouse: SellerStockWarehouse) {
+  const products = warehouse.inventoryBalances
+    .map((balance) => ({
+      productId: balance.productId,
+      sku: balance.product.sku,
+      barcode: balance.product.barcode,
+      name: balance.product.name,
+      minStock: balance.product.minStock,
+      isActive: balance.product.isActive,
+      quantity: balance.quantity
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "es"));
+
+  return {
+    seller: warehouse.seller
+      ? {
+          id: warehouse.seller.id,
+          name: warehouse.seller.name,
+          email: warehouse.seller.email
+        }
+      : null,
+    warehouse: {
+      id: warehouse.id,
+      name: warehouse.name,
+      description: warehouse.description,
+      type: warehouse.type,
+      isActive: warehouse.isActive
+    },
+    totalUnits: products.reduce((total, product) => total + product.quantity, 0),
+    products
+  };
+}
+
+export async function listSellerStock(
+  currentUser: CurrentUser,
+  query: Record<string, unknown>
+) {
+  const requestedSellerId = getOptionalString(query.sellerId, 80);
+
+  if (requestedSellerId && currentUser.role !== Role.ADMIN) {
+    throw new AppError(403, "No autorizado");
+  }
+
+  const sellerId = currentUser.role === Role.ADMIN
+    ? requestedSellerId
+    : currentUser.id;
+
+  const warehouses = await prisma.warehouse.findMany({
+    where: {
+      type: WarehouseType.SELLER,
+      isActive: true,
+      ...(sellerId ? { sellerId } : {})
+    },
+    include: {
+      seller: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      },
+      inventoryBalances: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              sku: true,
+              barcode: true,
+              name: true,
+              minStock: true,
+              isActive: true
+            }
+          }
+        }
+      }
+    },
+    orderBy: {
+      name: "asc"
+    }
+  });
+
+  return warehouses.map(mapSellerStockWarehouse);
 }

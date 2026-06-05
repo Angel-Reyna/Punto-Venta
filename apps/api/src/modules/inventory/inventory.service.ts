@@ -1,4 +1,4 @@
-import { InventoryType, Prisma } from "@prisma/client";
+import { InventoryType, Prisma, Role, WarehouseType } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
@@ -134,6 +134,7 @@ export async function createWarehouse(input: WarehouseInput) {
       data: {
         name,
         description,
+        type: WarehouseType.STORAGE,
         isActive: true
       }
     });
@@ -154,14 +155,106 @@ export async function getOrCreateDefaultWarehouse(
       name: DEFAULT_WAREHOUSE_NAME
     },
     update: {
+      type: WarehouseType.STORAGE,
+      sellerId: null,
       isActive: true
     },
     create: {
       name: DEFAULT_WAREHOUSE_NAME,
       description: "Almacén: Principal",
+      type: WarehouseType.STORAGE,
       isActive: true
     }
   });
+}
+
+type SellerForStockWarehouse = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  isActive: boolean;
+};
+
+function buildSellerWarehouseName(seller: SellerForStockWarehouse) {
+  return `Stock vendedor: ${seller.name} (${seller.email})`;
+}
+
+async function assertActiveSeller(
+  tx: Prisma.TransactionClient,
+  sellerId: string
+): Promise<SellerForStockWarehouse> {
+  const seller = await tx.user.findUnique({
+    where: {
+      id: sellerId
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      isActive: true
+    }
+  });
+
+  if (!seller) {
+    throw new AppError(404, "Vendedor no encontrado");
+  }
+
+  if (seller.role !== Role.CASHIER) {
+    throw new AppError(400, "El usuario seleccionado no es vendedor.");
+  }
+
+  if (!seller.isActive) {
+    throw new AppError(400, `Vendedor inactivo: ${seller.name}`);
+  }
+
+  return seller;
+}
+
+export async function getOrCreateSellerWarehouse(
+  tx: Prisma.TransactionClient,
+  sellerId: string
+) {
+  const seller = await assertActiveSeller(tx, sellerId);
+  const warehouseName = buildSellerWarehouseName(seller);
+
+  return tx.warehouse.upsert({
+    where: {
+      sellerId: seller.id
+    },
+    update: {
+      name: warehouseName,
+      description: `Stock físico asignado a ${seller.name}.`,
+      type: WarehouseType.SELLER,
+      isActive: true
+    },
+    create: {
+      name: warehouseName,
+      description: `Stock físico asignado a ${seller.name}.`,
+      type: WarehouseType.SELLER,
+      seller: {
+        connect: {
+          id: seller.id
+        }
+      },
+      isActive: true
+    }
+  });
+}
+
+export async function ensureSellerStockWarehouse(sellerId: string) {
+  try {
+    return await prisma.$transaction((tx) =>
+      getOrCreateSellerWarehouse(tx, sellerId)
+    );
+  } catch (error: unknown) {
+    if (isPrismaUniqueConstraintError(error)) {
+      throw new AppError(409, "Ya existe un almacén de vendedor con esos datos.");
+    }
+
+    throw error;
+  }
 }
 
 export type ProductStockBreakdown = {
@@ -169,6 +262,8 @@ export type ProductStockBreakdown = {
   locations: Array<{
     warehouseId: string;
     warehouseName: string;
+    warehouseType: WarehouseType;
+    sellerId: string | null;
     quantity: number;
   }>;
 };
@@ -192,7 +287,9 @@ export async function getProductStockBreakdown(
       warehouse: {
         select: {
           id: true,
-          name: true
+          name: true,
+          type: true,
+          sellerId: true
         }
       }
     },
@@ -219,6 +316,8 @@ export async function getProductStockBreakdown(
     current.locations.push({
       warehouseId: balance.warehouse.id,
       warehouseName: balance.warehouse.name,
+      warehouseType: balance.warehouse.type,
+      sellerId: balance.warehouse.sellerId,
       quantity
     });
 
