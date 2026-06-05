@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { getApiErrorMessage } from "../../utils/apiError";
 
 import type { CancelSalePayload, ReturnSaleItemsPayload } from "./salesApi";
-import { getReturnableQuantity, type PaymentMethod, type Sale } from "./salesShared";
+import { getReturnableQuantity, type PaymentMethod, type Sale, type SaleItem } from "./salesShared";
 
 type SubmitSaleCancellation = (saleId: string, payload: CancelSalePayload) => Promise<void>;
 type SubmitSaleReturn = (saleId: string, payload: ReturnSaleItemsPayload) => Promise<void>;
@@ -15,6 +15,40 @@ type UseSalesOperationsOptions = {
   submitSaleCancellation: SubmitSaleCancellation;
   submitSaleReturn: SubmitSaleReturn;
 };
+
+export type ReturnQuantityDrafts = Record<string, string>;
+
+export type ReturnItemDraft = {
+  available: number;
+  isSelected: boolean;
+  quantity: number;
+  rawQuantity: string;
+  saleItem: SaleItem;
+};
+
+function parseReturnQuantity(value: string) {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return 0;
+  }
+
+  const quantity = Number(trimmedValue);
+
+  return Number.isInteger(quantity) ? quantity : Number.NaN;
+}
+
+function buildInitialReturnQuantities(sale: Sale): ReturnQuantityDrafts {
+  const returnableItems = (sale.items ?? []).filter((item) => getReturnableQuantity(sale, item) > 0);
+
+  if (returnableItems.length !== 1) {
+    return {};
+  }
+
+  return {
+    [returnableItems[0].id]: "1",
+  };
+}
 
 export function useSalesOperations({
   setError,
@@ -30,8 +64,7 @@ export function useSalesOperations({
   const [cancelRefundMethod, setCancelRefundMethod] = useState<PaymentMethod>("CASH");
   const [returnReason, setReturnReason] = useState("");
   const [returnRefundMethod, setReturnRefundMethod] = useState<PaymentMethod>("CASH");
-  const [returnSaleItemId, setReturnSaleItemId] = useState("");
-  const [returnQuantity, setReturnQuantity] = useState("1");
+  const [returnQuantities, setReturnQuantities] = useState<ReturnQuantityDrafts>({});
 
   const saleDialogIsOpen = cancelDialogOpen || returnDialogOpen;
 
@@ -43,13 +76,10 @@ export function useSalesOperations({
   }, []);
 
   const openReturnDialog = useCallback((sale: Sale) => {
-    const firstReturnableItem = (sale.items ?? []).find((item) => getReturnableQuantity(sale, item) > 0);
-
     setSelectedSale(sale);
     setReturnReason("");
     setReturnRefundMethod(sale.payments?.[0]?.method ?? "CASH");
-    setReturnSaleItemId(firstReturnableItem?.id ?? "");
-    setReturnQuantity("1");
+    setReturnQuantities(buildInitialReturnQuantities(sale));
     setReturnDialogOpen(true);
   }, []);
 
@@ -61,10 +91,48 @@ export function useSalesOperations({
     setReturnDialogOpen(false);
   }, []);
 
-  const selectReturnSaleItem = useCallback((saleItemId: string) => {
-    setReturnSaleItemId(saleItemId);
-    setReturnQuantity("1");
+  const setReturnItemQuantity = useCallback((saleItemId: string, quantity: string) => {
+    setReturnQuantities((currentQuantities) => ({
+      ...currentQuantities,
+      [saleItemId]: quantity,
+    }));
   }, []);
+
+  const returnItemsDraft = useMemo<ReturnItemDraft[]>(() => {
+    if (!selectedSale) {
+      return [];
+    }
+
+    return (selectedSale.items ?? [])
+      .map((saleItem) => {
+        const rawQuantity = returnQuantities[saleItem.id] ?? "";
+        const quantity = parseReturnQuantity(rawQuantity);
+        const available = getReturnableQuantity(selectedSale, saleItem);
+
+        return {
+          available,
+          isSelected: rawQuantity.trim().length > 0,
+          quantity,
+          rawQuantity,
+          saleItem,
+        };
+      })
+      .filter((item) => item.isSelected || item.available > 0);
+  }, [returnQuantities, selectedSale]);
+
+  const selectedReturnItems = useMemo(
+    () => returnItemsDraft.filter((item) => item.isSelected),
+    [returnItemsDraft],
+  );
+
+  const selectedReturnItemsCount = selectedReturnItems.length;
+  const selectedReturnUnits = selectedReturnItems.reduce((sum, item) => {
+    return Number.isInteger(item.quantity) && item.quantity > 0 ? sum + item.quantity : sum;
+  }, 0);
+
+  const returnItemsHaveInvalidQuantity = selectedReturnItems.some((item) => {
+    return !Number.isInteger(item.quantity) || item.quantity <= 0 || item.quantity > item.available;
+  });
 
   const cancelSale = useCallback(async () => {
     if (!selectedSale) return;
@@ -107,20 +175,22 @@ export function useSalesOperations({
     submitSaleCancellation,
   ]);
 
-  const returnSaleItem = useCallback(async () => {
+  const returnSaleItems = useCallback(async () => {
     if (!selectedSale) return;
 
-    const quantity = Number(returnQuantity);
-    const saleItem = selectedSale.items?.find((item) => item.id === returnSaleItemId);
-    const available = saleItem ? getReturnableQuantity(selectedSale, saleItem) : 0;
-
-    if (!saleItem) {
-      setError("Selecciona un producto vendido para devolver.");
+    if (selectedReturnItems.length === 0) {
+      setError("Indica al menos un producto y una cantidad para devolver.");
       return;
     }
 
-    if (!Number.isInteger(quantity) || quantity <= 0 || quantity > available) {
-      setError(`La cantidad a devolver debe estar entre 1 y ${available}.`);
+    const invalidItem = selectedReturnItems.find((item) => {
+      return !Number.isInteger(item.quantity) || item.quantity <= 0 || item.quantity > item.available;
+    });
+
+    if (invalidItem) {
+      setError(
+        `La cantidad a devolver de ${invalidItem.saleItem.product?.name ?? invalidItem.saleItem.productName ?? "producto"} debe estar entre 1 y ${invalidItem.available}.`,
+      );
       return;
     }
 
@@ -137,32 +207,30 @@ export function useSalesOperations({
       await submitSaleReturn(selectedSale.id, {
         reason: returnReason.trim(),
         refundMethod: returnRefundMethod,
-        items: [
-          {
-            saleItemId: saleItem.id,
-            quantity,
-          },
-        ],
+        items: selectedReturnItems.map((item) => ({
+          saleItemId: item.saleItem.id,
+          quantity: item.quantity,
+        })),
       });
 
       setReturnDialogOpen(false);
       setSelectedSale(null);
+      setReturnQuantities({});
       setMessage("Devolución registrada correctamente. El stock fue restaurado.");
     } catch (err: unknown) {
       setError(
         getApiErrorMessage(
           err,
-          "No se pudo registrar la devolución. Verifica el producto, cantidad, motivo y método.",
+          "No se pudo registrar la devolución. Verifica los productos, cantidades, motivo y método.",
         ),
       );
     } finally {
       setIsSubmitting(false);
     }
   }, [
-    returnQuantity,
     returnReason,
     returnRefundMethod,
-    returnSaleItemId,
+    selectedReturnItems,
     selectedSale,
     setError,
     setIsSubmitting,
@@ -170,23 +238,9 @@ export function useSalesOperations({
     submitSaleReturn,
   ]);
 
-  const selectedReturnItem = useMemo(
-    () => selectedSale?.items?.find((item) => item.id === returnSaleItemId),
-    [returnSaleItemId, selectedSale],
-  );
-  const selectedReturnItemAvailable = useMemo(
-    () => (selectedSale && selectedReturnItem ? getReturnableQuantity(selectedSale, selectedReturnItem) : 0),
-    [selectedReturnItem, selectedSale],
-  );
-
   const cancelReasonIsInvalid = cancelReason.trim().length < 5;
-  const returnQuantityNumber = Number(returnQuantity);
   const returnFormIsInvalid =
-    !returnSaleItemId ||
-    !Number.isInteger(returnQuantityNumber) ||
-    returnQuantityNumber <= 0 ||
-    returnQuantityNumber > selectedReturnItemAvailable ||
-    returnReason.trim().length < 5;
+    selectedReturnItemsCount === 0 || returnItemsHaveInvalidQuantity || returnReason.trim().length < 5;
 
   return {
     cancelDialogOpen,
@@ -200,18 +254,18 @@ export function useSalesOperations({
     openReturnDialog,
     returnDialogOpen,
     returnFormIsInvalid,
-    returnQuantity,
+    returnItemsDraft,
+    returnQuantities,
     returnReason,
     returnRefundMethod,
-    returnSaleItem,
-    returnSaleItemId,
+    returnSaleItems,
     saleDialogIsOpen,
-    selectReturnSaleItem,
-    selectedReturnItemAvailable,
+    selectedReturnItemsCount,
+    selectedReturnUnits,
     selectedSale,
     setCancelReason,
     setCancelRefundMethod,
-    setReturnQuantity,
+    setReturnItemQuantity,
     setReturnReason,
     setReturnRefundMethod,
   };

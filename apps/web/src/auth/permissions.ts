@@ -19,7 +19,9 @@ export const PERMISSIONS = {
   SalesCreate: "sales:create",
   SalesCancel: "sales:cancel",
   SalesReturn: "sales:return",
-
+  SalesAdjustmentRequestRead: "sales-adjustments:read",
+  SalesAdjustmentRequestCreate: "sales-adjustments:create",
+  SalesAdjustmentRequestReview: "sales-adjustments:review",
 
   ReportsRead: "reports:read",
   DashboardRead: "dashboard:read",

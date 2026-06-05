@@ -1,6 +1,13 @@
 import { randomUUID } from "crypto";
 
-import { PaymentMethod, Prisma, Role, SaleStatus } from "@prisma/client";
+import {
+  PaymentMethod,
+  Prisma,
+  Role,
+  SaleAdjustmentRequestStatus,
+  SaleAdjustmentRequestType,
+  SaleStatus
+} from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
 import {
@@ -26,7 +33,9 @@ import { restoreStockForExistingProducts } from "./sales.stock";
 import type {
   CancelSaleInput,
   CreateSaleInput,
-  ReturnSaleInput
+  CreateSalesAdjustmentRequestInput,
+  ReturnSaleInput,
+  ReviewSalesAdjustmentRequestInput
 } from "./sales.schemas";
 
 type CurrentUser = {
@@ -39,6 +48,64 @@ type ClientMeta = {
   ipAddress?: string;
   userAgent?: string;
 };
+
+const salesAdjustmentRequestInclude = {
+  sale: {
+    select: {
+      id: true,
+      folio: true,
+      status: true,
+      total: true,
+      createdAt: true,
+      cashier: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      }
+    }
+  },
+  requestedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true
+    }
+  },
+  reviewedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true
+    }
+  },
+  items: {
+    include: {
+      saleItem: {
+        select: {
+          id: true,
+          quantity: true,
+          productSku: true,
+          productName: true
+        }
+      },
+      product: {
+        select: {
+          id: true,
+          sku: true,
+          name: true
+        }
+      }
+    }
+  }
+} satisfies Prisma.SaleAdjustmentRequestInclude;
+
+type SalesAdjustmentRequestWithDetails = Prisma.SaleAdjustmentRequestGetPayload<{
+  include: typeof salesAdjustmentRequestInclude;
+}>;
 
 type PreparedSaleItem = {
   product: {
@@ -121,6 +188,105 @@ function aggregateReturnItems(items: ReturnSaleInput["items"]) {
     saleItemId,
     quantity
   }));
+}
+
+function aggregateAdjustmentRequestItems(
+  items: CreateSalesAdjustmentRequestInput["items"] | undefined
+) {
+  if (!items) {
+    return [];
+  }
+
+  const quantities = new Map<string, number>();
+
+  for (const item of items) {
+    quantities.set(
+      item.saleItemId,
+      (quantities.get(item.saleItemId) ?? 0) + item.quantity
+    );
+  }
+
+  return [...quantities.entries()].map(([saleItemId, quantity]) => ({
+    saleItemId,
+    quantity
+  }));
+}
+
+function getPendingAdjustmentQuantities(sale: SaleForAdjustmentRequest) {
+  const quantities = new Map<string, number>();
+
+  for (const request of sale.adjustmentRequests) {
+    if (
+      request.status !== SaleAdjustmentRequestStatus.PENDING ||
+      request.type !== SaleAdjustmentRequestType.RETURN_ITEMS
+    ) {
+      continue;
+    }
+
+    for (const item of request.items) {
+      quantities.set(
+        item.saleItemId,
+        (quantities.get(item.saleItemId) ?? 0) + item.quantity
+      );
+    }
+  }
+
+  return quantities;
+}
+
+function mapSalesAdjustmentRequest(request: SalesAdjustmentRequestWithDetails) {
+  return {
+    ...request,
+    sale: {
+      ...request.sale,
+      total: Number(request.sale.total)
+    },
+    items: request.items.map((item) => ({
+      ...item,
+      product: item.product
+        ? item.product
+        : {
+            id: item.productId,
+            sku: item.productSku,
+            name: `${item.productName} (eliminado)`,
+            deleted: true
+          }
+    }))
+  };
+}
+
+const saleForAdjustmentRequestInclude = {
+  items: true,
+  returns: {
+    include: {
+      items: true
+    }
+  },
+  adjustmentRequests: {
+    where: {
+      status: SaleAdjustmentRequestStatus.PENDING
+    },
+    include: {
+      items: true
+    }
+  }
+} satisfies Prisma.SaleInclude;
+
+type SaleForAdjustmentRequest = Prisma.SaleGetPayload<{
+  include: typeof saleForAdjustmentRequestInclude;
+}>;
+
+function validateAdjustmentRequestSaleAccess(
+  user: CurrentUser,
+  sale: { cashierId: string }
+) {
+  if (user.role === Role.ADMIN) {
+    return;
+  }
+
+  if (sale.cashierId !== user.id) {
+    throw new AppError(403, "No autorizado");
+  }
 }
 
 async function resolveCustomer(
@@ -254,7 +420,14 @@ function hasCashRefund(refundMethod: PaymentMethod) {
   return refundMethod === PaymentMethod.CASH;
 }
 
-function getReturnedQuantities(sale: SaleForMutation) {
+function getReturnedQuantities(sale: {
+  returns: Array<{
+    items: Array<{
+      saleItemId: string;
+      quantity: number;
+    }>;
+  }>;
+}) {
   const returnedQuantities = new Map<string, number>();
 
   for (const saleReturn of sale.returns) {
@@ -423,6 +596,214 @@ export async function getSaleById(user: CurrentUser, id: string) {
 
   return mapSaleDetails(sale);
 }
+
+export async function listSalesAdjustmentRequests(
+  user: CurrentUser,
+  query: Record<string, unknown>
+) {
+  const pagination = getPagination(query, {
+    defaultPageSize: 25,
+    maxPageSize: 100
+  });
+
+  const status = getOptionalString(query.status, 40);
+  const type = getOptionalString(query.type, 40);
+  const saleId = getOptionalString(query.saleId, 80);
+
+  if (
+    status &&
+    !Object.values(SaleAdjustmentRequestStatus).includes(
+      status as SaleAdjustmentRequestStatus
+    )
+  ) {
+    throw new AppError(400, "status inválido");
+  }
+
+  if (
+    type &&
+    !Object.values(SaleAdjustmentRequestType).includes(
+      type as SaleAdjustmentRequestType
+    )
+  ) {
+    throw new AppError(400, "type inválido");
+  }
+
+  const where: Prisma.SaleAdjustmentRequestWhereInput = {
+    ...(user.role === Role.ADMIN
+      ? {}
+      : {
+          requestedById: user.id
+        }),
+    ...(status
+      ? {
+          status: status as SaleAdjustmentRequestStatus
+        }
+      : {}),
+    ...(type
+      ? {
+          type: type as SaleAdjustmentRequestType
+        }
+      : {}),
+    ...(saleId
+      ? {
+          saleId
+        }
+      : {})
+  };
+
+  const [total, requests] = await Promise.all([
+    prisma.saleAdjustmentRequest.count({ where }),
+    prisma.saleAdjustmentRequest.findMany({
+      where,
+      include: salesAdjustmentRequestInclude,
+      orderBy: {
+        createdAt: "desc"
+      },
+      skip: pagination.skip,
+      take: pagination.take
+    })
+  ]);
+
+  return {
+    data: requests.map(mapSalesAdjustmentRequest),
+    meta: buildPaginationMeta(pagination, total)
+  };
+}
+
+export async function createSalesAdjustmentRequest(
+  user: CurrentUser,
+  saleId: string,
+  input: CreateSalesAdjustmentRequestInput
+) {
+  return prisma.$transaction(
+    async (tx) => {
+      const sale = await tx.sale.findUnique({
+        where: {
+          id: saleId
+        },
+        include: saleForAdjustmentRequestInclude
+      });
+
+      if (!sale) {
+        throw new AppError(404, "Venta no encontrada");
+      }
+
+      validateAdjustmentRequestSaleAccess(user, sale);
+
+      if (sale.status === SaleStatus.CANCELLED) {
+        throw new AppError(409, "No se pueden solicitar ajustes de una venta cancelada");
+      }
+
+      if (sale.adjustmentRequests.length > 0) {
+        throw new AppError(409, "Ya existe una solicitud pendiente para esta venta");
+      }
+
+      const requestedItems = aggregateAdjustmentRequestItems(input.items);
+      const itemById = new Map(sale.items.map((item) => [item.id, item]));
+
+      if (input.type === SaleAdjustmentRequestType.CANCEL_SALE) {
+        if (sale.status !== SaleStatus.COMPLETED) {
+          throw new AppError(
+            409,
+            "Solo se puede solicitar cancelación de ventas completadas sin devoluciones"
+          );
+        }
+      }
+
+      const previouslyReturned = getReturnedQuantities(sale);
+      const pendingAdjustmentQuantities = getPendingAdjustmentQuantities(sale);
+
+      const requestItems = requestedItems.map((requestedItem) => {
+        const saleItem = itemById.get(requestedItem.saleItemId);
+
+        if (!saleItem) {
+          throw new AppError(400, "La partida no pertenece a la venta");
+        }
+
+        const alreadyReturned = previouslyReturned.get(saleItem.id) ?? 0;
+        const pendingQuantity = pendingAdjustmentQuantities.get(saleItem.id) ?? 0;
+        const availableToRequest = saleItem.quantity - alreadyReturned - pendingQuantity;
+
+        if (requestedItem.quantity > availableToRequest) {
+          throw new AppError(
+            409,
+            `Cantidad a solicitar inválida. Disponible para solicitar: ${availableToRequest}.`
+          );
+        }
+
+        return {
+          saleItemId: saleItem.id,
+          productId: saleItem.productId,
+          productSku: saleItem.productSku,
+          productName: saleItem.productName,
+          quantity: requestedItem.quantity
+        };
+      });
+
+      const request = await tx.saleAdjustmentRequest.create({
+        data: {
+          type: input.type,
+          status: SaleAdjustmentRequestStatus.PENDING,
+          saleId: sale.id,
+          requestedById: user.id,
+          reason: input.reason,
+          refundMethod: input.refundMethod,
+          items: requestItems.length
+            ? {
+                create: requestItems
+              }
+            : undefined
+        },
+        include: salesAdjustmentRequestInclude
+      });
+
+      return mapSalesAdjustmentRequest(request);
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5_000,
+      timeout: 15_000
+    }
+  );
+}
+
+export async function rejectSalesAdjustmentRequest(
+  user: CurrentUser,
+  requestId: string,
+  input: ReviewSalesAdjustmentRequestInput
+) {
+  assertAdmin(user);
+
+  const request = await prisma.saleAdjustmentRequest.findUnique({
+    where: {
+      id: requestId
+    }
+  });
+
+  if (!request) {
+    throw new AppError(404, "Solicitud no encontrada");
+  }
+
+  if (request.status !== SaleAdjustmentRequestStatus.PENDING) {
+    throw new AppError(409, "La solicitud ya fue revisada");
+  }
+
+  const updatedRequest = await prisma.saleAdjustmentRequest.update({
+    where: {
+      id: request.id
+    },
+    data: {
+      status: SaleAdjustmentRequestStatus.REJECTED,
+      reviewedById: user.id,
+      reviewedAt: new Date(),
+      reviewNote: input.reviewNote
+    },
+    include: salesAdjustmentRequestInclude
+  });
+
+  return mapSalesAdjustmentRequest(updatedRequest);
+}
+
 
 async function createSaleAttempt(
   user: CurrentUser,

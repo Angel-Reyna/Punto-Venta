@@ -41,16 +41,22 @@ describe("permissions", () => {
     expect(hasPermission(Role.CASHIER, PERMISSIONS.InventoryAdjust)).toBe(false);
   });
 
-  it("allows cashiers to read and create sales while keeping cancel and return restricted", () => {
+  it("allows cashiers to request sale adjustments while keeping execution restricted", () => {
     expect(hasPermission(Role.ADMIN, PERMISSIONS.SalesRead)).toBe(true);
     expect(hasPermission(Role.ADMIN, PERMISSIONS.SalesCreate)).toBe(true);
     expect(hasPermission(Role.ADMIN, PERMISSIONS.SalesCancel)).toBe(true);
     expect(hasPermission(Role.ADMIN, PERMISSIONS.SalesReturn)).toBe(true);
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.SalesAdjustmentRequestRead)).toBe(true);
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.SalesAdjustmentRequestCreate)).toBe(true);
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.SalesAdjustmentRequestReview)).toBe(true);
 
     expect(hasPermission(Role.CASHIER, PERMISSIONS.SalesRead)).toBe(true);
     expect(hasPermission(Role.CASHIER, PERMISSIONS.SalesCreate)).toBe(true);
     expect(hasPermission(Role.CASHIER, PERMISSIONS.SalesCancel)).toBe(false);
     expect(hasPermission(Role.CASHIER, PERMISSIONS.SalesReturn)).toBe(false);
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.SalesAdjustmentRequestRead)).toBe(true);
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.SalesAdjustmentRequestCreate)).toBe(true);
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.SalesAdjustmentRequestReview)).toBe(false);
   });
 
   it("grants seller workflow permissions without extra operational modules", () => {
@@ -59,6 +65,8 @@ describe("permissions", () => {
       PERMISSIONS.InventoryRead,
       PERMISSIONS.SalesRead,
       PERMISSIONS.SalesCreate,
+      PERMISSIONS.SalesAdjustmentRequestRead,
+      PERMISSIONS.SalesAdjustmentRequestCreate,
       PERMISSIONS.DashboardRead
     ])).toBe(true);
   });

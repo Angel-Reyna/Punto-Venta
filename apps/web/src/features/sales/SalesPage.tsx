@@ -76,18 +76,18 @@ export function SalesPage() {
     openReturnDialog,
     returnDialogOpen,
     returnFormIsInvalid,
-    returnQuantity,
+    returnItemsDraft,
+    returnQuantities,
     returnReason,
     returnRefundMethod,
-    returnSaleItem,
-    returnSaleItemId,
+    returnSaleItems,
     saleDialogIsOpen,
-    selectReturnSaleItem,
-    selectedReturnItemAvailable,
+    selectedReturnItemsCount,
+    selectedReturnUnits,
     selectedSale,
     setCancelReason,
     setCancelRefundMethod,
-    setReturnQuantity,
+    setReturnItemQuantity,
     setReturnReason,
     setReturnRefundMethod,
   } = useSalesOperations({
@@ -426,22 +426,22 @@ export function SalesPage() {
         isSubmitting={isSubmitting}
         returnDialogOpen={returnDialogOpen}
         returnFormIsInvalid={returnFormIsInvalid}
-        returnQuantity={returnQuantity}
+        returnItemsDraft={returnItemsDraft}
+        returnQuantities={returnQuantities}
         returnReason={returnReason}
         returnRefundMethod={returnRefundMethod}
-        returnSaleItemId={returnSaleItemId}
-        selectedReturnItemAvailable={selectedReturnItemAvailable}
+        selectedReturnItemsCount={selectedReturnItemsCount}
+        selectedReturnUnits={selectedReturnUnits}
         selectedSale={selectedSale}
         onCancelReasonChange={setCancelReason}
         onCancelRefundMethodChange={setCancelRefundMethod}
         onCloseCancelDialog={closeCancelDialog}
         onCloseReturnDialog={closeReturnDialog}
         onConfirmCancel={cancelSale}
-        onConfirmReturn={returnSaleItem}
-        onReturnQuantityChange={setReturnQuantity}
+        onConfirmReturn={returnSaleItems}
+        onReturnItemQuantityChange={setReturnItemQuantity}
         onReturnReasonChange={setReturnReason}
         onReturnRefundMethodChange={setReturnRefundMethod}
-        onReturnSaleItemChange={selectReturnSaleItem}
       />
     </>
   );

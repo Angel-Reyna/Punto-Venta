@@ -39,6 +39,57 @@ export type MockProduct = {
 
 type MockInventoryBalanceMap = Map<string, Map<string, number>>;
 
+type MockSaleItem = {
+  id: string;
+  productId?: string | null;
+  productSku?: string;
+  productName?: string;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
+  total: number;
+  product?: {
+    id: string;
+    sku: string;
+    name: string;
+  } | null;
+};
+
+type MockSaleReturn = {
+  id: string;
+  reason: string;
+  refundMethod: string;
+  refundTotal: number;
+  createdAt: string;
+  items: Array<{
+    id: string;
+    saleItemId: string;
+    productId?: string | null;
+    productSku?: string;
+    productName?: string;
+    quantity: number;
+    total: number;
+  }>;
+};
+
+type MockSale = {
+  id: string;
+  folio: string;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  status: string;
+  paymentMethod: string;
+  customerName?: string;
+  customer?: { id: string; name: string } | null;
+  createdAt: string;
+  cashier: { id: string; name: string; email: string };
+  payments: Array<{ id: string; method: string; amount: number; createdAt: string }>;
+  items: MockSaleItem[];
+  returns: MockSaleReturn[];
+};
+
 type MockInventoryMovement = {
   id: string;
   type: "IN" | "OUT" | "SALE" | "RETURN" | "ADJUSTMENT";
@@ -578,6 +629,86 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
       return json(route, sales);
     }
 
+    const saleReturnMatch = pathname.match(/\/sales\/([^/]+)\/returns$/);
+
+    if (saleReturnMatch && method === "POST") {
+      const sale = sales.find((item) => item.id === saleReturnMatch[1]);
+
+      if (!sale) {
+        return json(route, { message: "Venta no encontrada" }, 404);
+      }
+
+      const payload = readJsonPayload(request) as {
+        reason?: string;
+        refundMethod?: string;
+        items?: Array<{ saleItemId: string; quantity: number }>;
+      };
+      const returnedQuantities = new Map<string, number>();
+
+      for (const saleReturn of sale.returns ?? []) {
+        for (const item of saleReturn.items ?? []) {
+          returnedQuantities.set(
+            item.saleItemId,
+            (returnedQuantities.get(item.saleItemId) ?? 0) + Number(item.quantity ?? 0),
+          );
+        }
+      }
+
+      const returnItems = [];
+
+      for (const item of payload.items ?? []) {
+        const saleItem = sale.items.find((candidate) => candidate.id === item.saleItemId);
+
+        if (!saleItem) {
+          return json(route, { message: "La partida no pertenece a la venta" }, 400);
+        }
+
+        const alreadyReturned = returnedQuantities.get(saleItem.id) ?? 0;
+        const available = saleItem.quantity - alreadyReturned;
+
+        if (item.quantity <= 0 || item.quantity > available) {
+          return json(route, { message: `Cantidad inválida para ${saleItem.product?.name ?? saleItem.productName ?? "producto"}` }, 409);
+        }
+
+        const unitTotal = Number(saleItem.total) / Number(saleItem.quantity);
+
+        returnItems.push({
+          id: `return-item-${saleItem.id}`,
+          saleItemId: saleItem.id,
+          productId: saleItem.productId,
+          productSku: saleItem.productSku ?? saleItem.product?.sku,
+          productName: saleItem.productName ?? saleItem.product?.name,
+          quantity: item.quantity,
+          total: Number((unitTotal * item.quantity).toFixed(2)),
+        });
+      }
+
+      const refundTotal = returnItems.reduce((sum, item) => sum + item.total, 0);
+      const saleReturn = {
+        id: `return-${sale.id}-${(sale.returns?.length ?? 0) + 1}`,
+        reason: payload.reason ?? "Devolución E2E",
+        refundMethod: payload.refundMethod ?? "CASH",
+        refundTotal,
+        createdAt: "2026-05-22T12:00:00.000Z",
+        items: returnItems,
+      };
+
+      sale.returns = [saleReturn, ...(sale.returns ?? [])];
+
+      const allReturned = sale.items.every((saleItem) => {
+        const returnedInThisRequest = returnItems
+          .filter((item) => item.saleItemId === saleItem.id)
+          .reduce((sum, item) => sum + item.quantity, 0);
+        const previouslyReturned = returnedQuantities.get(saleItem.id) ?? 0;
+
+        return previouslyReturned + returnedInThisRequest >= saleItem.quantity;
+      });
+
+      sale.status = allReturned ? "REFUNDED" : "PARTIALLY_REFUNDED";
+
+      return json(route, sale);
+    }
+
     if (pathname.endsWith("/sales") && method === "POST") {
       const payload = readJsonPayload(request) as {
         customerName?: string;
@@ -680,7 +811,21 @@ function dashboardResponse(role: Role) {
 }
 
 function productsResponse(): MockProduct[] {
-  return [buildMockProductFixture()];
+  return [
+    buildMockProductFixture(),
+    buildMockProductFixture({
+      id: "product-2",
+      sku: "BOTANA-50G",
+      barcode: "7500000000099",
+      name: "Botana Salada 50g",
+      salePrice: 70,
+      finalPrice: 70,
+      costPrice: 35,
+      stock: 18,
+      currentStock: 18,
+      minStock: 4,
+    }),
+  ];
 }
 
 function filterProductsForRole(products: MockProduct[], role: Role, query: string | null) {
@@ -1311,7 +1456,7 @@ function operationsReportResponse() {
   };
 }
 
-function salesResponse(role: Role) {
+function salesResponse(role: Role): MockSale[] {
   return [
     {
       id: "sale-1",
@@ -1341,21 +1486,56 @@ function salesResponse(role: Role) {
           createdAt: "2026-05-22T10:00:00.000Z",
         },
       ],
-      items: [
-        {
-          id: "sale-item-1",
-          productId: "product-1",
-          quantity: 1,
-          unitPrice: role === "ADMIN" ? 320 : 180,
-          discount: 0,
-          total: role === "ADMIN" ? 320 : 180,
-          product: {
-            id: "product-1",
-            sku: "COCA-600",
-            name: "Coca-Cola 600 ml",
-          },
-        },
-      ],
+      items: role === "ADMIN"
+        ? [
+            {
+              id: "sale-item-1",
+              productId: "product-1",
+              productSku: "COCA-600",
+              productName: "Coca-Cola 600 ml",
+              quantity: 1,
+              unitPrice: 180,
+              discount: 0,
+              total: 180,
+              product: {
+                id: "product-1",
+                sku: "COCA-600",
+                name: "Coca-Cola 600 ml",
+              },
+            },
+            {
+              id: "sale-item-2",
+              productId: "product-2",
+              productSku: "BOTANA-50G",
+              productName: "Botana Salada 50g",
+              quantity: 2,
+              unitPrice: 70,
+              discount: 0,
+              total: 140,
+              product: {
+                id: "product-2",
+                sku: "BOTANA-50G",
+                name: "Botana Salada 50g",
+              },
+            },
+          ]
+        : [
+            {
+              id: "sale-item-1",
+              productId: "product-1",
+              productSku: "COCA-600",
+              productName: "Coca-Cola 600 ml",
+              quantity: 1,
+              unitPrice: 180,
+              discount: 0,
+              total: 180,
+              product: {
+                id: "product-1",
+                sku: "COCA-600",
+                name: "Coca-Cola 600 ml",
+              },
+            },
+          ],
       returns: [],
     },
   ];
@@ -1369,7 +1549,7 @@ function buildCreatedSale(
   },
   products: MockProduct[],
   sequence: number,
-) {
+): MockSale {
   const selectedProduct = products.find((product) => product.id === payload.items?.[0]?.productId) ?? products[0];
   const quantity = payload.items?.[0]?.quantity ?? 1;
   const total = selectedProduct.finalPrice * quantity;

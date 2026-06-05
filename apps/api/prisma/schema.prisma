@@ -39,6 +39,18 @@ enum PaymentMethod {
   MIXED
 }
 
+enum SaleAdjustmentRequestType {
+  CANCEL_SALE
+  RETURN_ITEMS
+}
+
+enum SaleAdjustmentRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 enum SellerAction {
   SELLER_LOGIN
   SELLER_LOGOUT
@@ -60,6 +72,8 @@ model User {
 
   sales                Sale[]
   saleReturns          SaleReturn[]
+  salesAdjustmentRequests         SaleAdjustmentRequest[] @relation("SalesAdjustmentRequestsRequested")
+  reviewedSalesAdjustmentRequests SaleAdjustmentRequest[] @relation("SalesAdjustmentRequestsReviewed")
   audits               AuditLog[]
   sessions             RefreshSession[]
   sellerLogs           SellerActivityLog[]
@@ -139,6 +153,7 @@ model Product {
   category       ProductCategory?    @relation(fields: [categoryId], references: [id])
   saleItems          SaleItem[]
   saleReturnItems    SaleReturnItem[]
+  adjustmentRequestItems SaleAdjustmentRequestItem[]
   inventoryMoves     InventoryMovement[]
   inventoryBalances  InventoryBalance[]
 
@@ -241,6 +256,7 @@ model Sale {
   items         SaleItem[]
   payments      Payment[]
   returns       SaleReturn[]
+  adjustmentRequests SaleAdjustmentRequest[]
 
   @@index([cashierId])
   @@index([customerId])
@@ -265,6 +281,7 @@ model SaleItem {
   sale        Sale             @relation(fields: [saleId], references: [id], onDelete: Cascade)
   product     Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
   returnItems SaleReturnItem[]
+  adjustmentRequestItems SaleAdjustmentRequestItem[]
 
   @@index([saleId])
   @@index([productId])
@@ -324,6 +341,53 @@ model SaleReturnItem {
   product  Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([returnId])
+  @@index([saleItemId])
+  @@index([productId])
+}
+
+
+model SaleAdjustmentRequest {
+  id           String                      @id @default(uuid())
+  type         SaleAdjustmentRequestType
+  status       SaleAdjustmentRequestStatus @default(PENDING)
+  saleId       String
+  requestedById String
+  reviewedById  String?
+  reason       String
+  reviewNote   String?
+  refundMethod PaymentMethod?
+  createdAt    DateTime                    @default(now())
+  updatedAt    DateTime                    @updatedAt
+  reviewedAt   DateTime?
+
+  sale        Sale  @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  requestedBy User  @relation("SalesAdjustmentRequestsRequested", fields: [requestedById], references: [id], onDelete: Cascade)
+  reviewedBy  User? @relation("SalesAdjustmentRequestsReviewed", fields: [reviewedById], references: [id], onDelete: SetNull)
+  items       SaleAdjustmentRequestItem[]
+
+  @@index([saleId])
+  @@index([requestedById])
+  @@index([reviewedById])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@index([status, createdAt])
+}
+
+model SaleAdjustmentRequestItem {
+  id          String @id @default(uuid())
+  requestId   String
+  saleItemId  String
+  productId   String?
+  productSku  String
+  productName String
+  quantity    Int
+
+  request  SaleAdjustmentRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  saleItem SaleItem              @relation(fields: [saleItemId], references: [id], onDelete: Cascade)
+  product  Product?              @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
   @@index([saleItemId])
   @@index([productId])
 }

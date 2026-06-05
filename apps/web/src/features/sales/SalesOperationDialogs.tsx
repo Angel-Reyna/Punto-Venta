@@ -1,8 +1,9 @@
-import { Alert, Box, Button, MenuItem, TextField } from "@mui/material";
+import { Alert, Box, Button, Chip, Divider, MenuItem, Stack, TextField, Typography } from "@mui/material";
 
 import { ResponsiveDialog } from "../../components/ResponsiveDialog";
 
-import { PAYMENT_METHOD_OPTIONS, getReturnableQuantity, type PaymentMethod, type Sale } from "./salesShared";
+import { PAYMENT_METHOD_OPTIONS, type PaymentMethod, type Sale } from "./salesShared";
+import type { ReturnItemDraft, ReturnQuantityDrafts } from "./useSalesOperations";
 
 type SalesOperationDialogsProps = {
   cancelDialogOpen: boolean;
@@ -12,11 +13,12 @@ type SalesOperationDialogsProps = {
   isSubmitting: boolean;
   returnDialogOpen: boolean;
   returnFormIsInvalid: boolean;
-  returnQuantity: string;
+  returnItemsDraft: ReturnItemDraft[];
+  returnQuantities: ReturnQuantityDrafts;
   returnReason: string;
   returnRefundMethod: PaymentMethod;
-  returnSaleItemId: string;
-  selectedReturnItemAvailable: number;
+  selectedReturnItemsCount: number;
+  selectedReturnUnits: number;
   selectedSale: Sale | null;
   onCancelReasonChange: (reason: string) => void;
   onCancelRefundMethodChange: (method: PaymentMethod) => void;
@@ -24,11 +26,18 @@ type SalesOperationDialogsProps = {
   onCloseReturnDialog: () => void;
   onConfirmCancel: () => void;
   onConfirmReturn: () => void;
-  onReturnQuantityChange: (quantity: string) => void;
+  onReturnItemQuantityChange: (saleItemId: string, quantity: string) => void;
   onReturnReasonChange: (reason: string) => void;
   onReturnRefundMethodChange: (method: PaymentMethod) => void;
-  onReturnSaleItemChange: (saleItemId: string) => void;
 };
+
+function getSaleItemName(item: ReturnItemDraft["saleItem"]) {
+  return item.product?.name ?? item.productName ?? "Producto";
+}
+
+function getSaleItemSku(item: ReturnItemDraft["saleItem"]) {
+  return item.product?.sku ?? item.productSku ?? item.productId ?? "Sin clave";
+}
 
 export function SalesOperationDialogs({
   cancelDialogOpen,
@@ -38,11 +47,12 @@ export function SalesOperationDialogs({
   isSubmitting,
   returnDialogOpen,
   returnFormIsInvalid,
-  returnQuantity,
+  returnItemsDraft,
+  returnQuantities,
   returnReason,
   returnRefundMethod,
-  returnSaleItemId,
-  selectedReturnItemAvailable,
+  selectedReturnItemsCount,
+  selectedReturnUnits,
   selectedSale,
   onCancelReasonChange,
   onCancelRefundMethodChange,
@@ -50,10 +60,9 @@ export function SalesOperationDialogs({
   onCloseReturnDialog,
   onConfirmCancel,
   onConfirmReturn,
-  onReturnQuantityChange,
+  onReturnItemQuantityChange,
   onReturnReasonChange,
   onReturnRefundMethodChange,
-  onReturnSaleItemChange,
 }: SalesOperationDialogsProps) {
   return (
     <>
@@ -109,49 +118,95 @@ export function SalesOperationDialogs({
         open={returnDialogOpen}
         onClose={onCloseReturnDialog}
         disableClose={isSubmitting}
-        maxWidth="sm"
+        maxWidth="md"
         title={`Registrar devolución ${selectedSale?.folio ?? ""}`.trim()}
-        description="Devuelve unidades vendidas y registra el motivo para auditoría."
+        description="Devuelve una o varias partidas vendidas en la misma operación."
         actions={
           <>
             <Button variant="outlined" onClick={onCloseReturnDialog} disabled={isSubmitting}>
               Cerrar
             </Button>
-            <Button color="warning" onClick={onConfirmReturn} disabled={isSubmitting || returnFormIsInvalid}>
+            <Button
+              color="warning"
+              data-testid="sales-return-submit"
+              onClick={onConfirmReturn}
+              disabled={isSubmitting || returnFormIsInvalid}
+            >
               Registrar devolución
             </Button>
           </>
         }
       >
         <Box sx={{ display: "grid", gap: 2 }}>
-          <Alert severity="info">La devolución restaura stock y actualiza el estado de la venta.</Alert>
+          <Alert severity="info">
+            Indica cantidad solo en los productos que se devolverán. La operación restaura stock y conserva el
+            detalle para auditoría.
+          </Alert>
 
-          <TextField
-            select
-            label="Producto vendido"
-            value={returnSaleItemId}
-            onChange={(event) => onReturnSaleItemChange(event.target.value)}
-          >
-            {(selectedSale?.items ?? []).map((item) => {
-              const available = selectedSale ? getReturnableQuantity(selectedSale, item) : 0;
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
+            <Chip label={`${selectedReturnItemsCount} productos seleccionados`} />
+            <Chip
+              label={`${selectedReturnUnits} unidades a devolver`}
+              color={selectedReturnUnits > 0 ? "warning" : "default"}
+            />
+          </Stack>
 
-              return (
-                <MenuItem key={item.id} value={item.id} disabled={available <= 0}>
-                  {item.product?.sku ?? item.productId} · {item.product?.name ?? "Producto"} · disponible{" "}
-                  {available}
-                </MenuItem>
-              );
-            })}
-          </TextField>
+          <Box sx={{ display: "grid", gap: 1.25 }}>
+            {returnItemsDraft.length === 0 ? (
+              <Alert severity="warning">Esta venta no tiene productos disponibles para devolver.</Alert>
+            ) : (
+              returnItemsDraft.map(({ available, rawQuantity, saleItem }) => {
+                const hasValue = rawQuantity.trim().length > 0;
+                const quantity = Number(rawQuantity);
+                const quantityIsInvalid =
+                  hasValue && (!Number.isInteger(quantity) || quantity <= 0 || quantity > available);
+                const disabled = available <= 0;
 
-          <TextField
-            label="Cantidad a devolver"
-            type="number"
-            value={returnQuantity}
-            inputProps={{ min: 1, max: selectedReturnItemAvailable }}
-            helperText={`Disponible para devolver: ${selectedReturnItemAvailable}`}
-            onChange={(event) => onReturnQuantityChange(event.target.value)}
-          />
+                return (
+                  <Box
+                    key={saleItem.id}
+                    data-testid={`sales-return-item-${saleItem.id}`}
+                    sx={{
+                      border: "1px solid",
+                      borderColor: quantityIsInvalid ? "error.main" : "divider",
+                      borderRadius: 2,
+                      display: "grid",
+                      gap: 1.25,
+                      gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) 180px" },
+                      p: 1.5,
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography fontWeight={900} noWrap>
+                        {getSaleItemSku(saleItem)} · {getSaleItemName(saleItem)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Vendidas: {saleItem.quantity} · disponibles para devolver: {available}
+                      </Typography>
+                    </Box>
+
+                    <TextField
+                      label="Cantidad"
+                      type="number"
+                      size="small"
+                      value={returnQuantities[saleItem.id] ?? ""}
+                      disabled={disabled}
+                      error={quantityIsInvalid}
+                      helperText={disabled ? "Ya fue devuelto" : `Máximo ${available}`}
+                      inputProps={{
+                        min: 1,
+                        max: available,
+                        "data-testid": `sales-return-quantity-${saleItem.id}`,
+                      }}
+                      onChange={(event) => onReturnItemQuantityChange(saleItem.id, event.target.value)}
+                    />
+                  </Box>
+                );
+              })
+            )}
+          </Box>
+
+          <Divider />
 
           <TextField
             select
@@ -167,6 +222,7 @@ export function SalesOperationDialogs({
           </TextField>
 
           <TextField
+            inputProps={{ "data-testid": "sales-return-reason" }}
             label="Motivo de devolución"
             value={returnReason}
             multiline

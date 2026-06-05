@@ -12,14 +12,21 @@ import { PERMISSIONS } from "../auth/permissions";
 import {
   cancelSale,
   createSale,
+  createSalesAdjustmentRequest,
   getSaleById,
   listSales,
-  returnSaleItems,
+  listSalesAdjustmentRequests,
+  rejectSalesAdjustmentRequest,
+  returnSaleItems
 } from "./sales.service";
 import {
   cancelSaleSchema,
+  createSalesAdjustmentRequestSchema,
+  listSalesAdjustmentRequestsSchema,
   returnSaleSchema,
-  saleSchema
+  reviewSalesAdjustmentRequestSchema,
+  saleSchema,
+  salesAdjustmentRequestIdParamsSchema
 } from "./sales.schemas";
 
 const saleIdParamsSchema = z.object({
@@ -52,6 +59,84 @@ salesRouter.get(
     setPaginationHeaders(res, result.meta);
 
     res.json(result.data);
+  })
+);
+
+
+salesRouter.get(
+  "/adjustment-requests",
+  requirePermission(PERMISSIONS.SalesAdjustmentRequestRead),
+  validate(listSalesAdjustmentRequestsSchema),
+  asyncHandler(async (req, res) => {
+    const result = await listSalesAdjustmentRequests(
+      getCurrentUser(req),
+      req.query as Record<string, unknown>
+    );
+
+    setPaginationHeaders(res, result.meta);
+
+    res.json(result.data);
+  })
+);
+
+salesRouter.post(
+  "/:id/adjustment-requests",
+  requirePermission(PERMISSIONS.SalesAdjustmentRequestCreate),
+  validate(saleIdParamsSchema.merge(createSalesAdjustmentRequestSchema)),
+  asyncHandler(async (req, res) => {
+    const request = await createSalesAdjustmentRequest(
+      getCurrentUser(req),
+      String(req.params.id),
+      req.body
+    );
+
+    await auditLog({
+      userId: req.user?.id,
+      action: "CREATE_SALES_ADJUSTMENT_REQUEST",
+      tableName: "SaleAdjustmentRequest",
+      recordId: request.id,
+      newData: {
+        saleId: request.saleId,
+        type: request.type,
+        status: request.status,
+        reason: req.body.reason,
+        items: req.body.items ?? []
+      },
+      ipAddress: req.ip
+    });
+
+    res.status(201).json(request);
+  })
+);
+
+salesRouter.post(
+  "/adjustment-requests/:requestId/reject",
+  requirePermission(PERMISSIONS.SalesAdjustmentRequestReview),
+  validate(
+    salesAdjustmentRequestIdParamsSchema.merge(reviewSalesAdjustmentRequestSchema)
+  ),
+  asyncHandler(async (req, res) => {
+    const request = await rejectSalesAdjustmentRequest(
+      getCurrentUser(req),
+      String(req.params.requestId),
+      req.body
+    );
+
+    await auditLog({
+      userId: req.user?.id,
+      action: "REJECT_SALES_ADJUSTMENT_REQUEST",
+      tableName: "SaleAdjustmentRequest",
+      recordId: request.id,
+      newData: {
+        saleId: request.saleId,
+        type: request.type,
+        status: request.status,
+        reviewNote: req.body.reviewNote ?? null
+      },
+      ipAddress: req.ip
+    });
+
+    res.json(request);
   })
 );
 

@@ -21,7 +21,9 @@ export const PERMISSIONS = {
   SalesCreate: "sales:create",
   SalesCancel: "sales:cancel",
   SalesReturn: "sales:return",
-
+  SalesAdjustmentRequestRead: "sales-adjustments:read",
+  SalesAdjustmentRequestCreate: "sales-adjustments:create",
+  SalesAdjustmentRequestReview: "sales-adjustments:review",
 
   ReportsRead: "reports:read",
   DashboardRead: "dashboard:read",
@@ -38,6 +40,8 @@ const CASHIER_PERMISSIONS = [
   PERMISSIONS.InventoryRead,
   PERMISSIONS.SalesRead,
   PERMISSIONS.SalesCreate,
+  PERMISSIONS.SalesAdjustmentRequestRead,
+  PERMISSIONS.SalesAdjustmentRequestCreate,
   PERMISSIONS.DashboardRead
 ] as const satisfies readonly Permission[];
 
