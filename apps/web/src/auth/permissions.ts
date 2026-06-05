@@ -14,6 +14,9 @@ export const PERMISSIONS = {
 
   InventoryRead: "inventory:read",
   InventoryAdjust: "inventory:adjust",
+  InventoryTransferRequestRead: "inventory-transfer-requests:read",
+  InventoryTransferRequestCreate: "inventory-transfer-requests:create",
+  InventoryTransferRequestReview: "inventory-transfer-requests:review",
 
   SalesRead: "sales:read",
   SalesCreate: "sales:create",

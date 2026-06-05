@@ -16,6 +16,9 @@ export const PERMISSIONS = {
 
   InventoryRead: "inventory:read",
   InventoryAdjust: "inventory:adjust",
+  InventoryTransferRequestRead: "inventory-transfer-requests:read",
+  InventoryTransferRequestCreate: "inventory-transfer-requests:create",
+  InventoryTransferRequestReview: "inventory-transfer-requests:review",
 
   SalesRead: "sales:read",
   SalesCreate: "sales:create",
@@ -38,6 +41,8 @@ const ADMIN_PERMISSIONS = Object.values(PERMISSIONS) as Permission[];
 const CASHIER_PERMISSIONS = [
   PERMISSIONS.ProductsRead,
   PERMISSIONS.InventoryRead,
+  PERMISSIONS.InventoryTransferRequestRead,
+  PERMISSIONS.InventoryTransferRequestCreate,
   PERMISSIONS.SalesRead,
   PERMISSIONS.SalesCreate,
   PERMISSIONS.SalesAdjustmentRequestRead,

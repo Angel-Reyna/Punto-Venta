@@ -1,4 +1,4 @@
-import type { InventoryType } from "@prisma/client";
+import { InventoryTransferRequestStatus, type InventoryType } from "@prisma/client";
 import { z } from "zod";
 
 export const DEFAULT_WAREHOUSE_NAME = "Principal";
@@ -26,6 +26,17 @@ export type StockMovementInput = {
   createdBy: string;
   type: InventoryType;
   insufficientStockMessage?: string;
+};
+
+export type InventoryTransferRequestItemInput = {
+  productId: string;
+  quantity: number;
+};
+
+export type InventoryTransferRequestInput = {
+  fromWarehouseId?: string | null;
+  reason: string;
+  items: InventoryTransferRequestItemInput[];
 };
 
 export const inventoryReasonTypes = Object.values(INVENTORY_REASON_TYPES) as [
@@ -93,5 +104,59 @@ export const movementSchema = z.object({
 export const sellerStockWarehouseParamsSchema = z.object({
   params: z.object({
     sellerId: z.string().uuid()
+  })
+});
+
+
+export const inventoryTransferRequestStatusSchema = z.nativeEnum(
+  InventoryTransferRequestStatus
+);
+
+export const inventoryTransferRequestSchema = z.object({
+  body: z.object({
+    fromWarehouseId: z
+      .string()
+      .uuid()
+      .optional()
+      .nullable(),
+
+    reason: z
+      .string()
+      .trim()
+      .min(3, "Describe el motivo de la solicitud.")
+      .max(255, "El motivo no puede superar 255 caracteres."),
+
+    items: z
+      .array(
+        z.object({
+          productId: z.string().uuid(),
+          quantity: z.coerce
+            .number()
+            .int()
+            .positive()
+            .max(1_000_000)
+        })
+      )
+      .min(1, "Agrega al menos un producto a la solicitud.")
+      .max(100, "No puedes solicitar más de 100 productos a la vez.")
+  })
+});
+
+export const inventoryTransferRequestReviewSchema = z.object({
+  params: z.object({
+    requestId: z.string().uuid()
+  }),
+  body: z.object({
+    reviewNote: z
+      .string()
+      .trim()
+      .min(3, "Agrega una nota de revisión.")
+      .max(255, "La nota de revisión no puede superar 255 caracteres.")
+  })
+});
+
+export const inventoryTransferRequestParamsSchema = z.object({
+  params: z.object({
+    requestId: z.string().uuid()
   })
 });

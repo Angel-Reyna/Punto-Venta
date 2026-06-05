@@ -1,3 +1,5 @@
+import { Role } from "@prisma/client";
+
 import { AppError } from "../src/utils/AppError";
 
 const mockPrisma = {
@@ -9,6 +11,10 @@ const mockPrisma = {
     findFirst: jest.fn(),
     create: jest.fn()
   },
+  inventoryTransferRequest: {
+    findUnique: jest.fn(),
+    update: jest.fn()
+  },
   $transaction: jest.fn()
 };
 
@@ -17,12 +23,14 @@ jest.mock("../src/config/prisma", () => ({
 }));
 
 import {
+  createInventoryTransferRequest,
   createWarehouse,
   decreaseStock,
   getOrCreateSellerWarehouse,
   getProductStockBreakdown,
   getProductStocks,
-  increaseStock
+  increaseStock,
+  rejectInventoryTransferRequest
 } from "../src/modules/inventory/inventory.service";
 
 function createTransactionMock() {
@@ -44,6 +52,14 @@ function createTransactionMock() {
     },
     inventoryMovement: {
       create: jest.fn()
+    },
+    inventoryTransferRequest: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn()
+    },
+    inventoryTransferRequestItem: {
+      findFirst: jest.fn()
     }
   };
 }
@@ -123,7 +139,7 @@ describe("inventory.service", () => {
         id: "seller-1",
         name: "Vendedor Uno",
         email: "vendedor@pos.local",
-        role: "CASHIER",
+        role: Role.CASHIER,
         isActive: true
       });
       tx.warehouse.upsert.mockResolvedValue({
@@ -182,7 +198,7 @@ describe("inventory.service", () => {
         id: "admin-1",
         name: "Admin",
         email: "admin@pos.local",
-        role: "ADMIN",
+        role: Role.ADMIN,
         isActive: true
       });
 
@@ -194,6 +210,204 @@ describe("inventory.service", () => {
       } satisfies Partial<AppError>);
 
       expect(tx.warehouse.upsert).not.toHaveBeenCalled();
+    });
+  });
+
+
+  describe("createInventoryTransferRequest", () => {
+    it("creates a pending stock withdrawal request for the seller own warehouse", async () => {
+      const tx = createTransactionMock();
+      mockPrisma.$transaction.mockImplementation(async (callback) => callback(tx));
+      tx.warehouse.findUnique.mockResolvedValue({
+        id: "warehouse-1",
+        name: "Principal",
+        type: "STORAGE",
+        isActive: true
+      });
+      tx.user.findUnique.mockResolvedValue({
+        id: "seller-1",
+        name: "Vendedor Uno",
+        email: "vendedor@pos.local",
+        role: Role.CASHIER,
+        isActive: true
+      });
+      tx.warehouse.upsert.mockResolvedValue({
+        id: "seller-warehouse-1",
+        name: "Stock vendedor: Vendedor Uno (vendedor@pos.local)",
+        type: "SELLER",
+        sellerId: "seller-1",
+        isActive: true
+      });
+      tx.product.findUnique.mockResolvedValue({
+        id: "product-1",
+        sku: "CAFE-250",
+        name: "Café",
+        costPrice: 10,
+        isActive: true
+      });
+      tx.inventoryTransferRequestItem.findFirst.mockResolvedValue(null);
+      tx.inventoryBalance.findUnique.mockResolvedValue({
+        quantity: 8
+      });
+      tx.inventoryTransferRequest.create.mockResolvedValue({
+        id: "transfer-request-1",
+        status: "PENDING"
+      });
+
+      const result = await createInventoryTransferRequest(
+        {
+          id: "seller-1",
+          role: Role.CASHIER
+        },
+        {
+          fromWarehouseId: "warehouse-1",
+          reason: "Stock para ruta",
+          items: [
+            {
+              productId: "product-1",
+              quantity: 3
+            }
+          ]
+        }
+      );
+
+      expect(tx.inventoryTransferRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            reason: "Stock para ruta",
+            fromWarehouse: {
+              connect: {
+                id: "warehouse-1"
+              }
+            },
+            toWarehouse: {
+              connect: {
+                id: "seller-warehouse-1"
+              }
+            },
+            requestedBy: {
+              connect: {
+                id: "seller-1"
+              }
+            },
+            items: {
+              create: [
+                expect.objectContaining({
+                  productSku: "CAFE-250",
+                  productName: "Café",
+                  quantity: 3
+                })
+              ]
+            }
+          })
+        })
+      );
+      expect(result).toEqual({ id: "transfer-request-1", status: "PENDING" });
+    });
+
+    it("rejects stock withdrawal requests when source stock is insufficient", async () => {
+      const tx = createTransactionMock();
+      mockPrisma.$transaction.mockImplementation(async (callback) => callback(tx));
+      tx.warehouse.findUnique.mockResolvedValue({
+        id: "warehouse-1",
+        name: "Principal",
+        type: "STORAGE",
+        isActive: true
+      });
+      tx.user.findUnique.mockResolvedValue({
+        id: "seller-1",
+        name: "Vendedor Uno",
+        email: "vendedor@pos.local",
+        role: Role.CASHIER,
+        isActive: true
+      });
+      tx.warehouse.upsert.mockResolvedValue({
+        id: "seller-warehouse-1",
+        name: "Stock vendedor: Vendedor Uno (vendedor@pos.local)",
+        type: "SELLER",
+        sellerId: "seller-1",
+        isActive: true
+      });
+      tx.product.findUnique.mockResolvedValue({
+        id: "product-1",
+        sku: "CAFE-250",
+        name: "Café",
+        costPrice: 10,
+        isActive: true
+      });
+      tx.inventoryTransferRequestItem.findFirst.mockResolvedValue(null);
+      tx.inventoryBalance.findUnique.mockResolvedValue({
+        quantity: 1
+      });
+
+      await expect(
+        createInventoryTransferRequest(
+          {
+            id: "seller-1",
+            role: Role.CASHIER
+          },
+          {
+            fromWarehouseId: "warehouse-1",
+            reason: "Stock para ruta",
+            items: [
+              {
+                productId: "product-1",
+                quantity: 3
+              }
+            ]
+          }
+        )
+      ).rejects.toMatchObject({
+        statusCode: 409,
+        message: "Stock insuficiente para Café. Almacén: Principal. Stock actual: 1."
+      } satisfies Partial<AppError>);
+
+      expect(tx.inventoryTransferRequest.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("rejectInventoryTransferRequest", () => {
+    it("marks a pending stock withdrawal request as rejected", async () => {
+      const tx = createTransactionMock();
+      mockPrisma.$transaction.mockImplementation(async (callback) => callback(tx));
+      tx.inventoryTransferRequest.findUnique.mockResolvedValue({
+        id: "transfer-request-1",
+        status: "PENDING"
+      });
+      tx.inventoryTransferRequest.update.mockResolvedValue({
+        id: "transfer-request-1",
+        status: "REJECTED",
+        reviewNote: "No procede"
+      });
+
+      const result = await rejectInventoryTransferRequest({
+        requestId: "transfer-request-1",
+        reviewedById: "admin-1",
+        reviewNote: " No procede "
+      });
+
+      expect(tx.inventoryTransferRequest.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: "transfer-request-1"
+          },
+          data: expect.objectContaining({
+            status: "REJECTED",
+            reviewedBy: {
+              connect: {
+                id: "admin-1"
+              }
+            },
+            reviewNote: "No procede",
+            reviewedAt: expect.any(Date)
+          })
+        })
+      );
+      expect(result).toEqual({
+        id: "transfer-request-1",
+        status: "REJECTED",
+        reviewNote: "No procede"
+      });
     });
   });
 

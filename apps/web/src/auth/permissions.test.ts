@@ -46,4 +46,19 @@ describe("frontend permissions", () => {
     expect(permissions).not.toContain("sales-adjustments:legacy");
   });
 
+
+  it("normalizes inventory transfer request permissions issued by the API", () => {
+    const permissions = normalizePermissions([
+      PERMISSIONS.InventoryTransferRequestRead,
+      PERMISSIONS.InventoryTransferRequestCreate,
+      PERMISSIONS.InventoryTransferRequestReview,
+      "inventory-transfer-requests:legacy"
+    ]);
+
+    expect(hasPermission(permissions, PERMISSIONS.InventoryTransferRequestRead)).toBe(true);
+    expect(hasPermission(permissions, PERMISSIONS.InventoryTransferRequestCreate)).toBe(true);
+    expect(hasPermission(permissions, PERMISSIONS.InventoryTransferRequestReview)).toBe(true);
+    expect(permissions).not.toContain("inventory-transfer-requests:legacy");
+  });
+
 });

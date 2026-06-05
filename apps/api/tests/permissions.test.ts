@@ -36,9 +36,15 @@ describe("permissions", () => {
   it("keeps inventory adjustments restricted to admins while allowing stock reads to cashiers", () => {
     expect(hasPermission(Role.ADMIN, PERMISSIONS.InventoryRead)).toBe(true);
     expect(hasPermission(Role.ADMIN, PERMISSIONS.InventoryAdjust)).toBe(true);
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.InventoryTransferRequestRead)).toBe(true);
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.InventoryTransferRequestCreate)).toBe(true);
+    expect(hasPermission(Role.ADMIN, PERMISSIONS.InventoryTransferRequestReview)).toBe(true);
 
     expect(hasPermission(Role.CASHIER, PERMISSIONS.InventoryRead)).toBe(true);
     expect(hasPermission(Role.CASHIER, PERMISSIONS.InventoryAdjust)).toBe(false);
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.InventoryTransferRequestRead)).toBe(true);
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.InventoryTransferRequestCreate)).toBe(true);
+    expect(hasPermission(Role.CASHIER, PERMISSIONS.InventoryTransferRequestReview)).toBe(false);
   });
 
   it("allows cashiers to request sale adjustments while keeping execution restricted", () => {
@@ -63,6 +69,8 @@ describe("permissions", () => {
     expect(hasAllPermissions(Role.CASHIER, [
       PERMISSIONS.ProductsRead,
       PERMISSIONS.InventoryRead,
+      PERMISSIONS.InventoryTransferRequestRead,
+      PERMISSIONS.InventoryTransferRequestCreate,
       PERMISSIONS.SalesRead,
       PERMISSIONS.SalesCreate,
       PERMISSIONS.SalesAdjustmentRequestRead,
@@ -75,6 +83,8 @@ describe("permissions", () => {
     expect(getPermissionsForRole(Role.CASHIER)).toEqual([
       PERMISSIONS.ProductsRead,
       PERMISSIONS.InventoryRead,
+      PERMISSIONS.InventoryTransferRequestRead,
+      PERMISSIONS.InventoryTransferRequestCreate,
       PERMISSIONS.SalesRead,
       PERMISSIONS.SalesCreate,
       PERMISSIONS.SalesAdjustmentRequestRead,

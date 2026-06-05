@@ -15,21 +15,27 @@ import { PERMISSIONS } from "../auth/permissions";
 
 import {
   mapInventoryMovementAuditData,
+  mapInventoryTransferRequestAuditData,
   mapWarehouseAuditData
 } from "./inventory.mappers";
 import {
+  createInventoryTransferRequest,
   createWarehouse,
   ensureSellerStockWarehouse,
   recordInventoryIn,
-  recordInventoryOut
+  recordInventoryOut,
+  rejectInventoryTransferRequest
 } from "./inventory.service";
 import {
   listInventoryMovements,
+  listInventoryTransferRequests,
   listProductStock,
   listSellerStock,
   listWarehouses
 } from "./inventory.queries";
 import {
+  inventoryTransferRequestReviewSchema,
+  inventoryTransferRequestSchema,
   movementSchema,
   sellerStockWarehouseParamsSchema,
   warehouseSchema
@@ -106,6 +112,77 @@ inventoryRouter.post(
     });
 
     res.status(201).json(warehouse);
+  })
+);
+
+
+inventoryRouter.get(
+  "/transfer-requests",
+  requirePermission(PERMISSIONS.InventoryTransferRequestRead),
+  asyncHandler(async (req, res) => {
+    const result = await listInventoryTransferRequests(
+      {
+        id: req.user!.id,
+        role: req.user!.role
+      },
+      req.query as Record<string, unknown>
+    );
+
+    res.json(result);
+  })
+);
+
+inventoryRouter.post(
+  "/transfer-requests",
+  requirePermission(PERMISSIONS.InventoryTransferRequestCreate),
+  validate(inventoryTransferRequestSchema),
+  asyncHandler(async (req, res) => {
+    const request = await createInventoryTransferRequest(
+      {
+        id: req.user!.id,
+        role: req.user!.role
+      },
+      {
+        fromWarehouseId: req.body.fromWarehouseId,
+        reason: req.body.reason,
+        items: req.body.items
+      }
+    );
+
+    await auditLog({
+      userId: req.user?.id,
+      action: "INVENTORY_TRANSFER_REQUEST_CREATE",
+      tableName: "InventoryTransferRequest",
+      recordId: request.id,
+      newData: mapInventoryTransferRequestAuditData(request),
+      ipAddress: req.ip
+    });
+
+    res.status(201).json(request);
+  })
+);
+
+inventoryRouter.post(
+  "/transfer-requests/:requestId/reject",
+  requirePermission(PERMISSIONS.InventoryTransferRequestReview),
+  validate(inventoryTransferRequestReviewSchema),
+  asyncHandler(async (req, res) => {
+    const request = await rejectInventoryTransferRequest({
+      requestId: req.params.requestId,
+      reviewedById: req.user!.id,
+      reviewNote: req.body.reviewNote
+    });
+
+    await auditLog({
+      userId: req.user?.id,
+      action: "INVENTORY_TRANSFER_REQUEST_REJECT",
+      tableName: "InventoryTransferRequest",
+      recordId: request.id,
+      newData: mapInventoryTransferRequestAuditData(request),
+      ipAddress: req.ip
+    });
+
+    res.json(request);
   })
 );
 

@@ -1,4 +1,10 @@
-import { InventoryType, Prisma, Role, WarehouseType } from "@prisma/client";
+import {
+  InventoryTransferRequestStatus,
+  InventoryType,
+  Prisma,
+  Role,
+  WarehouseType
+} from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
@@ -8,6 +14,7 @@ import {
   DEFAULT_WAREHOUSE_NAME,
   EXPIRATION_REASON_LABEL,
   INVENTORY_REASON_TYPES,
+  type InventoryTransferRequestInput,
   type StockMovementInput,
   type WarehouseInput
 } from "./inventory.shared";
@@ -255,6 +262,260 @@ export async function ensureSellerStockWarehouse(sellerId: string) {
 
     throw error;
   }
+}
+
+
+type InventoryTransferRequestItemNormalized = {
+  productId: string;
+  quantity: number;
+};
+
+function normalizeTransferRequestItems(
+  items: InventoryTransferRequestInput["items"]
+): InventoryTransferRequestItemNormalized[] {
+  const quantitiesByProduct = new Map<string, number>();
+
+  for (const item of items) {
+    quantitiesByProduct.set(
+      item.productId,
+      (quantitiesByProduct.get(item.productId) ?? 0) + item.quantity
+    );
+  }
+
+  return [...quantitiesByProduct.entries()].map(([productId, quantity]) => ({
+    productId,
+    quantity
+  }));
+}
+
+async function resolveStorageWarehouseForTransfer(
+  tx: Prisma.TransactionClient,
+  warehouseId?: string | null
+) {
+  const warehouse = warehouseId
+    ? await tx.warehouse.findUnique({
+        where: {
+          id: warehouseId
+        },
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          isActive: true
+        }
+      })
+    : await getOrCreateDefaultWarehouse(tx);
+
+  if (!warehouse) {
+    throw new AppError(404, "Almacén origen no encontrado");
+  }
+
+  if (!warehouse.isActive) {
+    throw new AppError(400, `Almacén origen inactivo: ${warehouse.name}`);
+  }
+
+  if (warehouse.type !== WarehouseType.STORAGE) {
+    throw new AppError(400, "El almacén origen debe ser un almacén operativo, no stock de vendedor.");
+  }
+
+  return warehouse;
+}
+
+export async function createInventoryTransferRequest(
+  requestedBy: { id: string; role: Role },
+  input: InventoryTransferRequestInput
+) {
+  if (requestedBy.role !== Role.CASHIER) {
+    throw new AppError(400, "Solo vendedores pueden solicitar retiro de stock.");
+  }
+
+  const normalizedItems = normalizeTransferRequestItems(input.items);
+  const reason = input.reason.trim();
+
+  return prisma.$transaction(async (tx) => {
+    const fromWarehouse = await resolveStorageWarehouseForTransfer(
+      tx,
+      input.fromWarehouseId
+    );
+    const toWarehouse = await getOrCreateSellerWarehouse(tx, requestedBy.id);
+
+    const requestItems: Prisma.InventoryTransferRequestItemCreateWithoutRequestInput[] = [];
+
+    for (const item of normalizedItems) {
+      const product = await assertActiveProduct(tx, item.productId);
+
+      const pendingRequest = await tx.inventoryTransferRequestItem.findFirst({
+        where: {
+          productId: item.productId,
+          request: {
+            status: InventoryTransferRequestStatus.PENDING,
+            requestedById: requestedBy.id,
+            fromWarehouseId: fromWarehouse.id
+          }
+        },
+        select: {
+          requestId: true
+        }
+      });
+
+      if (pendingRequest) {
+        throw new AppError(
+          409,
+          `Ya existe una solicitud pendiente para ${product.name} desde ${fromWarehouse.name}.`
+        );
+      }
+
+      const sourceBalance = await tx.inventoryBalance.findUnique({
+        where: {
+          productId_warehouseId: {
+            productId: item.productId,
+            warehouseId: fromWarehouse.id
+          }
+        },
+        select: {
+          quantity: true
+        }
+      });
+
+      const available = sourceBalance?.quantity ?? 0;
+
+      if (available < item.quantity) {
+        throw new AppError(
+          409,
+          `Stock insuficiente para ${product.name}. Almacén: ${fromWarehouse.name}. Stock actual: ${available}.`
+        );
+      }
+
+      requestItems.push({
+        product: {
+          connect: {
+            id: product.id
+          }
+        },
+        productSku: product.sku,
+        productName: product.name,
+        quantity: item.quantity
+      });
+    }
+
+    return tx.inventoryTransferRequest.create({
+      data: {
+        fromWarehouse: {
+          connect: {
+            id: fromWarehouse.id
+          }
+        },
+        toWarehouse: {
+          connect: {
+            id: toWarehouse.id
+          }
+        },
+        requestedBy: {
+          connect: {
+            id: requestedBy.id
+          }
+        },
+        reason,
+        items: {
+          create: requestItems
+        }
+      },
+      include: inventoryTransferRequestInclude
+    });
+  }, {
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+  });
+}
+
+export const inventoryTransferRequestInclude = {
+  fromWarehouse: {
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      sellerId: true
+    }
+  },
+  toWarehouse: {
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      sellerId: true
+    }
+  },
+  requestedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true
+    }
+  },
+  reviewedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true
+    }
+  },
+  items: {
+    orderBy: {
+      productName: "asc"
+    }
+  }
+} satisfies Prisma.InventoryTransferRequestInclude;
+
+export type InventoryTransferRequestWithDetails = Prisma.InventoryTransferRequestGetPayload<{
+  include: typeof inventoryTransferRequestInclude;
+}>;
+
+export async function rejectInventoryTransferRequest(input: {
+  requestId: string;
+  reviewedById: string;
+  reviewNote: string;
+}) {
+  const reviewNote = input.reviewNote.trim();
+
+  return prisma.$transaction(async (tx) => {
+    const request = await tx.inventoryTransferRequest.findUnique({
+      where: {
+        id: input.requestId
+      },
+      select: {
+        id: true,
+        status: true
+      }
+    });
+
+    if (!request) {
+      throw new AppError(404, "Solicitud de retiro no encontrada");
+    }
+
+    if (request.status !== InventoryTransferRequestStatus.PENDING) {
+      throw new AppError(409, "Solo se pueden revisar solicitudes pendientes.");
+    }
+
+    return tx.inventoryTransferRequest.update({
+      where: {
+        id: input.requestId
+      },
+      data: {
+        status: InventoryTransferRequestStatus.REJECTED,
+        reviewedBy: {
+          connect: {
+            id: input.reviewedById
+          }
+        },
+        reviewNote,
+        reviewedAt: new Date()
+      },
+      include: inventoryTransferRequestInclude
+    });
+  }, {
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+  });
 }
 
 export type ProductStockBreakdown = {

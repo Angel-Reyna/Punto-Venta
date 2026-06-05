@@ -1,4 +1,10 @@
-import { InventoryType, Prisma, Role, WarehouseType } from "@prisma/client";
+import {
+  InventoryTransferRequestStatus,
+  InventoryType,
+  Prisma,
+  Role,
+  WarehouseType
+} from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
@@ -14,7 +20,11 @@ import {
   mapProductStock,
   productStockInclude
 } from "./inventory.mappers";
-import { getProductStockBreakdown } from "./inventory.service";
+import {
+  getProductStockBreakdown,
+  inventoryTransferRequestInclude,
+  type InventoryTransferRequestWithDetails
+} from "./inventory.service";
 import {
   EXPIRATION_REASON_LABEL,
   INVENTORY_REASON_TYPES
@@ -393,4 +403,64 @@ export async function listSellerStock(
   });
 
   return warehouses.map(mapSellerStockWarehouse);
+}
+
+
+function mapInventoryTransferRequest(request: InventoryTransferRequestWithDetails) {
+  return {
+    id: request.id,
+    status: request.status,
+    reason: request.reason,
+    reviewNote: request.reviewNote,
+    createdAt: request.createdAt,
+    updatedAt: request.updatedAt,
+    reviewedAt: request.reviewedAt,
+    fromWarehouse: request.fromWarehouse,
+    toWarehouse: request.toWarehouse,
+    requestedBy: request.requestedBy,
+    reviewedBy: request.reviewedBy,
+    totalUnits: request.items.reduce((total, item) => total + item.quantity, 0),
+    items: request.items.map((item) => ({
+      id: item.id,
+      productId: item.productId,
+      productSku: item.productSku,
+      productName: item.productName,
+      quantity: item.quantity
+    }))
+  };
+}
+
+export async function listInventoryTransferRequests(
+  currentUser: CurrentUser,
+  query: Record<string, unknown>
+) {
+  const status = getOptionalString(query.status, 30);
+  const requestedSellerId = getOptionalString(query.sellerId, 80);
+
+  if (status && !Object.values(InventoryTransferRequestStatus).includes(
+    status as InventoryTransferRequestStatus
+  )) {
+    throw new AppError(400, "Estado de solicitud inválido");
+  }
+
+  if (requestedSellerId && currentUser.role !== Role.ADMIN) {
+    throw new AppError(403, "No autorizado");
+  }
+
+  const sellerId = currentUser.role === Role.ADMIN
+    ? requestedSellerId
+    : currentUser.id;
+
+  const requests = await prisma.inventoryTransferRequest.findMany({
+    where: {
+      ...(status ? { status: status as InventoryTransferRequestStatus } : {}),
+      ...(sellerId ? { requestedById: sellerId } : {})
+    },
+    include: inventoryTransferRequestInclude,
+    orderBy: {
+      createdAt: "desc"
+    }
+  });
+
+  return requests.map(mapInventoryTransferRequest);
 }

@@ -11,6 +11,9 @@ const prismaMock = {
   },
   warehouse: {
     findMany: jest.fn()
+  },
+  inventoryTransferRequest: {
+    findMany: jest.fn()
   }
 };
 
@@ -33,7 +36,9 @@ jest.mock("../src/modules/seller-activity/seller-activity.service", () => seller
 
 const inventoryServiceMock = {
   getProductStocks: jest.fn(),
-  ensureSellerStockWarehouse: jest.fn()
+  ensureSellerStockWarehouse: jest.fn(),
+  createInventoryTransferRequest: jest.fn(),
+  rejectInventoryTransferRequest: jest.fn()
 };
 
 jest.mock("../src/modules/inventory/inventory.service", () => inventoryServiceMock);
@@ -291,6 +296,7 @@ describe("critical route permissions", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prismaMock.warehouse.findMany.mockResolvedValue([]);
+    prismaMock.inventoryTransferRequest.findMany.mockResolvedValue([]);
     authenticateAs(CASHIER_USER);
   });
 
@@ -313,6 +319,14 @@ describe("critical route permissions", () => {
       "post",
       "/api/inventory/seller-stock/00000000-0000-4000-8000-000000000006/warehouse",
       undefined
+    ],
+    [
+      "rechazar solicitud de retiro de stock",
+      "post",
+      "/api/inventory/transfer-requests/00000000-0000-4000-8000-000000000007/reject",
+      {
+        reviewNote: "No procede"
+      }
     ],
     [
       "registrar entrada de inventario",
@@ -436,6 +450,70 @@ describe("critical route permissions", () => {
         })
       })
     );
+  });
+
+  it("allows CASHIER to create inventory transfer requests", async () => {
+    inventoryServiceMock.createInventoryTransferRequest.mockResolvedValue({
+      id: "transfer-request-1",
+      status: "PENDING",
+      fromWarehouseId: "00000000-0000-4000-8000-000000000011",
+      toWarehouseId: "00000000-0000-4000-8000-000000000012",
+      requestedById: CASHIER_USER.id,
+      reason: "Necesito stock para ruta",
+      items: []
+    });
+
+    const response = await request(app)
+      .post("/api/inventory/transfer-requests")
+      .set(AUTH_HEADER)
+      .send({
+        fromWarehouseId: "00000000-0000-4000-8000-000000000011",
+        reason: "Necesito stock para ruta",
+        items: [
+          {
+            productId: "00000000-0000-4000-8000-000000000003",
+            quantity: 2
+          }
+        ]
+      });
+
+    expect(response.status).toBe(201);
+    expect(inventoryServiceMock.createInventoryTransferRequest).toHaveBeenCalledWith(
+      {
+        id: CASHIER_USER.id,
+        role: CASHIER_USER.role
+      },
+      expect.objectContaining({
+        reason: "Necesito stock para ruta"
+      })
+    );
+  });
+
+  it("allows ADMIN to reject pending inventory transfer requests", async () => {
+    authenticateAs(ADMIN_USER);
+    inventoryServiceMock.rejectInventoryTransferRequest.mockResolvedValue({
+      id: "transfer-request-1",
+      status: "REJECTED",
+      requestedById: CASHIER_USER.id,
+      reviewedById: ADMIN_USER.id,
+      reason: "Necesito stock",
+      reviewNote: "No procede",
+      items: []
+    });
+
+    const response = await request(app)
+      .post("/api/inventory/transfer-requests/00000000-0000-4000-8000-000000000007/reject")
+      .set(AUTH_HEADER)
+      .send({
+        reviewNote: "No procede"
+      });
+
+    expect(response.status).toBe(200);
+    expect(inventoryServiceMock.rejectInventoryTransferRequest).toHaveBeenCalledWith({
+      requestId: "00000000-0000-4000-8000-000000000007",
+      reviewedById: ADMIN_USER.id,
+      reviewNote: "No procede"
+    });
   });
 
   it("allows ADMIN to ensure a seller stock warehouse", async () => {

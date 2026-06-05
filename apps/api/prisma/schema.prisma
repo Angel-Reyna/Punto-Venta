@@ -25,6 +25,13 @@ enum WarehouseType {
   SELLER
 }
 
+enum InventoryTransferRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 enum InventoryReasonType {
   EXPIRATION
   OTHER
@@ -79,6 +86,8 @@ model User {
   saleReturns          SaleReturn[]
   salesAdjustmentRequests         SaleAdjustmentRequest[] @relation("SalesAdjustmentRequestsRequested")
   reviewedSalesAdjustmentRequests SaleAdjustmentRequest[] @relation("SalesAdjustmentRequestsReviewed")
+  inventoryTransferRequests       InventoryTransferRequest[] @relation("InventoryTransferRequestsRequested")
+  reviewedInventoryTransferRequests InventoryTransferRequest[] @relation("InventoryTransferRequestsReviewed")
   audits               AuditLog[]
   sessions             RefreshSession[]
   sellerLogs           SellerActivityLog[]
@@ -160,6 +169,7 @@ model Product {
   saleItems          SaleItem[]
   saleReturnItems    SaleReturnItem[]
   adjustmentRequestItems SaleAdjustmentRequestItem[]
+  inventoryTransferRequestItems InventoryTransferRequestItem[]
   inventoryMoves     InventoryMovement[]
   inventoryBalances  InventoryBalance[]
 
@@ -182,11 +192,56 @@ model Warehouse {
   seller             User?               @relation("SellerWarehouse", fields: [sellerId], references: [id], onDelete: SetNull)
   inventoryMoves     InventoryMovement[]
   inventoryBalances  InventoryBalance[]
+  transferRequestsFrom InventoryTransferRequest[] @relation("InventoryTransferRequestsFrom")
+  transferRequestsTo   InventoryTransferRequest[] @relation("InventoryTransferRequestsTo")
 
   @@index([isActive])
   @@index([type])
 }
 
+
+model InventoryTransferRequest {
+  id              String                         @id @default(uuid())
+  status          InventoryTransferRequestStatus @default(PENDING)
+  fromWarehouseId String
+  toWarehouseId   String
+  requestedById   String
+  reviewedById    String?
+  reason          String
+  reviewNote      String?
+  createdAt       DateTime                       @default(now())
+  updatedAt       DateTime                       @updatedAt
+  reviewedAt      DateTime?
+
+  fromWarehouse Warehouse @relation("InventoryTransferRequestsFrom", fields: [fromWarehouseId], references: [id])
+  toWarehouse   Warehouse @relation("InventoryTransferRequestsTo", fields: [toWarehouseId], references: [id])
+  requestedBy   User      @relation("InventoryTransferRequestsRequested", fields: [requestedById], references: [id], onDelete: Cascade)
+  reviewedBy    User?     @relation("InventoryTransferRequestsReviewed", fields: [reviewedById], references: [id], onDelete: SetNull)
+  items         InventoryTransferRequestItem[]
+
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+  @@index([requestedById])
+  @@index([reviewedById])
+  @@index([status])
+  @@index([createdAt])
+  @@index([status, createdAt])
+}
+
+model InventoryTransferRequestItem {
+  id          String @id @default(uuid())
+  requestId   String
+  productId   String?
+  productSku  String
+  productName String
+  quantity    Int
+
+  request InventoryTransferRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  product Product?                 @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+  @@index([productId])
+}
 
 model InventoryBalance {
   id          String   @id @default(uuid())

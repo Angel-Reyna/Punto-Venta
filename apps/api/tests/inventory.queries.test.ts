@@ -5,6 +5,9 @@ const prismaMock = {
   },
   warehouse: {
     findMany: jest.fn()
+  },
+  inventoryTransferRequest: {
+    findMany: jest.fn()
   }
 };
 
@@ -14,7 +17,11 @@ jest.mock("../src/config/prisma", () => ({
 
 import { Role } from "@prisma/client";
 
-import { listInventoryMovements, listSellerStock } from "../src/modules/inventory/inventory.queries";
+import {
+  listInventoryMovements,
+  listInventoryTransferRequests,
+  listSellerStock
+} from "../src/modules/inventory/inventory.queries";
 
 describe("inventory.queries", () => {
   beforeEach(() => {
@@ -22,6 +29,7 @@ describe("inventory.queries", () => {
     prismaMock.inventoryMovement.count.mockResolvedValue(0);
     prismaMock.inventoryMovement.findMany.mockResolvedValue([]);
     prismaMock.warehouse.findMany.mockResolvedValue([]);
+    prismaMock.inventoryTransferRequest.findMany.mockResolvedValue([]);
   });
 
   it.each(["merma", "caducidad", "expiration", "vencimiento"])(
@@ -186,6 +194,62 @@ describe("listSellerStock", () => {
           type: "SELLER",
           isActive: true,
           sellerId: "seller-2"
+        })
+      })
+    );
+  });
+});
+
+
+describe("listInventoryTransferRequests", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prismaMock.inventoryTransferRequest.findMany.mockResolvedValue([]);
+  });
+
+  it("scopes transfer requests to the current seller", async () => {
+    await listInventoryTransferRequests(
+      { id: "seller-1", role: Role.CASHIER },
+      {}
+    );
+
+    expect(prismaMock.inventoryTransferRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          requestedById: "seller-1"
+        })
+      })
+    );
+  });
+
+  it("blocks sellers from filtering another seller transfer requests", async () => {
+    await expect(
+      listInventoryTransferRequests(
+        { id: "seller-1", role: Role.CASHIER },
+        { sellerId: "seller-2" }
+      )
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      message: "No autorizado"
+    });
+
+    expect(prismaMock.inventoryTransferRequest.findMany).not.toHaveBeenCalled();
+  });
+
+  it("allows admins to filter transfer requests by status and seller", async () => {
+    await listInventoryTransferRequests(
+      { id: "admin-1", role: Role.ADMIN },
+      {
+        sellerId: "seller-2",
+        status: "PENDING"
+      }
+    );
+
+    expect(prismaMock.inventoryTransferRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          requestedById: "seller-2",
+          status: "PENDING"
         })
       })
     );

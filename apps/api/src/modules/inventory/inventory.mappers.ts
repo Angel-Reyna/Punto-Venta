@@ -97,3 +97,37 @@ export function mapInventoryMovementAuditData(
     reason: movement.reason
   };
 }
+
+export function mapInventoryTransferRequestAuditData(request: {
+  id: string;
+  status: string;
+  fromWarehouseId?: string | null;
+  toWarehouseId?: string | null;
+  requestedById?: string | null;
+  reviewedById?: string | null;
+  reason?: string | null;
+  reviewNote?: string | null;
+  items?: Array<{
+    productId?: string | null;
+    productSku: string;
+    productName: string;
+    quantity: number;
+  }>;
+}) {
+  return {
+    requestId: request.id,
+    status: request.status,
+    fromWarehouseId: request.fromWarehouseId ?? null,
+    toWarehouseId: request.toWarehouseId ?? null,
+    requestedById: request.requestedById ?? null,
+    reviewedById: request.reviewedById ?? null,
+    reason: request.reason ?? null,
+    reviewNote: request.reviewNote ?? null,
+    items: request.items?.map((item) => ({
+      productId: item.productId ?? null,
+      productSku: item.productSku,
+      productName: item.productName,
+      quantity: item.quantity
+    })) ?? []
+  };
+}
