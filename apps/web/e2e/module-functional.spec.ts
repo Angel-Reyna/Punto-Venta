@@ -63,6 +63,38 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(byTestId(page, "sales-cart-items")).toContainText("COCA-600");
   });
 
+
+
+  test("ventas permite devolver varios productos en una misma operación", async ({ page }) => {
+    await mockApi(page, { role: "ADMIN" });
+
+    await page.goto("/sales");
+
+    await expect(page.getByRole("heading", { name: "Ventas", level: 1 })).toBeVisible();
+    await expect(page.getByText("PV-0001")).toBeVisible();
+    await expect(page.getByText("1× Coca-Cola 600 ml · 2× Botana Salada 50g")).toBeVisible();
+
+    await page.getByRole("button", { name: "Devolver" }).click();
+
+    const returnDialog = dialogByName(page, /Registrar devolución PV-0001/);
+    await expect(returnDialog).toBeVisible();
+    await expect(returnDialog).toContainText("Devuelve una o varias partidas vendidas en la misma operación.");
+    await expect(returnDialog).toContainText("0 productos seleccionados");
+
+    await fillByTestId(returnDialog, "sales-return-quantity-sale-item-1", "1");
+    await fillByTestId(returnDialog, "sales-return-quantity-sale-item-2", "2");
+
+    await expect(returnDialog).toContainText("2 productos seleccionados");
+    await expect(returnDialog).toContainText("3 unidades a devolver");
+
+    await fillByTestId(returnDialog, "sales-return-reason", "Cliente devolvió varios productos");
+    await clickByTestId(returnDialog, "sales-return-submit");
+
+    await expect(page.getByText("Devolución registrada correctamente. El stock fue restaurado.")).toBeVisible();
+    await expect(page.getByText("Devuelta", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Devolver" })).toBeDisabled();
+  });
+
   test("productos permite crear, desactivar y eliminar físicamente sin dejarlo disponible para venta", async ({ page }) => {
     await mockApi(page, { role: "ADMIN" });
 
