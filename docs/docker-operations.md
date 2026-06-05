@@ -14,6 +14,34 @@ DOCKER_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/pos_senior_db?s
 
 `docker-compose.yml` transforma `DOCKER_DATABASE_URL` en `DATABASE_URL` dentro del contenedor API. No uses `DATABASE_URL` en el `.env` raíz para Compose; reserva `DATABASE_URL` para `apps/api/.env` cuando ejecutes la API localmente con npm.
 
+## Puertos publicados en el host
+
+Docker Compose mantiene los puertos internos de los servicios, pero publica puertos distintos en tu máquina para evitar choques con el modo local. Por defecto:
+
+```txt
+API local con npm:      http://localhost:4000
+API Docker publicada:   http://localhost:4001 -> api:4000
+Web local con Vite:     http://localhost:5173
+Web Docker publicada:   http://localhost:8080 -> web:80
+PostgreSQL Docker:      localhost:5432 -> postgres:5432
+PgAdmin opcional:       http://localhost:5050 -> pgadmin:80
+```
+
+Variables disponibles en el `.env` raíz:
+
+```env
+API_HOST_PORT=4001
+WEB_HOST_PORT=8080
+POSTGRES_HOST_PORT=5432
+PGADMIN_HOST_PORT=5050
+```
+
+Si ya tienes un PostgreSQL local usando `5432`, cambia `POSTGRES_HOST_PORT` a `5433`. En ese caso, cualquier API ejecutada fuera de Docker debe usar `localhost:5433` en su `DATABASE_URL`. Dentro de Docker no cambia nada: la API sigue usando `postgres:5432`.
+
+Si cambias `WEB_HOST_PORT`, actualiza también `CORS_ORIGIN` para que coincida con el origen público del frontend.
+
+Si tu `.env` raíz fue creado con una versión anterior del proyecto, reemplaza las variables antiguas `API_PORT`, `WEB_PORT`, `POSTGRES_PORT` y `PGADMIN_PORT` por las variables `*_HOST_PORT`.
+
 ## Archivos de entorno
 
 Modo Docker de desarrollo:
@@ -110,14 +138,16 @@ docker compose logs -f api
 docker compose logs -f web
 ```
 
-URLs esperadas:
+URLs esperadas por defecto:
 
 ```txt
 Frontend/Nginx: http://localhost:8080
-API directa:    http://localhost:4000
+API directa:    http://localhost:4001
 Health vía Web: http://localhost:8080/health
-Health API:     http://localhost:4000/health
+Health API:     http://localhost:4001/health
 ```
+
+El puerto interno de la API dentro del contenedor sigue siendo `4000`; el puerto `4001` solo aplica desde tu máquina.
 
 ## Seed en contenedor
 
@@ -205,15 +235,15 @@ docker compose up -d api
 
 ### Puerto ocupado
 
-Si `4000`, `5432`, `8080` o `5050` están ocupados:
+Si `4001`, `5432`, `8080` o `5050` están ocupados:
 
 ```bash
 docker compose ps
 ```
 
-Detén servicios locales conflictivos o cambia `API_PORT`, `POSTGRES_PORT`, `WEB_PORT` o `PGADMIN_PORT` en `.env`.
+Detén servicios locales conflictivos o cambia `API_HOST_PORT`, `POSTGRES_HOST_PORT`, `WEB_HOST_PORT` o `PGADMIN_HOST_PORT` en `.env`.
 
-No ejecutes al mismo tiempo:
+Puedes ejecutar al mismo tiempo:
 
 ```bash
 npm run api:dev
@@ -222,10 +252,10 @@ npm run api:dev
 y:
 
 ```bash
-docker compose up api
+docker compose up -d api
 ```
 
-Ambos usan el puerto `4000` por defecto.
+siempre que Docker publique la API en `API_HOST_PORT=4001` o cualquier otro puerto distinto de `4000`. Evita que dos procesos escriban al mismo tiempo sobre la misma base si estás corriendo pruebas o migraciones.
 
 ### Cambios de Prisma no aplicados
 
@@ -279,6 +309,7 @@ Después valida manualmente:
 ```txt
 - http://localhost:8080 carga el frontend.
 - http://localhost:8080/health responde OK.
+- http://localhost:4001/health responde OK, salvo que hayas cambiado `API_HOST_PORT`.
 - Login admin funciona.
 - Productos, ventas y reportes cargan sin errores 401/403/500.
 ```

@@ -9,7 +9,7 @@ Esta guía describe el flujo recomendado para trabajar en local con API y Web ej
 - npm 10 o superior.
 - Docker Desktop activo, usado en local solo para PostgreSQL.
 - Git Bash, PowerShell o una terminal equivalente.
-- Puertos libres: `4000` para API, `5173` para Web, `5432` para PostgreSQL local, `4010` y `5175` para E2E integrado.
+- Puertos libres: `4000` para API local, `5173` para Web local, `5432` para PostgreSQL local/Docker compartido, `4001` para API Docker, `8080` para Web Docker, `4010` y `5175` para E2E integrado.
 
 Verificación rápida:
 
@@ -226,6 +226,7 @@ Si persiste en Windows/Git Bash:
 
 ```bash
 netstat -ano | findstr :4000
+netstat -ano | findstr :4001
 netstat -ano | findstr :5173
 ```
 

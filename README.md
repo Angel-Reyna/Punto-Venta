@@ -66,7 +66,7 @@ docs/
 - Node.js 22 LTS recomendado. El proyecto declara `engines.node >=22` y CI/Docker usan Node 22.
 - npm 10 o superior.
 - Docker Desktop para PostgreSQL local, Docker Compose y E2E integrado.
-- Puertos habituales libres: `4000`, `5173`, `5432`, `4010`, `5175`, `8080`.
+- Puertos habituales libres: `4000` y `5173` para desarrollo local; `4001` y `8080` para Docker completo; `5432` para PostgreSQL Docker local; `4010` y `5175` para E2E integrado.
 
 Verificación rápida:
 
@@ -131,14 +131,16 @@ docker compose up -d postgres api web
 docker compose exec api npm run seed:prod
 ```
 
-URLs Docker:
+URLs Docker por defecto:
 
 ```txt
 Frontend/Nginx: http://localhost:8080
-API directa:    http://localhost:4000
+API directa:    http://localhost:4001
 Health Web:     http://localhost:8080/health
-Health API:     http://localhost:4000/health
+Health API:     http://localhost:4001/health
 ```
+
+Docker mantiene la API dentro del contenedor en el puerto `4000`; `4001` es solo el puerto publicado en tu máquina para evitar choque con `npm run api:dev`.
 
 Guía detallada: `docs/docker-operations.md`.
 
