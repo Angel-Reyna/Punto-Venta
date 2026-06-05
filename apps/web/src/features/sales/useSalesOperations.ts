@@ -2,11 +2,21 @@ import { useCallback, useMemo, useState } from "react";
 
 import { getApiErrorMessage } from "../../utils/apiError";
 
-import type { CancelSalePayload, ReturnSaleItemsPayload } from "./salesApi";
+import type {
+  CancelSalePayload,
+  CreateSalesAdjustmentRequestPayload,
+  ReturnSaleItemsPayload,
+} from "./salesApi";
 import { getReturnableQuantity, type PaymentMethod, type Sale, type SaleItem } from "./salesShared";
 
 type SubmitSaleCancellation = (saleId: string, payload: CancelSalePayload) => Promise<void>;
 type SubmitSaleReturn = (saleId: string, payload: ReturnSaleItemsPayload) => Promise<void>;
+type SubmitSalesAdjustmentRequest = (
+  saleId: string,
+  payload: CreateSalesAdjustmentRequestPayload,
+) => Promise<void>;
+
+export type SalesOperationMode = "direct" | "request";
 
 type UseSalesOperationsOptions = {
   setError: (message: string) => void;
@@ -14,6 +24,7 @@ type UseSalesOperationsOptions = {
   setMessage: (message: string) => void;
   submitSaleCancellation: SubmitSaleCancellation;
   submitSaleReturn: SubmitSaleReturn;
+  submitSalesAdjustmentRequest: SubmitSalesAdjustmentRequest;
 };
 
 export type ReturnQuantityDrafts = Record<string, string>;
@@ -56,10 +67,13 @@ export function useSalesOperations({
   setMessage,
   submitSaleCancellation,
   submitSaleReturn,
+  submitSalesAdjustmentRequest,
 }: UseSalesOperationsOptions) {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [cancelOperationMode, setCancelOperationMode] = useState<SalesOperationMode>("direct");
+  const [returnOperationMode, setReturnOperationMode] = useState<SalesOperationMode>("direct");
   const [cancelReason, setCancelReason] = useState("");
   const [cancelRefundMethod, setCancelRefundMethod] = useState<PaymentMethod>("CASH");
   const [returnReason, setReturnReason] = useState("");
@@ -68,15 +82,17 @@ export function useSalesOperations({
 
   const saleDialogIsOpen = cancelDialogOpen || returnDialogOpen;
 
-  const openCancelDialog = useCallback((sale: Sale) => {
+  const openCancelDialog = useCallback((sale: Sale, mode: SalesOperationMode = "direct") => {
     setSelectedSale(sale);
+    setCancelOperationMode(mode);
     setCancelReason("");
     setCancelRefundMethod(sale.payments?.[0]?.method ?? "CASH");
     setCancelDialogOpen(true);
   }, []);
 
-  const openReturnDialog = useCallback((sale: Sale) => {
+  const openReturnDialog = useCallback((sale: Sale, mode: SalesOperationMode = "direct") => {
     setSelectedSale(sale);
+    setReturnOperationMode(mode);
     setReturnReason("");
     setReturnRefundMethod(sale.payments?.[0]?.method ?? "CASH");
     setReturnQuantities(buildInitialReturnQuantities(sale));
@@ -147,25 +163,40 @@ export function useSalesOperations({
       setError("");
       setMessage("");
 
-      await submitSaleCancellation(selectedSale.id, {
-        reason: cancelReason.trim(),
-        refundMethod: cancelRefundMethod,
-      });
+      if (cancelOperationMode === "request") {
+        await submitSalesAdjustmentRequest(selectedSale.id, {
+          type: "CANCEL_SALE",
+          reason: cancelReason.trim(),
+          refundMethod: cancelRefundMethod,
+        });
+      } else {
+        await submitSaleCancellation(selectedSale.id, {
+          reason: cancelReason.trim(),
+          refundMethod: cancelRefundMethod,
+        });
+      }
 
       setCancelDialogOpen(false);
       setSelectedSale(null);
-      setMessage("Venta cancelada correctamente. El stock fue restaurado.");
+      setMessage(
+        cancelOperationMode === "request"
+          ? "Solicitud de cancelación enviada al administrador."
+          : "Venta cancelada correctamente. El stock fue restaurado.",
+      );
     } catch (err: unknown) {
       setError(
         getApiErrorMessage(
           err,
-          "No se pudo cancelar la venta. Verifica el motivo y el método de devolución.",
+          cancelOperationMode === "request"
+            ? "No se pudo enviar la solicitud de cancelación. Verifica el motivo."
+            : "No se pudo cancelar la venta. Verifica el motivo y el método de devolución.",
         ),
       );
     } finally {
       setIsSubmitting(false);
     }
   }, [
+    cancelOperationMode,
     cancelReason,
     cancelRefundMethod,
     selectedSale,
@@ -173,6 +204,7 @@ export function useSalesOperations({
     setIsSubmitting,
     setMessage,
     submitSaleCancellation,
+    submitSalesAdjustmentRequest,
   ]);
 
   const returnSaleItems = useCallback(async () => {
@@ -199,35 +231,53 @@ export function useSalesOperations({
       return;
     }
 
+    const items = selectedReturnItems.map((item) => ({
+      saleItemId: item.saleItem.id,
+      quantity: item.quantity,
+    }));
+
     try {
       setIsSubmitting(true);
       setError("");
       setMessage("");
 
-      await submitSaleReturn(selectedSale.id, {
-        reason: returnReason.trim(),
-        refundMethod: returnRefundMethod,
-        items: selectedReturnItems.map((item) => ({
-          saleItemId: item.saleItem.id,
-          quantity: item.quantity,
-        })),
-      });
+      if (returnOperationMode === "request") {
+        await submitSalesAdjustmentRequest(selectedSale.id, {
+          type: "RETURN_ITEMS",
+          reason: returnReason.trim(),
+          refundMethod: returnRefundMethod,
+          items,
+        });
+      } else {
+        await submitSaleReturn(selectedSale.id, {
+          reason: returnReason.trim(),
+          refundMethod: returnRefundMethod,
+          items,
+        });
+      }
 
       setReturnDialogOpen(false);
       setSelectedSale(null);
       setReturnQuantities({});
-      setMessage("Devolución registrada correctamente. El stock fue restaurado.");
+      setMessage(
+        returnOperationMode === "request"
+          ? "Solicitud de devolución enviada al administrador."
+          : "Devolución registrada correctamente. El stock fue restaurado.",
+      );
     } catch (err: unknown) {
       setError(
         getApiErrorMessage(
           err,
-          "No se pudo registrar la devolución. Verifica los productos, cantidades, motivo y método.",
+          returnOperationMode === "request"
+            ? "No se pudo enviar la solicitud de devolución. Verifica productos, cantidades y motivo."
+            : "No se pudo registrar la devolución. Verifica los productos, cantidades, motivo y método.",
         ),
       );
     } finally {
       setIsSubmitting(false);
     }
   }, [
+    returnOperationMode,
     returnReason,
     returnRefundMethod,
     selectedReturnItems,
@@ -236,6 +286,7 @@ export function useSalesOperations({
     setIsSubmitting,
     setMessage,
     submitSaleReturn,
+    submitSalesAdjustmentRequest,
   ]);
 
   const cancelReasonIsInvalid = cancelReason.trim().length < 5;
@@ -244,6 +295,7 @@ export function useSalesOperations({
 
   return {
     cancelDialogOpen,
+    cancelOperationMode,
     cancelReason,
     cancelReasonIsInvalid,
     cancelRefundMethod,
@@ -255,6 +307,7 @@ export function useSalesOperations({
     returnDialogOpen,
     returnFormIsInvalid,
     returnItemsDraft,
+    returnOperationMode,
     returnQuantities,
     returnReason,
     returnRefundMethod,

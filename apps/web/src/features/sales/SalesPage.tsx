@@ -10,6 +10,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { PERMISSIONS } from "../../auth/permissions";
 import { getApiErrorMessage } from "../../utils/apiError";
 
+import { SalesAdjustmentRequestsPanel } from "./SalesAdjustmentRequestsPanel";
 import { SalesCheckoutPanel } from "./SalesCheckoutPanel";
 import { SalesHero } from "./SalesHero";
 import { SalesHistoryPanel } from "./SalesHistoryPanel";
@@ -42,16 +43,22 @@ export function SalesPage() {
   const canCreateSales = can(PERMISSIONS.SalesCreate);
   const canCancelSales = can(PERMISSIONS.SalesCancel);
   const canReturnSales = can(PERMISSIONS.SalesReturn);
-  const canManageSales = canCancelSales || canReturnSales;
+  const canRequestSalesAdjustments = can(PERMISSIONS.SalesAdjustmentRequestCreate);
+  const canReviewAdjustmentRequests = can(PERMISSIONS.SalesAdjustmentRequestReview);
+  const canShowSellerInfo = canCancelSales || canReturnSales || canReviewAdjustmentRequests;
 
   const {
+    adjustmentRequests,
     products,
     sales,
     isLoadingCatalog,
+    approveAdjustmentRequest,
     loadSalesData,
+    rejectAdjustmentRequest,
     submitSale,
     submitSaleCancellation,
     submitSaleReturn,
+    submitSalesAdjustmentRequest,
   } = useSalesData();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
@@ -66,6 +73,7 @@ export function SalesPage() {
 
   const {
     cancelDialogOpen,
+    cancelOperationMode,
     cancelReason,
     cancelReasonIsInvalid,
     cancelRefundMethod,
@@ -77,6 +85,7 @@ export function SalesPage() {
     returnDialogOpen,
     returnFormIsInvalid,
     returnItemsDraft,
+    returnOperationMode,
     returnQuantities,
     returnReason,
     returnRefundMethod,
@@ -96,6 +105,7 @@ export function SalesPage() {
     setMessage,
     submitSaleCancellation,
     submitSaleReturn,
+    submitSalesAdjustmentRequest,
   });
 
   const loadSalesWorkspace = useCallback(async () => {
@@ -244,6 +254,44 @@ export function SalesPage() {
     total,
   ]);
 
+  const approveAdjustment = useCallback(
+    async (requestId: string, reviewNote?: string) => {
+      try {
+        setIsSubmitting(true);
+        setError("");
+        setMessage("");
+
+        await approveAdjustmentRequest(requestId, { reviewNote });
+
+        setMessage("Solicitud aprobada correctamente. El ajuste fue aplicado.");
+      } catch (err: unknown) {
+        setError(getApiErrorMessage(err, "No se pudo aprobar la solicitud de ajuste."));
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [approveAdjustmentRequest],
+  );
+
+  const rejectAdjustment = useCallback(
+    async (requestId: string, reviewNote?: string) => {
+      try {
+        setIsSubmitting(true);
+        setError("");
+        setMessage("");
+
+        await rejectAdjustmentRequest(requestId, { reviewNote });
+
+        setMessage("Solicitud rechazada correctamente.");
+      } catch (err: unknown) {
+        setError(getApiErrorMessage(err, "No se pudo rechazar la solicitud de ajuste."));
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [rejectAdjustmentRequest],
+  );
+
   useEffect(() => {
     function handleGlobalShortcuts(event: globalThis.KeyboardEvent) {
       if (event.key === "F3") {
@@ -291,9 +339,11 @@ export function SalesPage() {
       <PageHeader
         title="Ventas"
         subtitle={
-          canManageSales
+          canShowSellerInfo
             ? "Registra ventas, revisa tickets recientes y administra cancelaciones o devoluciones."
-            : "Registra ventas y consulta únicamente tus tickets recientes."
+            : canRequestSalesAdjustments
+              ? "Registra ventas y solicita cancelaciones o devoluciones cuando necesites revisión del administrador."
+              : "Registra ventas y consulta únicamente tus tickets recientes."
         }
         action={
           <Button
@@ -310,8 +360,14 @@ export function SalesPage() {
 
       <Box sx={{ mb: 2 }}>
         <Chip
-          color={canManageSales ? "primary" : "success"}
-          label={canManageSales ? "Vista con gestión de ventas" : "Vista vendedor: solo tus ventas"}
+          color={canShowSellerInfo ? "primary" : "success"}
+          label={
+            canShowSellerInfo
+              ? "Vista con gestión de ventas"
+              : canRequestSalesAdjustments
+                ? "Vista vendedor: ajustes con aprobación"
+                : "Vista vendedor: solo tus ventas"
+          }
         />
       </Box>
 
@@ -409,17 +465,32 @@ export function SalesPage() {
       )}
 
       <SalesHistoryPanel
+        adjustmentRequests={adjustmentRequests}
         canCancelSales={canCancelSales}
-        canManageSales={canManageSales}
+        canRequestSalesAdjustments={canRequestSalesAdjustments}
         canReturnSales={canReturnSales}
+        canShowSellerInfo={canShowSellerInfo}
         isSubmitting={isSubmitting}
         sales={sales}
         onOpenCancelDialog={openCancelDialog}
         onOpenReturnDialog={openReturnDialog}
       />
 
+      {(canReviewAdjustmentRequests || canRequestSalesAdjustments) && (
+        <Box sx={{ mt: 2 }}>
+          <SalesAdjustmentRequestsPanel
+            adjustmentRequests={adjustmentRequests}
+            canReviewAdjustmentRequests={canReviewAdjustmentRequests}
+            isSubmitting={isSubmitting}
+            onApproveAdjustmentRequest={approveAdjustment}
+            onRejectAdjustmentRequest={rejectAdjustment}
+          />
+        </Box>
+      )}
+
       <SalesOperationDialogs
         cancelDialogOpen={cancelDialogOpen}
+        cancelOperationMode={cancelOperationMode}
         cancelReason={cancelReason}
         cancelReasonIsInvalid={cancelReasonIsInvalid}
         cancelRefundMethod={cancelRefundMethod}
@@ -427,6 +498,7 @@ export function SalesPage() {
         returnDialogOpen={returnDialogOpen}
         returnFormIsInvalid={returnFormIsInvalid}
         returnItemsDraft={returnItemsDraft}
+        returnOperationMode={returnOperationMode}
         returnQuantities={returnQuantities}
         returnReason={returnReason}
         returnRefundMethod={returnRefundMethod}

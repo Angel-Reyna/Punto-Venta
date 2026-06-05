@@ -71,7 +71,7 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await page.goto("/sales");
 
     await expect(page.getByRole("heading", { name: "Ventas", level: 1 })).toBeVisible();
-    await expect(page.getByText("PV-0001")).toBeVisible();
+    await expect(byTestId(page, "sales-history-sale-sale-1").getByText("PV-0001", { exact: true })).toBeVisible();
     await expect(page.getByText("1× Coca-Cola 600 ml · 2× Botana Salada 50g")).toBeVisible();
 
     await page.getByRole("button", { name: "Devolver" }).click();
@@ -93,6 +93,53 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(page.getByText("Devolución registrada correctamente. El stock fue restaurado.")).toBeVisible();
     await expect(page.getByText("Devuelta", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Devolver" })).toBeDisabled();
+  });
+
+
+  test("vendedor solicita devolución para aprobación del administrador", async ({ page }) => {
+    await mockApi(page, { role: "CASHIER" });
+
+    await page.goto("/sales");
+
+    await expect(page.getByRole("heading", { name: "Ventas", level: 1 })).toBeVisible();
+    await expect(page.getByText("Vista vendedor: ajustes con aprobación")).toBeVisible();
+
+    await page.getByRole("button", { name: "Solicitar devolución" }).click();
+
+    const returnDialog = dialogByName(page, /Solicitar devolución PV-0001/);
+    await expect(returnDialog).toBeVisible();
+    await expect(returnDialog).toContainText("La venta y el inventario no cambiarán hasta que un administrador apruebe");
+
+    await fillByTestId(returnDialog, "sales-return-quantity-sale-item-1", "1");
+    await fillByTestId(returnDialog, "sales-return-reason", "Cliente solicita devolución");
+    await clickByTestId(returnDialog, "sales-return-submit");
+
+    await expect(page.getByText("Solicitud de devolución enviada al administrador.")).toBeVisible();
+    await expect(byTestId(page, "sales-adjustment-requests-panel")).toContainText("Devolución solicitada");
+    await expect(byTestId(page, "sales-adjustment-requests-panel")).toContainText("Pendiente");
+    await expect(page.getByText("Ajuste pendiente")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Solicitar devolución" })).toBeDisabled();
+  });
+
+  test("admin aprueba una solicitud de ajuste pendiente", async ({ page }) => {
+    await mockApi(page, { role: "ADMIN" });
+
+    await page.goto("/sales");
+
+    const requestsPanel = byTestId(page, "sales-adjustment-requests-panel");
+    await expect(requestsPanel).toBeVisible();
+    await expect(byTestId(page, "sales-adjustment-request-adjustment-1")).toContainText("Pendiente");
+
+    await clickByTestId(requestsPanel, "sales-adjustment-approve-adjustment-1");
+
+    const reviewDialog = dialogByName(page, "Aprobar solicitud");
+    await expect(reviewDialog).toBeVisible();
+    await fillByTestId(reviewDialog, "sales-adjustment-review-note", "Aprobado por revisión E2E");
+    await clickByTestId(reviewDialog, "sales-adjustment-review-submit");
+
+    await expect(page.getByText("Solicitud aprobada correctamente. El ajuste fue aplicado.")).toBeVisible();
+    await expect(byTestId(page, "sales-adjustment-request-adjustment-1")).toContainText("Aprobada");
+    await expect(byTestId(page, "sales-history-sale-sale-1")).toContainText("Devolución parcial");
   });
 
   test("productos permite crear, desactivar y eliminar físicamente sin dejarlo disponible para venta", async ({ page }) => {

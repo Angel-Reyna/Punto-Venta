@@ -90,6 +90,37 @@ type MockSale = {
   returns: MockSaleReturn[];
 };
 
+type MockSaleAdjustmentRequest = {
+  id: string;
+  type: "CANCEL_SALE" | "RETURN_ITEMS";
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  saleId: string;
+  requestedById: string;
+  reviewedById?: string | null;
+  reason: string;
+  refundMethod?: string | null;
+  reviewNote?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+  sale: Pick<MockSale, "id" | "folio" | "status" | "total" | "createdAt" | "cashier">;
+  requestedBy: MockManagedUser;
+  reviewedBy?: MockManagedUser | null;
+  items: Array<{
+    id: string;
+    saleItemId: string;
+    productId?: string | null;
+    productSku?: string;
+    productName?: string;
+    quantity: number;
+    saleItem?: Pick<MockSaleItem, "id" | "quantity" | "productSku" | "productName">;
+    product?: {
+      id?: string | null;
+      sku: string;
+      name: string;
+    } | null;
+  }>;
+};
+
 type MockInventoryMovement = {
   id: string;
   type: "IN" | "OUT" | "SALE" | "RETURN" | "ADJUSTMENT";
@@ -173,6 +204,9 @@ export const ADMIN_PERMISSIONS = [
   "sales:create",
   "sales:cancel",
   "sales:return",
+  "sales-adjustments:read",
+  "sales-adjustments:create",
+  "sales-adjustments:review",
   "reports:read",
   "dashboard:read",
   "audit:read",
@@ -184,6 +218,8 @@ export const SELLER_PERMISSIONS = [
   "inventory:read",
   "sales:read",
   "sales:create",
+  "sales-adjustments:read",
+  "sales-adjustments:create",
   "dashboard:read",
 ] as const;
 
@@ -225,6 +261,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
     ]),
   );
   const managedUsers = usersResponse();
+  const adjustmentRequests = adjustmentRequestsResponse(role, sales, managedUsers);
   const auditLogs = auditLogsResponse(managedUsers);
   const sellerActivityLogs = sellerActivityResponse(managedUsers);
 
@@ -623,6 +660,86 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
 
     if (pathname.endsWith("/seller-activity") && method === "GET") {
       return json(route, filterSellerActivity(sellerActivityLogs, url.searchParams));
+    }
+
+    if (pathname.endsWith("/sales/adjustment-requests") && method === "GET") {
+      const visibleRequests = role === "ADMIN"
+        ? adjustmentRequests
+        : adjustmentRequests.filter((request) => request.requestedById === user.id);
+
+      return json(route, visibleRequests);
+    }
+
+    const adjustmentCreateMatch = pathname.match(/^\/sales\/([^/]+)\/adjustment-requests$/);
+    if (adjustmentCreateMatch && method === "POST") {
+      const sale = sales.find((item) => item.id === adjustmentCreateMatch[1]);
+
+      if (!sale) {
+        return json(route, { message: "Venta no encontrada" }, 404);
+      }
+
+      const existingPendingRequest = adjustmentRequests.find(
+        (request) => request.saleId === sale.id && request.status === "PENDING",
+      );
+
+      if (existingPendingRequest) {
+        return json(route, { message: "Ya existe una solicitud pendiente para esta venta" }, 409);
+      }
+
+      const payload = readJsonPayload(request) as {
+        type?: "CANCEL_SALE" | "RETURN_ITEMS";
+        reason?: string;
+        refundMethod?: string;
+        items?: Array<{ saleItemId: string; quantity: number }>;
+      };
+      const createdRequest = buildAdjustmentRequest({
+        id: `adjustment-${adjustmentRequests.length + 1}`,
+        sale,
+        requestedBy: userToManagedUser(user),
+        type: payload.type ?? "RETURN_ITEMS",
+        reason: payload.reason ?? "Solicitud E2E",
+        refundMethod: payload.refundMethod ?? "CASH",
+        items: payload.items ?? [],
+      });
+
+      adjustmentRequests.unshift(createdRequest);
+
+      return json(route, createdRequest, 201);
+    }
+
+    const adjustmentReviewMatch = pathname.match(/^\/sales\/adjustment-requests\/([^/]+)\/(approve|reject)$/);
+    if (adjustmentReviewMatch && method === "POST") {
+      const targetRequest = adjustmentRequests.find((item) => item.id === adjustmentReviewMatch[1]);
+      const action = adjustmentReviewMatch[2];
+
+      if (!targetRequest) {
+        return json(route, { message: "Solicitud no encontrada" }, 404);
+      }
+
+      if (targetRequest.status !== "PENDING") {
+        return json(route, { message: "La solicitud ya fue revisada" }, 409);
+      }
+
+      const payload = readJsonPayload(request) as { reviewNote?: string };
+      const reviewer = userToManagedUser(user);
+
+      if (action === "approve") {
+        targetRequest.status = "APPROVED";
+        targetRequest.reviewedBy = reviewer;
+        targetRequest.reviewedById = reviewer.id;
+        targetRequest.reviewedAt = "2026-05-22T14:00:00.000Z";
+        targetRequest.reviewNote = payload.reviewNote ?? null;
+
+        applyApprovedAdjustmentRequest(targetRequest, sales);
+      } else {
+        targetRequest.status = "REJECTED";
+        targetRequest.reviewedBy = reviewer;
+        targetRequest.reviewedById = reviewer.id;
+        targetRequest.reviewedAt = "2026-05-22T14:00:00.000Z";
+        targetRequest.reviewNote = payload.reviewNote ?? null;
+      }
+
+      return json(route, targetRequest);
     }
 
     if (pathname.endsWith("/sales") && method === "GET") {
@@ -1454,6 +1571,157 @@ function operationsReportResponse() {
       },
     ],
   };
+}
+
+function userToManagedUser(user: MockUser): MockManagedUser {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    isActive: true,
+    createdAt: "2026-05-20T09:00:00.000Z",
+  };
+}
+
+function saleSummaryForAdjustmentRequest(sale: MockSale): MockSaleAdjustmentRequest["sale"] {
+  return {
+    id: sale.id,
+    folio: sale.folio,
+    status: sale.status,
+    total: sale.total,
+    createdAt: sale.createdAt,
+    cashier: sale.cashier,
+  };
+}
+
+function buildAdjustmentRequest(input: {
+  id: string;
+  sale: MockSale;
+  requestedBy: MockManagedUser;
+  type: "CANCEL_SALE" | "RETURN_ITEMS";
+  reason: string;
+  refundMethod?: string | null;
+  items?: Array<{ saleItemId: string; quantity: number }>;
+}): MockSaleAdjustmentRequest {
+  const items = (input.items ?? []).map((item, index) => {
+    const saleItem = input.sale.items.find((candidate) => candidate.id === item.saleItemId);
+
+    return {
+      id: `${input.id}-item-${index + 1}`,
+      saleItemId: item.saleItemId,
+      productId: saleItem?.productId,
+      productSku: saleItem?.productSku ?? saleItem?.product?.sku,
+      productName: saleItem?.productName ?? saleItem?.product?.name,
+      quantity: item.quantity,
+      saleItem: saleItem
+        ? {
+            id: saleItem.id,
+            quantity: saleItem.quantity,
+            productSku: saleItem.productSku,
+            productName: saleItem.productName,
+          }
+        : undefined,
+      product: saleItem?.product ?? null,
+    };
+  });
+
+  return {
+    id: input.id,
+    type: input.type,
+    status: "PENDING",
+    saleId: input.sale.id,
+    requestedById: input.requestedBy.id,
+    reviewedById: null,
+    reason: input.reason,
+    refundMethod: input.refundMethod ?? null,
+    reviewNote: null,
+    createdAt: "2026-05-22T13:45:00.000Z",
+    reviewedAt: null,
+    sale: saleSummaryForAdjustmentRequest(input.sale),
+    requestedBy: input.requestedBy,
+    reviewedBy: null,
+    items,
+  };
+}
+
+function adjustmentRequestsResponse(
+  role: Role,
+  sales: MockSale[],
+  managedUsers: MockManagedUser[],
+): MockSaleAdjustmentRequest[] {
+  if (role !== "ADMIN") {
+    return [];
+  }
+
+  const sale = sales[0];
+  const seller = managedUsers.find((item) => item.role === "CASHIER") ?? managedUsers[0];
+
+  return [
+    buildAdjustmentRequest({
+      id: "adjustment-1",
+      sale,
+      requestedBy: seller,
+      type: "RETURN_ITEMS",
+      reason: "Cliente reportó producto dañado",
+      refundMethod: "CASH",
+      items: [{ saleItemId: sale.items[0].id, quantity: 1 }],
+    }),
+  ];
+}
+
+function applyApprovedAdjustmentRequest(request: MockSaleAdjustmentRequest, sales: MockSale[]) {
+  const sale = sales.find((item) => item.id === request.saleId);
+
+  if (!sale) return;
+
+  if (request.type === "CANCEL_SALE") {
+    sale.status = "CANCELLED";
+    request.sale = saleSummaryForAdjustmentRequest(sale);
+    return;
+  }
+
+  const returnItems = request.items.map((item) => {
+    const saleItem = sale.items.find((candidate) => candidate.id === item.saleItemId);
+    const unitTotal = saleItem ? Number(saleItem.total) / Number(saleItem.quantity) : 0;
+
+    return {
+      id: `return-item-${item.id}`,
+      saleItemId: item.saleItemId,
+      productId: item.productId,
+      productSku: item.productSku,
+      productName: item.productName,
+      quantity: item.quantity,
+      total: Number((unitTotal * item.quantity).toFixed(2)),
+    };
+  });
+
+  const refundTotal = returnItems.reduce((sum, item) => sum + item.total, 0);
+
+  sale.returns = [
+    {
+      id: `return-${request.id}`,
+      reason: request.reason,
+      refundMethod: request.refundMethod ?? "CASH",
+      refundTotal,
+      createdAt: "2026-05-22T14:00:00.000Z",
+      items: returnItems,
+    },
+    ...(sale.returns ?? []),
+  ];
+
+  const allReturned = sale.items.every((saleItem) => {
+    const returnedQuantity = sale.returns.reduce((sum, saleReturn) => {
+      return sum + saleReturn.items.reduce((itemSum, item) => {
+        return item.saleItemId === saleItem.id ? itemSum + item.quantity : itemSum;
+      }, 0);
+    }, 0);
+
+    return returnedQuantity >= saleItem.quantity;
+  });
+
+  sale.status = allReturned ? "REFUNDED" : "PARTIALLY_REFUNDED";
+  request.sale = saleSummaryForAdjustmentRequest(sale);
 }
 
 function salesResponse(role: Role): MockSale[] {

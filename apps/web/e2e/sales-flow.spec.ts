@@ -9,7 +9,7 @@ test.describe("flujo crítico de ventas", () => {
     await page.goto("/sales");
 
     await expect(page.getByRole("heading", { name: "Ventas", level: 1 })).toBeVisible();
-    await expect(page.getByText("Vista vendedor: solo tus ventas")).toBeVisible();
+    await expect(page.getByText("Vista vendedor: ajustes con aprobación")).toBeVisible();
 
     await page.getByLabel("F3 · Buscar por SKU o nombre").fill("COCA-600");
     await page.getByRole("button", { name: /Coca-Cola 600 ml/i }).click();

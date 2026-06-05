@@ -3,10 +3,11 @@ import { Alert, Box, Button, Chip, Divider, MenuItem, Stack, TextField, Typograp
 import { ResponsiveDialog } from "../../components/ResponsiveDialog";
 
 import { PAYMENT_METHOD_OPTIONS, type PaymentMethod, type Sale } from "./salesShared";
-import type { ReturnItemDraft, ReturnQuantityDrafts } from "./useSalesOperations";
+import type { ReturnItemDraft, ReturnQuantityDrafts, SalesOperationMode } from "./useSalesOperations";
 
 type SalesOperationDialogsProps = {
   cancelDialogOpen: boolean;
+  cancelOperationMode: SalesOperationMode;
   cancelReason: string;
   cancelReasonIsInvalid: boolean;
   cancelRefundMethod: PaymentMethod;
@@ -14,6 +15,7 @@ type SalesOperationDialogsProps = {
   returnDialogOpen: boolean;
   returnFormIsInvalid: boolean;
   returnItemsDraft: ReturnItemDraft[];
+  returnOperationMode: SalesOperationMode;
   returnQuantities: ReturnQuantityDrafts;
   returnReason: string;
   returnRefundMethod: PaymentMethod;
@@ -41,6 +43,7 @@ function getSaleItemSku(item: ReturnItemDraft["saleItem"]) {
 
 export function SalesOperationDialogs({
   cancelDialogOpen,
+  cancelOperationMode,
   cancelReason,
   cancelReasonIsInvalid,
   cancelRefundMethod,
@@ -48,6 +51,7 @@ export function SalesOperationDialogs({
   returnDialogOpen,
   returnFormIsInvalid,
   returnItemsDraft,
+  returnOperationMode,
   returnQuantities,
   returnReason,
   returnRefundMethod,
@@ -64,6 +68,9 @@ export function SalesOperationDialogs({
   onReturnReasonChange,
   onReturnRefundMethodChange,
 }: SalesOperationDialogsProps) {
+  const cancelIsRequest = cancelOperationMode === "request";
+  const returnIsRequest = returnOperationMode === "request";
+
   return (
     <>
       <ResponsiveDialog
@@ -71,22 +78,33 @@ export function SalesOperationDialogs({
         onClose={onCloseCancelDialog}
         disableClose={isSubmitting}
         maxWidth="sm"
-        title={`Cancelar venta ${selectedSale?.folio ?? ""}`.trim()}
-        description="Confirma la cancelación solo cuando la venta deba anularse por completo."
+        title={`${cancelIsRequest ? "Solicitar cancelación" : "Cancelar venta"} ${selectedSale?.folio ?? ""}`.trim()}
+        description={
+          cancelIsRequest
+            ? "Envía una solicitud para que un administrador revise la cancelación antes de modificar la venta."
+            : "Confirma la cancelación solo cuando la venta deba anularse por completo."
+        }
         actions={
           <>
             <Button variant="outlined" onClick={onCloseCancelDialog} disabled={isSubmitting}>
               Cerrar
             </Button>
-            <Button color="error" onClick={onConfirmCancel} disabled={isSubmitting || cancelReasonIsInvalid}>
-              Confirmar cancelación
+            <Button
+              color={cancelIsRequest ? "primary" : "error"}
+              data-testid="sales-cancel-submit"
+              onClick={onConfirmCancel}
+              disabled={isSubmitting || cancelReasonIsInvalid}
+            >
+              {cancelIsRequest ? "Enviar solicitud" : "Confirmar cancelación"}
             </Button>
           </>
         }
       >
         <Box sx={{ display: "grid", gap: 2 }}>
-          <Alert severity="warning">
-            Esta acción restaura el stock de todos los productos vendidos y marca la venta como cancelada.
+          <Alert severity={cancelIsRequest ? "info" : "warning"}>
+            {cancelIsRequest
+              ? "La venta no se modificará hasta que un administrador apruebe la solicitud."
+              : "Esta acción restaura el stock de todos los productos vendidos y marca la venta como cancelada."}
           </Alert>
 
           <TextField
@@ -103,7 +121,7 @@ export function SalesOperationDialogs({
           </TextField>
 
           <TextField
-            label="Motivo de cancelación"
+            label={cancelIsRequest ? "Motivo de la solicitud" : "Motivo de cancelación"}
             value={cancelReason}
             multiline
             minRows={3}
@@ -119,28 +137,33 @@ export function SalesOperationDialogs({
         onClose={onCloseReturnDialog}
         disableClose={isSubmitting}
         maxWidth="md"
-        title={`Registrar devolución ${selectedSale?.folio ?? ""}`.trim()}
-        description="Devuelve una o varias partidas vendidas en la misma operación."
+        title={`${returnIsRequest ? "Solicitar devolución" : "Registrar devolución"} ${selectedSale?.folio ?? ""}`.trim()}
+        description={
+          returnIsRequest
+            ? "Envía una solicitud de devolución para que un administrador la apruebe antes de restaurar stock."
+            : "Devuelve una o varias partidas vendidas en la misma operación."
+        }
         actions={
           <>
             <Button variant="outlined" onClick={onCloseReturnDialog} disabled={isSubmitting}>
               Cerrar
             </Button>
             <Button
-              color="warning"
+              color={returnIsRequest ? "primary" : "warning"}
               data-testid="sales-return-submit"
               onClick={onConfirmReturn}
               disabled={isSubmitting || returnFormIsInvalid}
             >
-              Registrar devolución
+              {returnIsRequest ? "Enviar solicitud" : "Registrar devolución"}
             </Button>
           </>
         }
       >
         <Box sx={{ display: "grid", gap: 2 }}>
           <Alert severity="info">
-            Indica cantidad solo en los productos que se devolverán. La operación restaura stock y conserva el
-            detalle para auditoría.
+            {returnIsRequest
+              ? "Indica los productos que quieres devolver. La venta y el inventario no cambiarán hasta que un administrador apruebe la solicitud."
+              : "Indica cantidad solo en los productos que se devolverán. La operación restaura stock y conserva el detalle para auditoría."}
           </Alert>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
@@ -223,7 +246,7 @@ export function SalesOperationDialogs({
 
           <TextField
             inputProps={{ "data-testid": "sales-return-reason" }}
-            label="Motivo de devolución"
+            label={returnIsRequest ? "Motivo de la solicitud" : "Motivo de devolución"}
             value={returnReason}
             multiline
             minRows={3}

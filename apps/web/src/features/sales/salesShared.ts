@@ -1,5 +1,7 @@
 export type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "MIXED";
 export type SaleStatus = "COMPLETED" | "CANCELLED" | "PARTIALLY_REFUNDED" | "REFUNDED";
+export type SalesAdjustmentRequestType = "CANCEL_SALE" | "RETURN_ITEMS";
+export type SalesAdjustmentRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export const PAYMENT_METHOD_OPTIONS: Array<{ value: PaymentMethod; label: string }> = [
   { value: "CASH", label: "Efectivo" },
@@ -101,6 +103,67 @@ export type Sale = {
   }>;
 };
 
+
+export type SalesAdjustmentRequestItem = {
+  id: string;
+  saleItemId: string;
+  productId?: string | null;
+  productSku?: string;
+  productName?: string;
+  quantity: number;
+  saleItem?: {
+    id: string;
+    quantity: number;
+    productSku?: string;
+    productName?: string;
+  };
+  product?: {
+    id?: string | null;
+    sku: string;
+    name: string;
+    deleted?: boolean;
+  };
+};
+
+export type SalesAdjustmentRequest = {
+  id: string;
+  type: SalesAdjustmentRequestType;
+  status: SalesAdjustmentRequestStatus;
+  saleId: string;
+  requestedById: string;
+  reviewedById?: string | null;
+  reason: string;
+  refundMethod?: PaymentMethod | null;
+  reviewNote?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+  sale?: {
+    id: string;
+    folio: string;
+    status: SaleStatus;
+    total: number;
+    createdAt: string;
+    cashier?: {
+      id: string;
+      name: string;
+      email: string;
+    } | null;
+  };
+  requestedBy?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+  reviewedBy?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+  items: SalesAdjustmentRequestItem[];
+};
+
 export type CartRow = CartItem & {
   product: Product | undefined;
   unitPrice: number;
@@ -135,6 +198,44 @@ export function statusColor(status: SaleStatus) {
     case "REFUNDED":
       return "info" as const;
     case "CANCELLED":
+    default:
+      return "default" as const;
+  }
+}
+
+
+export function adjustmentRequestTypeLabel(type: SalesAdjustmentRequestType) {
+  switch (type) {
+    case "CANCEL_SALE":
+      return "Cancelación solicitada";
+    case "RETURN_ITEMS":
+      return "Devolución solicitada";
+    default:
+      return type;
+  }
+}
+
+export function adjustmentRequestStatusLabel(status: SalesAdjustmentRequestStatus) {
+  switch (status) {
+    case "PENDING":
+      return "Pendiente";
+    case "APPROVED":
+      return "Aprobada";
+    case "REJECTED":
+      return "Rechazada";
+    default:
+      return status;
+  }
+}
+
+export function adjustmentRequestStatusColor(status: SalesAdjustmentRequestStatus) {
+  switch (status) {
+    case "PENDING":
+      return "warning" as const;
+    case "APPROVED":
+      return "success" as const;
+    case "REJECTED":
+      return "error" as const;
     default:
       return "default" as const;
   }

@@ -20,23 +20,29 @@ import {
   summarizeSales,
   type PaymentMethod,
   type Sale,
+  type SalesAdjustmentRequest,
   type SaleStatus,
 } from "./salesShared";
+import type { SalesOperationMode } from "./useSalesOperations";
 
 type SalesHistoryPanelProps = {
+  adjustmentRequests: SalesAdjustmentRequest[];
   canCancelSales: boolean;
-  canManageSales: boolean;
+  canRequestSalesAdjustments: boolean;
   canReturnSales: boolean;
+  canShowSellerInfo: boolean;
   isSubmitting: boolean;
   sales: Sale[];
-  onOpenCancelDialog: (sale: Sale) => void;
-  onOpenReturnDialog: (sale: Sale) => void;
+  onOpenCancelDialog: (sale: Sale, mode?: SalesOperationMode) => void;
+  onOpenReturnDialog: (sale: Sale, mode?: SalesOperationMode) => void;
 };
 
 export function SalesHistoryPanel({
+  adjustmentRequests,
   canCancelSales,
-  canManageSales,
+  canRequestSalesAdjustments,
   canReturnSales,
+  canShowSellerInfo,
   isSubmitting,
   sales,
   onOpenCancelDialog,
@@ -165,17 +171,24 @@ export function SalesHistoryPanel({
                 const hasReturnableItems = (sale.items ?? []).some(
                   (item) => getReturnableQuantity(sale, item) > 0,
                 );
+                const pendingAdjustmentRequest = adjustmentRequests.find(
+                  (request) => request.saleId === sale.id && request.status === "PENDING",
+                );
+                const hasSaleActions = canCancelSales || canReturnSales || canRequestSalesAdjustments;
+                const desktopColumns = canShowSellerInfo && hasSaleActions
+                  ? "minmax(0, 1.5fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto"
+                  : canShowSellerInfo || hasSaleActions
+                    ? "minmax(0, 1.5fr) minmax(180px, 0.8fr) auto"
+                    : "minmax(0, 1.5fr) minmax(180px, 0.8fr)";
 
                 return (
-                  <Card key={sale.id} variant="outlined" sx={{ boxShadow: "none" }}>
+                  <Card key={sale.id} variant="outlined" data-testid={`sales-history-sale-${sale.id}`} sx={{ boxShadow: "none" }}>
                     <CardContent
                       sx={{
                         display: "grid",
                         gridTemplateColumns: {
                           xs: "1fr",
-                          lg: canManageSales
-                            ? "minmax(0, 1.5fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto"
-                            : "minmax(0, 1.5fr) minmax(180px, 0.8fr) auto",
+                          lg: desktopColumns,
                         },
                         gap: 2,
                         alignItems: "center",
@@ -196,6 +209,9 @@ export function SalesHistoryPanel({
                             label={statusLabel(sale.status)}
                             color={statusColor(sale.status)}
                           />
+                          {pendingAdjustmentRequest && (
+                            <Chip size="small" label="Ajuste pendiente" color="warning" />
+                          )}
                         </Stack>
 
                         <Typography variant="body2" color="text.secondary">
@@ -209,7 +225,7 @@ export function SalesHistoryPanel({
                         </Typography>
                       </Box>
 
-                      {canManageSales && (
+                      {canShowSellerInfo && (
                         <Box sx={{ minWidth: 0 }}>
                           <Typography variant="caption" color="text.secondary">
                             Vendedor
@@ -233,34 +249,43 @@ export function SalesHistoryPanel({
                         </Typography>
                       </Box>
 
-                      {canManageSales && (
+                      {hasSaleActions && (
                         <Stack
                           direction={{ xs: "column", sm: "row", lg: "column" }}
                           spacing={1}
                           alignItems="stretch"
                           justifyContent="center"
                         >
-                          {canReturnSales && (
+                          {(canReturnSales || canRequestSalesAdjustments) && (
                             <Button
                               size="small"
                               color="warning"
                               startIcon={<UndoIcon />}
-                              disabled={isSubmitting || sale.status === "CANCELLED" || !hasReturnableItems}
-                              onClick={() => onOpenReturnDialog(sale)}
+                              disabled={
+                                isSubmitting ||
+                                sale.status === "CANCELLED" ||
+                                !hasReturnableItems ||
+                                (!canReturnSales && Boolean(pendingAdjustmentRequest))
+                              }
+                              onClick={() => onOpenReturnDialog(sale, canReturnSales ? "direct" : "request")}
                             >
-                              Devolver
+                              {canReturnSales ? "Devolver" : "Solicitar devolución"}
                             </Button>
                           )}
 
-                          {canCancelSales && (
+                          {(canCancelSales || canRequestSalesAdjustments) && (
                             <Button
                               size="small"
-                              color="error"
+                              color={canCancelSales ? "error" : "primary"}
                               startIcon={<CancelIcon />}
-                              disabled={isSubmitting || sale.status !== "COMPLETED"}
-                              onClick={() => onOpenCancelDialog(sale)}
+                              disabled={
+                                isSubmitting ||
+                                sale.status !== "COMPLETED" ||
+                                (!canCancelSales && Boolean(pendingAdjustmentRequest))
+                              }
+                              onClick={() => onOpenCancelDialog(sale, canCancelSales ? "direct" : "request")}
                             >
-                              Cancelar
+                              {canCancelSales ? "Cancelar" : "Solicitar cancelación"}
                             </Button>
                           )}
                         </Stack>

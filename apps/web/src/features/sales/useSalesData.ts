@@ -1,19 +1,25 @@
 import { useCallback, useState } from "react";
 
-import type { Product, Sale } from "./salesShared";
+import type { Product, Sale, SalesAdjustmentRequest } from "./salesShared";
 import {
+  approveSalesAdjustmentRequest,
   cancelSale,
   createSale,
+  createSalesAdjustmentRequest,
   fetchSalesWorkspace,
+  rejectSalesAdjustmentRequest,
   returnSaleItems,
   type CancelSalePayload,
   type CreateSalePayload,
-  type ReturnSaleItemsPayload
+  type CreateSalesAdjustmentRequestPayload,
+  type ReturnSaleItemsPayload,
+  type ReviewSalesAdjustmentRequestPayload,
 } from "./salesApi";
 
 export function useSalesData() {
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [adjustmentRequests, setAdjustmentRequests] = useState<SalesAdjustmentRequest[]>([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
 
   const loadSalesData = useCallback(async () => {
@@ -24,6 +30,7 @@ export function useSalesData() {
 
       setProducts(workspace.products);
       setSales(workspace.sales);
+      setAdjustmentRequests(workspace.adjustmentRequests);
     } finally {
       setIsLoadingCatalog(false);
     }
@@ -53,13 +60,41 @@ export function useSalesData() {
     [loadSalesData]
   );
 
+  const submitSalesAdjustmentRequest = useCallback(
+    async (saleId: string, payload: CreateSalesAdjustmentRequestPayload) => {
+      await createSalesAdjustmentRequest(saleId, payload);
+      await loadSalesData();
+    },
+    [loadSalesData]
+  );
+
+  const approveAdjustmentRequest = useCallback(
+    async (requestId: string, payload: ReviewSalesAdjustmentRequestPayload) => {
+      await approveSalesAdjustmentRequest(requestId, payload);
+      await loadSalesData();
+    },
+    [loadSalesData]
+  );
+
+  const rejectAdjustmentRequest = useCallback(
+    async (requestId: string, payload: ReviewSalesAdjustmentRequestPayload) => {
+      await rejectSalesAdjustmentRequest(requestId, payload);
+      await loadSalesData();
+    },
+    [loadSalesData]
+  );
+
   return {
+    adjustmentRequests,
     products,
     sales,
     isLoadingCatalog,
+    approveAdjustmentRequest,
     loadSalesData,
+    rejectAdjustmentRequest,
     submitSale,
     submitSaleCancellation,
-    submitSaleReturn
+    submitSaleReturn,
+    submitSalesAdjustmentRequest,
   };
 }
