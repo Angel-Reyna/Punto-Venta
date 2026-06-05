@@ -43,6 +43,7 @@ const salesServiceMock = {
   listSalesAdjustmentRequests: jest.fn(),
   createSalesAdjustmentRequest: jest.fn(),
   rejectSalesAdjustmentRequest: jest.fn(),
+  approveSalesAdjustmentRequest: jest.fn(),
   saleSchema: jest.requireActual("../src/modules/sales/sales.service").saleSchema,
   cancelSaleSchema: jest.requireActual("../src/modules/sales/sales.service").cancelSaleSchema,
   returnSaleSchema: jest.requireActual("../src/modules/sales/sales.service").returnSaleSchema
@@ -324,6 +325,7 @@ describe("critical route permissions", () => {
     ],
     ["cancelar venta", "post", "/api/sales/00000000-0000-4000-8000-000000000002/cancel", { reason: "Prueba de permiso" }],
     ["registrar devolución", "post", "/api/sales/00000000-0000-4000-8000-000000000002/returns", { reason: "Prueba de permiso", items: [] }],
+    ["aprobar solicitud de ajuste", "post", "/api/sales/adjustment-requests/00000000-0000-4000-8000-000000000004/approve", { reviewNote: "Procede" }],
     ["rechazar solicitud de ajuste", "post", "/api/sales/adjustment-requests/00000000-0000-4000-8000-000000000004/reject", { reviewNote: "No procede" }],
     ["consultar reportes", "get", "/api/reports/operations", undefined],
     ["descargar PDF de reportes", "get", "/api/reports/operations/pdf?from=2026-05-18&to=2026-05-18", undefined],
@@ -461,7 +463,7 @@ describe("critical route permissions", () => {
     );
   });
 
-  it("allows ADMIN to list and reject sales adjustment requests", async () => {
+  it("allows ADMIN to list, approve and reject sales adjustment requests", async () => {
     authenticateAs(ADMIN_USER);
     salesServiceMock.listSalesAdjustmentRequests.mockResolvedValue({
       data: [],
@@ -471,6 +473,10 @@ describe("critical route permissions", () => {
         total: 0,
         totalPages: 1
       }
+    });
+    salesServiceMock.approveSalesAdjustmentRequest.mockResolvedValue({
+      id: "request-1",
+      status: "APPROVED"
     });
     salesServiceMock.rejectSalesAdjustmentRequest.mockResolvedValue({
       id: "request-1",
@@ -482,6 +488,25 @@ describe("critical route permissions", () => {
       .set(AUTH_HEADER);
 
     expect(listResponse.status).toBe(200);
+
+    const approveResponse = await request(app)
+      .post("/api/sales/adjustment-requests/00000000-0000-4000-8000-000000000004/approve")
+      .set(AUTH_HEADER)
+      .send({
+        reviewNote: "Procede"
+      });
+
+    expect(approveResponse.status).toBe(200);
+    expect(salesServiceMock.approveSalesAdjustmentRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: ADMIN_USER.id,
+        role: Role.ADMIN
+      }),
+      "00000000-0000-4000-8000-000000000004",
+      expect.objectContaining({
+        reviewNote: "Procede"
+      })
+    );
 
     const rejectResponse = await request(app)
       .post("/api/sales/adjustment-requests/00000000-0000-4000-8000-000000000004/reject")

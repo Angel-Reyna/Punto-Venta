@@ -10,6 +10,7 @@ import { auditLog } from "../audit/audit.service";
 import { PERMISSIONS } from "../auth/permissions";
 
 import {
+  approveSalesAdjustmentRequest,
   cancelSale,
   createSale,
   createSalesAdjustmentRequest,
@@ -106,6 +107,37 @@ salesRouter.post(
     });
 
     res.status(201).json(request);
+  })
+);
+
+salesRouter.post(
+  "/adjustment-requests/:requestId/approve",
+  requirePermission(PERMISSIONS.SalesAdjustmentRequestReview),
+  validate(
+    salesAdjustmentRequestIdParamsSchema.merge(reviewSalesAdjustmentRequestSchema)
+  ),
+  asyncHandler(async (req, res) => {
+    const request = await approveSalesAdjustmentRequest(
+      getCurrentUser(req),
+      String(req.params.requestId),
+      req.body
+    );
+
+    await auditLog({
+      userId: req.user?.id,
+      action: "APPROVE_SALES_ADJUSTMENT_REQUEST",
+      tableName: "SaleAdjustmentRequest",
+      recordId: request.id,
+      newData: {
+        saleId: request.saleId,
+        type: request.type,
+        status: request.status,
+        reviewNote: req.body.reviewNote ?? null
+      },
+      ipAddress: req.ip
+    });
+
+    res.json(request);
   })
 );
 

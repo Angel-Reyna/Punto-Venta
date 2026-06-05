@@ -29,6 +29,7 @@ jest.mock("../src/modules/inventory/inventory.service", () => inventoryServiceMo
 import { Role, SaleAdjustmentRequestStatus, SaleAdjustmentRequestType } from "@prisma/client";
 
 import {
+  approveSalesAdjustmentRequest,
   cancelSale,
   createSale,
   createSalesAdjustmentRequest,
@@ -1045,6 +1046,346 @@ describe("sales.service", () => {
       })
     );
     expect(request.status).toBe(SaleAdjustmentRequestStatus.PENDING);
+  });
+
+
+
+  it("approves return adjustment requests and executes the stock restoration", async () => {
+    const saleItem = {
+      id: "item-1",
+      saleId: "sale-1",
+      productId: "product-1",
+      productSku: "COCA-600",
+      productName: "Coca-Cola 600 ml",
+      product: null,
+      quantity: 2,
+      unitPrice: 18,
+      unitCost: 12,
+      promoPercent: 0,
+      discount: 0,
+      total: 36,
+      grossProfit: 12
+    };
+    const tx = {
+      saleAdjustmentRequest: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "request-1",
+          type: SaleAdjustmentRequestType.RETURN_ITEMS,
+          status: SaleAdjustmentRequestStatus.PENDING,
+          saleId: "sale-1",
+          requestedById: "cashier-1",
+          reason: "Cliente pidió devolución",
+          refundMethod: "CASH",
+          items: [
+            {
+              saleItemId: "item-1",
+              quantity: 1
+            }
+          ]
+        }),
+        update: jest.fn().mockResolvedValue({
+          id: "request-1",
+          type: SaleAdjustmentRequestType.RETURN_ITEMS,
+          status: SaleAdjustmentRequestStatus.APPROVED,
+          saleId: "sale-1",
+          requestedById: "cashier-1",
+          reviewedById: "admin-1",
+          reason: "Cliente pidió devolución",
+          reviewNote: "Procede",
+          refundMethod: "CASH",
+          createdAt: new Date("2026-05-18T02:00:00.000Z"),
+          updatedAt: new Date("2026-05-18T03:00:00.000Z"),
+          reviewedAt: new Date("2026-05-18T03:00:00.000Z"),
+          sale: {
+            id: "sale-1",
+            folio: "SALE-20260518-ABC123",
+            status: "PARTIALLY_REFUNDED",
+            total: 36,
+            createdAt: new Date("2026-05-18T00:00:00.000Z"),
+            cashier: {
+              id: "cashier-1",
+              name: "Vendedor",
+              email: "cashier@pos.local"
+            }
+          },
+          requestedBy: {
+            id: "cashier-1",
+            name: "Vendedor",
+            email: "cashier@pos.local",
+            role: Role.CASHIER
+          },
+          reviewedBy: {
+            id: "admin-1",
+            name: "Admin",
+            email: "admin@pos.local",
+            role: Role.ADMIN
+          },
+          items: [
+            {
+              id: "request-item-1",
+              requestId: "request-1",
+              saleItemId: "item-1",
+              productId: "product-1",
+              productSku: "COCA-600",
+              productName: "Coca-Cola 600 ml",
+              quantity: 1,
+              saleItem,
+              product: {
+                id: "product-1",
+                sku: "COCA-600",
+                name: "Coca-Cola 600 ml"
+              }
+            }
+          ]
+        })
+      },
+      sale: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260518-ABC123",
+          cashierId: "cashier-1",
+          status: "COMPLETED",
+          total: 36,
+          items: [saleItem],
+          payments: [
+            {
+              method: "CASH",
+              amount: 36
+            }
+          ],
+          returns: []
+        }),
+        update: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260518-ABC123",
+          cashierId: "cashier-1",
+          customerId: null,
+          status: "PARTIALLY_REFUNDED",
+          subtotal: 36,
+          discount: 0,
+          tax: 0,
+          total: 36,
+          createdAt: new Date("2026-05-18T00:00:00.000Z"),
+          updatedAt: new Date("2026-05-18T03:00:00.000Z"),
+          cashier: {
+            id: "cashier-1",
+            name: "Vendedor",
+            email: "cashier@pos.local"
+          },
+          customer: null,
+          items: [saleItem],
+          payments: [],
+          returns: []
+        })
+      },
+      saleReturn: {
+        create: jest.fn().mockResolvedValue({
+          id: "return-1"
+        })
+      }
+    };
+
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
+    inventoryServiceMock.getOrCreateDefaultWarehouse.mockResolvedValue({
+      id: "warehouse-1"
+    });
+
+    const request = await approveSalesAdjustmentRequest(
+      {
+        id: "admin-1",
+        email: "admin@pos.local",
+        role: Role.ADMIN
+      },
+      "request-1",
+      {
+        reviewNote: "Procede"
+      }
+    );
+
+    expect(tx.saleReturn.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          saleId: "sale-1",
+          cashierId: "cashier-1",
+          reason: "Cliente pidió devolución",
+          refundTotal: 18,
+          items: {
+            create: [
+              expect.objectContaining({
+                saleItemId: "item-1",
+                quantity: 1,
+                total: 18
+              })
+            ]
+          }
+        })
+      })
+    );
+    expect(inventoryServiceMock.increaseStock).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        productId: "product-1",
+        quantity: 1,
+        type: "RETURN"
+      })
+    );
+    expect(tx.saleAdjustmentRequest.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: SaleAdjustmentRequestStatus.APPROVED,
+          reviewedById: "admin-1",
+          reviewNote: "Procede"
+        })
+      })
+    );
+    expect(request.status).toBe(SaleAdjustmentRequestStatus.APPROVED);
+  });
+
+  it("approves cancellation adjustment requests and cancels the sale", async () => {
+    const saleItem = {
+      id: "item-1",
+      saleId: "sale-1",
+      productId: "product-1",
+      productSku: "COCA-600",
+      productName: "Coca-Cola 600 ml",
+      product: null,
+      quantity: 2,
+      unitPrice: 18,
+      unitCost: 12,
+      promoPercent: 0,
+      discount: 0,
+      total: 36,
+      grossProfit: 12
+    };
+    const tx = {
+      saleAdjustmentRequest: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "request-1",
+          type: SaleAdjustmentRequestType.CANCEL_SALE,
+          status: SaleAdjustmentRequestStatus.PENDING,
+          saleId: "sale-1",
+          requestedById: "cashier-1",
+          reason: "Cliente pidió cancelar venta",
+          refundMethod: "CASH",
+          items: []
+        }),
+        update: jest.fn().mockResolvedValue({
+          id: "request-1",
+          type: SaleAdjustmentRequestType.CANCEL_SALE,
+          status: SaleAdjustmentRequestStatus.APPROVED,
+          saleId: "sale-1",
+          requestedById: "cashier-1",
+          reviewedById: "admin-1",
+          reason: "Cliente pidió cancelar venta",
+          reviewNote: null,
+          refundMethod: "CASH",
+          createdAt: new Date("2026-05-18T02:00:00.000Z"),
+          updatedAt: new Date("2026-05-18T03:00:00.000Z"),
+          reviewedAt: new Date("2026-05-18T03:00:00.000Z"),
+          sale: {
+            id: "sale-1",
+            folio: "SALE-20260518-ABC123",
+            status: "CANCELLED",
+            total: 36,
+            createdAt: new Date("2026-05-18T00:00:00.000Z"),
+            cashier: {
+              id: "cashier-1",
+              name: "Vendedor",
+              email: "cashier@pos.local"
+            }
+          },
+          requestedBy: {
+            id: "cashier-1",
+            name: "Vendedor",
+            email: "cashier@pos.local",
+            role: Role.CASHIER
+          },
+          reviewedBy: {
+            id: "admin-1",
+            name: "Admin",
+            email: "admin@pos.local",
+            role: Role.ADMIN
+          },
+          items: []
+        })
+      },
+      sale: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260518-ABC123",
+          cashierId: "cashier-1",
+          status: "COMPLETED",
+          total: 36,
+          items: [saleItem],
+          payments: [
+            {
+              method: "CASH",
+              amount: 36
+            }
+          ],
+          returns: []
+        }),
+        update: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260518-ABC123",
+          cashierId: "cashier-1",
+          customerId: null,
+          status: "CANCELLED",
+          subtotal: 36,
+          discount: 0,
+          tax: 0,
+          total: 36,
+          createdAt: new Date("2026-05-18T00:00:00.000Z"),
+          updatedAt: new Date("2026-05-18T03:00:00.000Z"),
+          cashier: {
+            id: "cashier-1",
+            name: "Vendedor",
+            email: "cashier@pos.local"
+          },
+          customer: null,
+          items: [saleItem],
+          payments: [],
+          returns: []
+        })
+      },
+      saleReturn: {
+        create: jest.fn().mockResolvedValue({
+          id: "return-1"
+        })
+      }
+    };
+
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
+    inventoryServiceMock.getOrCreateDefaultWarehouse.mockResolvedValue({
+      id: "warehouse-1"
+    });
+
+    const request = await approveSalesAdjustmentRequest(
+      {
+        id: "admin-1",
+        email: "admin@pos.local",
+        role: Role.ADMIN
+      },
+      "request-1",
+      {}
+    );
+
+    expect(tx.sale.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          status: "CANCELLED"
+        }
+      })
+    );
+    expect(inventoryServiceMock.increaseStock).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        productId: "product-1",
+        quantity: 2,
+        type: "RETURN"
+      })
+    );
+    expect(request.status).toBe(SaleAdjustmentRequestStatus.APPROVED);
   });
 
   it("rejects adjustment requests as admin without executing stock movements", async () => {

@@ -932,6 +932,272 @@ export async function createSale(
   throw new AppError(500, "No se pudo generar el folio de venta");
 }
 
+async function executeCancelSale(
+  tx: Prisma.TransactionClient,
+  user: CurrentUser,
+  saleId: string,
+  input: CancelSaleInput
+) {
+  const sale = await tx.sale.findUnique({
+    where: {
+      id: saleId
+    },
+    include: saleMutationInclude
+  });
+
+  if (!sale) {
+    throw new AppError(404, "Venta no encontrada");
+  }
+
+  if (sale.status === SaleStatus.CANCELLED) {
+    throw new AppError(409, "La venta ya está cancelada");
+  }
+
+  if (sale.status !== SaleStatus.COMPLETED) {
+    throw new AppError(409, "Solo se pueden cancelar ventas completadas sin devoluciones");
+  }
+
+  await restoreStockForExistingProducts(tx, sale.items, {
+    reason: `Cancelación de venta ${sale.folio}: ${input.reason}`,
+    createdBy: user.id
+  });
+
+  const refundMethod = resolveRefundMethod(input.refundMethod, sale.payments);
+
+  const saleReturn = await tx.saleReturn.create({
+    data: {
+      saleId: sale.id,
+      cashierId: sale.cashierId,
+      reason: input.reason,
+      refundMethod,
+      refundTotal: Number(sale.total),
+      items: {
+        create: sale.items.map((item) => ({
+          saleItemId: item.id,
+          productId: item.productId,
+          productSku: item.productSku,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: Number(item.unitPrice),
+          unitCost: Number(item.unitCost ?? 0),
+          promoPercent: Number(item.promoPercent ?? 0),
+          discount: Number(item.discount),
+          total: Number(item.total),
+          grossProfit: Number(item.grossProfit ?? 0)
+        }))
+      }
+    }
+  });
+
+  const updatedSale = await tx.sale.update({
+    where: {
+      id: sale.id
+    },
+    data: {
+      status: SaleStatus.CANCELLED
+    },
+    include: saleDetailsInclude
+  });
+
+  return mapSaleDetails(updatedSale);
+}
+
+async function executeReturnSaleItems(
+  tx: Prisma.TransactionClient,
+  user: CurrentUser,
+  saleId: string,
+  input: ReturnSaleInput
+) {
+  const sale = await tx.sale.findUnique({
+    where: {
+      id: saleId
+    },
+    include: saleMutationInclude
+  });
+
+  if (!sale) {
+    throw new AppError(404, "Venta no encontrada");
+  }
+
+  if (sale.status === SaleStatus.CANCELLED) {
+    throw new AppError(409, "No se pueden devolver productos de una venta cancelada");
+  }
+
+  if (sale.status === SaleStatus.REFUNDED) {
+    throw new AppError(409, "La venta ya fue devuelta por completo");
+  }
+
+  const itemById = new Map(sale.items.map((item) => [item.id, item]));
+  const previouslyReturned = getReturnedQuantities(sale);
+  const requestedItems = aggregateReturnItems(input.items);
+  const requestedQuantities = new Map<string, number>();
+  let refundTotal = 0;
+
+  const returnItems = requestedItems.map((requestedItem) => {
+    const saleItem = itemById.get(requestedItem.saleItemId);
+
+    if (!saleItem) {
+      throw new AppError(400, "La partida no pertenece a la venta");
+    }
+
+    const alreadyReturned = previouslyReturned.get(saleItem.id) ?? 0;
+    const availableToReturn = saleItem.quantity - alreadyReturned;
+
+    if (requestedItem.quantity > availableToReturn) {
+      throw new AppError(
+        409,
+        `Cantidad a devolver inválida. Disponible para devolver: ${availableToReturn}.`
+      );
+    }
+
+    const unitPrice = Number(saleItem.unitPrice);
+    const unitCost = Number(saleItem.unitCost ?? 0);
+    const promoPercent = Number(saleItem.promoPercent ?? 0);
+    const unitDiscount = roundMoney(Number(saleItem.discount) / saleItem.quantity);
+    const unitTotal = roundMoney(Number(saleItem.total) / saleItem.quantity);
+    const unitGrossProfit = roundMoney(Number(saleItem.grossProfit ?? 0) / saleItem.quantity);
+    const lineDiscount = roundMoney(unitDiscount * requestedItem.quantity);
+    const lineTotal = roundMoney(unitTotal * requestedItem.quantity);
+    const lineGrossProfit = roundMoney(unitGrossProfit * requestedItem.quantity);
+
+    refundTotal = roundMoney(refundTotal + lineTotal);
+    requestedQuantities.set(saleItem.id, requestedItem.quantity);
+
+    return {
+      saleItem,
+      quantity: requestedItem.quantity,
+      unitPrice,
+      unitCost,
+      promoPercent,
+      discount: lineDiscount,
+      total: lineTotal,
+      grossProfit: lineGrossProfit
+    };
+  });
+
+  await restoreStockForExistingProducts(
+    tx,
+    returnItems.map((item) => ({
+      productId: item.saleItem.productId,
+      quantity: item.quantity
+    })),
+    {
+      reason: `Devolución de venta ${sale.folio}: ${input.reason}`,
+      createdBy: user.id
+    }
+  );
+
+  const refundMethod = resolveRefundMethod(input.refundMethod, sale.payments);
+
+  const saleReturn = await tx.saleReturn.create({
+    data: {
+      saleId: sale.id,
+      cashierId: sale.cashierId,
+      reason: input.reason,
+      refundMethod,
+      refundTotal,
+      items: {
+        create: returnItems.map((item) => ({
+          saleItemId: item.saleItem.id,
+          productId: item.saleItem.productId,
+          productSku: item.saleItem.productSku,
+          productName: item.saleItem.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          unitCost: item.unitCost,
+          promoPercent: item.promoPercent,
+          discount: item.discount,
+          total: item.total,
+          grossProfit: item.grossProfit
+        }))
+      }
+    }
+  });
+
+  const nextStatus = computeNextReturnStatus(sale, requestedQuantities);
+
+  const updatedSale = await tx.sale.update({
+    where: {
+      id: sale.id
+    },
+    data: {
+      status: nextStatus
+    },
+    include: saleDetailsInclude
+  });
+
+  return mapSaleDetails(updatedSale);
+}
+
+export async function approveSalesAdjustmentRequest(
+  user: CurrentUser,
+  requestId: string,
+  input: ReviewSalesAdjustmentRequestInput
+) {
+  assertAdmin(user);
+
+  return prisma.$transaction(
+    async (tx) => {
+      const request = await tx.saleAdjustmentRequest.findUnique({
+        where: {
+          id: requestId
+        },
+        include: {
+          items: true
+        }
+      });
+
+      if (!request) {
+        throw new AppError(404, "Solicitud no encontrada");
+      }
+
+      if (request.status !== SaleAdjustmentRequestStatus.PENDING) {
+        throw new AppError(409, "La solicitud ya fue revisada");
+      }
+
+      if (request.type === SaleAdjustmentRequestType.CANCEL_SALE) {
+        await executeCancelSale(tx, user, request.saleId, {
+          reason: request.reason,
+          refundMethod: request.refundMethod ?? undefined
+        });
+      } else {
+        if (request.items.length === 0) {
+          throw new AppError(409, "La solicitud de devolución no tiene productos para aprobar");
+        }
+
+        await executeReturnSaleItems(tx, user, request.saleId, {
+          reason: request.reason,
+          refundMethod: request.refundMethod ?? undefined,
+          items: request.items.map((item) => ({
+            saleItemId: item.saleItemId,
+            quantity: item.quantity
+          }))
+        });
+      }
+
+      const updatedRequest = await tx.saleAdjustmentRequest.update({
+        where: {
+          id: request.id
+        },
+        data: {
+          status: SaleAdjustmentRequestStatus.APPROVED,
+          reviewedById: user.id,
+          reviewedAt: new Date(),
+          reviewNote: input.reviewNote
+        },
+        include: salesAdjustmentRequestInclude
+      });
+
+      return mapSalesAdjustmentRequest(updatedRequest);
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5_000,
+      timeout: 15_000
+    }
+  );
+}
+
 export async function cancelSale(
   user: CurrentUser,
   saleId: string,
@@ -940,70 +1206,7 @@ export async function cancelSale(
   assertAdmin(user);
 
   return prisma.$transaction(
-    async (tx) => {
-      const sale = await tx.sale.findUnique({
-        where: {
-          id: saleId
-        },
-        include: saleMutationInclude
-      });
-
-      if (!sale) {
-        throw new AppError(404, "Venta no encontrada");
-      }
-
-      if (sale.status === SaleStatus.CANCELLED) {
-        throw new AppError(409, "La venta ya está cancelada");
-      }
-
-      if (sale.status !== SaleStatus.COMPLETED) {
-        throw new AppError(409, "Solo se pueden cancelar ventas completadas sin devoluciones");
-      }
-
-      await restoreStockForExistingProducts(tx, sale.items, {
-        reason: `Cancelación de venta ${sale.folio}: ${input.reason}`,
-        createdBy: user.id
-      });
-
-      const refundMethod = resolveRefundMethod(input.refundMethod, sale.payments);
-
-      const saleReturn = await tx.saleReturn.create({
-        data: {
-          saleId: sale.id,
-          cashierId: sale.cashierId,
-          reason: input.reason,
-          refundMethod,
-          refundTotal: Number(sale.total),
-          items: {
-            create: sale.items.map((item) => ({
-              saleItemId: item.id,
-              productId: item.productId,
-              productSku: item.productSku,
-              productName: item.productName,
-              quantity: item.quantity,
-              unitPrice: Number(item.unitPrice),
-              unitCost: Number(item.unitCost ?? 0),
-              promoPercent: Number(item.promoPercent ?? 0),
-              discount: Number(item.discount),
-              total: Number(item.total),
-              grossProfit: Number(item.grossProfit ?? 0)
-            }))
-          }
-        }
-      });
-
-      const updatedSale = await tx.sale.update({
-        where: {
-          id: sale.id
-        },
-        data: {
-          status: SaleStatus.CANCELLED
-        },
-        include: saleDetailsInclude
-      });
-
-      return mapSaleDetails(updatedSale);
-    },
+    async (tx) => executeCancelSale(tx, user, saleId, input),
     {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       maxWait: 5_000,
@@ -1020,127 +1223,7 @@ export async function returnSaleItems(
   assertAdmin(user);
 
   return prisma.$transaction(
-    async (tx) => {
-      const sale = await tx.sale.findUnique({
-        where: {
-          id: saleId
-        },
-        include: saleMutationInclude
-      });
-
-      if (!sale) {
-        throw new AppError(404, "Venta no encontrada");
-      }
-
-      if (sale.status === SaleStatus.CANCELLED) {
-        throw new AppError(409, "No se pueden devolver productos de una venta cancelada");
-      }
-
-      if (sale.status === SaleStatus.REFUNDED) {
-        throw new AppError(409, "La venta ya fue devuelta por completo");
-      }
-
-      const itemById = new Map(sale.items.map((item) => [item.id, item]));
-      const previouslyReturned = getReturnedQuantities(sale);
-      const requestedItems = aggregateReturnItems(input.items);
-      const requestedQuantities = new Map<string, number>();
-      let refundTotal = 0;
-
-      const returnItems = requestedItems.map((requestedItem) => {
-        const saleItem = itemById.get(requestedItem.saleItemId);
-
-        if (!saleItem) {
-          throw new AppError(400, "La partida no pertenece a la venta");
-        }
-
-        const alreadyReturned = previouslyReturned.get(saleItem.id) ?? 0;
-        const availableToReturn = saleItem.quantity - alreadyReturned;
-
-        if (requestedItem.quantity > availableToReturn) {
-          throw new AppError(
-            409,
-            `Cantidad a devolver inválida. Disponible para devolver: ${availableToReturn}.`
-          );
-        }
-
-        const unitPrice = Number(saleItem.unitPrice);
-        const unitCost = Number(saleItem.unitCost ?? 0);
-        const promoPercent = Number(saleItem.promoPercent ?? 0);
-        const unitDiscount = roundMoney(Number(saleItem.discount) / saleItem.quantity);
-        const unitTotal = roundMoney(Number(saleItem.total) / saleItem.quantity);
-        const unitGrossProfit = roundMoney(Number(saleItem.grossProfit ?? 0) / saleItem.quantity);
-        const lineDiscount = roundMoney(unitDiscount * requestedItem.quantity);
-        const lineTotal = roundMoney(unitTotal * requestedItem.quantity);
-        const lineGrossProfit = roundMoney(unitGrossProfit * requestedItem.quantity);
-
-        refundTotal = roundMoney(refundTotal + lineTotal);
-        requestedQuantities.set(saleItem.id, requestedItem.quantity);
-
-        return {
-          saleItem,
-          quantity: requestedItem.quantity,
-          unitPrice,
-          unitCost,
-          promoPercent,
-          discount: lineDiscount,
-          total: lineTotal,
-          grossProfit: lineGrossProfit
-        };
-      });
-
-      await restoreStockForExistingProducts(
-        tx,
-        returnItems.map((item) => ({
-          productId: item.saleItem.productId,
-          quantity: item.quantity
-        })),
-        {
-          reason: `Devolución de venta ${sale.folio}: ${input.reason}`,
-          createdBy: user.id
-        }
-      );
-
-      const refundMethod = resolveRefundMethod(input.refundMethod, sale.payments);
-
-      const saleReturn = await tx.saleReturn.create({
-        data: {
-          saleId: sale.id,
-          cashierId: sale.cashierId,
-          reason: input.reason,
-          refundMethod,
-          refundTotal,
-          items: {
-            create: returnItems.map((item) => ({
-              saleItemId: item.saleItem.id,
-              productId: item.saleItem.productId,
-              productSku: item.saleItem.productSku,
-              productName: item.saleItem.productName,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              unitCost: item.unitCost,
-              promoPercent: item.promoPercent,
-              discount: item.discount,
-              total: item.total,
-              grossProfit: item.grossProfit
-            }))
-          }
-        }
-      });
-
-      const nextStatus = computeNextReturnStatus(sale, requestedQuantities);
-
-      const updatedSale = await tx.sale.update({
-        where: {
-          id: sale.id
-        },
-        data: {
-          status: nextStatus
-        },
-        include: saleDetailsInclude
-      });
-
-      return mapSaleDetails(updatedSale);
-    },
+    async (tx) => executeReturnSaleItems(tx, user, saleId, input),
     {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       maxWait: 5_000,
