@@ -31,4 +31,19 @@ describe("frontend permissions", () => {
     expect(hasPermission(permissions, PERMISSIONS.SalesCreate)).toBe(true);
     expect(hasPermission(permissions, PERMISSIONS.UsersRead)).toBe(false);
   });
+
+  it("normalizes sales adjustment permissions issued by the API", () => {
+    const permissions = normalizePermissions([
+      PERMISSIONS.SalesAdjustmentRequestRead,
+      PERMISSIONS.SalesAdjustmentRequestCreate,
+      PERMISSIONS.SalesAdjustmentRequestReview,
+      "sales-adjustments:legacy"
+    ]);
+
+    expect(hasPermission(permissions, PERMISSIONS.SalesAdjustmentRequestRead)).toBe(true);
+    expect(hasPermission(permissions, PERMISSIONS.SalesAdjustmentRequestCreate)).toBe(true);
+    expect(hasPermission(permissions, PERMISSIONS.SalesAdjustmentRequestReview)).toBe(true);
+    expect(permissions).not.toContain("sales-adjustments:legacy");
+  });
+
 });

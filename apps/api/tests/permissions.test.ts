@@ -70,4 +70,17 @@ describe("permissions", () => {
       PERMISSIONS.DashboardRead
     ])).toBe(true);
   });
+
+  it("keeps the seller role on an explicit operational allowlist", () => {
+    expect(getPermissionsForRole(Role.CASHIER)).toEqual([
+      PERMISSIONS.ProductsRead,
+      PERMISSIONS.InventoryRead,
+      PERMISSIONS.SalesRead,
+      PERMISSIONS.SalesCreate,
+      PERMISSIONS.SalesAdjustmentRequestRead,
+      PERMISSIONS.SalesAdjustmentRequestCreate,
+      PERMISSIONS.DashboardRead
+    ]);
+  });
+
 });

@@ -283,4 +283,40 @@ describe("auth middleware", () => {
     );
   });
 
+  it("allows cashier adjustment request read/create permissions without logging a failed attempt", () => {
+    const req = createRequest(Role.CASHIER, "/api/sales/adjustment-requests");
+    const next = jest.fn() as NextFunction;
+
+    requirePermission(PERMISSIONS.SalesAdjustmentRequestRead)(req, {} as Response, next);
+    requirePermission(PERMISSIONS.SalesAdjustmentRequestCreate)(req, {} as Response, next);
+
+    expect(next).toHaveBeenCalledTimes(2);
+    expect(sellerActivityMock.logSellerActivity).not.toHaveBeenCalled();
+  });
+
+  it("denies cashier adjustment request review permissions and keeps the attempt auditable", () => {
+    const req = createRequest(
+      Role.CASHIER,
+      "/api/sales/adjustment-requests/request-1/approve"
+    );
+    const next = jest.fn() as NextFunction;
+    const middleware = requirePermission(PERMISSIONS.SalesAdjustmentRequestReview);
+
+    expect(() => middleware(req, {} as Response, next)).toThrow("No autorizado");
+
+    expect(next).not.toHaveBeenCalled();
+    expect(sellerActivityMock.logSellerActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "FAILED_ACCESS_ATTEMPT",
+        entityId: "/api/sales/adjustment-requests/request-1/approve",
+        metadata: {
+          method: "POST",
+          path: "/api/sales/adjustment-requests/request-1/approve",
+          requiredPermissions: [PERMISSIONS.SalesAdjustmentRequestReview]
+        }
+      })
+    );
+  });
+
+
 });

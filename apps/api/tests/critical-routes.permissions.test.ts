@@ -428,6 +428,40 @@ describe("critical route permissions", () => {
     );
   });
 
+  it("allows CASHIER to list sales adjustment requests through the scoped service", async () => {
+    salesServiceMock.listSalesAdjustmentRequests.mockResolvedValue({
+      data: [
+        {
+          id: "request-1",
+          saleId: "sale-1",
+          type: "RETURN_ITEMS",
+          status: "PENDING"
+        }
+      ],
+      meta: {
+        page: 1,
+        pageSize: 25,
+        total: 1,
+        totalPages: 1
+      }
+    });
+
+    const response = await request(app)
+      .get("/api/sales/adjustment-requests?status=PENDING")
+      .set(AUTH_HEADER);
+
+    expect(response.status).toBe(200);
+    expect(salesServiceMock.listSalesAdjustmentRequests).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: CASHIER_USER.id,
+        role: Role.CASHIER
+      }),
+      expect.objectContaining({
+        status: "PENDING"
+      })
+    );
+  });
+
   it("allows CASHIER to create sales adjustment requests for own sales", async () => {
     salesServiceMock.createSalesAdjustmentRequest.mockResolvedValue({
       id: "request-1",

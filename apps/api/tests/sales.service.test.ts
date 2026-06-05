@@ -1050,6 +1050,91 @@ describe("sales.service", () => {
 
 
 
+  it("rejects seller adjustment requests for sales owned by another seller", async () => {
+    const tx = {
+      sale: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260518-ABC123",
+          cashierId: "other-cashier",
+          status: "COMPLETED",
+          items: [],
+          returns: [],
+          adjustmentRequests: []
+        })
+      },
+      saleAdjustmentRequest: {
+        create: jest.fn()
+      }
+    };
+
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
+
+    await expect(
+      createSalesAdjustmentRequest(
+        {
+          id: "cashier-1",
+          email: "cashier@pos.local",
+          role: Role.CASHIER
+        },
+        "sale-1",
+        {
+          type: SaleAdjustmentRequestType.CANCEL_SALE,
+          reason: "Cliente pidió cancelar venta",
+          refundMethod: "CASH"
+        }
+      )
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      message: "No autorizado"
+    });
+
+    expect(tx.saleAdjustmentRequest.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects seller approval of adjustment requests before opening a transaction", async () => {
+    await expect(
+      approveSalesAdjustmentRequest(
+        {
+          id: "cashier-1",
+          email: "cashier@pos.local",
+          role: Role.CASHIER
+        },
+        "request-1",
+        {
+          reviewNote: "Intento no permitido"
+        }
+      )
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      message: "No autorizado"
+    });
+
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects seller rejection of adjustment requests before reading the database", async () => {
+    await expect(
+      rejectSalesAdjustmentRequest(
+        {
+          id: "cashier-1",
+          email: "cashier@pos.local",
+          role: Role.CASHIER
+        },
+        "request-1",
+        {
+          reviewNote: "Intento no permitido"
+        }
+      )
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      message: "No autorizado"
+    });
+
+    expect(prismaMock.saleAdjustmentRequest.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.saleAdjustmentRequest.update).not.toHaveBeenCalled();
+  });
+
   it("approves return adjustment requests and executes the stock restoration", async () => {
     const saleItem = {
       id: "item-1",
