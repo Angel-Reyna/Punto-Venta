@@ -1,6 +1,7 @@
 import { Prisma, Role } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
+import { AppError } from "../../utils/AppError";
 import {
   buildPaginationMeta,
   getOptionalBoolean,
@@ -218,19 +219,35 @@ export async function updateProduct(
   });
 }
 
-export async function toggleProductActive(productId: string) {
-  const oldData = await prisma.product.findUniqueOrThrow({
+export async function toggleProductActive(
+  productId: string,
+  requestedIsActive?: boolean
+) {
+  const oldData = await prisma.product.findUnique({
     where: {
       id: productId
     }
   });
+
+  if (!oldData) {
+    throw new AppError(404, "Producto no encontrado");
+  }
+
+  const nextIsActive = requestedIsActive ?? !oldData.isActive;
+
+  if (oldData.isActive === nextIsActive) {
+    return {
+      oldData,
+      product: oldData
+    };
+  }
 
   const product = await prisma.product.update({
     where: {
       id: productId
     },
     data: {
-      isActive: !oldData.isActive
+      isActive: nextIsActive
     }
   });
 

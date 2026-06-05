@@ -69,8 +69,10 @@ export async function importProductsExcel(file: File) {
   return postFormData<ProductImportResult>("/products/import/excel", formData);
 }
 
-export async function toggleProduct(productId: string) {
-  await patchJson(`/products/${productId}/toggle`);
+export async function toggleProduct(productId: string, isActive: boolean) {
+  return patchJson<Product, { isActive: boolean }>(`/products/${productId}/toggle`, {
+    isActive,
+  });
 }
 
 export async function deleteProduct(productId: string) {

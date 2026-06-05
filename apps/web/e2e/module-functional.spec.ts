@@ -105,9 +105,15 @@ test.describe("cobertura funcional por módulos críticos", () => {
 
     await clickByTestId(page, "product-toggle-AGUA-1L");
 
-    await expect(page.getByText("Estado del producto actualizado.")).toBeVisible();
+    await expect(page.getByText("Producto desactivado correctamente.")).toBeVisible();
     await expect(byTestId(page, "product-row-AGUA-1L")).toContainText("Oculto para venta");
     await expect(byTestId(page, "product-row-AGUA-1L")).toContainText("Activar");
+
+    await clickByTestId(page, "product-toggle-AGUA-1L");
+
+    await expect(page.getByText("Producto activado correctamente.")).toBeVisible();
+    await expect(byTestId(page, "product-row-AGUA-1L")).toContainText("Activo para venta");
+    await expect(byTestId(page, "product-row-AGUA-1L")).toContainText("Desactivar");
 
     await clickByTestId(page, "product-delete-AGUA-1L");
     const deleteDialog = dialogByName(page, "Eliminar producto");

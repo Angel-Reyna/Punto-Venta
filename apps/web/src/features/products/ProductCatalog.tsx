@@ -113,7 +113,7 @@ type ProductActionsProps = {
   deletingProductId: string | null;
   onDeleteProduct: (product: Product) => void;
   onEditProduct: (product: Product) => void;
-  onToggleProduct: (productId: string) => void;
+  onToggleProduct: (product: Product) => void;
   product: Product;
   togglingProductId: string | null;
 };
@@ -165,7 +165,7 @@ function ProductActions({
           variant="outlined"
           color={product.isActive ? "warning" : "success"}
           startIcon={<ToggleOffIcon fontSize="small" />}
-          onClick={() => onToggleProduct(product.id)}
+          onClick={() => onToggleProduct(product)}
           disabled={isToggleInProgress}
           sx={{ justifyContent: "flex-start" }}
         >
@@ -205,7 +205,7 @@ type ProductCatalogItemProps = {
   deletingProductId: string | null;
   onDeleteProduct: (product: Product) => void;
   onEditProduct: (product: Product) => void;
-  onToggleProduct: (productId: string) => void;
+  onToggleProduct: (product: Product) => void;
   product: Product;
   togglingProductId: string | null;
 };
@@ -446,7 +446,7 @@ type ProductCatalogProps = {
   deletingProductId: string | null;
   onDeleteProduct: (product: Product) => void;
   onEditProduct: (product: Product) => void;
-  onToggleProduct: (productId: string) => void;
+  onToggleProduct: (product: Product) => void;
   rows: Product[];
   searchQuery: string;
   togglingProductId: string | null;

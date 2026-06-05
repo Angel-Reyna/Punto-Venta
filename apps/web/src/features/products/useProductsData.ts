@@ -213,20 +213,31 @@ export function useProductsData({ canCreateProduct }: UseProductsDataOptions) {
   );
 
   const toggleProduct = useCallback(
-    async (productId: string) => {
+    async (product: Product) => {
       if (togglingProductId) return;
+
+      const nextIsActive = !product.isActive;
 
       setMessage("");
       setError("");
-      setTogglingProductId(productId);
+      setTogglingProductId(product.id);
 
       try {
-        await toggleProductRequest(productId);
+        const updatedProduct = await toggleProductRequest(product.id, nextIsActive);
 
-        setMessage("Estado del producto actualizado.");
+        setRows((currentRows) =>
+          currentRows.map((row) =>
+            row.id === updatedProduct.id ? { ...row, ...updatedProduct } : row,
+          ),
+        );
+        setMessage(
+          nextIsActive
+            ? "Producto activado correctamente."
+            : "Producto desactivado correctamente.",
+        );
         await load();
       } catch (err: unknown) {
-        setError(getApiErrorMessage(err, "No se pudo actualizar el producto."));
+        setError(getApiErrorMessage(err, "No se pudo actualizar el estado del producto."));
       } finally {
         setTogglingProductId(null);
       }

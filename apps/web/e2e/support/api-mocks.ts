@@ -383,7 +383,9 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
         return json(route, { message: "Producto no encontrado" }, 404);
       }
 
-      product.isActive = !product.isActive;
+      const payload = readJsonPayload(request) as { isActive?: boolean };
+
+      product.isActive = payload.isActive ?? !product.isActive;
 
       return json(route, product);
     }

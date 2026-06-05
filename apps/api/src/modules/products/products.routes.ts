@@ -88,6 +88,15 @@ const updateSchema = z.object({
     .superRefine(validateCategorySelection)
 });
 
+const toggleActiveSchema = z.object({
+  body: z
+    .object({
+      isActive: z.boolean().optional()
+    })
+    .optional()
+    .default({})
+});
+
 export const productsRouter = Router();
 
 productsRouter.use(requireAuth);
@@ -191,9 +200,13 @@ productsRouter.patch(
 productsRouter.patch(
   "/:id/toggle",
   requirePermission(PERMISSIONS.ProductsToggleActive),
+  validate(toggleActiveSchema),
   asyncHandler(async (req, res) => {
     const productId = getRouteId(req);
-    const { oldData, product } = await toggleProductActive(productId);
+    const { oldData, product } = await toggleProductActive(
+      productId,
+      req.body.isActive
+    );
 
     await auditLog({
       userId: req.user?.id,
