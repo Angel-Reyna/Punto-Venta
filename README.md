@@ -1,6 +1,6 @@
 # Punta Venta
 
-Punta Venta es una aplicación web para administrar ventas físicas reportadas por vendedores, inventario, productos, usuarios, reportes operativos y auditoría. No está modelada como un POS clásico dependiente de una caja abierta para vender: el flujo principal es que el vendedor registra la venta de productos físicos y el administrador consulta operación, existencias y desempeño.
+Punta Venta es una aplicación web para administrar ventas físicas reportadas por vendedores, inventario, productos, usuarios, reportes operativos y auditoría. No está modelada como un POS clásico con apertura/cierre operativo obligatorio para vender: el flujo principal es que el vendedor registra la venta de productos físicos y el administrador consulta operación, existencias y desempeño.
 
 ## Funciones principales
 
@@ -18,7 +18,7 @@ Punta Venta es una aplicación web para administrar ventas físicas reportadas p
 
 - Inicio operativo con accesos permitidos.
 - Consulta de productos activos e inventario visible.
-- Registro de ventas sin depender de caja abierta.
+- Registro de ventas sin apertura operativa previa.
 - Historial de sus ventas.
 - Bloqueo de rutas y acciones administrativas.
 
@@ -34,7 +34,6 @@ Punta Venta es una aplicación web para administrar ventas físicas reportadas p
 | Usuarios | Administración de cuentas y roles. | Admin. |
 | Auditoría | Revisión de acciones críticas. | Admin. |
 | Actividad de vendedores | Seguimiento operativo e intentos bloqueados. | Admin. |
-| Caja | Módulo técnico existente, actualmente secundario. La venta en efectivo no depende de caja abierta. | Admin/operación según permisos. |
 
 ## Stack técnico
 

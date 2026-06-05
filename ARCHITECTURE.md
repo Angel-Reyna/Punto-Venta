@@ -11,7 +11,7 @@ apps/web  -> Web React/Vite
 
 La API concentra reglas de negocio, autorización, transacciones, auditoría y persistencia. El frontend no calcula estados críticos de inventario, ventas, devoluciones ni permisos; presenta información y envía comandos a endpoints protegidos.
 
-El modelo funcional actual no obliga a abrir caja para vender. El flujo principal es vendedor → venta física reportada → inventario descontado → administrador consulta reportes y actividad.
+El modelo funcional actual no exige apertura/cierre operativo previo para vender. El flujo principal es vendedor → venta física reportada → inventario descontado → administrador consulta reportes y actividad.
 
 ## Capas actuales
 
@@ -19,11 +19,11 @@ El modelo funcional actual no obliga a abrir caja para vender. El flujo principa
 
 - Express + TypeScript.
 - Prisma como ORM sobre PostgreSQL.
-- Módulos por dominio: auth, usuarios, productos, inventario, ventas, reportes, dashboard, auditoría, actividad de vendedores y caja.
+- Módulos por dominio: auth, usuarios, productos, inventario, ventas, reportes, dashboard, auditoría y actividad de vendedores.
 - Estructura modular documentada en `docs/architecture/backend-modules.md`: rutas para transporte HTTP, servicios para casos de uso, archivos `shared` para schemas/tipos, `mappers` para DTOs y archivos especializados cuando el dominio lo justifica.
 - Validación de entrada con Zod en rutas críticas.
 - Middleware centralizado de autenticación, autorización, CSRF, rate limit, request id y errores.
-- Transacciones Prisma para operaciones sensibles de venta, inventario, devolución y caja.
+- Transacciones Prisma para operaciones sensibles de venta, inventario y devolución.
 - Auditoría para operaciones críticas con redacción de datos sensibles.
 - Refresh sessions persistidas mediante hash, expiración, revocación y reemplazo.
 
@@ -69,7 +69,7 @@ CASHIER
 
 `CASHIER` se conserva como nombre técnico del enum por compatibilidad de migraciones, pero en UI y documentación funcional se presenta como vendedor.
 
-La autorización usa permisos por acción para los módulos principales: usuarios, productos, inventario, ventas, caja, reportes, dashboard, auditoría y actividad de vendedores. Quedan rutas puntuales de auth administrativo que todavía usan control por rol explícito cuando el endpoint está semánticamente ligado al rol `ADMIN`.
+La autorización usa permisos por acción para los módulos principales: usuarios, productos, inventario, ventas, reportes, dashboard, auditoría y actividad de vendedores. Quedan rutas puntuales de auth administrativo que todavía usan control por rol explícito cuando el endpoint está semánticamente ligado al rol `ADMIN`.
 
 ## Pruebas y calidad
 
@@ -106,7 +106,7 @@ La referencia operativa está en `docs/architecture/backend-modules.md`. Ese doc
 
 ## Riesgos actuales y siguientes mejoras
 
-1. **Caja sigue siendo módulo secundario**: el dominio existe, pero el modelo de negocio actual prioriza ventas por vendedor. Si se requiere control de efectivo real, debería evolucionar hacia liquidaciones/entregas de efectivo, no forzar caja abierta para vender.
+1. **Liquidaciones/entregas de efectivo**: si el negocio requiere control formal de efectivo, conviene diseñarlo como módulo nuevo de liquidaciones por vendedor, no como prerrequisito para registrar ventas.
 2. **RBAC editable**: los permisos aún se derivan del rol en código. Para producción multiempresa o administración granular, conviene persistir permisos/roles en base de datos.
 3. **Paginación server-side uniforme**: existen utilidades de paginación y varios endpoints ya la usan, pero conviene extenderla de forma consistente antes de manejar volúmenes altos.
 4. **Observabilidad**: existe logging base con request id, pero falta logging estructurado completo, métricas y tracing con destino externo.
