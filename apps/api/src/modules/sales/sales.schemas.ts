@@ -5,6 +5,7 @@ export const saleSchema = z.object({
   body: z.object({
     customerId: z.string().uuid().optional().nullable(),
     customerName: z.string().trim().max(120).optional().nullable(),
+    warehouseId: z.string().uuid().optional().nullable(),
     paymentMethod: z.nativeEnum(PaymentMethod).default(PaymentMethod.CASH),
     paidAmount: z.coerce.number().min(0).optional(),
     items: z

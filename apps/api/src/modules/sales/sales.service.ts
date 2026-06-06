@@ -6,7 +6,8 @@ import {
   Role,
   SaleAdjustmentRequestStatus,
   SaleAdjustmentRequestType,
-  SaleStatus
+  SaleStatus,
+  WarehouseType
 } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
@@ -287,6 +288,51 @@ function validateAdjustmentRequestSaleAccess(
   if (sale.cashierId !== user.id) {
     throw new AppError(403, "No autorizado");
   }
+}
+
+
+async function resolveSaleWarehouse(
+  tx: Prisma.TransactionClient,
+  user: CurrentUser,
+  warehouseId?: string | null
+) {
+  const requestedWarehouseId = warehouseId?.trim() || null;
+
+  if (requestedWarehouseId) {
+    const warehouse = await tx.warehouse.findUnique({
+      where: {
+        id: requestedWarehouseId
+      },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        sellerId: true,
+        isActive: true
+      }
+    });
+
+    if (!warehouse) {
+      throw new AppError(404, "Almacén de venta no encontrado");
+    }
+
+    if (!warehouse.isActive) {
+      throw new AppError(400, `Almacén de venta inactivo: ${warehouse.name}`);
+    }
+
+    if (user.role === Role.CASHIER) {
+      const isOwnSellerWarehouse =
+        warehouse.type === WarehouseType.SELLER && warehouse.sellerId === user.id;
+
+      if (!isOwnSellerWarehouse) {
+        throw new AppError(403, "Solo puedes vender desde tu stock asignado.");
+      }
+    }
+
+    return warehouse;
+  }
+
+  return getOrCreateDefaultWarehouse(tx);
 }
 
 async function resolveCustomer(
@@ -812,7 +858,7 @@ async function createSaleAttempt(
 ) {
   return prisma.$transaction(
     async (tx): Promise<SaleWithItemsAndPayments> => {
-      const warehouse = await getOrCreateDefaultWarehouse(tx);
+      const warehouse = await resolveSaleWarehouse(tx, user, input.warehouseId);
       const customerId = await resolveCustomer(
         tx,
         input.customerId,
@@ -838,6 +884,7 @@ async function createSaleAttempt(
           folio: generateFolio(),
           cashierId: user.id,
           customerId,
+          warehouseId: warehouse.id,
           status: SaleStatus.COMPLETED,
           subtotal,
           discount,
@@ -959,7 +1006,8 @@ async function executeCancelSale(
 
   await restoreStockForExistingProducts(tx, sale.items, {
     reason: `Cancelación de venta ${sale.folio}: ${input.reason}`,
-    createdBy: user.id
+    createdBy: user.id,
+    warehouseId: sale.warehouseId
   });
 
   const refundMethod = resolveRefundMethod(input.refundMethod, sale.payments);
@@ -1083,7 +1131,8 @@ async function executeReturnSaleItems(
     })),
     {
       reason: `Devolución de venta ${sale.folio}: ${input.reason}`,
-      createdBy: user.id
+      createdBy: user.id,
+      warehouseId: sale.warehouseId
     }
   );
 

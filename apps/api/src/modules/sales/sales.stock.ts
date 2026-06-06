@@ -16,6 +16,7 @@ export async function restoreStockForExistingProducts(
   options: {
     reason: string;
     createdBy: string;
+    warehouseId?: string | null;
   }
 ) {
   const restockableItems = items.filter(
@@ -27,12 +28,12 @@ export async function restoreStockForExistingProducts(
     return;
   }
 
-  const warehouse = await getOrCreateDefaultWarehouse(tx);
+  const warehouseId = options.warehouseId ?? (await getOrCreateDefaultWarehouse(tx)).id;
 
   for (const item of restockableItems) {
     await increaseStock(tx, {
       productId: item.productId,
-      warehouseId: warehouse.id,
+      warehouseId,
       quantity: item.quantity,
       type: "RETURN",
       reason: options.reason,

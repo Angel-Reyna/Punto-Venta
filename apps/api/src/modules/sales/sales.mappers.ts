@@ -16,6 +16,14 @@ export const saleDetailsInclude = {
       email: true
     }
   },
+  warehouse: {
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      sellerId: true
+    }
+  },
   items: {
     include: {
       product: {
@@ -58,6 +66,14 @@ export const saleDetailsInclude = {
 } satisfies Prisma.SaleInclude;
 
 export const createdSaleInclude = {
+  warehouse: {
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      sellerId: true
+    }
+  },
   items: true,
   payments: true
 } satisfies Prisma.SaleInclude;

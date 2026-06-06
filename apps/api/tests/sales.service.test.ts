@@ -26,7 +26,7 @@ const inventoryServiceMock = {
 
 jest.mock("../src/modules/inventory/inventory.service", () => inventoryServiceMock);
 
-import { Role, SaleAdjustmentRequestStatus, SaleAdjustmentRequestType } from "@prisma/client";
+import { Role, SaleAdjustmentRequestStatus, SaleAdjustmentRequestType, WarehouseType } from "@prisma/client";
 
 import {
   approveSalesAdjustmentRequest,
@@ -207,6 +207,167 @@ describe("sales.service", () => {
     expect(tx.sellerActivityLog.create).toHaveBeenCalled();
     expect(sale.total).toBe(270);
   });
+
+
+
+  it("uses the selected seller warehouse when creating a sale", async () => {
+    const tx = {
+      customer: {
+        findUnique: jest.fn(),
+        create: jest.fn()
+      },
+      warehouse: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "seller-warehouse-1",
+          name: "Stock vendedor",
+          type: WarehouseType.SELLER,
+          sellerId: "cashier-1",
+          isActive: true
+        })
+      },
+      product: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "product-1",
+          sku: "CAF-001",
+          name: "Café",
+          costPrice: 40,
+          salePrice: 100,
+          promoPercent: 0,
+          isActive: true
+        })
+      },
+      sale: {
+        create: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260606-ABC123",
+          cashierId: "cashier-1",
+          customerId: null,
+          warehouseId: "seller-warehouse-1",
+          status: "COMPLETED",
+          subtotal: 100,
+          discount: 0,
+          tax: 0,
+          total: 100,
+          createdAt: new Date("2026-06-06T00:00:00.000Z"),
+          updatedAt: new Date("2026-06-06T00:00:00.000Z"),
+          warehouse: {
+            id: "seller-warehouse-1",
+            name: "Stock vendedor",
+            type: WarehouseType.SELLER,
+            sellerId: "cashier-1"
+          },
+          items: [],
+          payments: []
+        })
+      },
+      sellerActivityLog: {
+        create: jest.fn()
+      }
+    };
+
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
+
+    await createSale(
+      {
+        id: "cashier-1",
+        email: "cashier@pos.local",
+        role: Role.CASHIER
+      },
+      {
+        paymentMethod: "CASH",
+        warehouseId: "seller-warehouse-1",
+        customerId: null,
+        customerName: null,
+        items: [
+          {
+            productId: "product-1",
+            quantity: 1
+          }
+        ]
+      },
+      {
+        ipAddress: "127.0.0.1",
+        userAgent: "jest"
+      }
+    );
+
+    expect(tx.sale.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          warehouseId: "seller-warehouse-1"
+        })
+      })
+    );
+    expect(inventoryServiceMock.decreaseStock).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        warehouseId: "seller-warehouse-1",
+        type: "SALE"
+      })
+    );
+  });
+
+  it("prevents sellers from creating sales from storage warehouses by direct API call", async () => {
+    const tx = {
+      warehouse: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "warehouse-1",
+          name: "Principal",
+          type: WarehouseType.STORAGE,
+          sellerId: null,
+          isActive: true
+        })
+      },
+      customer: {
+        findUnique: jest.fn(),
+        create: jest.fn()
+      },
+      product: {
+        findUnique: jest.fn()
+      },
+      sale: {
+        create: jest.fn()
+      },
+      sellerActivityLog: {
+        create: jest.fn()
+      }
+    };
+
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
+
+    await expect(
+      createSale(
+        {
+          id: "cashier-1",
+          email: "cashier@pos.local",
+          role: Role.CASHIER
+        },
+        {
+          paymentMethod: "CASH",
+          warehouseId: "warehouse-1",
+          customerId: null,
+          customerName: null,
+          items: [
+            {
+              productId: "product-1",
+              quantity: 1
+            }
+          ]
+        },
+        {
+          ipAddress: "127.0.0.1",
+          userAgent: "jest"
+        }
+      )
+    ).rejects.toMatchObject({
+      statusCode: 403
+    });
+
+    expect(tx.product.findUnique).not.toHaveBeenCalled();
+    expect(tx.sale.create).not.toHaveBeenCalled();
+    expect(inventoryServiceMock.decreaseStock).not.toHaveBeenCalled();
+  });
+
 
   it("allows cash sales without requiring an open cash register", async () => {
     const tx = {
