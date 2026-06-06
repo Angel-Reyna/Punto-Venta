@@ -30,11 +30,18 @@ type MovementMetric = {
   value: { count: number; units: number };
 };
 
-const viewTabs: Array<{ icon: ElementType; label: string; value: InventoryView; requiresAdjustment?: boolean }> = [
+const viewTabs: Array<{
+  icon: ElementType;
+  label: string;
+  requiresAdjustment?: boolean;
+  requiresTransferRequests?: boolean;
+  value: InventoryView;
+}> = [
   { icon: Inventory2Icon, label: "Existencias", value: "stock" },
   { icon: AddCircleIcon, label: "Entradas", value: "entries", requiresAdjustment: true },
   { icon: RemoveCircleIcon, label: "Salidas", value: "exits", requiresAdjustment: true },
   { icon: HistoryIcon, label: "Historial", value: "movements" },
+  { icon: LocalShippingIcon, label: "Retiros", value: "transfers", requiresTransferRequests: true },
 ];
 
 const heroShellSx = (theme: Theme) => ({
@@ -134,19 +141,26 @@ const tabsRailSx = (theme: Theme) => ({
 export function InventoryControlHero({
   activeView,
   canAdjustInventory,
+  canManageTransferRequests,
   movements,
   onViewChange,
   stockRows,
 }: {
   activeView: InventoryView;
   canAdjustInventory: boolean;
+  canManageTransferRequests: boolean;
   movements: Movement[];
   onViewChange: (value: InventoryView) => void;
   stockRows: StockItem[];
 }) {
   const stockSummary = getInventoryStockSummary(stockRows);
   const movementSummary = getMovementSummary(movements);
-  const availableTabs = viewTabs.filter((tab) => canAdjustInventory || !tab.requiresAdjustment);
+  const availableTabs = viewTabs.filter((tab) => {
+    if (tab.requiresAdjustment && !canAdjustInventory) return false;
+    if (tab.requiresTransferRequests && !canManageTransferRequests) return false;
+
+    return true;
+  });
 
   return (
     <Card data-testid="inventory-visual-dashboard" sx={heroShellSx}>

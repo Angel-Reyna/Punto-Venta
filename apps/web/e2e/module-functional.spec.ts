@@ -364,6 +364,52 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(expirationMovement).toContainText("Almacén: Bodega norte E2E");
   });
 
+  test("vendedor solicita retiro de stock para aprobación", async ({ page }) => {
+    await mockApi(page, { role: "CASHIER" });
+
+    await page.goto("/inventory");
+
+    await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();
+    await page.getByRole("tab", { name: "Retiros" }).click();
+
+    const requestsPanel = byTestId(page, "inventory-transfer-requests-panel");
+    await expect(requestsPanel).toBeVisible();
+    await expect(requestsPanel).toContainText("Solicitar producto al almacén");
+
+    await byTestId(page, "inventory-transfer-product").selectOption("product-1");
+    await fillByTestId(page, "inventory-transfer-quantity", "3");
+    await fillByTestId(page, "inventory-transfer-reason", "Surtir ruta E2E");
+    await clickByTestId(page, "inventory-transfer-submit");
+
+    await expect(page.getByText("Solicitud de retiro enviada al administrador.")).toBeVisible();
+    await expect(requestsPanel).toContainText("Surtir ruta E2E");
+    await expect(requestsPanel).toContainText("Pendiente");
+  });
+
+  test("admin aprueba solicitud de retiro y transfiere stock", async ({ page }) => {
+    await mockApi(page, { role: "ADMIN" });
+
+    await page.goto("/inventory");
+
+    await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();
+    await page.getByRole("tab", { name: "Retiros" }).click();
+
+    const requestCard = byTestId(page, "inventory-transfer-request-transfer-1");
+    await expect(requestCard).toContainText("Pendiente");
+    await expect(requestCard).toContainText("Surtir ruta de ventas E2E");
+
+    await clickByTestId(requestCard, "inventory-transfer-approve-transfer-1");
+
+    const reviewDialog = dialogByName(page, "Aprobar solicitud de retiro");
+    await expect(reviewDialog).toBeVisible();
+    await fillByTestId(reviewDialog, "inventory-transfer-review-note", "Aprobado para ruta E2E");
+    await clickByTestId(reviewDialog, "inventory-transfer-review-submit");
+
+    await expect(page.getByText("Solicitud de retiro aprobada. El stock fue transferido.")).toBeVisible();
+    await expect(requestCard).toContainText("Aprobada");
+    await expect(requestCard).toContainText("Aprobado para ruta E2E");
+  });
+
   test("vendedor solo consulta inventario y productos sin acciones administrativas", async ({ page }) => {
     await mockApi(page, { role: "CASHIER" });
 
@@ -381,6 +427,7 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Existencias" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Historial" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Retiros" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Entradas" })).toHaveCount(0);
     await expect(page.getByRole("tab", { name: "Salidas" })).toHaveCount(0);
     await expect(byTestId(page, "inventory-submit-in")).toHaveCount(0);

@@ -40,6 +40,47 @@ export type Warehouse = {
 
 export type InventoryReasonType = "EXPIRATION" | "OTHER";
 
+export type InventoryTransferRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export type InventoryTransferRequest = {
+  id: string;
+  status: InventoryTransferRequestStatus;
+  reason: string;
+  reviewNote?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+  reviewedAt?: string | null;
+  fromWarehouse: Warehouse;
+  toWarehouse: Warehouse;
+  requestedBy: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
+  reviewedBy?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+  totalUnits: number;
+  items: Array<{
+    id: string;
+    productId?: string | null;
+    productSku: string;
+    productName: string;
+    quantity: number;
+  }>;
+};
+
+export type InventoryTransferRequestForm = {
+  fromWarehouseId: string;
+  productId: string;
+  quantity: number;
+  reason: string;
+};
+
 export type Movement = {
   id: string;
   type: "IN" | "OUT" | "ADJUSTMENT" | "SALE" | "RETURN";
@@ -78,7 +119,7 @@ export type InventoryMovementForm = {
 };
 
 export type StockStatusFilter = "all" | "available" | "low" | "out";
-export type InventoryView = "stock" | "entries" | "exits" | "movements";
+export type InventoryView = "stock" | "entries" | "exits" | "movements" | "transfers";
 
 export const DEFAULT_INVENTORY_ENTRY_REASON = "Reabastecimiento";
 
@@ -87,6 +128,13 @@ export const initialInventoryMovementForm: InventoryMovementForm = {
   warehouseId: "",
   quantity: 0,
   reasonType: "OTHER",
+  reason: "",
+};
+
+export const initialInventoryTransferRequestForm: InventoryTransferRequestForm = {
+  fromWarehouseId: "",
+  productId: "",
+  quantity: 0,
   reason: "",
 };
 
@@ -100,6 +148,38 @@ export const INVENTORY_REASON_TYPE_LABELS: Record<InventoryReasonType, string> =
   EXPIRATION: "Caducidad",
   OTHER: "Otros",
 };
+
+export const INVENTORY_TRANSFER_STATUS_LABELS: Record<InventoryTransferRequestStatus, string> = {
+  PENDING: "Pendiente",
+  APPROVED: "Aprobada",
+  REJECTED: "Rechazada",
+};
+
+export const INVENTORY_TRANSFER_STATUS_COLORS: Record<InventoryTransferRequestStatus, "warning" | "success" | "error"> = {
+  PENDING: "warning",
+  APPROVED: "success",
+  REJECTED: "error",
+};
+
+export function getInventoryTransferFormDisabledReason({
+  form,
+  availableStock,
+}: {
+  form: InventoryTransferRequestForm;
+  availableStock: number;
+}) {
+  if (!form.fromWarehouseId) return "Selecciona el almacén origen.";
+  if (!form.productId) return "Selecciona un producto.";
+  if (form.quantity <= 0) return "La cantidad debe ser mayor a cero.";
+  if (form.quantity > availableStock) {
+    return `No puedes solicitar más de ${availableStock} unidades disponibles.`;
+  }
+  if (!form.reason.trim() || form.reason.trim().length < 3) {
+    return "Describe el motivo con al menos 3 caracteres.";
+  }
+
+  return "";
+}
 
 export function formatInventoryMoney(value: number | null | undefined) {
   return new Intl.NumberFormat("es-MX", {

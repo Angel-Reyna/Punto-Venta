@@ -121,6 +121,28 @@ type MockSaleAdjustmentRequest = {
   }>;
 };
 
+type MockInventoryTransferRequest = {
+  id: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  reason: string;
+  reviewNote?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+  reviewedAt?: string | null;
+  fromWarehouse: MockWarehouse;
+  toWarehouse: MockWarehouse;
+  requestedBy: MockManagedUser;
+  reviewedBy?: MockManagedUser | null;
+  totalUnits: number;
+  items: Array<{
+    id: string;
+    productId: string | null;
+    productSku: string;
+    productName: string;
+    quantity: number;
+  }>;
+};
+
 type MockInventoryMovement = {
   id: string;
   type: "IN" | "OUT" | "SALE" | "RETURN" | "ADJUSTMENT";
@@ -152,6 +174,15 @@ export type MockManagedUser = {
   role: Role;
   isActive: boolean;
   createdAt: string;
+};
+
+type MockWarehouse = {
+  id: string;
+  name: string;
+  description?: string | null;
+  type?: "STORAGE" | "SELLER";
+  sellerId?: string | null;
+  isActive: boolean;
 };
 
 type MockAuditLog = {
@@ -200,6 +231,9 @@ export const ADMIN_PERMISSIONS = [
   "products:import",
   "inventory:read",
   "inventory:adjust",
+  "inventory-transfer-requests:read",
+  "inventory-transfer-requests:create",
+  "inventory-transfer-requests:review",
   "sales:read",
   "sales:create",
   "sales:cancel",
@@ -216,6 +250,8 @@ export const ADMIN_PERMISSIONS = [
 export const SELLER_PERMISSIONS = [
   "products:read",
   "inventory:read",
+  "inventory-transfer-requests:read",
+  "inventory-transfer-requests:create",
   "sales:read",
   "sales:create",
   "sales-adjustments:read",
@@ -251,8 +287,8 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
   const products = productsResponse();
   const sales = salesResponse(role);
   const inventoryMovements = inventoryMovementsResponse(products[0]);
-  const warehouses: Array<{ id: string; name: string; description?: string | null; isActive: boolean }> = [
-    { id: "warehouse-1", name: "Principal", description: "Almacén: Principal", isActive: true },
+  const warehouses: MockWarehouse[] = [
+    { id: "warehouse-1", name: "Principal", description: "Almacén: Principal", type: "STORAGE", isActive: true },
   ];
   const inventoryBalances: MockInventoryBalanceMap = new Map(
     products.map((product) => [
@@ -262,6 +298,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
   );
   const managedUsers = usersResponse();
   const adjustmentRequests = adjustmentRequestsResponse(role, sales, managedUsers);
+  const inventoryTransferRequests = inventoryTransferRequestsResponse(role, managedUsers, warehouses, products);
   const auditLogs = auditLogsResponse(managedUsers);
   const sellerActivityLogs = sellerActivityResponse(managedUsers);
 
@@ -523,7 +560,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
     }
 
     if (pathname.endsWith("/inventory/warehouses") && method === "GET") {
-      return json(route, warehouses);
+      return json(route, warehouses.filter((warehouse) => (warehouse.type ?? "STORAGE") === "STORAGE"));
     }
 
     if (pathname.endsWith("/inventory/warehouses") && method === "POST") {
@@ -553,12 +590,126 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
         id: `warehouse-${warehouses.length + 1}`,
         name: warehouseName,
         description: payload.description ? String(payload.description).trim() : null,
+        type: "STORAGE",
         isActive: true,
       };
 
       warehouses.push(warehouse);
 
       return json(route, warehouse, 201);
+    }
+
+
+    if (pathname.endsWith("/inventory/transfer-requests") && method === "GET") {
+      return json(route, filterInventoryTransferRequests(
+        inventoryTransferRequests,
+        role,
+        url.searchParams.get("status"),
+      ));
+    }
+
+    if (pathname.endsWith("/inventory/transfer-requests") && method === "POST") {
+      if (role !== "CASHIER") {
+        return json(route, { message: "Solo vendedores pueden solicitar retiro de stock." }, 400);
+      }
+
+      const payload = readJsonPayload(request) as {
+        fromWarehouseId?: string | null;
+        reason?: string;
+        items?: Array<{ productId?: string; quantity?: number }>;
+      };
+      const fromWarehouse = warehouses.find((warehouse) => warehouse.id === (payload.fromWarehouseId ?? "warehouse-1")) ?? warehouses[0];
+      const seller = managedUsers.find((item) => item.id === "seller-e2e") ?? managedUsers[1];
+      const toWarehouse = ensureMockSellerWarehouse(warehouses, seller);
+      const itemPayload = payload.items?.[0];
+      const product = products.find((item) => item.id === itemPayload?.productId);
+      const quantity = Number(itemPayload?.quantity ?? 0);
+
+      if (!product) {
+        return json(route, { message: "Producto no encontrado" }, 404);
+      }
+
+      const currentStock = inventoryBalances.get(product.id)?.get(fromWarehouse.id) ?? 0;
+
+      if (currentStock < quantity) {
+        return json(route, { message: `Stock insuficiente para ${product.name}. Almacén: ${fromWarehouse.name}.` }, 409);
+      }
+
+      const createdRequest = buildInventoryTransferRequest({
+        id: `transfer-${inventoryTransferRequests.length + 1}`,
+        fromWarehouse,
+        product,
+        quantity,
+        reason: payload.reason ?? "Solicitud E2E",
+        requestedBy: seller,
+        status: "PENDING",
+        toWarehouse,
+      });
+
+      inventoryTransferRequests.unshift(createdRequest);
+
+      return json(route, createdRequest, 201);
+    }
+
+    const transferApproveMatch = pathname.match(/^\/inventory\/transfer-requests\/([^/]+)\/approve$/);
+    if (transferApproveMatch && method === "POST") {
+      if (role !== "ADMIN") {
+        return json(route, { message: "No autorizado" }, 403);
+      }
+
+      const transferRequest = inventoryTransferRequests.find((item) => item.id === transferApproveMatch[1]);
+
+      if (!transferRequest) {
+        return json(route, { message: "Solicitud de retiro no encontrada" }, 404);
+      }
+
+      transferRequest.status = "APPROVED";
+      transferRequest.reviewedAt = "2026-06-05T20:00:00.000Z";
+      transferRequest.reviewedBy = managedUsers[0];
+      transferRequest.reviewNote = (readJsonPayload(request) as { reviewNote?: string | null }).reviewNote ?? null;
+
+      for (const item of transferRequest.items) {
+        const product = products.find((candidate) => candidate.id === item.productId);
+
+        if (!product) continue;
+
+        const productBalances = inventoryBalances.get(product.id) ?? new Map<string, number>();
+        const sourceStock = productBalances.get(transferRequest.fromWarehouse.id) ?? 0;
+        const destinationStock = productBalances.get(transferRequest.toWarehouse.id) ?? 0;
+
+        productBalances.set(transferRequest.fromWarehouse.id, sourceStock - item.quantity);
+        productBalances.set(transferRequest.toWarehouse.id, destinationStock + item.quantity);
+        inventoryBalances.set(product.id, productBalances);
+        inventoryMovements.unshift(buildInventoryMovement(product, {
+          sequence: inventoryMovements.length + 1,
+          type: "OUT",
+          quantity: item.quantity,
+          reason: `Retiro aprobado para ${transferRequest.toWarehouse.name}`,
+          warehouse: transferRequest.fromWarehouse,
+        }));
+      }
+
+      return json(route, transferRequest);
+    }
+
+    const transferRejectMatch = pathname.match(/^\/inventory\/transfer-requests\/([^/]+)\/reject$/);
+    if (transferRejectMatch && method === "POST") {
+      if (role !== "ADMIN") {
+        return json(route, { message: "No autorizado" }, 403);
+      }
+
+      const transferRequest = inventoryTransferRequests.find((item) => item.id === transferRejectMatch[1]);
+
+      if (!transferRequest) {
+        return json(route, { message: "Solicitud de retiro no encontrada" }, 404);
+      }
+
+      transferRequest.status = "REJECTED";
+      transferRequest.reviewedAt = "2026-06-05T20:00:00.000Z";
+      transferRequest.reviewedBy = managedUsers[0];
+      transferRequest.reviewNote = (readJsonPayload(request) as { reviewNote?: string | null }).reviewNote ?? null;
+
+      return json(route, transferRequest);
     }
 
     if (pathname.endsWith("/inventory/stock")) {
@@ -1081,7 +1232,7 @@ function updateMockProduct(
 
 function inventoryStockResponse(
   products: MockProduct[],
-  warehouses: Array<{ id: string; name: string }>,
+  warehouses: MockWarehouse[],
   balances: MockInventoryBalanceMap,
   query: string | null,
 ) {
@@ -1098,6 +1249,8 @@ function inventoryStockResponse(
           return {
             warehouseId,
             warehouseName: warehouse?.name ?? "Principal",
+            warehouseType: warehouse?.type ?? "STORAGE",
+            sellerId: warehouse?.sellerId ?? null,
             quantity,
           };
         });
@@ -1209,6 +1362,110 @@ function filterMovements(movements: MockInventoryMovement[], query: string | nul
   });
 }
 
+
+
+function inventoryTransferRequestsResponse(
+  role: Role,
+  users: MockManagedUser[],
+  warehouses: MockWarehouse[],
+  products: MockProduct[],
+): MockInventoryTransferRequest[] {
+  const seller = users.find((item) => item.role === "CASHIER") ?? users[1];
+  const sellerWarehouse = ensureMockSellerWarehouse(warehouses, seller);
+  const request = buildInventoryTransferRequest({
+    id: "transfer-1",
+    fromWarehouse: warehouses[0],
+    product: products[0],
+    quantity: 4,
+    reason: "Surtir ruta de ventas E2E",
+    requestedBy: seller,
+    status: "PENDING",
+    toWarehouse: sellerWarehouse,
+  });
+
+  return role === "ADMIN" ? [request] : [];
+}
+
+function buildInventoryTransferRequest({
+  fromWarehouse,
+  id,
+  product,
+  quantity,
+  reason,
+  requestedBy,
+  status,
+  toWarehouse,
+}: {
+  fromWarehouse: MockWarehouse;
+  id: string;
+  product: MockProduct;
+  quantity: number;
+  reason: string;
+  requestedBy: MockManagedUser;
+  status: MockInventoryTransferRequest["status"];
+  toWarehouse: MockWarehouse;
+}): MockInventoryTransferRequest {
+  return {
+    id,
+    status,
+    reason,
+    reviewNote: null,
+    createdAt: "2026-06-05T18:00:00.000Z",
+    updatedAt: "2026-06-05T18:00:00.000Z",
+    reviewedAt: null,
+    fromWarehouse,
+    toWarehouse,
+    requestedBy,
+    reviewedBy: null,
+    totalUnits: quantity,
+    items: [
+      {
+        id: `${id}-item-1`,
+        productId: product.id,
+        productSku: product.sku,
+        productName: product.name,
+        quantity,
+      },
+    ],
+  };
+}
+
+function ensureMockSellerWarehouse(
+  warehouses: MockWarehouse[],
+  seller: MockManagedUser,
+) {
+  const existingWarehouse = warehouses.find((warehouse) => warehouse.sellerId === seller.id);
+
+  if (existingWarehouse) {
+    return existingWarehouse;
+  }
+
+  const warehouse: MockWarehouse = {
+    id: `seller-warehouse-${seller.id}`,
+    name: `Stock de ${seller.name}`,
+    description: "Stock físico asignado al vendedor",
+    type: "SELLER",
+    sellerId: seller.id,
+    isActive: true,
+  };
+
+  warehouses.push(warehouse);
+
+  return warehouse;
+}
+
+function filterInventoryTransferRequests(
+  requests: MockInventoryTransferRequest[],
+  role: Role,
+  status: string | null,
+) {
+  return requests.filter((request) => {
+    const matchesStatus = !status || request.status === status;
+    const matchesRole = role === "ADMIN" || request.requestedBy.id === "seller-e2e";
+
+    return matchesStatus && matchesRole;
+  });
+}
 
 function usersResponse(): MockManagedUser[] {
   return [

@@ -3,15 +3,24 @@ import { useCallback, useEffect, useState } from "react";
 import { getApiErrorMessage } from "../../utils/apiError";
 import type { InventoryMovementForm } from "./inventoryShared";
 import {
+  approveInventoryTransferRequest,
   createInventoryMovement,
+  createInventoryTransferRequest,
   createWarehouse,
   listInventoryMovements,
   listInventoryProducts,
+  listInventoryTransferRequests,
   listStock,
   listWarehouses,
+  rejectInventoryTransferRequest,
 } from "./inventoryApi";
-import type { CreateWarehousePayload, InventoryMovementType } from "./inventoryApi";
-import type { Movement, Product, StockItem, Warehouse } from "./inventoryShared";
+import type {
+  CreateInventoryTransferRequestPayload,
+  CreateWarehousePayload,
+  InventoryMovementType,
+  ReviewInventoryTransferRequestPayload,
+} from "./inventoryApi";
+import type { InventoryTransferRequest, Movement, Product, StockItem, Warehouse } from "./inventoryShared";
 
 const INVENTORY_SEARCH_DEBOUNCE_MS = 250;
 
@@ -20,7 +29,9 @@ export function useInventoryData() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [stockRows, setStockRows] = useState<StockItem[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
+  const [transferRequests, setTransferRequests] = useState<InventoryTransferRequest[]>([]);
   const [isCreatingWarehouse, setIsCreatingWarehouse] = useState(false);
+  const [isSubmittingTransferRequest, setIsSubmittingTransferRequest] = useState(false);
 
   const [stockSearch, setStockSearch] = useState("");
   const [movementSearch, setMovementSearch] = useState("");
@@ -62,17 +73,28 @@ export function useInventoryData() {
     }
   }, []);
 
+  const loadTransferRequests = useCallback(async () => {
+    try {
+      setError("");
+      setTransferRequests(await listInventoryTransferRequests());
+    } catch {
+      setError("No se pudieron cargar las solicitudes de retiro.");
+    }
+  }, []);
+
   const reloadInventoryViews = useCallback(async () => {
     await Promise.all([
       loadStaticData(),
       loadStockRows(stockSearch),
       loadMovementRows(movementSearch),
+      loadTransferRequests(),
     ]);
-  }, [loadMovementRows, loadStaticData, loadStockRows, movementSearch, stockSearch]);
+  }, [loadMovementRows, loadStaticData, loadStockRows, loadTransferRequests, movementSearch, stockSearch]);
 
   useEffect(() => {
     void loadStaticData();
-  }, [loadStaticData]);
+    void loadTransferRequests();
+  }, [loadStaticData, loadTransferRequests]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -163,9 +185,96 @@ export function useInventoryData() {
     [reloadInventoryViews],
   );
 
+
+
+  const submitTransferRequest = useCallback(
+    async (payload: CreateInventoryTransferRequestPayload) => {
+      setMessage("");
+      setError("");
+      setIsSubmittingTransferRequest(true);
+
+      try {
+        await createInventoryTransferRequest(payload);
+        setMessage("Solicitud de retiro enviada al administrador.");
+        await loadTransferRequests();
+
+        return true;
+      } catch (err: unknown) {
+        setError(
+          getApiErrorMessage(
+            err,
+            "No se pudo enviar la solicitud de retiro. Verifica producto, almacén y cantidad.",
+          ),
+        );
+
+        return false;
+      } finally {
+        setIsSubmittingTransferRequest(false);
+      }
+    },
+    [loadTransferRequests],
+  );
+
+  const approveTransferRequest = useCallback(
+    async (requestId: string, payload: ReviewInventoryTransferRequestPayload) => {
+      setMessage("");
+      setError("");
+      setIsSubmittingTransferRequest(true);
+
+      try {
+        await approveInventoryTransferRequest(requestId, payload);
+        setMessage("Solicitud de retiro aprobada. El stock fue transferido.");
+        await reloadInventoryViews();
+
+        return true;
+      } catch (err: unknown) {
+        setError(
+          getApiErrorMessage(
+            err,
+            "No se pudo aprobar la solicitud de retiro. Verifica stock disponible e intenta de nuevo.",
+          ),
+        );
+
+        return false;
+      } finally {
+        setIsSubmittingTransferRequest(false);
+      }
+    },
+    [reloadInventoryViews],
+  );
+
+  const rejectTransferRequest = useCallback(
+    async (requestId: string, payload: ReviewInventoryTransferRequestPayload) => {
+      setMessage("");
+      setError("");
+      setIsSubmittingTransferRequest(true);
+
+      try {
+        await rejectInventoryTransferRequest(requestId, payload);
+        setMessage("Solicitud de retiro rechazada.");
+        await loadTransferRequests();
+
+        return true;
+      } catch (err: unknown) {
+        setError(
+          getApiErrorMessage(
+            err,
+            "No se pudo rechazar la solicitud de retiro. Agrega una nota e intenta de nuevo.",
+          ),
+        );
+
+        return false;
+      } finally {
+        setIsSubmittingTransferRequest(false);
+      }
+    },
+    [loadTransferRequests],
+  );
+
   return {
     error,
     isCreatingWarehouse,
+    isSubmittingTransferRequest,
     message,
     movementSearch,
     movements,
@@ -178,6 +287,10 @@ export function useInventoryData() {
     stockSearch,
     createInventoryWarehouse,
     submitInventoryMovement,
+    submitTransferRequest,
+    approveTransferRequest,
+    rejectTransferRequest,
+    transferRequests,
     warehouses,
   };
 }

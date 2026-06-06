@@ -16,15 +16,20 @@ import { InventoryAdjustmentForm } from "./InventoryAdjustmentForm";
 import { InventoryControlHero } from "./InventoryControlHero";
 import { InventoryMovementsSection } from "./InventoryMovementsSection";
 import { InventoryStockSection } from "./InventoryStockSection";
+import { InventoryTransferRequestsPanel } from "./InventoryTransferRequestsPanel";
 import { useInventoryData } from "./useInventoryData";
 
 export function InventoryPage() {
   const { can } = useAuth();
   const canAdjustInventory = can(PERMISSIONS.InventoryAdjust);
+  const canReadTransferRequests = can(PERMISSIONS.InventoryTransferRequestRead);
+  const canCreateTransferRequest = can(PERMISSIONS.InventoryTransferRequestCreate);
+  const canReviewTransferRequest = can(PERMISSIONS.InventoryTransferRequestReview);
 
   const {
     error,
     isCreatingWarehouse,
+    isSubmittingTransferRequest,
     message,
     movementSearch,
     movements,
@@ -37,6 +42,10 @@ export function InventoryPage() {
     stockSearch,
     createInventoryWarehouse,
     submitInventoryMovement,
+    submitTransferRequest,
+    approveTransferRequest,
+    rejectTransferRequest,
+    transferRequests,
     warehouses,
   } = useInventoryData();
 
@@ -141,6 +150,7 @@ export function InventoryPage() {
       <InventoryControlHero
         activeView={activeView}
         canAdjustInventory={canAdjustInventory}
+        canManageTransferRequests={canReadTransferRequests}
         movements={movements}
         onViewChange={changeView}
         stockRows={stockRows}
@@ -193,6 +203,21 @@ export function InventoryPage() {
           movements={movements}
           searchQuery={movementSearch}
           onSearchChange={setMovementSearch}
+        />
+      )}
+
+      {activeView === "transfers" && canReadTransferRequests && (
+        <InventoryTransferRequestsPanel
+          canCreateTransferRequest={canCreateTransferRequest}
+          canReviewTransferRequest={canReviewTransferRequest}
+          isSubmitting={isSubmittingTransferRequest}
+          onApprove={approveTransferRequest}
+          onCreate={submitTransferRequest}
+          onReject={rejectTransferRequest}
+          products={products}
+          requests={transferRequests}
+          stockRows={stockRows}
+          warehouses={warehouses}
         />
       )}
     </>

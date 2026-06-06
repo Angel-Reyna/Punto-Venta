@@ -1,6 +1,14 @@
 import { DEFAULT_LIST_PAGE_SIZE, optionalSearchQuery } from "../../api/contracts";
 import { getJson, postJson } from "../../api/http";
-import type { InventoryReasonType, Movement, Product, StockItem, Warehouse } from "./inventoryShared";
+import type {
+  InventoryReasonType,
+  InventoryTransferRequest,
+  InventoryTransferRequestStatus,
+  Movement,
+  Product,
+  StockItem,
+  Warehouse,
+} from "./inventoryShared";
 
 export type InventoryMovementType = "in" | "out";
 
@@ -15,6 +23,19 @@ export type CreateInventoryMovementPayload = {
   quantity: number;
   reasonType: InventoryReasonType;
   reason?: string;
+};
+
+export type CreateInventoryTransferRequestPayload = {
+  fromWarehouseId?: string | null;
+  reason: string;
+  items: Array<{
+    productId: string;
+    quantity: number;
+  }>;
+};
+
+export type ReviewInventoryTransferRequestPayload = {
+  reviewNote?: string | null;
 };
 
 export async function listInventoryProducts() {
@@ -56,4 +77,42 @@ export async function createInventoryMovement(
   payload: CreateInventoryMovementPayload,
 ) {
   await postJson(`/inventory/${type}`, payload);
+}
+
+
+export async function listInventoryTransferRequests(status?: InventoryTransferRequestStatus) {
+  return getJson<InventoryTransferRequest[]>("/inventory/transfer-requests", {
+    params: {
+      status,
+    },
+  });
+}
+
+export async function createInventoryTransferRequest(
+  payload: CreateInventoryTransferRequestPayload,
+) {
+  return postJson<InventoryTransferRequest, CreateInventoryTransferRequestPayload>(
+    "/inventory/transfer-requests",
+    payload,
+  );
+}
+
+export async function approveInventoryTransferRequest(
+  requestId: string,
+  payload: ReviewInventoryTransferRequestPayload,
+) {
+  return postJson<InventoryTransferRequest, ReviewInventoryTransferRequestPayload>(
+    `/inventory/transfer-requests/${requestId}/approve`,
+    payload,
+  );
+}
+
+export async function rejectInventoryTransferRequest(
+  requestId: string,
+  payload: ReviewInventoryTransferRequestPayload,
+) {
+  return postJson<InventoryTransferRequest, ReviewInventoryTransferRequestPayload>(
+    `/inventory/transfer-requests/${requestId}/reject`,
+    payload,
+  );
 }
