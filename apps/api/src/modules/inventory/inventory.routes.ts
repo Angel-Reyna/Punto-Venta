@@ -171,7 +171,7 @@ inventoryRouter.post(
   validate(inventoryTransferRequestApprovalSchema),
   asyncHandler(async (req, res) => {
     const request = await approveInventoryTransferRequest({
-      requestId: req.params.requestId,
+      requestId: String(req.params.requestId),
       reviewedById: req.user!.id,
       reviewNote: req.body.reviewNote
     });
@@ -195,7 +195,7 @@ inventoryRouter.post(
   validate(inventoryTransferRequestReviewSchema),
   asyncHandler(async (req, res) => {
     const request = await rejectInventoryTransferRequest({
-      requestId: req.params.requestId,
+      requestId: String(req.params.requestId),
       reviewedById: req.user!.id,
       reviewNote: req.body.reviewNote
     });

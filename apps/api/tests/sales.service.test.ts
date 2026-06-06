@@ -1093,43 +1093,43 @@ describe("sales.service", () => {
   });
 
   it("rejects seller approval of adjustment requests before opening a transaction", async () => {
-    await expect(
-      approveSalesAdjustmentRequest(
-        {
-          id: "cashier-1",
-          email: "cashier@pos.local",
-          role: Role.CASHIER
-        },
-        "request-1",
-        {
-          reviewNote: "Intento no permitido"
-        }
-      )
-    ).rejects.toMatchObject({
-      statusCode: 403,
-      message: "No autorizado"
+    const attempt = approveSalesAdjustmentRequest(
+      {
+        id: "cashier-1",
+        email: "cashier@pos.local",
+        role: Role.CASHIER
+      },
+      "request-1",
+      {
+        reviewNote: "Intento no permitido"
+      }
+    );
+
+    await expect(attempt).rejects.toMatchObject({
+      statusCode: 403
     });
+    await expect(attempt).rejects.toThrow("Solo un administrador puede realizar esta operación");
 
     expect(prismaMock.$transaction).not.toHaveBeenCalled();
   });
 
   it("rejects seller rejection of adjustment requests before reading the database", async () => {
-    await expect(
-      rejectSalesAdjustmentRequest(
-        {
-          id: "cashier-1",
-          email: "cashier@pos.local",
-          role: Role.CASHIER
-        },
-        "request-1",
-        {
-          reviewNote: "Intento no permitido"
-        }
-      )
-    ).rejects.toMatchObject({
-      statusCode: 403,
-      message: "No autorizado"
+    const attempt = rejectSalesAdjustmentRequest(
+      {
+        id: "cashier-1",
+        email: "cashier@pos.local",
+        role: Role.CASHIER
+      },
+      "request-1",
+      {
+        reviewNote: "Intento no permitido"
+      }
+    );
+
+    await expect(attempt).rejects.toMatchObject({
+      statusCode: 403
     });
+    await expect(attempt).rejects.toThrow("Solo un administrador puede realizar esta operación");
 
     expect(prismaMock.saleAdjustmentRequest.findUnique).not.toHaveBeenCalled();
     expect(prismaMock.saleAdjustmentRequest.update).not.toHaveBeenCalled();
