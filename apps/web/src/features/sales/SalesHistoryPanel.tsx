@@ -247,6 +247,9 @@ export function SalesHistoryPanel({
                         <Typography variant="h6" fontWeight={900} sx={{ mt: 0.5 }}>
                           {formatMoney(sale.total)}
                         </Typography>
+                        <Typography variant="caption" color="text.secondary" noWrap>
+                          Almacén: {sale.warehouse?.name ?? "Principal"}
+                        </Typography>
                       </Box>
 
                       {hasSaleActions && (

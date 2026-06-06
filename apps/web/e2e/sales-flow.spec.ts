@@ -10,6 +10,8 @@ test.describe("flujo crítico de ventas", () => {
 
     await expect(page.getByRole("heading", { name: "Ventas", level: 1 })).toBeVisible();
     await expect(page.getByText("Vista vendedor: ajustes con aprobación")).toBeVisible();
+    await expect(page.getByText("Paso 0 · Almacén de salida")).toBeVisible();
+    await expect(page.getByText("Stock de Vendedor E2E · 10 unidades")).toBeVisible();
 
     await page.getByLabel("F3 · Buscar por SKU o nombre").fill("COCA-600");
     await page.getByRole("button", { name: /Coca-Cola 600 ml/i }).click();
@@ -25,8 +27,10 @@ test.describe("flujo crítico de ventas", () => {
     await page.getByRole("button", { name: /Cobrar venta/i }).click();
 
     await expect(page.getByText("Venta registrada correctamente.")).toBeVisible();
-    await expect(page.getByText("PV-E2E-0002")).toBeVisible();
-    await expect(page.getByText("Cliente E2E")).toBeVisible();
+    const createdSale = page.getByTestId("sales-history-sale-sale-created-2");
+    await expect(createdSale.getByText("PV-E2E-0002")).toBeVisible();
+    await expect(createdSale.getByText("Cliente E2E")).toBeVisible();
+    await expect(createdSale.getByText("Almacén: Stock de Vendedor E2E")).toBeVisible();
     await expect(page.getByText("Busca o selecciona un producto para iniciar la venta.")).toBeVisible();
   });
 });

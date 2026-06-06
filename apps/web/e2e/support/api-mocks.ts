@@ -84,6 +84,7 @@ type MockSale = {
   customerName?: string;
   customer?: { id: string; name: string } | null;
   createdAt: string;
+  warehouse?: MockWarehouse | null;
   cashier: { id: string; name: string; email: string };
   payments: Array<{ id: string; method: string; amount: number; createdAt: string }>;
   items: MockSaleItem[];
@@ -297,6 +298,15 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
     ]),
   );
   const managedUsers = usersResponse();
+  const seller = managedUsers.find((item) => item.id === "seller-e2e") ?? managedUsers[1];
+  const sellerWarehouse = ensureMockSellerWarehouse(warehouses, seller);
+
+  for (const [index, product] of products.entries()) {
+    const productBalances = inventoryBalances.get(product.id) ?? new Map<string, number>();
+
+    productBalances.set(sellerWarehouse.id, index === 0 ? 6 : 4);
+    inventoryBalances.set(product.id, productBalances);
+  }
   const adjustmentRequests = adjustmentRequestsResponse(role, sales, managedUsers);
   const inventoryTransferRequests = inventoryTransferRequestsResponse(role, managedUsers, warehouses, products);
   const auditLogs = auditLogsResponse(managedUsers);
@@ -599,6 +609,10 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
       return json(route, warehouse, 201);
     }
 
+
+    if (pathname.endsWith("/inventory/seller-stock") && method === "GET") {
+      return json(route, sellerStockResponse(warehouses, inventoryBalances, products, managedUsers, role));
+    }
 
     if (pathname.endsWith("/inventory/transfer-requests") && method === "GET") {
       return json(route, filterInventoryTransferRequests(
@@ -980,11 +994,28 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
     if (pathname.endsWith("/sales") && method === "POST") {
       const payload = readJsonPayload(request) as {
         customerName?: string;
+        warehouseId?: string | null;
         paymentMethod?: string;
         paidAmount?: number;
         items?: Array<{ productId: string; quantity: number }>;
       };
-      const sale = buildCreatedSale(payload, products, sales.length + 1);
+      const warehouse = payload.warehouseId
+        ? warehouses.find((item) => item.id === payload.warehouseId)
+        : warehouses.find((item) => item.id === "warehouse-1");
+
+      if (!warehouse) {
+        return json(route, { message: "Almacén de venta no encontrado" }, 404);
+      }
+
+      const firstItem = payload.items?.[0];
+      const productBalances = firstItem ? inventoryBalances.get(firstItem.productId) : undefined;
+      const availableStock = productBalances?.get(warehouse.id) ?? 0;
+
+      if (firstItem && availableStock < Number(firstItem.quantity ?? 0)) {
+        return json(route, { message: `Stock insuficiente en ${warehouse.name}.` }, 409);
+      }
+
+      const sale = buildCreatedSale(payload, products, sales.length + 1, warehouse);
 
       if (Number(payload.paidAmount ?? 0) < sale.total) {
         return json(
@@ -992,6 +1023,11 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
           { message: `Pago insuficiente. Total: $${sale.total.toFixed(2)}.` },
           400,
         );
+      }
+
+      if (firstItem && productBalances) {
+        productBalances.set(warehouse.id, availableStock - Number(firstItem.quantity ?? 0));
+        inventoryBalances.set(firstItem.productId, productBalances);
       }
 
       sales.unshift(sale);
@@ -1363,6 +1399,41 @@ function filterMovements(movements: MockInventoryMovement[], query: string | nul
 }
 
 
+
+function sellerStockResponse(
+  warehouses: MockWarehouse[],
+  balances: MockInventoryBalanceMap,
+  products: MockProduct[],
+  users: MockManagedUser[],
+  role: Role,
+) {
+  const sellers = users.filter((user) => user.role === "CASHIER" && user.isActive);
+
+  return warehouses
+    .filter((warehouse) => (warehouse.type ?? "STORAGE") === "SELLER")
+    .filter((warehouse) => role === "ADMIN" || warehouse.sellerId === "seller-e2e")
+    .map((warehouse) => {
+      const seller = sellers.find((item) => item.id === warehouse.sellerId) ?? null;
+      const stockProducts = products
+        .map((product) => ({
+          productId: product.id,
+          sku: product.sku,
+          barcode: product.barcode,
+          name: product.name,
+          minStock: product.minStock ?? 0,
+          isActive: product.isActive,
+          quantity: balances.get(product.id)?.get(warehouse.id) ?? 0,
+        }))
+        .filter((product) => product.quantity > 0);
+
+      return {
+        seller,
+        warehouse,
+        totalUnits: stockProducts.reduce((sum, product) => sum + product.quantity, 0),
+        products: stockProducts,
+      };
+    });
+}
 
 function inventoryTransferRequestsResponse(
   role: Role,
@@ -1998,6 +2069,13 @@ function salesResponse(role: Role): MockSale[] {
         name: "Cliente de prueba",
       },
       createdAt: "2026-05-22T10:00:00.000Z",
+      warehouse: {
+        id: role === "ADMIN" ? "warehouse-1" : "seller-warehouse-seller-e2e",
+        name: role === "ADMIN" ? "Principal" : "Stock de Vendedor E2E",
+        type: role === "ADMIN" ? "STORAGE" : "SELLER",
+        sellerId: role === "ADMIN" ? null : "seller-e2e",
+        isActive: true,
+      },
       cashier: {
         id: "seller-e2e",
         name: role === "ADMIN" ? "Vendedor E2E" : "Mi usuario",
@@ -2069,11 +2147,13 @@ function salesResponse(role: Role): MockSale[] {
 function buildCreatedSale(
   payload: {
     customerName?: string;
+    warehouseId?: string | null;
     paymentMethod?: string;
     items?: Array<{ productId: string; quantity: number }>;
   },
   products: MockProduct[],
   sequence: number,
+  warehouse: MockWarehouse,
 ): MockSale {
   const selectedProduct = products.find((product) => product.id === payload.items?.[0]?.productId) ?? products[0];
   const quantity = payload.items?.[0]?.quantity ?? 1;
@@ -2094,6 +2174,7 @@ function buildCreatedSale(
     customer: payload.customerName
       ? { id: `customer-${sequence}`, name: payload.customerName }
       : null,
+    warehouse,
     cashier: {
       id: "seller-e2e",
       name: "Vendedor E2E",

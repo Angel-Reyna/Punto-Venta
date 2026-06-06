@@ -16,12 +16,15 @@ import { SalesHero } from "./SalesHero";
 import { SalesHistoryPanel } from "./SalesHistoryPanel";
 import { SalesOperationDialogs } from "./SalesOperationDialogs";
 import { SalesProductSearchPanel } from "./SalesProductSearchPanel";
+import { SalesSourceWarehousePanel } from "./SalesSourceWarehousePanel";
 import { SalesTicketPanel } from "./SalesTicketPanel";
 import { useSalesData } from "./useSalesData";
 import { useSalesOperations } from "./useSalesOperations";
 
 import {
+  applyWarehouseStockToProducts,
   buildCartRows,
+  buildFallbackWarehouseOption,
   calculateCartTotal,
   formatMoney,
   getExactSearchProduct,
@@ -29,6 +32,7 @@ import {
   isCartInvalid,
   type CartItem,
   type PaymentMethod,
+  type SalesWarehouseOption,
 } from "./salesShared";
 import {
   SALES_TICKET_MESSAGES,
@@ -38,7 +42,7 @@ import {
 } from "./salesTicket";
 
 export function SalesPage() {
-  const { can } = useAuth();
+  const { can, user } = useAuth();
 
   const canCreateSales = can(PERMISSIONS.SalesCreate);
   const canCancelSales = can(PERMISSIONS.SalesCancel);
@@ -51,6 +55,7 @@ export function SalesPage() {
     adjustmentRequests,
     products,
     sales,
+    warehouseOptions,
     isLoadingCatalog,
     approveAdjustmentRequest,
     loadSalesData,
@@ -65,6 +70,7 @@ export function SalesPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [productSearch, setProductSearch] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -121,8 +127,29 @@ export function SalesPage() {
     void loadSalesWorkspace();
   }, [loadSalesWorkspace]);
 
-  const total = useMemo(() => calculateCartTotal(cart, products), [cart, products]);
-  const cartIsInvalid = useMemo(() => isCartInvalid(cart, products), [cart, products]);
+  const visibleWarehouseOptions = useMemo<SalesWarehouseOption[]>(() => {
+    if (user?.role !== "CASHIER") {
+      return warehouseOptions;
+    }
+
+    const sellerWarehouseOptions = warehouseOptions.filter((warehouse) => {
+      return warehouse.type === "SELLER" && (!warehouse.sellerId || warehouse.sellerId === user.id);
+    });
+
+    return [buildFallbackWarehouseOption(products), ...sellerWarehouseOptions];
+  }, [products, user?.id, user?.role, warehouseOptions]);
+
+  const selectedWarehouse = useMemo(() => {
+    return visibleWarehouseOptions.find((warehouse) => warehouse.id === selectedWarehouseId) ?? null;
+  }, [selectedWarehouseId, visibleWarehouseOptions]);
+
+  const productsForSelectedWarehouse = useMemo(
+    () => applyWarehouseStockToProducts(products, selectedWarehouse),
+    [products, selectedWarehouse],
+  );
+
+  const total = useMemo(() => calculateCartTotal(cart, productsForSelectedWarehouse), [cart, productsForSelectedWarehouse]);
+  const cartIsInvalid = useMemo(() => isCartInvalid(cart, productsForSelectedWarehouse), [cart, productsForSelectedWarehouse]);
 
   const paid = Number(paidAmount || 0);
   const normalizedPaid = Number.isFinite(paid) ? paid : 0;
@@ -146,19 +173,50 @@ export function SalesPage() {
   })();
 
   const filteredProducts = useMemo(
-    () => getFilteredProducts(products, productSearch),
-    [productSearch, products],
+    () => getFilteredProducts(productsForSelectedWarehouse, productSearch),
+    [productSearch, productsForSelectedWarehouse],
   );
   const exactProductSearchMatch = useMemo(
-    () => getExactSearchProduct(products, productSearch),
-    [productSearch, products],
+    () => getExactSearchProduct(productsForSelectedWarehouse, productSearch),
+    [productSearch, productsForSelectedWarehouse],
   );
   const canAddExactSearchMatch = Boolean(exactProductSearchMatch) && !isSubmitting && !saleDialogIsOpen;
 
-  const cartRows = useMemo(() => buildCartRows(cart, products), [cart, products]);
+  const cartRows = useMemo(() => buildCartRows(cart, productsForSelectedWarehouse), [cart, productsForSelectedWarehouse]);
+
+  useEffect(() => {
+    if (visibleWarehouseOptions.length === 0) {
+      if (selectedWarehouseId) {
+        setSelectedWarehouseId("");
+      }
+      return;
+    }
+
+    const preferredWarehouse = user?.role === "CASHIER"
+      ? visibleWarehouseOptions.find((warehouse) => warehouse.type === "SELLER" && warehouse.totalUnits > 0)
+      : visibleWarehouseOptions.find((warehouse) => warehouse.type === "STORAGE" && warehouse.totalUnits > 0);
+    const currentWarehouseExists = visibleWarehouseOptions.some((warehouse) => warehouse.id === selectedWarehouseId);
+
+    if (currentWarehouseExists && !(selectedWarehouseId === "" && preferredWarehouse?.id)) {
+      return;
+    }
+
+    setSelectedWarehouseId((preferredWarehouse ?? visibleWarehouseOptions[0]).id);
+  }, [selectedWarehouseId, user?.role, visibleWarehouseOptions]);
+
+  function handleWarehouseChange(warehouseId: string) {
+    if (warehouseId === selectedWarehouseId) {
+      return;
+    }
+
+    setSelectedWarehouseId(warehouseId);
+    setCart([]);
+    setProductSearch("");
+    setError("");
+  }
 
   function addProductToCart(productId: string) {
-    const result = addProductToSalesTicket(cart, products, productId);
+    const result = addProductToSalesTicket(cart, productsForSelectedWarehouse, productId);
 
     setError(result.error);
     setCart(result.cart);
@@ -187,7 +245,7 @@ export function SalesPage() {
   }
 
   function updateCartQuantity(productId: string, quantity: number) {
-    setCart((currentCart) => updateSalesTicketQuantity(currentCart, products, productId, quantity));
+    setCart((currentCart) => updateSalesTicketQuantity(currentCart, productsForSelectedWarehouse, productId, quantity));
   }
 
   function removeCartItem(productId: string) {
@@ -224,6 +282,7 @@ export function SalesPage() {
       await submitSale({
         customerName:
           typeof customerName === "string" && customerName.trim() ? customerName.trim() : undefined,
+        warehouseId: selectedWarehouse?.id || undefined,
         paymentMethod,
         paidAmount: normalizedPaid,
         items: cart,
@@ -250,6 +309,7 @@ export function SalesPage() {
     isPaymentInsufficient,
     normalizedPaid,
     paymentMethod,
+    selectedWarehouse?.id,
     submitSale,
     total,
   ]);
@@ -410,6 +470,16 @@ export function SalesPage() {
               }}
             >
               <Box sx={{ display: "grid", gap: { xs: 2, lg: 2.5 } }}>
+                <SalesSourceWarehousePanel
+                  cartItemsCount={cartItemsCount}
+                  isDisabled={isSubmitting || saleDialogIsOpen}
+                  selectedWarehouseId={selectedWarehouseId}
+                  selectedWarehouse={selectedWarehouse}
+                  total={total}
+                  warehouseOptions={visibleWarehouseOptions}
+                  onWarehouseChange={handleWarehouseChange}
+                />
+
                 <SalesProductSearchPanel
                   filteredProducts={filteredProducts}
                   productSearch={productSearch}

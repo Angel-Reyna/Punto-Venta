@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import type { Product, Sale, SalesAdjustmentRequest } from "./salesShared";
+import type { Product, Sale, SalesAdjustmentRequest, SalesWarehouseOption } from "./salesShared";
 import {
   approveSalesAdjustmentRequest,
   cancelSale,
@@ -20,6 +20,7 @@ export function useSalesData() {
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [adjustmentRequests, setAdjustmentRequests] = useState<SalesAdjustmentRequest[]>([]);
+  const [warehouseOptions, setWarehouseOptions] = useState<SalesWarehouseOption[]>([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
 
   const loadSalesData = useCallback(async () => {
@@ -31,6 +32,7 @@ export function useSalesData() {
       setProducts(workspace.products);
       setSales(workspace.sales);
       setAdjustmentRequests(workspace.adjustmentRequests);
+      setWarehouseOptions(workspace.warehouseOptions);
     } finally {
       setIsLoadingCatalog(false);
     }
@@ -88,6 +90,7 @@ export function useSalesData() {
     adjustmentRequests,
     products,
     sales,
+    warehouseOptions,
     isLoadingCatalog,
     approveAdjustmentRequest,
     loadSalesData,

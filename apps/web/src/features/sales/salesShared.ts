@@ -18,6 +18,8 @@ export const SALE_STATUS_FILTER_OPTIONS: Array<{ value: SaleStatus | "ALL"; labe
   { value: "REFUNDED", label: "Devueltas" }
 ];
 
+export type WarehouseType = "STORAGE" | "SELLER";
+
 export type Product = {
   id: string;
   sku: string;
@@ -27,6 +29,54 @@ export type Product = {
   stock: number;
   promoPercent: number;
   finalPrice?: number;
+};
+
+export type SalesStockLocation = {
+  warehouseId: string;
+  warehouseName: string;
+  warehouseType?: WarehouseType;
+  sellerId?: string | null;
+  quantity: number;
+};
+
+export type SalesStockItem = {
+  id: string;
+  sku: string;
+  name: string;
+  stock: number;
+  locations?: SalesStockLocation[];
+};
+
+export type SalesWarehouseOption = {
+  id: string;
+  name: string;
+  type: WarehouseType;
+  sellerId?: string | null;
+  isFallback?: boolean;
+  totalUnits: number;
+  stockByProductId: Record<string, number>;
+};
+
+export type SellerStockRow = {
+  seller?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+  warehouse: {
+    id: string;
+    name: string;
+    description?: string | null;
+    type?: WarehouseType;
+    isActive: boolean;
+  };
+  totalUnits: number;
+  products: Array<{
+    productId: string;
+    sku: string;
+    name: string;
+    quantity: number;
+  }>;
 };
 
 export type CartItem = {
@@ -91,6 +141,13 @@ export type Sale = {
     name: string;
     email: string;
   };
+
+  warehouse?: {
+    id: string;
+    name: string;
+    type?: WarehouseType;
+    sellerId?: string | null;
+  } | null;
 
   items?: SaleItem[];
   returns?: SaleReturn[];
@@ -258,6 +315,47 @@ export function paymentMethodLabel(method: PaymentMethod) {
 
 export function normalizeSearch(value: string) {
   return value.trim().toLowerCase();
+}
+
+
+export function warehouseTypeLabel(type: WarehouseType | undefined) {
+  return type === "SELLER" ? "Stock de vendedor" : "Almacén operativo";
+}
+
+export function buildFallbackWarehouseOption(products: Product[]): SalesWarehouseOption {
+  const stockByProductId = Object.fromEntries(
+    products.map((product) => [product.id, Math.max(Number(product.stock ?? 0), 0)]),
+  );
+
+  return {
+    id: "",
+    name: "Almacén principal",
+    type: "STORAGE",
+    isFallback: true,
+    totalUnits: Object.values(stockByProductId).reduce((sum, quantity) => sum + quantity, 0),
+    stockByProductId,
+  };
+}
+
+export function getProductWarehouseStock(
+  product: Product,
+  warehouse: SalesWarehouseOption | null | undefined,
+) {
+  if (!warehouse) {
+    return Math.max(Number(product.stock ?? 0), 0);
+  }
+
+  return Math.max(Number(warehouse.stockByProductId[product.id] ?? 0), 0);
+}
+
+export function applyWarehouseStockToProducts(
+  products: Product[],
+  warehouse: SalesWarehouseOption | null | undefined,
+) {
+  return products.map((product) => ({
+    ...product,
+    stock: getProductWarehouseStock(product, warehouse),
+  }));
 }
 
 export function getProductFinalPrice(product: Product) {
