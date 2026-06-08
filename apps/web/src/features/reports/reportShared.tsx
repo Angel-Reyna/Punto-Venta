@@ -46,6 +46,14 @@ export type OperationsReport = {
   sales: {
     count: number;
     byStatus: Record<string, number>;
+    daily?: Array<{
+      date: string;
+      count: number;
+      gross: number;
+      refunded: number;
+      net: number;
+      units: number;
+    }>;
     gross: number;
     refunded: number;
     net: number;

@@ -75,6 +75,12 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(reportMetric(page, "operating-profit")).toContainText("Utilidad operativa");
     await expect(reportMetric(page, "operating-profit")).toContainText("$187.00");
     await expect(reportMetric(page, "operating-margin")).toContainText("Margen operativo");
+    await expect(byTestId(page, "reports-chart-profit-bridge")).toContainText("Puente financiero");
+    await expect(byTestId(page, "reports-chart-profit-bridge")).toContainText("$187.00");
+    await expect(byTestId(page, "reports-chart-daily-net-sales")).toContainText("Tendencia diaria de venta neta");
+    await expect(byTestId(page, "reports-chart-daily-net-sales")).toContainText("$470.00");
+    await expect(byTestId(page, "reports-chart-seller-dot-plot")).toContainText("Vendedor E2E");
+    await expect(byTestId(page, "reports-chart-shrinkage-pareto")).toContainText("Coca-Cola 600 ml");
     await expect(page.getByRole("region", { name: "Ventas por vendedor" })).toContainText("Vendedor E2E");
     await expect(page.getByRole("region", { name: "Productos más vendidos" })).toContainText(
       "Producto eliminado snapshot E2E",

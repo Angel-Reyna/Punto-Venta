@@ -4,6 +4,7 @@ import { ResponsiveSideLayout } from "../../components/layout";
 
 import { StatusFeedback } from "../../components/StatusFeedback";
 import { ReportsPeriodControls, ReportsSearchPanel } from "./ReportsControls";
+import { ReportsChartsGrid } from "./ReportsCharts";
 import { ReportsDetailSections } from "./ReportsDetailSections";
 import { ReportsHero } from "./ReportsHero";
 import { ReportsSummaryGrid } from "./ReportsSummary";
@@ -57,6 +58,7 @@ export function ReportsPage() {
           {report.data && (
             <>
               <ReportsSummaryGrid data={report.data} />
+              <ReportsChartsGrid data={report.data} />
               <ReportsDetailSections
                 data={report.data}
                 filteredRecentSales={report.filteredRecentSales}
