@@ -40,7 +40,10 @@ export type ProfitSummary = {
   grossProfit: number;
   returnedProfit: number;
   netProfit: number;
+  shrinkageCost: number;
+  operatingProfit: number;
   marginPercent: number;
+  operatingMarginPercent: number;
 };
 
 export type InventoryReportMovement = {
@@ -178,15 +181,20 @@ export function buildProfitSummary(input: {
   grossProfit: number;
   returnedProfit: number;
   netSales: number;
+  shrinkageCost?: number;
 }): ProfitSummary {
   const grossCost = roundMoney(input.grossCost);
   const returnedCost = roundMoney(input.returnedCost);
   const grossProfit = roundMoney(input.grossProfit);
   const returnedProfit = roundMoney(input.returnedProfit);
+  const shrinkageCost = roundMoney(input.shrinkageCost ?? 0);
   const netCost = roundMoney(grossCost - returnedCost);
   const netProfit = roundMoney(grossProfit - returnedProfit);
+  const operatingProfit = roundMoney(netProfit - shrinkageCost);
   const marginPercent =
     input.netSales <= 0 ? 0 : roundMoney((netProfit / input.netSales) * 100);
+  const operatingMarginPercent =
+    input.netSales <= 0 ? 0 : roundMoney((operatingProfit / input.netSales) * 100);
 
   return {
     grossCost,
@@ -195,7 +203,10 @@ export function buildProfitSummary(input: {
     grossProfit,
     returnedProfit,
     netProfit,
-    marginPercent
+    shrinkageCost,
+    operatingProfit,
+    marginPercent,
+    operatingMarginPercent
   };
 }
 

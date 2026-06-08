@@ -259,6 +259,14 @@ function paymentTotal(summary: Record<string, number>) {
   return Object.values(summary).reduce((sum, amount) => sum + Number(amount), 0);
 }
 
+function operatingProfit(report: OperationsReport) {
+  return report.sales.profit.operatingProfit ?? report.sales.profit.netProfit - report.inventory.shrinkage.totalCost;
+}
+
+function operatingMarginPercent(report: OperationsReport) {
+  return report.sales.profit.operatingMarginPercent ?? percentOf(operatingProfit(report), report.sales.net);
+}
+
 function topSeller(report: OperationsReport) {
   return report.sales.bySeller[0];
 }
@@ -421,7 +429,7 @@ function drawSummary(cursor: ReportCursor, report: OperationsReport) {
     .font("Helvetica")
     .fontSize(8.4)
     .text(
-      `El periodo registró ${formatMoney(report.sales.net)} de venta neta, ${formatMoney(report.sales.profit.netProfit)} de utilidad bruta y margen de ${formatPercent(report.sales.profit.marginPercent)}.`,
+      `El periodo registró ${formatMoney(report.sales.net)} de venta neta, ${formatMoney(report.sales.profit.netProfit)} de utilidad antes de merma y ${formatMoney(operatingProfit(report))} de utilidad operativa.`,
       x + 16,
       y + 35,
       { lineGap: 2, width: cursor.width - asideWidth - 42 }
@@ -430,7 +438,7 @@ function drawSummary(cursor: ReportCursor, report: OperationsReport) {
     .fillColor(COLORS.muted)
     .fontSize(8.4)
     .text(
-      `Ticket promedio: ${formatMoney(avgTicket)}. Devoluciones sobre venta bruta: ${formatPercent(refundRate)}. Ventas activas: ${formatNumber(transactions)}. Merma por caducidad: ${formatMoney(report.inventory.shrinkage.totalCost)}.`,
+      `Ticket promedio: ${formatMoney(avgTicket)}. Devoluciones sobre venta bruta: ${formatPercent(refundRate)}. Ventas activas: ${formatNumber(transactions)}. Merma por caducidad: ${formatMoney(report.inventory.shrinkage.totalCost)}. Margen operativo: ${formatPercent(operatingMarginPercent(report))}.`,
       x + 16,
       y + 68,
       { lineGap: 2, width: cursor.width - asideWidth - 42 }
@@ -901,8 +909,20 @@ export function writeOperationsPdf(doc: PDFKit.PDFDocument, report: OperationsRe
     { label: "Venta neta", value: formatMoney(report.sales.net), helper: "Bruta menos devoluciones", tone: "success" },
     { label: "Unidades netas", value: formatNumber(report.sales.unitsNet), helper: "Vendidas menos devueltas" },
     { label: "UPT", value: formatNumber(report.sales.unitsPerTransaction), helper: "Unidades / venta activa" },
-    { label: "Utilidad bruta", value: formatMoney(report.sales.profit.netProfit), helper: "Venta neta menos costo", tone: "success" },
-    { label: "Margen bruto", value: formatPercent(report.sales.profit.marginPercent), helper: "Utilidad / venta neta", tone: "success" },
+    { label: "Utilidad antes de merma", value: formatMoney(report.sales.profit.netProfit), helper: "Venta neta menos costo", tone: "success" },
+    {
+      label: "Utilidad operativa",
+      value: formatMoney(operatingProfit(report)),
+      helper: "Utilidad menos merma",
+      tone: operatingProfit(report) < 0 ? "danger" : "success"
+    },
+    { label: "Margen bruto", value: formatPercent(report.sales.profit.marginPercent), helper: "Antes de merma", tone: "success" },
+    {
+      label: "Margen operativo",
+      value: formatPercent(operatingMarginPercent(report)),
+      helper: "Después de merma",
+      tone: operatingMarginPercent(report) < 0 ? "danger" : "success"
+    },
     {
       label: "Devoluciones",
       value: formatMoney(report.sales.refunded),

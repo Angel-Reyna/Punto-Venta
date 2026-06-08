@@ -8,6 +8,12 @@ import {
 } from "./reportShared";
 
 export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
+  const shrinkageCost = data.inventory?.shrinkage.totalCost ?? data.sales.profit.shrinkageCost ?? 0;
+  const operatingProfit = data.sales.profit.operatingProfit ?? data.sales.profit.netProfit - shrinkageCost;
+  const operatingMarginPercent = data.sales.profit.operatingMarginPercent ?? (
+    data.sales.net <= 0 ? 0 : (operatingProfit / data.sales.net) * 100
+  );
+
   const summaryCards = [
     {
       label: "Ventas registradas",
@@ -52,18 +58,32 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
       tone: "warning" as const
     },
     {
-      label: "Utilidad bruta",
+      label: "Utilidad antes de merma",
       value: formatMoney(data.sales.profit.netProfit),
       helper: "Venta neta menos costo histórico neto.",
       info: REPORT_INFO_TEXT.grossProfit,
       tone: "success" as const
     },
     {
+      label: "Utilidad operativa",
+      value: formatMoney(operatingProfit),
+      helper: "Utilidad antes de merma menos caducidad.",
+      info: REPORT_INFO_TEXT.operatingProfit,
+      tone: operatingProfit < 0 ? "error" as const : "success" as const
+    },
+    {
       label: "Margen bruto",
       value: `${data.sales.profit.marginPercent.toFixed(2)}%`,
-      helper: "Utilidad bruta sobre venta neta.",
+      helper: "Utilidad antes de merma sobre venta neta.",
       info: REPORT_INFO_TEXT.marginPercent,
       tone: "primary" as const
+    },
+    {
+      label: "Margen operativo",
+      value: `${operatingMarginPercent.toFixed(2)}%`,
+      helper: "Utilidad operativa sobre venta neta.",
+      info: REPORT_INFO_TEXT.operatingMarginPercent,
+      tone: operatingMarginPercent < 0 ? "error" as const : "primary" as const
     }
   ];
 

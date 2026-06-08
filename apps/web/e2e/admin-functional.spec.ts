@@ -72,6 +72,9 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(page.getByText("$470.00").first()).toBeVisible();
     await expect(page.getByText("Merma por caducidad")).toBeVisible();
     await expect(page.getByText("$48.00").first()).toBeVisible();
+    await expect(page.getByText("Utilidad operativa", { exact: true })).toBeVisible();
+    await expect(page.getByText("$187.00")).toBeVisible();
+    await expect(page.getByText("Margen operativo", { exact: true })).toBeVisible();
     await expect(page.getByRole("region", { name: "Ventas por vendedor" })).toContainText("Vendedor E2E");
     await expect(page.getByRole("region", { name: "Productos más vendidos" })).toContainText(
       "Producto eliminado snapshot E2E",

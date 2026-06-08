@@ -273,12 +273,25 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
   const returnedProfit = roundMoney(
     returnedItems.reduce((sum, item) => sum + Number(item.grossProfit ?? 0), 0)
   );
+  const expirationMovements = inventoryMovements.filter(
+    (movement) =>
+      movement.type === INVENTORY_MOVEMENT_TYPES.OUT &&
+      movement.reasonType === INVENTORY_REASON_TYPES.EXPIRATION
+  );
+  const expirationCost = roundMoney(
+    expirationMovements.reduce(
+      (sum, movement) =>
+        sum + Number(movement.costAmount ?? Number(movement.unitCostAtMovement ?? 0) * movement.quantity),
+      0
+    )
+  );
   const profit = buildProfitSummary({
     grossCost: soldCost,
     returnedCost,
     grossProfit: soldProfit,
     returnedProfit,
-    netSales
+    netSales,
+    shrinkageCost: expirationCost
   });
 
   const sellerTotals = new Map<
@@ -433,18 +446,6 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     {}
   );
 
-  const expirationMovements = inventoryMovements.filter(
-    (movement) =>
-      movement.type === INVENTORY_MOVEMENT_TYPES.OUT &&
-      movement.reasonType === INVENTORY_REASON_TYPES.EXPIRATION
-  );
-  const expirationCost = roundMoney(
-    expirationMovements.reduce(
-      (sum, movement) =>
-        sum + Number(movement.costAmount ?? Number(movement.unitCostAtMovement ?? 0) * movement.quantity),
-      0
-    )
-  );
   const expirationUnits = expirationMovements.reduce(
     (sum, movement) => sum + Number(movement.quantity),
     0

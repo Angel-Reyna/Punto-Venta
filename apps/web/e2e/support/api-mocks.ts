@@ -1734,7 +1734,10 @@ function operationsReportResponse() {
         grossProfit: 260,
         returnedProfit: 25,
         netProfit: 235,
+        shrinkageCost: 48,
+        operatingProfit: 187,
         marginPercent: 50,
+        operatingMarginPercent: 39.79,
       },
       bySeller: [
         {

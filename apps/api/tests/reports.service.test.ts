@@ -256,7 +256,10 @@ describe("reports.service", () => {
       grossProfit: 100,
       returnedProfit: 30,
       netProfit: 70,
-      marginPercent: 46.67
+      shrinkageCost: 40,
+      operatingProfit: 30,
+      marginPercent: 46.67,
+      operatingMarginPercent: 20
     });
     expect(report.sales.paymentSummary).toEqual({
       CASH: 200
