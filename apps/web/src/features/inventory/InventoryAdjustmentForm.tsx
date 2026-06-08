@@ -250,6 +250,27 @@ export function InventoryAdjustmentForm({
     updateForm({ quantity: parsedQuantity });
   }
 
+  function setQuantityFromControl(nextQuantity: number) {
+    updateQuantity(String(Math.max(Math.trunc(nextQuantity), 0)));
+  }
+
+  function decreaseQuantity() {
+    setQuantityFromControl(form.quantity - 1);
+  }
+
+  function increaseQuantity() {
+    setQuantityFromControl(form.quantity + 1);
+  }
+
+  function useAvailableStockAsQuantity() {
+    if (mode !== "out" || !selectedProduct) {
+      return;
+    }
+
+    setQuantityLimitMessage("");
+    updateForm({ quantity: selectedProductWarehouseStock });
+  }
+
   const effectiveReasonType = mode === "in" ? "OTHER" : form.reasonType;
   const isExpirationReason = mode === "out" && effectiveReasonType === "EXPIRATION";
   const selectedProduct = products.find(
@@ -263,6 +284,14 @@ export function InventoryAdjustmentForm({
     mode === "out" &&
     Boolean(selectedProduct) &&
     form.quantity > selectedProductWarehouseStock;
+  const quantityDecreaseDisabled = quantityDisabled || form.quantity <= 0;
+  const quantityIncreaseDisabled =
+    quantityDisabled ||
+    (mode === "out" &&
+      Boolean(selectedProduct) &&
+      form.quantity >= selectedProductWarehouseStock);
+  const quantityMaxDisabled =
+    mode !== "out" || !selectedProduct || selectedProductWarehouseStock <= 0;
   const quantityHelperText = quantityDisabled
     ? "Selecciona un producto para capturar la cantidad."
     : quantityLimitMessage
@@ -415,23 +444,67 @@ export function InventoryAdjustmentForm({
               </Grid>
 
               <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Cantidad"
-                  value={form.quantity > 0 ? String(form.quantity) : ""}
-                  disabled={quantityDisabled}
-                  error={quantityExceedsStock}
-                  helperText={quantityHelperText}
-                  inputProps={{
-                    "data-testid": "inventory-form-quantity",
-                    inputMode: "numeric",
-                    pattern: "[0-9]*",
-                    ...(mode === "out" && selectedProduct
-                      ? { max: selectedProductWarehouseStock }
-                      : {}),
-                  }}
-                  onChange={(event) => updateQuantity(event.target.value)}
-                />
+                <Stack spacing={1}>
+                  <TextField
+                    fullWidth
+                    label="Cantidad"
+                    value={form.quantity > 0 ? String(form.quantity) : ""}
+                    disabled={quantityDisabled}
+                    error={quantityExceedsStock}
+                    helperText={quantityHelperText}
+                    inputProps={{
+                      "data-testid": "inventory-form-quantity",
+                      inputMode: "numeric",
+                      pattern: "[0-9]*",
+                      ...(mode === "out" && selectedProduct
+                        ? { max: selectedProductWarehouseStock }
+                        : {}),
+                    }}
+                    onChange={(event) => updateQuantity(event.target.value)}
+                  />
+
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      rowGap: 1,
+                    }}
+                  >
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={quantityDecreaseDisabled}
+                      onClick={decreaseQuantity}
+                      data-testid="inventory-form-quantity-decrease"
+                      aria-label="Disminuir cantidad"
+                    >
+                      -1
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={quantityIncreaseDisabled}
+                      onClick={increaseQuantity}
+                      data-testid="inventory-form-quantity-increase"
+                      aria-label="Aumentar cantidad"
+                    >
+                      +1
+                    </Button>
+                    {mode === "out" && (
+                      <Button
+                        variant="text"
+                        size="small"
+                        disabled={quantityMaxDisabled}
+                        onClick={useAvailableStockAsQuantity}
+                        data-testid="inventory-form-quantity-max"
+                      >
+                        Usar disponible
+                      </Button>
+                    )}
+                  </Stack>
+                </Stack>
               </Grid>
 
               {mode === "out" && (

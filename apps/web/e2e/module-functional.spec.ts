@@ -296,6 +296,12 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await page.getByLabel("Producto").click();
     await page.getByRole("option", { name: /COCA-600 · Coca-Cola 600 ml · stock 29/i }).click();
     await expect(byTestId(page, "inventory-form-quantity")).toBeEnabled();
+    await expect(byTestId(page, "inventory-form-quantity-decrease")).toBeDisabled();
+    await clickByTestId(page, "inventory-form-quantity-increase");
+    await expect(byTestId(page, "inventory-form-quantity")).toHaveValue("1");
+    await clickByTestId(page, "inventory-form-quantity-max");
+    await expect(byTestId(page, "inventory-form-quantity")).toHaveValue("24");
+    await expect(byTestId(page, "inventory-form-quantity-increase")).toBeDisabled();
     await fillByTestId(page, "inventory-form-quantity", "999");
     await expect(byTestId(page, "inventory-form-quantity")).toHaveValue("24");
     await expect(page.getByText("Se ajustó la salida de 999 unidades al máximo disponible. Almacén: Principal. Disponible: 24 unidades.")).toBeVisible();
