@@ -25,6 +25,16 @@ const SKIP_DIRS = new Set([
   '.cache'
 ]);
 
+function isE2EPath(relativePath) {
+  return relativePath.startsWith('apps/web/e2e/') && !relativePath.startsWith('apps/web/e2e/support/');
+}
+
+function isMockedE2EPath(relativePath) {
+  return isE2EPath(relativePath) && !relativePath.startsWith('apps/web/e2e/integration/');
+}
+
+const RISKY_GLOBAL_TEXT_PATTERN = String.raw`\bpage\.getByText\s*\(\s*(?:[\"'\`])(?=[^\"'\`]*(?:PV-|Venta neta|Merma por caducidad|Utilidad operativa|Margen operativo|Bajo inventario|Devuelta|Ajuste pendiente))`;
+
 const RULES = [
   {
     id: 'focused-test',
@@ -49,6 +59,20 @@ const RULES = [
     message: 'Avoid Playwright force:true because it can hide real UX or selector bugs.',
     pattern: /\bforce\s*:\s*true\b/,
     appliesTo: (relativePath) => relativePath.startsWith('apps/web/e2e/')
+  },
+  {
+    id: 'playwright-risky-global-text',
+    message:
+      'Scope repeated business text with a stable container/test id. Use byTestId(...).toContainText(...) instead of page.getByText(...).',
+    pattern: new RegExp(RISKY_GLOBAL_TEXT_PATTERN),
+    appliesTo: isMockedE2EPath
+  },
+  {
+    id: 'playwright-global-text-position',
+    message:
+      'Avoid page.getByText(...).first()/last()/nth() in mocked E2E. Scope the locator to the owning card, row or panel.',
+    pattern: /\bpage\.getByText\s*\([^)]*\)\.(?:first|last|nth)\s*\(/,
+    appliesTo: isMockedE2EPath
   }
 ];
 
@@ -134,4 +158,4 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log('No focused/skipped tests, debugger statements or unsafe Playwright force:true overrides detected.');
+console.log('No focused/skipped tests, debugger statements, unsafe Playwright force:true overrides or risky global E2E text locators detected.');

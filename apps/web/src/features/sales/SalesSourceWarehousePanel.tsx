@@ -22,7 +22,7 @@ export function SalesSourceWarehousePanel({
   onWarehouseChange,
 }: SalesSourceWarehousePanelProps) {
   return (
-    <Card variant="outlined" sx={{ boxShadow: "none" }}>
+    <Card data-testid="sales-source-warehouse-panel" variant="outlined" sx={{ boxShadow: "none" }}>
       <CardContent sx={{ display: "grid", gap: 1.5, p: { xs: 1.5, sm: 2 } }}>
         <Stack
           direction={{ xs: "column", sm: "row" }}

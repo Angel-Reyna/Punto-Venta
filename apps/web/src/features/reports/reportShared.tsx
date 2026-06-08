@@ -265,6 +265,7 @@ export function MetricCard({
   helper,
   info,
   icon,
+  testId,
   tone = "primary"
 }: {
   label: string;
@@ -272,10 +273,12 @@ export function MetricCard({
   helper: string;
   info: string;
   icon?: ReactNode;
+  testId?: string;
   tone?: MetricCardTone;
 }) {
   return (
     <Card
+      data-testid={testId}
       sx={{
         height: "100%",
         border: "1px solid",

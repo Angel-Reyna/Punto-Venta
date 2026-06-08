@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { mockApi } from "./support/api-mocks";
-import { byTestId, clickByTestId, dialogByName, fillByTestId } from "./support/e2e-locators";
+import { byTestId, clickByTestId, dialogByName, fillByTestId, reportMetric } from "./support/e2e-locators";
 
 test.describe("cobertura funcional administrativa", () => {
   test("usuarios permite crear vendedor, cambiar rol, resetear contraseña y desactivar acceso", async ({
@@ -68,13 +68,13 @@ test.describe("cobertura funcional administrativa", () => {
 
     await clickByTestId(page, "reports-consult-button");
 
-    await expect(page.getByText("Venta neta").first()).toBeVisible();
-    await expect(page.getByText("$470.00").first()).toBeVisible();
-    await expect(page.getByText("Merma por caducidad")).toBeVisible();
-    await expect(page.getByText("$48.00").first()).toBeVisible();
-    await expect(page.getByText("Utilidad operativa", { exact: true })).toBeVisible();
-    await expect(page.getByText("$187.00")).toBeVisible();
-    await expect(page.getByText("Margen operativo", { exact: true })).toBeVisible();
+    await expect(reportMetric(page, "net-sales")).toContainText("Venta neta");
+    await expect(reportMetric(page, "net-sales")).toContainText("$470.00");
+    await expect(reportMetric(page, "shrinkage")).toContainText("Merma por caducidad");
+    await expect(reportMetric(page, "shrinkage")).toContainText("$48.00");
+    await expect(reportMetric(page, "operating-profit")).toContainText("Utilidad operativa");
+    await expect(reportMetric(page, "operating-profit")).toContainText("$187.00");
+    await expect(reportMetric(page, "operating-margin")).toContainText("Margen operativo");
     await expect(page.getByRole("region", { name: "Ventas por vendedor" })).toContainText("Vendedor E2E");
     await expect(page.getByRole("region", { name: "Productos más vendidos" })).toContainText(
       "Producto eliminado snapshot E2E",

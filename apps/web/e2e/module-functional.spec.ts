@@ -7,6 +7,7 @@ import {
   clickByTestId,
   dialogByName,
   fillByTestId,
+  salesHistorySale,
 } from "./support/e2e-locators";
 
 test.describe("cobertura funcional por módulos críticos", () => {
@@ -71,8 +72,9 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await page.goto("/sales");
 
     await expect(page.getByRole("heading", { name: "Ventas", level: 1 })).toBeVisible();
-    await expect(byTestId(page, "sales-history-sale-sale-1").getByText("PV-0001", { exact: true })).toBeVisible();
-    await expect(page.getByText("1× Coca-Cola 600 ml · 2× Botana Salada 50g")).toBeVisible();
+    const saleCard = salesHistorySale(page, "sale-1");
+    await expect(saleCard.getByText("PV-0001", { exact: true })).toBeVisible();
+    await expect(saleCard).toContainText("1× Coca-Cola 600 ml · 2× Botana Salada 50g");
 
     await page.getByRole("button", { name: "Devolver" }).click();
 
@@ -91,8 +93,8 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await clickByTestId(returnDialog, "sales-return-submit");
 
     await expect(page.getByText("Devolución registrada correctamente. El stock fue restaurado.")).toBeVisible();
-    await expect(page.getByText("Devuelta", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Devolver" })).toBeDisabled();
+    await expect(saleCard).toContainText("Devuelta");
+    await expect(saleCard.getByRole("button", { name: "Devolver" })).toBeDisabled();
   });
 
 
@@ -117,8 +119,8 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(page.getByText("Solicitud de devolución enviada al administrador.")).toBeVisible();
     await expect(byTestId(page, "sales-adjustment-requests-panel")).toContainText("Devolución solicitada");
     await expect(byTestId(page, "sales-adjustment-requests-panel")).toContainText("Pendiente");
-    await expect(page.getByText("Ajuste pendiente")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Solicitar devolución" })).toBeDisabled();
+    await expect(salesHistorySale(page, "sale-1")).toContainText("Ajuste pendiente");
+    await expect(salesHistorySale(page, "sale-1").getByRole("button", { name: "Solicitar devolución" })).toBeDisabled();
   });
 
   test("admin aprueba una solicitud de ajuste pendiente", async ({ page }) => {
@@ -354,7 +356,8 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(entryMovement).not.toContainText("Otros");
 
     await page.getByLabel("Buscar movimientos").fill("merma");
-    await expect(page.getByText("Caducidad").first()).toBeVisible();
+    const expirationResult = page.locator('[data-testid^="inventory-movement-"]').filter({ hasText: "Caducidad" }).first();
+    await expect(expirationResult).toBeVisible();
 
     await page.getByLabel("Buscar movimientos").fill("Bodega norte E2E");
 

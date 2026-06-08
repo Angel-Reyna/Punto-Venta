@@ -16,6 +16,7 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
 
   const summaryCards = [
     {
+      id: "sales-count",
       label: "Ventas registradas",
       value: data.sales.count,
       helper: "Incluye completadas, canceladas y con devolución.",
@@ -23,6 +24,7 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
       tone: "primary" as const
     },
     {
+      id: "gross-sales",
       label: "Venta bruta",
       value: formatMoney(data.sales.gross),
       helper: "Ventas no canceladas antes de devoluciones.",
@@ -30,6 +32,7 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
       tone: "success" as const
     },
     {
+      id: "refunds",
       label: "Devoluciones",
       value: formatMoney(data.sales.refunded),
       helper: "Reembolsos registrados dentro del periodo.",
@@ -37,6 +40,7 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
       tone: "warning" as const
     },
     {
+      id: "net-sales",
       label: "Venta neta",
       value: formatMoney(data.sales.net),
       helper: "Venta bruta menos devoluciones.",
@@ -44,6 +48,7 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
       tone: "info" as const
     },
     {
+      id: "shrinkage",
       label: "Merma por caducidad",
       value: formatMoney(data.inventory?.shrinkage.totalCost ?? 0),
       helper: `${data.inventory?.shrinkage.totalUnits ?? 0} unidades dadas de baja.`,
@@ -51,6 +56,7 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
       tone: "error" as const
     },
     {
+      id: "net-cost",
       label: "Costo neto",
       value: formatMoney(data.sales.profit.netCost),
       helper: "Costo histórico neto del periodo.",
@@ -58,6 +64,7 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
       tone: "warning" as const
     },
     {
+      id: "profit-before-shrinkage",
       label: "Utilidad antes de merma",
       value: formatMoney(data.sales.profit.netProfit),
       helper: "Venta neta menos costo histórico neto.",
@@ -65,6 +72,7 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
       tone: "success" as const
     },
     {
+      id: "operating-profit",
       label: "Utilidad operativa",
       value: formatMoney(operatingProfit),
       helper: "Utilidad antes de merma menos caducidad.",
@@ -72,6 +80,7 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
       tone: operatingProfit < 0 ? "error" as const : "success" as const
     },
     {
+      id: "gross-margin",
       label: "Margen bruto",
       value: `${data.sales.profit.marginPercent.toFixed(2)}%`,
       helper: "Utilidad antes de merma sobre venta neta.",
@@ -79,6 +88,7 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
       tone: "primary" as const
     },
     {
+      id: "operating-margin",
       label: "Margen operativo",
       value: `${operatingMarginPercent.toFixed(2)}%`,
       helper: "Utilidad operativa sobre venta neta.",
@@ -91,7 +101,7 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
     <Grid container spacing={2} sx={{ mb: 2 }}>
       {summaryCards.map((card) => (
         <Grid key={card.label} item xs={12} sm={6} lg={3}>
-          <MetricCard {...card} />
+          <MetricCard {...card} testId={`reports-metric-${card.id}`} />
         </Grid>
       ))}
     </Grid>

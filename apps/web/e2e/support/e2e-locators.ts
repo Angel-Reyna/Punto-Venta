@@ -31,6 +31,26 @@ export async function activateByTestId(
   await target.press("Enter");
 }
 
+export function salesHistorySale(page: Page, saleId: string): Locator {
+  return byTestId(page, `sales-history-sale-${saleId}`);
+}
+
+export function inventoryStockItem(page: Page, sku: string): Locator {
+  return byTestId(page, `inventory-stock-item-${sku}`);
+}
+
+export function reportMetric(page: Page, metricId: string): Locator {
+  return byTestId(page, `reports-metric-${metricId}`);
+}
+
+export function inventoryTransferRequest(page: Page, requestId: string): Locator {
+  return byTestId(page, `inventory-transfer-request-${requestId}`);
+}
+
+export function salesAdjustmentRequest(page: Page, requestId: string): Locator {
+  return byTestId(page, `sales-adjustment-request-${requestId}`);
+}
+
 export function dialogByName(page: Page, name: string | RegExp): Locator {
   return page.getByRole("dialog", { name });
 }
