@@ -49,7 +49,8 @@
     "web:lint": "npm --prefix apps/web run lint",
     "web:test": "npm --prefix apps/web test -- --run --passWithNoTests",
     "web:test:critical": "npm --prefix apps/web run test:critical",
-    "web:typecheck": "npm --prefix apps/web run typecheck"
+    "web:typecheck": "npm --prefix apps/web run typecheck",
+    "api:seed:demo-usage": "npm --prefix apps/api run seed:demo-usage --"
   },
   "engines": {
     "node": ">=22 <25"

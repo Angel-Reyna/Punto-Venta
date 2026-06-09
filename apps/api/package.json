@@ -21,7 +21,8 @@
     "start": "node dist/server.js",
     "test": "jest",
     "test:critical": "jest critical-routes.permissions.test.ts auth.middleware.test.ts auth.service.test.ts cookieSecurity.test.ts sales.service.test.ts inventory.service.test.ts inventory.queries.test.ts products.import.test.ts products.delete.test.ts products.status.test.ts reports.service.test.ts security.redaction.test.ts --runInBand",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "seed:demo-usage": "ts-node-dev --transpile-only --exit-child src/scripts/seed-demo-usage.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
