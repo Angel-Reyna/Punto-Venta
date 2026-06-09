@@ -21,6 +21,36 @@ import {
 
 export { DEFAULT_WAREHOUSE_NAME } from "./inventory.shared";
 
+const INVENTORY_TRANSACTION_OPTIONS = {
+  isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+  maxWait: 5_000,
+  timeout: 15_000
+} as const;
+
+function isRetryableTransactionConflictError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034";
+}
+
+async function runInventoryTransaction<T>(
+  callback: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T> {
+  const maxAttempts = 3;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await prisma.$transaction(callback, INVENTORY_TRANSACTION_OPTIONS);
+    } catch (error) {
+      if (attempt < maxAttempts && isRetryableTransactionConflictError(error)) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw new AppError(500, "No se pudo completar la transacción de inventario");
+}
+
 async function assertActiveProduct(
   tx: Prisma.TransactionClient,
   productId: string
@@ -252,7 +282,7 @@ export async function getOrCreateSellerWarehouse(
 
 export async function ensureSellerStockWarehouse(sellerId: string) {
   try {
-    return await prisma.$transaction((tx) =>
+    return await runInventoryTransaction((tx) =>
       getOrCreateSellerWarehouse(tx, sellerId)
     );
   } catch (error: unknown) {
@@ -332,7 +362,7 @@ export async function createInventoryTransferRequest(
   const normalizedItems = normalizeTransferRequestItems(input.items);
   const reason = input.reason.trim();
 
-  return prisma.$transaction(async (tx) => {
+  return runInventoryTransaction(async (tx) => {
     const fromWarehouse = await resolveStorageWarehouseForTransfer(
       tx,
       input.fromWarehouseId
@@ -422,8 +452,6 @@ export async function createInventoryTransferRequest(
       },
       include: inventoryTransferRequestInclude
     });
-  }, {
-    isolationLevel: Prisma.TransactionIsolationLevel.Serializable
   });
 }
 
@@ -481,7 +509,7 @@ export async function approveInventoryTransferRequest(input: {
 }) {
   const reviewNote = input.reviewNote?.trim() || null;
 
-  return prisma.$transaction(async (tx) => {
+  return runInventoryTransaction(async (tx) => {
     const request = await tx.inventoryTransferRequest.findUnique({
       where: {
         id: input.requestId
@@ -561,8 +589,6 @@ export async function approveInventoryTransferRequest(input: {
       },
       include: inventoryTransferRequestInclude
     });
-  }, {
-    isolationLevel: Prisma.TransactionIsolationLevel.Serializable
   });
 }
 
@@ -573,7 +599,7 @@ export async function rejectInventoryTransferRequest(input: {
 }) {
   const reviewNote = input.reviewNote.trim();
 
-  return prisma.$transaction(async (tx) => {
+  return runInventoryTransaction(async (tx) => {
     const request = await tx.inventoryTransferRequest.findUnique({
       where: {
         id: input.requestId
@@ -608,8 +634,6 @@ export async function rejectInventoryTransferRequest(input: {
       },
       include: inventoryTransferRequestInclude
     });
-  }, {
-    isolationLevel: Prisma.TransactionIsolationLevel.Serializable
   });
 }
 
@@ -692,7 +716,7 @@ export async function getProductStocks(productIds?: string[]): Promise<Map<strin
 }
 
 export async function recordInventoryIn(input: Omit<StockMovementInput, "type">) {
-  return prisma.$transaction((tx) =>
+  return runInventoryTransaction((tx) =>
     increaseStock(tx, {
       ...input,
       type: InventoryType.IN
@@ -701,7 +725,7 @@ export async function recordInventoryIn(input: Omit<StockMovementInput, "type">)
 }
 
 export async function recordInventoryOut(input: Omit<StockMovementInput, "type">) {
-  return prisma.$transaction((tx) =>
+  return runInventoryTransaction((tx) =>
     decreaseStock(tx, {
       ...input,
       type: InventoryType.OUT

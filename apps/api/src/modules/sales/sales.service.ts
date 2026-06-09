@@ -50,6 +50,36 @@ type ClientMeta = {
   userAgent?: string;
 };
 
+const SALE_TRANSACTION_OPTIONS = {
+  isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+  maxWait: 5_000,
+  timeout: 15_000
+} as const;
+
+function isRetryableTransactionConflictError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034";
+}
+
+async function runSaleTransaction<T>(
+  callback: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T> {
+  const maxAttempts = 3;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await prisma.$transaction(callback, SALE_TRANSACTION_OPTIONS);
+    } catch (error) {
+      if (attempt < maxAttempts && isRetryableTransactionConflictError(error)) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw new AppError(500, "No se pudo completar la transacción de venta");
+}
+
 const salesAdjustmentRequestInclude = {
   sale: {
     select: {
@@ -770,8 +800,7 @@ export async function createSalesAdjustmentRequest(
   saleId: string,
   input: CreateSalesAdjustmentRequestInput
 ) {
-  return prisma.$transaction(
-    async (tx) => {
+  return runSaleTransaction(async (tx) => {
       const sale = await tx.sale.findUnique({
         where: {
           id: saleId
@@ -858,13 +887,7 @@ export async function createSalesAdjustmentRequest(
       });
 
       return mapSalesAdjustmentRequest(request);
-    },
-    {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      maxWait: 5_000,
-      timeout: 15_000
-    }
-  );
+    });
 }
 
 export async function rejectSalesAdjustmentRequest(
@@ -910,8 +933,7 @@ async function createSaleAttempt(
   input: CreateSaleInput,
   clientMeta: ClientMeta
 ) {
-  return prisma.$transaction(
-    async (tx): Promise<SaleWithItemsAndPayments> => {
+  return runSaleTransaction(async (tx): Promise<SaleWithItemsAndPayments> => {
       const warehouse = await resolveSaleWarehouse(tx, user, input.warehouseId);
       const customerId = await resolveCustomer(
         tx,
@@ -1000,13 +1022,7 @@ async function createSaleAttempt(
       }
 
       return createdSale;
-    },
-    {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      maxWait: 5_000,
-      timeout: 15_000
-    }
-  );
+    });
 }
 
 export async function createSale(
@@ -1254,8 +1270,7 @@ export async function approveSalesAdjustmentRequest(
 ) {
   assertAdmin(user);
 
-  return prisma.$transaction(
-    async (tx) => {
+  return runSaleTransaction(async (tx) => {
       const request = await tx.saleAdjustmentRequest.findUnique({
         where: {
           id: requestId
@@ -1307,13 +1322,7 @@ export async function approveSalesAdjustmentRequest(
       });
 
       return mapSalesAdjustmentRequest(updatedRequest);
-    },
-    {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      maxWait: 5_000,
-      timeout: 15_000
-    }
-  );
+    });
 }
 
 export async function cancelSale(
@@ -1323,14 +1332,7 @@ export async function cancelSale(
 ) {
   assertAdmin(user);
 
-  return prisma.$transaction(
-    async (tx) => executeCancelSale(tx, user, saleId, input),
-    {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      maxWait: 5_000,
-      timeout: 15_000
-    }
-  );
+  return runSaleTransaction((tx) => executeCancelSale(tx, user, saleId, input));
 }
 
 export async function returnSaleItems(
@@ -1340,12 +1342,5 @@ export async function returnSaleItems(
 ) {
   assertAdmin(user);
 
-  return prisma.$transaction(
-    async (tx) => executeReturnSaleItems(tx, user, saleId, input),
-    {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      maxWait: 5_000,
-      timeout: 15_000
-    }
-  );
+  return runSaleTransaction((tx) => executeReturnSaleItems(tx, user, saleId, input));
 }

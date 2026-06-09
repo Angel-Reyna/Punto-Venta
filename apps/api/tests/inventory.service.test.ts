@@ -1,4 +1,4 @@
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 
 import { AppError } from "../src/utils/AppError";
 
@@ -31,7 +31,8 @@ import {
   getProductStockBreakdown,
   getProductStocks,
   increaseStock,
-  rejectInventoryTransferRequest
+  rejectInventoryTransferRequest,
+  recordInventoryOut
 } from "../src/modules/inventory/inventory.service";
 
 function createTransactionMock() {
@@ -132,6 +133,69 @@ describe("inventory.service", () => {
   });
 
 
+
+
+  describe("recordInventoryOut", () => {
+    it("retries manual stock output when a serializable transaction conflicts", async () => {
+      const tx = createTransactionMock();
+      const conflict = new Prisma.PrismaClientKnownRequestError(
+        "Serializable transaction conflict",
+        {
+          code: "P2034",
+          clientVersion: "5.22.0"
+        }
+      );
+      let attempts = 0;
+
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        attempts += 1;
+
+        if (attempts === 1) {
+          throw conflict;
+        }
+
+        return callback(tx);
+      });
+      tx.product.findUnique.mockResolvedValue({
+        id: "product-1",
+        sku: "CAF-001",
+        name: "Café",
+        costPrice: 40,
+        isActive: true
+      });
+      tx.warehouse.findUnique.mockResolvedValue({
+        id: "warehouse-1",
+        name: "Principal",
+        isActive: true
+      });
+      tx.inventoryBalance.updateMany.mockResolvedValue({ count: 1 });
+      tx.inventoryMovement.create.mockResolvedValue({ id: "movement-1" });
+
+      await recordInventoryOut({
+        productId: "product-1",
+        warehouseId: "warehouse-1",
+        quantity: 2,
+        reason: "Ajuste físico",
+        createdBy: "admin-1"
+      });
+
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(2);
+      expect(tx.inventoryBalance.updateMany).toHaveBeenCalledWith({
+        where: {
+          productId: "product-1",
+          warehouseId: "warehouse-1",
+          quantity: {
+            gte: 2
+          }
+        },
+        data: {
+          quantity: {
+            decrement: 2
+          }
+        }
+      });
+    });
+  });
 
   describe("getOrCreateSellerWarehouse", () => {
     it("creates or reactivates a seller warehouse for active cashiers", async () => {

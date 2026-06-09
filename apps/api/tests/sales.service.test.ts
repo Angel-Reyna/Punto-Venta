@@ -26,7 +26,7 @@ const inventoryServiceMock = {
 
 jest.mock("../src/modules/inventory/inventory.service", () => inventoryServiceMock);
 
-import { Role, SaleAdjustmentRequestStatus, SaleAdjustmentRequestType, WarehouseType } from "@prisma/client";
+import { Prisma, Role, SaleAdjustmentRequestStatus, SaleAdjustmentRequestType, WarehouseType } from "@prisma/client";
 
 import {
   approveSalesAdjustmentRequest,
@@ -215,6 +215,105 @@ describe("sales.service", () => {
   });
 
 
+
+
+  it("retries sale creation when a serializable transaction conflicts", async () => {
+    const tx = {
+      warehouse: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "seller-warehouse-1",
+          name: "Stock vendedor",
+          type: WarehouseType.SELLER,
+          sellerId: "cashier-1",
+          isActive: true
+        })
+      },
+      customer: {
+        findUnique: jest.fn(),
+        create: jest.fn()
+      },
+      product: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "product-1",
+          sku: "CAF-001",
+          name: "Café",
+          costPrice: 40,
+          salePrice: 100,
+          promoPercent: 0,
+          isActive: true
+        })
+      },
+      sale: {
+        create: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260609-ABC123",
+          cashierId: "cashier-1",
+          customerId: null,
+          status: "COMPLETED",
+          subtotal: 100,
+          discount: 0,
+          tax: 0,
+          total: 100,
+          createdAt: new Date("2026-06-09T00:00:00.000Z"),
+          updatedAt: new Date("2026-06-09T00:00:00.000Z"),
+          items: [],
+          payments: []
+        })
+      },
+      sellerActivityLog: {
+        create: jest.fn()
+      }
+    };
+    const conflict = new Prisma.PrismaClientKnownRequestError(
+      "Serializable transaction conflict",
+      {
+        code: "P2034",
+        clientVersion: "5.22.0"
+      }
+    );
+    let attempts = 0;
+
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => {
+      attempts += 1;
+
+      if (attempts === 1) {
+        throw conflict;
+      }
+
+      return callback(tx);
+    });
+
+    await createSale(
+      {
+        id: "cashier-1",
+        email: "cashier@pos.local",
+        role: Role.CASHIER
+      },
+      {
+        paymentMethod: "CASH",
+        warehouseId: "seller-warehouse-1",
+        customerId: null,
+        customerName: null,
+        items: [
+          {
+            productId: "product-1",
+            quantity: 1
+          }
+        ]
+      },
+      {}
+    );
+
+    expect(prismaMock.$transaction).toHaveBeenCalledTimes(2);
+    expect(inventoryServiceMock.decreaseStock).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        productId: "product-1",
+        warehouseId: "seller-warehouse-1",
+        quantity: 1
+      })
+    );
+  });
 
   it("uses the selected seller warehouse when creating a sale", async () => {
     const tx = {

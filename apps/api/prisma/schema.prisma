@@ -198,6 +198,7 @@ model Warehouse {
 
   @@index([isActive])
   @@index([type])
+  @@index([type, isActive])
 }
 
 
@@ -258,6 +259,7 @@ model InventoryBalance {
   @@unique([productId, warehouseId])
   @@index([warehouseId])
   @@index([quantity])
+  @@index([warehouseId, quantity])
 }
 
 model InventoryMovement {
@@ -285,6 +287,10 @@ model InventoryMovement {
   @@index([reasonType, createdAt])
   @@index([createdBy])
   @@index([createdAt])
+  @@index([type, createdAt])
+  @@index([productId, createdAt])
+  @@index([warehouseId, createdAt])
+  @@index([createdBy, createdAt])
 }
 
 model Customer {
@@ -331,6 +337,10 @@ model Sale {
   @@index([warehouseId])
   @@index([status])
   @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([cashierId, createdAt])
+  @@index([cashierId, status, createdAt])
+  @@index([warehouseId, createdAt])
 }
 
 model SaleItem {
@@ -388,6 +398,9 @@ model SaleReturn {
   @@index([cashierId])
   @@index([refundMethod])
   @@index([createdAt])
+  @@index([saleId, createdAt])
+  @@index([cashierId, createdAt])
+  @@index([refundMethod, createdAt])
 }
 
 model SaleReturnItem {
@@ -480,4 +493,7 @@ model AuditLog {
   @@index([tableName])
   @@index([recordId])
   @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([tableName, createdAt])
 }
