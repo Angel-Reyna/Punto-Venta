@@ -55,7 +55,7 @@ export function buildAuditLogWhere(
           }
         }
       : {}),
-    ...(userId ? { userId } : {}),
+    ...(userId ? { userId: userId === "system" ? null : userId } : {}),
     ...(dateFrom || dateTo
       ? {
           createdAt: {

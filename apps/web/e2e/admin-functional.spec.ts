@@ -120,6 +120,11 @@ test.describe("cobertura funcional administrativa", () => {
     await page.getByRole("tab", { name: "Eventos recientes" }).click();
     await expect(byTestId(page, "audit-events-pagination-summary")).toContainText("Mostrando 1-3 de 3");
     await expect(byTestId(page, "audit-active-filters")).toContainText("Importancia: Todas");
+    await expect(byTestId(page, "audit-date-presets")).toContainText("Mes pasado");
+
+    await clickByTestId(page, "audit-date-preset-previous-month");
+    await expect(byTestId(page, "audit-active-filters")).toContainText("Periodo:");
+    await clickByTestId(page, "audit-clear-button");
     await expect(byTestId(page, "audit-log-audit-1")).toContainText("Producto eliminado");
     await expect(byTestId(page, "audit-log-audit-1")).toContainText("Crítica");
     await expect(byTestId(page, "audit-log-audit-1")).toContainText("Área");
@@ -144,6 +149,13 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(byTestId(page, "audit-active-filters")).toContainText("Responsable: Vendedor E2E · Vendedor");
     await expect(byTestId(page, "audit-log-audit-2")).toContainText("Venta registrada");
     await expect(byTestId(page, "audit-log-audit-1")).toHaveCount(0);
+
+    const auditByUserRequest = page.waitForRequest((request) => {
+      if (request.method() !== "GET" || !request.url().includes("/audit")) return false;
+      return new URL(request.url()).searchParams.get("userId") === "seller-e2e";
+    });
+    await clickByTestId(page, "audit-consult-button");
+    await auditByUserRequest;
 
     await clickByTestId(page, "audit-clear-button");
 

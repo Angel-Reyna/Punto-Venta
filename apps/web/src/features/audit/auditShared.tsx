@@ -372,6 +372,10 @@ export function buildAuditQuery(filters: AuditFilters) {
     params.set("tableName", filters.tableName.trim());
   }
 
+  if (filters.userId.trim()) {
+    params.set("userId", filters.userId.trim());
+  }
+
   if (filters.dateFrom) {
     params.set("dateFrom", filters.dateFrom);
   }

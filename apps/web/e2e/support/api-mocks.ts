@@ -1623,6 +1623,9 @@ function filterAuditLogs(logs: MockAuditLog[], params: URLSearchParams) {
   const query = normalize(params.get("q"));
   const action = normalize(params.get("action"));
   const tableName = normalize(params.get("tableName"));
+  const userId = params.get("userId") ?? "";
+  const dateFrom = params.get("dateFrom") ? new Date(`${params.get("dateFrom")}T00:00:00.000Z`) : null;
+  const dateTo = params.get("dateTo") ? new Date(`${params.get("dateTo")}T23:59:59.999Z`) : null;
 
   return logs.filter((log) => {
     const matchesQuery = query
@@ -1637,8 +1640,12 @@ function filterAuditLogs(logs: MockAuditLog[], params: URLSearchParams) {
       : true;
     const matchesAction = action ? normalize(log.action) === action : true;
     const matchesTableName = tableName ? normalize(log.tableName) === tableName : true;
+    const matchesUser = userId ? (userId === "system" ? !log.user : log.user?.id === userId) : true;
+    const createdAt = new Date(log.createdAt);
+    const matchesDateFrom = dateFrom ? createdAt >= dateFrom : true;
+    const matchesDateTo = dateTo ? createdAt <= dateTo : true;
 
-    return matchesQuery && matchesAction && matchesTableName;
+    return matchesQuery && matchesAction && matchesTableName && matchesUser && matchesDateFrom && matchesDateTo;
   });
 }
 

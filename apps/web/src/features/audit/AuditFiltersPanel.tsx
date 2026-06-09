@@ -59,6 +59,62 @@ function getFilterCopy(layout: AuditLayoutVariant) {
   };
 }
 
+
+function formatDateInput(date: Date) {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 10);
+}
+
+function addDays(date: Date, days: number) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function endOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+}
+
+function getAuditDatePresets(today = new Date()) {
+  const currentMonthStart = startOfMonth(today);
+  const previousMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+
+  return [
+    {
+      key: "today",
+      label: "Hoy",
+      helper: "Solo actividad de hoy",
+      dateFrom: formatDateInput(today),
+      dateTo: formatDateInput(today),
+    },
+    {
+      key: "last-7-days",
+      label: "7 días",
+      helper: "Última semana operativa",
+      dateFrom: formatDateInput(addDays(today, -6)),
+      dateTo: formatDateInput(today),
+    },
+    {
+      key: "this-month",
+      label: "Este mes",
+      helper: "Actividad del mes actual",
+      dateFrom: formatDateInput(currentMonthStart),
+      dateTo: formatDateInput(today),
+    },
+    {
+      key: "previous-month",
+      label: "Mes pasado",
+      helper: "Cierre del mes anterior",
+      dateFrom: formatDateInput(previousMonth),
+      dateTo: formatDateInput(endOfMonth(previousMonth)),
+    },
+  ] as const;
+}
+
 function AuditFilterFields({
   actionOptions,
   filters,
@@ -192,6 +248,12 @@ export function AuditFiltersPanel({
   const copy = getFilterCopy(layout);
   const isMobile = layout === "mobile";
   const isDesktop = layout === "desktop";
+  const datePresets = getAuditDatePresets();
+
+  const applyDatePreset = (dateFrom: string, dateTo: string) => {
+    updateFilter("dateFrom", dateFrom);
+    updateFilter("dateTo", dateTo);
+  };
 
   return (
     <Card
@@ -240,6 +302,31 @@ export function AuditFiltersPanel({
             inputProps={{ "data-testid": "audit-search" }}
             onChange={(event) => updateFilter("q", event.target.value)}
           />
+
+          <Box data-testid="audit-date-presets">
+            <Typography variant="subtitle2" fontWeight={900} sx={{ mb: 0.75 }}>
+              Periodos rápidos
+            </Typography>
+            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+              {datePresets.map((preset) => {
+                const isSelected = filters.dateFrom === preset.dateFrom && filters.dateTo === preset.dateTo;
+
+                return (
+                  <Button
+                    key={preset.key}
+                    data-testid={`audit-date-preset-${preset.key}`}
+                    size="small"
+                    variant={isSelected ? "contained" : "outlined"}
+                    title={preset.helper}
+                    onClick={() => applyDatePreset(preset.dateFrom, preset.dateTo)}
+                    sx={{ borderRadius: 999, px: 1.35, fontWeight: 900 }}
+                  >
+                    {preset.label}
+                  </Button>
+                );
+              })}
+            </Stack>
+          </Box>
 
           {isMobile ? (
             <Box
