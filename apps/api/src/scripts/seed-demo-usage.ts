@@ -229,9 +229,6 @@ function isWeekend(day: Date) {
   return weekDay === 0 || weekDay === 6;
 }
 
-function stockKey(productId: string, warehouseId: string) {
-  return `${productId}:${warehouseId}`;
-}
 
 async function cleanDemoData() {
   const demoUsers = await prisma.user.findMany({

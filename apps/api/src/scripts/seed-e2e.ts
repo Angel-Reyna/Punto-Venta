@@ -1,5 +1,7 @@
 import bcrypt from "bcrypt";
 
+import { InventoryType, WarehouseType } from "@prisma/client";
+
 import { prisma } from "../config/prisma";
 import { env } from "../config/env";
 import { logger } from "../utils/logger";
@@ -84,11 +86,33 @@ async function main() {
     },
     update: {
       description: "Almacén: Principal del negocio",
+      type: WarehouseType.STORAGE,
+      sellerId: null,
       isActive: true,
     },
     create: {
       name: DEFAULT_WAREHOUSE_NAME,
       description: "Almacén: Principal del negocio",
+      type: WarehouseType.STORAGE,
+      isActive: true,
+    },
+  });
+
+  const sellerWarehouse = await prisma.warehouse.upsert({
+    where: {
+      name: `Stock ${E2E_SELLER_NAME}`,
+    },
+    update: {
+      description: `Stock físico asignado a ${E2E_SELLER_NAME}`,
+      type: WarehouseType.SELLER,
+      sellerId: seller.id,
+      isActive: true,
+    },
+    create: {
+      name: `Stock ${E2E_SELLER_NAME}`,
+      description: `Stock físico asignado a ${E2E_SELLER_NAME}`,
+      type: WarehouseType.SELLER,
+      sellerId: seller.id,
       isActive: true,
     },
   });
@@ -130,11 +154,28 @@ async function main() {
       },
     },
     update: {
-      quantity: E2E_INITIAL_STOCK,
+      quantity: 0,
     },
     create: {
       productId: product.id,
       warehouseId: warehouse.id,
+      quantity: 0,
+    },
+  });
+
+  await prisma.inventoryBalance.upsert({
+    where: {
+      productId_warehouseId: {
+        productId: product.id,
+        warehouseId: sellerWarehouse.id,
+      },
+    },
+    update: {
+      quantity: E2E_INITIAL_STOCK,
+    },
+    create: {
+      productId: product.id,
+      warehouseId: sellerWarehouse.id,
       quantity: E2E_INITIAL_STOCK,
     },
   });
@@ -148,14 +189,14 @@ async function main() {
       },
       warehouse: {
         connect: {
-          id: warehouse.id,
+          id: sellerWarehouse.id,
         },
       },
       productSku: product.sku,
       productName: product.name,
-      type: "IN",
+      type: InventoryType.IN,
       quantity: E2E_INITIAL_STOCK,
-      reason: "Stock inicial de prueba integrada E2E",
+      reason: `Stock físico asignado a ${E2E_SELLER_NAME} para prueba integrada E2E`,
       createdBy: admin.id,
     },
   });
@@ -164,6 +205,7 @@ async function main() {
     adminEmail: admin.email,
     sellerEmail: seller.email,
     productSku: product.sku,
+    sellerWarehouse: sellerWarehouse.name,
     initialStock: E2E_INITIAL_STOCK,
   });
 }

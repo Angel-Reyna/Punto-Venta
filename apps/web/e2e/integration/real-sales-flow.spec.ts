@@ -12,6 +12,7 @@ const ADMIN_EMAIL =
   process.env.E2E_ADMIN_EMAIL ?? process.env.SEED_ADMIN_EMAIL ?? "admin.e2e@puntaventa.test";
 const ADMIN_PASSWORD =
   process.env.E2E_ADMIN_PASSWORD ?? process.env.SEED_ADMIN_PASSWORD ?? "Admin12345DevOnly";
+const ADMIN_NAME = process.env.SEED_ADMIN_NAME ?? "Admin E2E";
 const SELLER_EMAIL = process.env.E2E_SELLER_EMAIL ?? "vendedor.e2e@puntaventa.test";
 const SELLER_PASSWORD = process.env.E2E_SELLER_PASSWORD ?? "Vendedor12345DevOnly";
 const SELLER_NAME = process.env.E2E_SELLER_NAME ?? "Vendedor E2E";
@@ -107,7 +108,8 @@ test.describe("flujo integrado real de venta", () => {
 
     await page.goto("/sales");
     await expect(page.getByRole("heading", { name: "Ventas", level: 1 })).toBeVisible();
-    await expect(page.getByText("Vista vendedor: solo tus ventas")).toBeVisible();
+    await expect(byTestId(page, "sales-source-warehouse-panel")).toBeVisible();
+    await expect(byTestId(page, "sales-product-search")).toBeEnabled();
 
     await page.getByLabel("F3 · Buscar por SKU o nombre").fill(PRODUCT_SKU);
     await page.getByRole("button", { name: /Producto integrado E2E/i }).click();
@@ -138,8 +140,8 @@ test.describe("flujo integrado real de venta", () => {
     const stockCard = byTestId(page, `inventory-stock-item-${PRODUCT_SKU}`);
 
     await expect(stockCard).toBeVisible();
-    await expect(stockCard.getByText(PRODUCT_SKU, { exact: true })).toBeVisible();
-    await expect(stockCard.getByText("23 unidades")).toBeVisible();
+    await expect(stockCard.getByText(PRODUCT_NAME, { exact: true })).toBeVisible();
+    await expect(stockCard.getByText(/23 unidad(?:es)?/)).toBeVisible();
 
     await logout(page);
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -175,13 +177,7 @@ test.describe("flujo integrado real de venta", () => {
 
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await createProductThroughUi(page, product);
-    await logout(page);
-
-    await login(page, SELLER_EMAIL, SELLER_PASSWORD);
     const saleFolio = await sellProductThroughUi(page, product);
-    await logout(page);
-
-    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await deleteProductThroughUi(page, product);
     await logout(page);
 
@@ -211,6 +207,6 @@ test.describe("flujo integrado real de venta", () => {
 
     await fillByTestId(page, "reports-search", saleFolio);
     await expect(recentSalesReport.getByText(saleFolio, { exact: true })).toBeVisible();
-    await expect(recentSalesReport.getByText(`${SELLER_NAME} (${SELLER_EMAIL})`)).toBeVisible();
+    await expect(recentSalesReport.getByText(`${ADMIN_NAME} (${ADMIN_EMAIL})`)).toBeVisible();
   });
 });
