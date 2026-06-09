@@ -50,7 +50,8 @@
     "web:test": "npm --prefix apps/web test -- --run --passWithNoTests",
     "web:test:critical": "npm --prefix apps/web run test:critical",
     "web:typecheck": "npm --prefix apps/web run typecheck",
-    "api:seed:demo-usage": "npm --prefix apps/api run seed:demo-usage --"
+    "api:seed:demo-usage": "npm --prefix apps/api run seed:demo-usage --",
+    "api:validate:demo-usage": "npm --prefix apps/api run validate:demo-usage --"
   },
   "engines": {
     "node": ">=22 <25"
