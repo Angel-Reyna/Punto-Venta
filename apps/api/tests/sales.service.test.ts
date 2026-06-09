@@ -800,6 +800,145 @@ describe("sales.service", () => {
     });
   });
 
+  it("closes partially refunded sales by returning only the remaining units", async () => {
+    const saleItem = {
+      id: "item-1",
+      saleId: "sale-1",
+      productId: "product-1",
+      productSku: "CAF-001",
+      productName: "Café",
+      product: null,
+      quantity: 3,
+      unitPrice: 50,
+      unitCost: 20,
+      promoPercent: 0,
+      discount: 0,
+      total: 150,
+      grossProfit: 90
+    };
+    const tx = {
+      sale: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260609-ABC123",
+          cashierId: "cashier-1",
+          warehouseId: "seller-warehouse-1",
+          status: "PARTIALLY_REFUNDED",
+          total: 150,
+          items: [saleItem],
+          payments: [
+            {
+              method: "CASH",
+              amount: 150
+            }
+          ],
+          returns: [
+            {
+              items: [
+                {
+                  saleItemId: "item-1",
+                  quantity: 1
+                }
+              ]
+            }
+          ]
+        }),
+        update: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260609-ABC123",
+          cashierId: "cashier-1",
+          customerId: null,
+          warehouseId: "seller-warehouse-1",
+          status: "REFUNDED",
+          subtotal: 150,
+          discount: 0,
+          tax: 0,
+          total: 150,
+          createdAt: new Date("2026-06-09T00:00:00.000Z"),
+          updatedAt: new Date("2026-06-09T01:00:00.000Z"),
+          cashier: {
+            id: "cashier-1",
+            name: "Vendedor",
+            email: "cashier@pos.local"
+          },
+          customer: null,
+          warehouse: {
+            id: "seller-warehouse-1",
+            name: "Stock vendedor",
+            type: WarehouseType.SELLER,
+            sellerId: "cashier-1"
+          },
+          items: [saleItem],
+          payments: [
+            {
+              id: "payment-1",
+              saleId: "sale-1",
+              method: "CASH",
+              amount: 150,
+              createdAt: new Date("2026-06-09T00:00:00.000Z")
+            }
+          ],
+          returns: []
+        })
+      },
+      saleReturn: {
+        create: jest.fn().mockResolvedValue({
+          id: "return-2"
+        })
+      }
+    };
+
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
+
+    const sale = await cancelSale(
+      {
+        id: "admin-1",
+        email: "admin@pos.local",
+        role: Role.ADMIN
+      },
+      "sale-1",
+      {
+        reason: "Cliente pidió cerrar devolución restante"
+      }
+    );
+
+    expect(inventoryServiceMock.increaseStock).toHaveBeenCalledTimes(1);
+    expect(inventoryServiceMock.increaseStock).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        productId: "product-1",
+        warehouseId: "seller-warehouse-1",
+        quantity: 2,
+        type: "RETURN"
+      })
+    );
+    expect(tx.saleReturn.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          refundTotal: 100,
+          items: {
+            create: [
+              expect.objectContaining({
+                saleItemId: "item-1",
+                quantity: 2,
+                total: 100,
+                grossProfit: 60
+              })
+            ]
+          }
+        })
+      })
+    );
+    expect(tx.sale.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          status: "REFUNDED"
+        }
+      })
+    );
+    expect(sale.status).toBe("REFUNDED");
+  });
+
   it("returns sale items with physically deleted products without restocking and preserves snapshots", async () => {
     const deletedSaleItem = {
       id: "item-1",
@@ -1287,6 +1426,101 @@ describe("sales.service", () => {
   });
 
 
+
+  it("allows sellers to request closing the remaining units of a partially refunded sale", async () => {
+    const saleItem = {
+      id: "item-1",
+      saleId: "sale-1",
+      productId: "product-1",
+      productSku: "COCA-600",
+      productName: "Coca-Cola 600 ml",
+      quantity: 2
+    };
+    const tx = {
+      sale: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "sale-1",
+          folio: "SALE-20260518-ABC123",
+          cashierId: "cashier-1",
+          status: "PARTIALLY_REFUNDED",
+          items: [saleItem],
+          returns: [
+            {
+              items: [
+                {
+                  saleItemId: "item-1",
+                  quantity: 1
+                }
+              ]
+            }
+          ],
+          adjustmentRequests: []
+        })
+      },
+      saleAdjustmentRequest: {
+        create: jest.fn().mockResolvedValue({
+          id: "request-1",
+          type: SaleAdjustmentRequestType.CANCEL_SALE,
+          status: SaleAdjustmentRequestStatus.PENDING,
+          saleId: "sale-1",
+          requestedById: "cashier-1",
+          reviewedById: null,
+          reason: "Cliente pidió devolver restante",
+          reviewNote: null,
+          refundMethod: "CASH",
+          createdAt: new Date("2026-05-18T02:00:00.000Z"),
+          updatedAt: new Date("2026-05-18T02:00:00.000Z"),
+          reviewedAt: null,
+          sale: {
+            id: "sale-1",
+            folio: "SALE-20260518-ABC123",
+            status: "PARTIALLY_REFUNDED",
+            total: 36,
+            createdAt: new Date("2026-05-18T00:00:00.000Z"),
+            cashier: {
+              id: "cashier-1",
+              name: "Vendedor",
+              email: "cashier@pos.local"
+            }
+          },
+          requestedBy: {
+            id: "cashier-1",
+            name: "Vendedor",
+            email: "cashier@pos.local",
+            role: Role.CASHIER
+          },
+          reviewedBy: null,
+          items: []
+        })
+      }
+    };
+
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
+
+    const request = await createSalesAdjustmentRequest(
+      {
+        id: "cashier-1",
+        email: "cashier@pos.local",
+        role: Role.CASHIER
+      },
+      "sale-1",
+      {
+        type: SaleAdjustmentRequestType.CANCEL_SALE,
+        reason: "Cliente pidió devolver restante",
+        refundMethod: "CASH"
+      }
+    );
+
+    expect(tx.saleAdjustmentRequest.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: SaleAdjustmentRequestType.CANCEL_SALE,
+          items: undefined
+        })
+      })
+    );
+    expect(request.status).toBe(SaleAdjustmentRequestStatus.PENDING);
+  });
 
   it("rejects seller adjustment requests for sales owned by another seller", async () => {
     const tx = {

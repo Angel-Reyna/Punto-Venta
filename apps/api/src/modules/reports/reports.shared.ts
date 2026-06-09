@@ -28,7 +28,12 @@ export type SalesReport = {
   discount: number;
   tax: number;
   total: number;
+  grossTotal: number;
+  refundedTotal: number;
+  netTotal: number;
   paymentSummary: Record<string, number>;
+  refundSummary: Record<string, number>;
+  netPaymentSummary: Record<string, number>;
   profit: ProfitSummary;
   sales: Array<Record<string, unknown>>;
 };

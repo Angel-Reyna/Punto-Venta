@@ -174,6 +174,16 @@ export function SalesHistoryPanel({
                 const pendingAdjustmentRequest = adjustmentRequests.find(
                   (request) => request.saleId === sale.id && request.status === "PENDING",
                 );
+                const canCloseSale =
+                  sale.status === "COMPLETED" ||
+                  (sale.status === "PARTIALLY_REFUNDED" && hasReturnableItems);
+                const closeSaleLabel = sale.status === "PARTIALLY_REFUNDED"
+                  ? canCancelSales
+                    ? "Devolver restante"
+                    : "Solicitar devolución restante"
+                  : canCancelSales
+                    ? "Cancelar"
+                    : "Solicitar cancelación";
                 const hasSaleActions = canCancelSales || canReturnSales || canRequestSalesAdjustments;
                 const desktopColumns = canShowSellerInfo && hasSaleActions
                   ? "minmax(0, 1.5fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto"
@@ -283,12 +293,12 @@ export function SalesHistoryPanel({
                               startIcon={<CancelIcon />}
                               disabled={
                                 isSubmitting ||
-                                sale.status !== "COMPLETED" ||
+                                !canCloseSale ||
                                 (!canCancelSales && Boolean(pendingAdjustmentRequest))
                               }
                               onClick={() => onOpenCancelDialog(sale, canCancelSales ? "direct" : "request")}
                             >
-                              {canCancelSales ? "Cancelar" : "Solicitar cancelación"}
+                              {closeSaleLabel}
                             </Button>
                           )}
                         </Stack>

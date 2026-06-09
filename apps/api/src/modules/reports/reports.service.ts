@@ -88,7 +88,9 @@ export function parseReportDateRange(from?: unknown, to?: unknown): ReportDateRa
 export async function getSalesReport(range: ReportDateRange): Promise<SalesReport> {
   const sales = await prisma.sale.findMany({
     where: {
-      status: SaleStatus.COMPLETED,
+      status: {
+        not: SaleStatus.CANCELLED
+      },
       createdAt: {
         gte: range.start,
         lte: range.end
@@ -133,6 +135,15 @@ export async function getSalesReport(range: ReportDateRange): Promise<SalesRepor
     }
   });
 
+  const returnedItems = sales.flatMap((sale) =>
+    sale.returns.flatMap((saleReturn) => saleReturn.items)
+  );
+  const refundedTotal = roundMoney(
+    sales
+      .flatMap((sale) => sale.returns)
+      .reduce((sum, saleReturn) => sum + Number(saleReturn.refundTotal), 0)
+  );
+
   const subtotal = roundMoney(
     sales.reduce((sum, sale) => sum + Number(sale.subtotal), 0)
   );
@@ -143,6 +154,7 @@ export async function getSalesReport(range: ReportDateRange): Promise<SalesRepor
   const total = roundMoney(
     sales.reduce((sum, sale) => sum + Number(sale.total), 0)
   );
+  const netTotal = roundMoney(total - refundedTotal);
 
   const paymentSummary = sales
     .flatMap((sale) => sale.payments)
@@ -164,9 +176,22 @@ export async function getSalesReport(range: ReportDateRange): Promise<SalesRepor
       .flatMap((sale) => sale.items)
       .reduce((sum, item) => sum + Number(item.grossProfit ?? 0), 0)
   );
-  const returnedItems = sales.flatMap((sale) =>
-    sale.returns.flatMap((saleReturn) => saleReturn.items)
-  );
+  const refundSummary = sales
+    .flatMap((sale) => sale.returns)
+    .reduce<Record<string, number>>((summary, saleReturn) => {
+      summary[saleReturn.refundMethod] = roundMoney(
+        (summary[saleReturn.refundMethod] ?? 0) + Number(saleReturn.refundTotal)
+      );
+
+      return summary;
+    }, {});
+
+  const netPaymentSummary = { ...paymentSummary };
+
+  for (const [method, amount] of Object.entries(refundSummary)) {
+    netPaymentSummary[method] = roundMoney((netPaymentSummary[method] ?? 0) - amount);
+  }
+
   const returnedCost = roundMoney(
     returnedItems.reduce(
       (sum, item) => sum + Number(item.unitCost ?? 0) * item.quantity,
@@ -187,13 +212,18 @@ export async function getSalesReport(range: ReportDateRange): Promise<SalesRepor
     discount,
     tax,
     total,
+    grossTotal: total,
+    refundedTotal,
+    netTotal,
     paymentSummary,
+    refundSummary,
+    netPaymentSummary,
     profit: buildProfitSummary({
       grossCost: soldCost,
       returnedCost,
       grossProfit: soldProfit,
       returnedProfit,
-      netSales: total
+      netSales: netTotal
     }),
     sales: sales.map((sale) => ({
       ...sale,

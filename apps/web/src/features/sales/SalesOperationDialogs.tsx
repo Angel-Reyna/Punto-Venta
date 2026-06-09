@@ -70,6 +70,16 @@ export function SalesOperationDialogs({
 }: SalesOperationDialogsProps) {
   const cancelIsRequest = cancelOperationMode === "request";
   const returnIsRequest = returnOperationMode === "request";
+  const cancelClosesPartialReturn = selectedSale?.status === "PARTIALLY_REFUNDED";
+  const cancelTitle = `${
+    cancelIsRequest
+      ? cancelClosesPartialReturn
+        ? "Solicitar devolución restante"
+        : "Solicitar cancelación"
+      : cancelClosesPartialReturn
+        ? "Devolver restante"
+        : "Cancelar venta"
+  } ${selectedSale?.folio ?? ""}`.trim();
 
   return (
     <>
@@ -78,11 +88,15 @@ export function SalesOperationDialogs({
         onClose={onCloseCancelDialog}
         disableClose={isSubmitting}
         maxWidth="sm"
-        title={`${cancelIsRequest ? "Solicitar cancelación" : "Cancelar venta"} ${selectedSale?.folio ?? ""}`.trim()}
+        title={cancelTitle}
         description={
-          cancelIsRequest
-            ? "Envía una solicitud para que un administrador revise la cancelación antes de modificar la venta."
-            : "Confirma la cancelación solo cuando la venta deba anularse por completo."
+          cancelClosesPartialReturn
+            ? cancelIsRequest
+              ? "Envía una solicitud para devolver solo las unidades que siguen pendientes en esta venta."
+              : "Cierra la venta devolviendo únicamente las unidades que no se habían devuelto antes."
+            : cancelIsRequest
+              ? "Envía una solicitud para que un administrador revise la cancelación antes de modificar la venta."
+              : "Confirma la cancelación solo cuando la venta deba anularse por completo."
         }
         actions={
           <>
@@ -95,16 +109,24 @@ export function SalesOperationDialogs({
               onClick={onConfirmCancel}
               disabled={isSubmitting || cancelReasonIsInvalid}
             >
-              {cancelIsRequest ? "Enviar solicitud" : "Confirmar cancelación"}
+              {cancelIsRequest
+                ? "Enviar solicitud"
+                : cancelClosesPartialReturn
+                  ? "Confirmar devolución restante"
+                  : "Confirmar cancelación"}
             </Button>
           </>
         }
       >
         <Box sx={{ display: "grid", gap: 2 }}>
           <Alert severity={cancelIsRequest ? "info" : "warning"}>
-            {cancelIsRequest
-              ? "La venta no se modificará hasta que un administrador apruebe la solicitud."
-              : "Esta acción restaura el stock de todos los productos vendidos y marca la venta como cancelada."}
+            {cancelClosesPartialReturn
+              ? cancelIsRequest
+                ? "La venta no se modificará hasta que un administrador apruebe devolver el resto pendiente."
+                : "Esta acción restaura solo el stock pendiente por devolver y marca la venta como devuelta por completo."
+              : cancelIsRequest
+                ? "La venta no se modificará hasta que un administrador apruebe la solicitud."
+                : "Esta acción restaura el stock de todos los productos vendidos y marca la venta como cancelada."}
           </Alert>
 
           <TextField
@@ -121,7 +143,13 @@ export function SalesOperationDialogs({
           </TextField>
 
           <TextField
-            label={cancelIsRequest ? "Motivo de la solicitud" : "Motivo de cancelación"}
+            label={
+              cancelIsRequest
+                ? "Motivo de la solicitud"
+                : cancelClosesPartialReturn
+                  ? "Motivo de devolución restante"
+                  : "Motivo de cancelación"
+            }
             value={cancelReason}
             multiline
             minRows={3}

@@ -44,6 +44,7 @@ import { PaymentMethod, SaleStatus } from "@prisma/client";
 
 import {
   getOperationsReport,
+  getSalesReport,
   parseReportDateRange
 } from "../src/modules/reports/reports.service";
 
@@ -64,6 +65,106 @@ describe("reports.service", () => {
     );
     expect(() => parseReportDateRange("2025-01-01", "2026-05-20")).toThrow(
       "El rango máximo permitido para reportes es de 366 días"
+    );
+  });
+
+  it("builds the sales report with gross, refunded and net totals", async () => {
+    const range = parseReportDateRange("2026-05-20", "2026-05-20");
+
+    prismaMock.sale.findMany.mockResolvedValue([
+      {
+        id: "sale-1",
+        folio: "SALE-1",
+        status: SaleStatus.PARTIALLY_REFUNDED,
+        subtotal: 200,
+        discount: 0,
+        tax: 0,
+        total: 200,
+        createdAt: new Date("2026-05-20T10:00:00.000Z"),
+        updatedAt: new Date("2026-05-20T10:00:00.000Z"),
+        cashier: {
+          id: "cashier-1",
+          name: "Vendedor 1",
+          email: "vendedor@punta-venta.local"
+        },
+        customer: null,
+        payments: [
+          {
+            id: "payment-1",
+            method: PaymentMethod.CASH,
+            amount: 200,
+            createdAt: new Date("2026-05-20T10:00:00.000Z")
+          }
+        ],
+        items: [
+          {
+            id: "item-1",
+            quantity: 5,
+            unitPrice: 40,
+            unitCost: 20,
+            promoPercent: 0,
+            discount: 0,
+            total: 200,
+            grossProfit: 100,
+            product: {
+              id: "product-1",
+              sku: "CAF-001",
+              name: "Café"
+            }
+          }
+        ],
+        returns: [
+          {
+            id: "return-1",
+            refundMethod: PaymentMethod.CASH,
+            refundTotal: 50,
+            items: [
+              {
+                id: "return-item-1",
+                quantity: 1,
+                unitCost: 20,
+                grossProfit: 30
+              }
+            ]
+          }
+        ]
+      }
+    ]);
+
+    const report = await getSalesReport(range);
+
+    expect(prismaMock.sale.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: {
+            not: SaleStatus.CANCELLED
+          }
+        })
+      })
+    );
+    expect(report.total).toBe(200);
+    expect(report.grossTotal).toBe(200);
+    expect(report.refundedTotal).toBe(50);
+    expect(report.netTotal).toBe(150);
+    expect(report.paymentSummary).toEqual({
+      CASH: 200
+    });
+    expect(report.refundSummary).toEqual({
+      CASH: 50
+    });
+    expect(report.netPaymentSummary).toEqual({
+      CASH: 150
+    });
+    expect(report.profit).toEqual(
+      expect.objectContaining({
+        grossCost: 100,
+        returnedCost: 20,
+        netCost: 80,
+        grossProfit: 100,
+        returnedProfit: 30,
+        netProfit: 70,
+        marginPercent: 46.67
+      })
     );
   });
 
@@ -143,6 +244,7 @@ describe("reports.service", () => {
         },
         sale: {
           cashierId: "cashier-1",
+          status: SaleStatus.COMPLETED,
           cashier: {
             id: "cashier-1",
             name: "Vendedor 1",
@@ -155,6 +257,38 @@ describe("reports.service", () => {
             quantity: 1,
             unitCost: 20,
             grossProfit: 30
+          }
+        ]
+      },
+      {
+        id: "return-cancelled",
+        saleId: "sale-2",
+        cashierId: "admin-1",
+        reason: "Cancelación completa",
+        refundMethod: PaymentMethod.CASH,
+        refundTotal: 999,
+        createdAt: new Date("2026-05-20T13:00:00.000Z"),
+        updatedAt: new Date("2026-05-20T13:00:00.000Z"),
+        cashier: {
+          id: "admin-1",
+          name: "Admin",
+          email: "admin@pos.local"
+        },
+        sale: {
+          cashierId: "cashier-1",
+          status: SaleStatus.CANCELLED,
+          cashier: {
+            id: "cashier-1",
+            name: "Vendedor 1",
+            email: "vendedor@punta-venta.local"
+          }
+        },
+        items: [
+          {
+            id: "return-item-cancelled",
+            quantity: 1,
+            unitCost: 1,
+            grossProfit: 998
           }
         ]
       }
@@ -242,6 +376,19 @@ describe("reports.service", () => {
         })
       })
     );
+    expect(prismaMock.saleReturnItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          return: expect.objectContaining({
+            sale: expect.objectContaining({
+              status: {
+                not: SaleStatus.CANCELLED
+              }
+            })
+          })
+        })
+      })
+    );
     expect(report.sales.byStatus).toEqual({
       COMPLETED: 1,
       CANCELLED: 1
@@ -275,6 +422,7 @@ describe("reports.service", () => {
         })
       })
     );
+    expect(report.returns.count).toBe(1);
     expect(report.returns.byMethod).toEqual({
       CASH: 50
     });

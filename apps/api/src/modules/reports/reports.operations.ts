@@ -62,6 +62,7 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
         sale: {
           select: {
             cashierId: true,
+            status: true,
             cashier: {
               select: {
                 id: true,
@@ -105,6 +106,11 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
           createdAt: {
             gte: range.start,
             lte: range.end
+          },
+          sale: {
+            status: {
+              not: SaleStatus.CANCELLED
+            }
           }
         }
       },
@@ -138,6 +144,10 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
       }
     })
   ]);
+
+  const accountableReturns = returns.filter(
+    (saleReturn) => saleReturn.sale.status !== SaleStatus.CANCELLED
+  );
 
   const productTotals = new Map<
     string,
@@ -236,7 +246,10 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
       .reduce((sum, sale) => sum + Number(sale.total), 0)
   );
   const refundedTotal = roundMoney(
-    returns.reduce((sum, saleReturn) => sum + Number(saleReturn.refundTotal), 0)
+    accountableReturns.reduce(
+      (sum, saleReturn) => sum + Number(saleReturn.refundTotal),
+      0
+    )
   );
   const netSales = roundMoney(grossSales - refundedTotal);
 
@@ -254,7 +267,7 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
   const soldItems = sales
     .filter((sale) => sale.status !== SaleStatus.CANCELLED)
     .flatMap((sale) => sale.items);
-  const returnedItems = returns.flatMap((saleReturn) => saleReturn.items);
+  const returnedItems = accountableReturns.flatMap((saleReturn) => saleReturn.items);
   const soldCost = roundMoney(
     soldItems.reduce(
       (sum, item) => sum + Number(item.unitCost ?? 0) * item.quantity,
@@ -321,7 +334,7 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     });
   }
 
-  for (const saleReturn of returns) {
+  for (const saleReturn of accountableReturns) {
     const returnSeller = saleReturn.sale.cashier;
     const current = sellerTotals.get(returnSeller.id) ?? {
       seller: returnSeller,
@@ -350,7 +363,7 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
         a.seller.name.localeCompare(b.seller.name)
     );
 
-  const refundSummary = returns.reduce<Record<string, number>>((summary, saleReturn) => {
+  const refundSummary = accountableReturns.reduce<Record<string, number>>((summary, saleReturn) => {
     summary[saleReturn.refundMethod] = roundMoney(
       (summary[saleReturn.refundMethod] ?? 0) + Number(saleReturn.refundTotal)
     );
@@ -403,7 +416,7 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     current.units += saleUnits;
   }
 
-  for (const saleReturn of returns) {
+  for (const saleReturn of accountableReturns) {
     const current = ensureDay(saleReturn.createdAt);
     const returnedUnits = saleReturn.items.reduce((sum, item) => sum + Number(item.quantity), 0);
 
@@ -592,10 +605,10 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
       }))
     },
     returns: {
-      count: returns.length,
+      count: accountableReturns.length,
       total: refundedTotal,
       byMethod: refundSummary,
-      latest: returns.slice(0, 20).map((saleReturn) => ({
+      latest: accountableReturns.slice(0, 20).map((saleReturn) => ({
         id: saleReturn.id,
         saleId: saleReturn.saleId,
         cashierId: saleReturn.sale.cashier.id,

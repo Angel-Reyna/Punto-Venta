@@ -127,6 +127,18 @@ type PreparedSaleItem = {
   grossProfit: number;
 };
 
+type SaleItemForReturnSnapshot = SaleForMutation["items"][number];
+
+type SaleForRemainingReturns = {
+  items: SaleItemForReturnSnapshot[];
+  returns: Array<{
+    items: Array<{
+      saleItemId: string;
+      quantity: number;
+    }>;
+  }>;
+};
+
 function generateFolio() {
   const date = new Date();
   const yyyy = date.getFullYear();
@@ -508,6 +520,40 @@ function computeNextReturnStatus(
   return allReturned ? SaleStatus.REFUNDED : SaleStatus.PARTIALLY_REFUNDED;
 }
 
+function buildRemainingReturnItems(sale: SaleForRemainingReturns) {
+  const previouslyReturned = getReturnedQuantities(sale);
+
+  return sale.items
+    .map((saleItem) => ({
+      saleItem,
+      quantity: saleItem.quantity - (previouslyReturned.get(saleItem.id) ?? 0)
+    }))
+    .filter((item) => item.quantity > 0);
+}
+
+function buildReturnItemSnapshot(
+  saleItem: SaleItemForReturnSnapshot,
+  quantity: number
+) {
+  const unitPrice = Number(saleItem.unitPrice);
+  const unitCost = Number(saleItem.unitCost ?? 0);
+  const promoPercent = Number(saleItem.promoPercent ?? 0);
+  const unitDiscount = roundMoney(Number(saleItem.discount) / saleItem.quantity);
+  const unitTotal = roundMoney(Number(saleItem.total) / saleItem.quantity);
+  const unitGrossProfit = roundMoney(Number(saleItem.grossProfit ?? 0) / saleItem.quantity);
+
+  return {
+    saleItem,
+    quantity,
+    unitPrice,
+    unitCost,
+    promoPercent,
+    discount: roundMoney(unitDiscount * quantity),
+    total: roundMoney(unitTotal * quantity),
+    grossProfit: roundMoney(unitGrossProfit * quantity)
+  };
+}
+
 export async function listSales(
   user: CurrentUser,
   query: Record<string, unknown>
@@ -751,10 +797,15 @@ export async function createSalesAdjustmentRequest(
       const itemById = new Map(sale.items.map((item) => [item.id, item]));
 
       if (input.type === SaleAdjustmentRequestType.CANCEL_SALE) {
-        if (sale.status !== SaleStatus.COMPLETED) {
+        const canRequestSaleClosure =
+          sale.status === SaleStatus.COMPLETED ||
+          (sale.status === SaleStatus.PARTIALLY_REFUNDED &&
+            buildRemainingReturnItems(sale).length > 0);
+
+        if (!canRequestSaleClosure) {
           throw new AppError(
             409,
-            "Solo se puede solicitar cancelación de ventas completadas sin devoluciones"
+            "Solo se puede solicitar cancelación o devolución restante de ventas con unidades pendientes"
           );
         }
       }
@@ -1003,15 +1054,47 @@ async function executeCancelSale(
     throw new AppError(409, "La venta ya está cancelada");
   }
 
-  if (sale.status !== SaleStatus.COMPLETED) {
-    throw new AppError(409, "Solo se pueden cancelar ventas completadas sin devoluciones");
+  if (sale.status === SaleStatus.REFUNDED) {
+    throw new AppError(409, "La venta ya fue devuelta por completo");
   }
 
-  await restoreStockForExistingProducts(tx, sale.items, {
-    reason: `Cancelación de venta ${sale.folio}: ${input.reason}`,
-    createdBy: user.id,
-    warehouseId: sale.warehouseId
-  });
+  if (
+    sale.status !== SaleStatus.COMPLETED &&
+    sale.status !== SaleStatus.PARTIALLY_REFUNDED
+  ) {
+    throw new AppError(
+      409,
+      "Solo se pueden cerrar ventas completadas o con devolución parcial"
+    );
+  }
+
+  const remainingItems = buildRemainingReturnItems(sale);
+
+  if (remainingItems.length === 0) {
+    throw new AppError(409, "La venta no tiene productos pendientes por devolver");
+  }
+
+  const returnItems = remainingItems.map((item) =>
+    buildReturnItemSnapshot(item.saleItem, item.quantity)
+  );
+  const refundTotal = roundMoney(
+    returnItems.reduce((sum, item) => sum + item.total, 0)
+  );
+  const isFullCancellation = sale.status === SaleStatus.COMPLETED;
+  const operationLabel = isFullCancellation ? "Cancelación" : "Devolución restante";
+
+  await restoreStockForExistingProducts(
+    tx,
+    returnItems.map((item) => ({
+      productId: item.saleItem.productId,
+      quantity: item.quantity
+    })),
+    {
+      reason: `${operationLabel} de venta ${sale.folio}: ${input.reason}`,
+      createdBy: user.id,
+      warehouseId: sale.warehouseId
+    }
+  );
 
   const refundMethod = resolveRefundMethod(input.refundMethod, sale.payments);
 
@@ -1021,20 +1104,20 @@ async function executeCancelSale(
       cashierId: sale.cashierId,
       reason: input.reason,
       refundMethod,
-      refundTotal: Number(sale.total),
+      refundTotal,
       items: {
-        create: sale.items.map((item) => ({
-          saleItemId: item.id,
-          productId: item.productId,
-          productSku: item.productSku,
-          productName: item.productName,
+        create: returnItems.map((item) => ({
+          saleItemId: item.saleItem.id,
+          productId: item.saleItem.productId,
+          productSku: item.saleItem.productSku,
+          productName: item.saleItem.productName,
           quantity: item.quantity,
-          unitPrice: Number(item.unitPrice),
-          unitCost: Number(item.unitCost ?? 0),
-          promoPercent: Number(item.promoPercent ?? 0),
-          discount: Number(item.discount),
-          total: Number(item.total),
-          grossProfit: Number(item.grossProfit ?? 0)
+          unitPrice: item.unitPrice,
+          unitCost: item.unitCost,
+          promoPercent: item.promoPercent,
+          discount: item.discount,
+          total: item.total,
+          grossProfit: item.grossProfit
         }))
       }
     }
@@ -1045,7 +1128,7 @@ async function executeCancelSale(
       id: sale.id
     },
     data: {
-      status: SaleStatus.CANCELLED
+      status: isFullCancellation ? SaleStatus.CANCELLED : SaleStatus.REFUNDED
     },
     include: saleDetailsInclude
   });
@@ -1101,29 +1184,12 @@ async function executeReturnSaleItems(
       );
     }
 
-    const unitPrice = Number(saleItem.unitPrice);
-    const unitCost = Number(saleItem.unitCost ?? 0);
-    const promoPercent = Number(saleItem.promoPercent ?? 0);
-    const unitDiscount = roundMoney(Number(saleItem.discount) / saleItem.quantity);
-    const unitTotal = roundMoney(Number(saleItem.total) / saleItem.quantity);
-    const unitGrossProfit = roundMoney(Number(saleItem.grossProfit ?? 0) / saleItem.quantity);
-    const lineDiscount = roundMoney(unitDiscount * requestedItem.quantity);
-    const lineTotal = roundMoney(unitTotal * requestedItem.quantity);
-    const lineGrossProfit = roundMoney(unitGrossProfit * requestedItem.quantity);
+    const returnItem = buildReturnItemSnapshot(saleItem, requestedItem.quantity);
 
-    refundTotal = roundMoney(refundTotal + lineTotal);
+    refundTotal = roundMoney(refundTotal + returnItem.total);
     requestedQuantities.set(saleItem.id, requestedItem.quantity);
 
-    return {
-      saleItem,
-      quantity: requestedItem.quantity,
-      unitPrice,
-      unitCost,
-      promoPercent,
-      discount: lineDiscount,
-      total: lineTotal,
-      grossProfit: lineGrossProfit
-    };
+    return returnItem;
   });
 
   await restoreStockForExistingProducts(

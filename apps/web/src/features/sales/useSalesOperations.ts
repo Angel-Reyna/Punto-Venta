@@ -178,10 +178,16 @@ export function useSalesOperations({
 
       setCancelDialogOpen(false);
       setSelectedSale(null);
+      const closesPartialReturn = selectedSale.status === "PARTIALLY_REFUNDED";
+
       setMessage(
         cancelOperationMode === "request"
-          ? "Solicitud de cancelación enviada al administrador."
-          : "Venta cancelada correctamente. El stock fue restaurado.",
+          ? closesPartialReturn
+            ? "Solicitud de devolución restante enviada al administrador."
+            : "Solicitud de cancelación enviada al administrador."
+          : closesPartialReturn
+            ? "Venta cerrada como devuelta por completo. Se restauró solo el stock pendiente."
+            : "Venta cancelada correctamente. El stock fue restaurado.",
       );
     } catch (err: unknown) {
       setError(
