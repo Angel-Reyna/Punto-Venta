@@ -53,12 +53,19 @@ function resolveExecutable(command) {
   return command;
 }
 
+function shouldUseShellForExecutable(executable) {
+  return process.platform === 'win32' && /\.(?:cmd|bat)$/iu.test(executable);
+}
+
 function runCapture(command, commandArgs, options = {}) {
-  return spawnSync(resolveExecutable(command), commandArgs, {
+  const executable = resolveExecutable(command);
+
+  return spawnSync(executable, commandArgs, {
     cwd: options.cwd,
     env: options.env || process.env,
     encoding: 'utf8',
-    shell: false,
+    shell: shouldUseShellForExecutable(executable),
+    windowsHide: true,
   });
 }
 
