@@ -34,10 +34,11 @@ export function PageHeader({
           fontWeight={800}
           sx={{
             fontSize: {
-              xs: "1.6rem",
+              xs: "1.45rem",
               sm: "2rem"
             },
-            lineHeight: 1.15
+            lineHeight: 1.15,
+            overflowWrap: "anywhere"
           }}
         >
           {title}

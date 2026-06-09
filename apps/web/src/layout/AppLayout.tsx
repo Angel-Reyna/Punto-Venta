@@ -244,6 +244,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const { mode, toggleMode } = useColorMode();
   const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const isCompactMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [open, setOpen] = useState(false);
 
@@ -564,41 +565,77 @@ export function AppLayout({ children }: { children: ReactNode }) {
               </Typography>
             )}
 
-            <Button
-              variant="outlined"
-              color="inherit"
-              startIcon={isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
-              onClick={toggleMode}
-              aria-label={isDarkMode ? "Activar modo día" : "Activar modo noche"}
-              sx={{
-                minHeight: { xs: 38, sm: 40 },
-                px: {
-                  xs: 1.15,
-                  sm: 1.75,
-                },
-                flexShrink: 0,
-              }}
-            >
-              {isMobile ? (isDarkMode ? "Día" : "Noche") : isDarkMode ? "Modo día" : "Modo noche"}
-            </Button>
+            {isCompactMobile ? (
+              <Tooltip title={isDarkMode ? "Activar modo día" : "Activar modo noche"}>
+                <IconButton
+                  color="inherit"
+                  onClick={toggleMode}
+                  aria-label={isDarkMode ? "Activar modo día" : "Activar modo noche"}
+                  sx={{
+                    border: "1px solid",
+                    borderColor: "divider",
+                    flexShrink: 0,
+                    height: 40,
+                    width: 40,
+                  }}
+                >
+                  {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Button
+                variant="outlined"
+                color="inherit"
+                startIcon={isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
+                onClick={toggleMode}
+                aria-label={isDarkMode ? "Activar modo día" : "Activar modo noche"}
+                sx={{
+                  minHeight: 40,
+                  px: {
+                    sm: 1.75,
+                  },
+                  flexShrink: 0,
+                }}
+              >
+                {isMobile ? (isDarkMode ? "Día" : "Noche") : isDarkMode ? "Modo día" : "Modo noche"}
+              </Button>
+            )}
 
-            <Button
-              variant="outlined"
-              color="inherit"
-              startIcon={<LogoutIcon />}
-              onClick={logout}
-              aria-label="Cerrar sesión"
-              sx={{
-                minHeight: { xs: 38, sm: 40 },
-                px: {
-                  xs: 1.15,
-                  sm: 2,
-                },
-                flexShrink: 0,
-              }}
-            >
-              {isMobile ? "Salir" : "Cerrar sesión"}
-            </Button>
+            {isCompactMobile ? (
+              <Tooltip title="Cerrar sesión">
+                <IconButton
+                  color="inherit"
+                  onClick={logout}
+                  aria-label="Cerrar sesión"
+                  sx={{
+                    border: "1px solid",
+                    borderColor: "divider",
+                    flexShrink: 0,
+                    height: 40,
+                    width: 40,
+                  }}
+                >
+                  <LogoutIcon />
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Button
+                variant="outlined"
+                color="inherit"
+                startIcon={<LogoutIcon />}
+                onClick={logout}
+                aria-label="Cerrar sesión"
+                sx={{
+                  minHeight: 40,
+                  px: {
+                    sm: 2,
+                  },
+                  flexShrink: 0,
+                }}
+              >
+                {isMobile ? "Salir" : "Cerrar sesión"}
+              </Button>
+            )}
           </Toolbar>
         </AppBar>
 

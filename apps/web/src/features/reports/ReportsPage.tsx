@@ -20,7 +20,7 @@ export function ReportsPage() {
       <StatusFeedback error={report.error} onErrorClose={() => report.setError("")} />
 
       <ResponsiveSideLayout
-        hideSidebarOnMobile
+        mobileSidebarPosition="after"
         sidebar={report.data ? <ReportsQuickReadPanel /> : null}
         sidebarWidth="360px"
         stickyTop={96}
@@ -69,7 +69,6 @@ export function ReportsPage() {
             </>
           )}
         </Stack>
-
       </ResponsiveSideLayout>
     </Box>
   );

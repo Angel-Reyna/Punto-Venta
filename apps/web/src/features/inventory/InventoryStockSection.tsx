@@ -14,13 +14,10 @@ import {
 } from "@mui/material";
 import { alpha, type Theme } from "@mui/material/styles";
 
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import GridViewIcon from "@mui/icons-material/GridView";
 import SearchIcon from "@mui/icons-material/Search";
 import SortIcon from "@mui/icons-material/Sort";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 import { EmptyStatePanel } from "../../components/data-display";
 import { CategoryPill } from "../products/categoryVisuals";
@@ -685,18 +682,6 @@ function getAttentionSurfaceStyles(theme: Theme, color: StockVisualColor) {
   };
 }
 
-function StockStatusIcon({ color }: { color: StockVisualColor }) {
-  if (color === "error") {
-    return <ErrorOutlineIcon fontSize="small" />;
-  }
-
-  if (color === "warning") {
-    return <WarningAmberIcon fontSize="small" />;
-  }
-
-  return <CheckCircleIcon fontSize="small" />;
-}
-
 function WarehouseIdentity({
   color,
   warehouseName,
@@ -714,19 +699,15 @@ function WarehouseIdentity({
       <Box
         aria-hidden="true"
         sx={(theme) => ({
-          display: "grid",
-          placeItems: "center",
-          flex: "0 0 auto",
-          width: 42,
-          height: 42,
-          borderRadius: "50%",
-          color: theme.palette[color].contrastText,
+          alignSelf: "stretch",
           bgcolor: theme.palette[color].main,
-          boxShadow: `0 10px 22px ${alpha(theme.palette[color].main, 0.28)}`,
+          borderRadius: 999,
+          boxShadow: `0 10px 22px ${alpha(theme.palette[color].main, 0.2)}`,
+          flex: "0 0 auto",
+          minHeight: 40,
+          width: { xs: 7, sm: 9 },
         })}
-      >
-        <StockStatusIcon color={color} />
-      </Box>
+      />
 
       <Box sx={{ minWidth: 0 }}>
         <Typography

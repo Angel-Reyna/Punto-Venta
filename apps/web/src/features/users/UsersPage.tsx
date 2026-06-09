@@ -26,11 +26,11 @@ export function UsersPage() {
           gap: 2,
           gridTemplateAreas: {
             xs: `"summary" "feedback" "side" "directory"`,
-            lg: `"summary side" "feedback side" "directory side"`,
+            xl: `"summary side" "feedback side" "directory side"`,
           },
           gridTemplateColumns: {
             xs: "minmax(0, 1fr)",
-            lg: "minmax(0, 1.6fr) minmax(360px, 0.8fr)",
+            xl: "minmax(0, 1.6fr) minmax(340px, 0.8fr)",
           },
         }}
       >
@@ -52,8 +52,8 @@ export function UsersPage() {
           sx={{
             gridArea: "side",
             minWidth: 0,
-            position: { lg: "sticky" },
-            top: { lg: 88 },
+            position: { xl: "sticky" },
+            top: { xl: 88 },
           }}
         >
           <UserCreateForm

@@ -103,10 +103,10 @@ export function SellerActivityPage() {
 
       <ResponsiveSideLayout
         desktopSidebarPosition="left"
-        mobileSidebarPosition="after"
+        mobileSidebarPosition="before"
         sidebar={activitySidebar}
         sidebarWidth="minmax(300px, 380px)"
-        stickyTop={16}
+        stickyTop={96}
       >
         <Grid container spacing={2}>
           <Grid item xs={12}>
