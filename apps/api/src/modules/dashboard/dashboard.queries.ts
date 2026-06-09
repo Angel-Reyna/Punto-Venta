@@ -8,15 +8,52 @@ export type DashboardScopeWhere = {
   cashierId?: string;
 };
 
-export async function fetchDashboardSummaryData(input: {
-  isAdmin: boolean;
-  todayStart: Date;
+const salesPeriodSelect = {
+  _count: {
+    _all: true
+  },
+  _sum: {
+    total: true
+  },
+  _avg: {
+    total: true
+  }
+} as const;
+
+function buildCompletedSalesPeriodWhere(input: {
   salesScopeWhere: DashboardScopeWhere;
+  from: Date;
+  to?: Date;
+}) {
+  const { from, salesScopeWhere, to } = input;
+
+  return {
+    ...salesScopeWhere,
+    status: SaleStatus.COMPLETED,
+    createdAt: {
+      gte: from,
+      ...(to ? { lt: to } : {})
+    }
+  };
+}
+
+export async function fetchDashboardSummaryData(input: {
+  currentMonthStart: Date;
+  isAdmin: boolean;
+  last7DaysStart: Date;
+  previous7DaysStart: Date;
+  previousMonthStart: Date;
+  salesScopeWhere: DashboardScopeWhere;
+  todayStart: Date;
 }) {
   const {
+    currentMonthStart,
     isAdmin,
-    todayStart,
+    last7DaysStart,
+    previous7DaysStart,
+    previousMonthStart,
     salesScopeWhere,
+    todayStart
   } = input;
 
   const [
@@ -24,6 +61,10 @@ export async function fetchDashboardSummaryData(input: {
     activeProductRows,
     groupedUsers,
     todaySalesAggregate,
+    last7DaysSalesAggregate,
+    previous7DaysSalesAggregate,
+    currentMonthSalesAggregate,
+    previousMonthSalesAggregate,
     todayShrinkageAggregate,
     recentSales
   ] = await Promise.all([
@@ -69,22 +110,45 @@ export async function fetchDashboardSummaryData(input: {
       : Promise.resolve([]),
 
     prisma.sale.aggregate({
-      where: {
-        ...salesScopeWhere,
-        status: SaleStatus.COMPLETED,
-        createdAt: {
-          gte: todayStart
-        }
-      },
-      _count: {
-        _all: true
-      },
-      _sum: {
-        total: true
-      },
-      _avg: {
-        total: true
-      }
+      where: buildCompletedSalesPeriodWhere({
+        salesScopeWhere,
+        from: todayStart
+      }),
+      ...salesPeriodSelect
+    }),
+
+    prisma.sale.aggregate({
+      where: buildCompletedSalesPeriodWhere({
+        salesScopeWhere,
+        from: last7DaysStart
+      }),
+      ...salesPeriodSelect
+    }),
+
+    prisma.sale.aggregate({
+      where: buildCompletedSalesPeriodWhere({
+        salesScopeWhere,
+        from: previous7DaysStart,
+        to: last7DaysStart
+      }),
+      ...salesPeriodSelect
+    }),
+
+    prisma.sale.aggregate({
+      where: buildCompletedSalesPeriodWhere({
+        salesScopeWhere,
+        from: currentMonthStart
+      }),
+      ...salesPeriodSelect
+    }),
+
+    prisma.sale.aggregate({
+      where: buildCompletedSalesPeriodWhere({
+        salesScopeWhere,
+        from: previousMonthStart,
+        to: currentMonthStart
+      }),
+      ...salesPeriodSelect
     }),
 
     isAdmin
@@ -136,6 +200,10 @@ export async function fetchDashboardSummaryData(input: {
     activeProductRows,
     groupedUsers,
     todaySalesAggregate,
+    last7DaysSalesAggregate,
+    previous7DaysSalesAggregate,
+    currentMonthSalesAggregate,
+    previousMonthSalesAggregate,
     todayShrinkageAggregate,
     recentSales
   };

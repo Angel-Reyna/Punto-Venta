@@ -1097,6 +1097,34 @@ function dashboardResponse(role: Role) {
       total: isAdmin ? 2150 : 480,
       averageTicket: isAdmin ? 307.14 : 240,
     },
+    salesOutlook: {
+      last7Days: {
+        current: {
+          count: isAdmin ? 38 : 8,
+          total: isAdmin ? 12480 : 1880,
+          averageTicket: isAdmin ? 328.42 : 235,
+        },
+        previous: {
+          count: isAdmin ? 31 : 6,
+          total: isAdmin ? 10150 : 1260,
+          averageTicket: isAdmin ? 327.42 : 210,
+        },
+        totalChangePercent: isAdmin ? 23 : 49.2,
+      },
+      currentMonth: {
+        current: {
+          count: isAdmin ? 96 : 21,
+          total: isAdmin ? 31640 : 5040,
+          averageTicket: isAdmin ? 329.58 : 240,
+        },
+        previous: {
+          count: isAdmin ? 88 : 18,
+          total: isAdmin ? 28120 : 4140,
+          averageTicket: isAdmin ? 319.55 : 230,
+        },
+        totalChangePercent: isAdmin ? 12.5 : 21.7,
+      },
+    },
     recentSales: [
       {
         id: "sale-1",

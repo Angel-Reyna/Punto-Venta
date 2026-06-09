@@ -30,6 +30,22 @@ export type DashboardRecentSale = {
   };
 };
 
+export type DashboardSalesPeriod = {
+  count: number;
+  total: number;
+  averageTicket: number;
+};
+
+export type DashboardSalesPeriodComparison = {
+  current: DashboardSalesPeriod;
+  previous: DashboardSalesPeriod;
+  totalChangePercent: number;
+};
+
+export type DashboardSalesOutlook = {
+  last7Days: DashboardSalesPeriodComparison;
+  currentMonth: DashboardSalesPeriodComparison;
+};
 
 export type DashboardSummary = {
   role: Role;
@@ -53,6 +69,7 @@ export type DashboardSummary = {
     total: number;
     averageTicket: number;
   };
+  salesOutlook: DashboardSalesOutlook;
   recentSales: DashboardRecentSale[];
 
   /**
@@ -74,6 +91,21 @@ export function startOfToday() {
   todayStart.setHours(0, 0, 0, 0);
 
   return todayStart;
+}
+
+export function addDays(value: Date, days: number) {
+  const next = new Date(value);
+  next.setDate(next.getDate() + days);
+
+  return next;
+}
+
+export function startOfMonth(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), 1);
+}
+
+export function startOfPreviousMonth(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth() - 1, 1);
 }
 
 export function roundMoney(value: number) {

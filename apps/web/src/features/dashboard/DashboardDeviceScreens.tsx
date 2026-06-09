@@ -19,6 +19,7 @@ import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
 import WarningIcon from "@mui/icons-material/WarningAmber";
 
 import { DashboardMetricsGrid } from "./DashboardMetricsGrid";
+import { DashboardOperationalInsights } from "./DashboardOperationalInsights";
 import {
   InventoryAttentionPanel,
   OperationalReadingPanel,
@@ -260,6 +261,7 @@ export function DashboardMobileScreen(props: DashboardScreenProps) {
     <Stack data-testid="dashboard-mobile-screen" spacing={2}>
       <DashboardTodayCard {...props} compact />
       <DashboardPriorityPanel {...props} />
+      <DashboardOperationalInsights isAdmin={props.isAdmin} metrics={props.metrics} />
       <RecentSalesPanel
         metrics={props.metrics}
         isAdmin={props.isAdmin}
@@ -303,6 +305,7 @@ export function DashboardTabletScreen(props: DashboardScreenProps) {
             metrics={props.metrics}
             salesDestination={props.salesDestination}
           />
+          <DashboardOperationalInsights isAdmin={props.isAdmin} metrics={props.metrics} />
           <InventoryAttentionPanel metrics={props.metrics} />
           <RecentSalesPanel
             metrics={props.metrics}
@@ -334,6 +337,8 @@ export function DashboardDesktopScreen(props: DashboardScreenProps) {
           metrics={props.metrics}
           salesDestination={props.salesDestination}
         />
+
+        <DashboardOperationalInsights isAdmin={props.isAdmin} metrics={props.metrics} />
 
         <Grid container spacing={2.5}>
           <Grid item xs={12} xl={5}>

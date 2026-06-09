@@ -171,6 +171,17 @@ describe("dashboard.service", () => {
       total: 300,
       averageTicket: 150
     });
+    expect(summary.salesOutlook.last7Days.current).toEqual({
+      count: 2,
+      total: 300,
+      averageTicket: 150
+    });
+    expect(summary.salesOutlook.last7Days.totalChangePercent).toBe(0);
+    expect(summary.salesOutlook.currentMonth.current).toEqual({
+      count: 2,
+      total: 300,
+      averageTicket: 150
+    });
     expect(summary.recentSales).toEqual([
       expect.objectContaining({
         id: "sale-1",

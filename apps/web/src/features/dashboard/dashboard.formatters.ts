@@ -13,6 +13,17 @@ export function formatNumber(value: number | null | undefined) {
   return new Intl.NumberFormat("es-MX").format(Number(value ?? 0));
 }
 
+export function formatPercent(
+  value: number | null | undefined,
+  options: { showSign?: boolean } = {}
+) {
+  return new Intl.NumberFormat("es-MX", {
+    maximumFractionDigits: 1,
+    minimumFractionDigits: 0,
+    signDisplay: options.showSign ? "exceptZero" : "auto"
+  }).format(Number(value ?? 0));
+}
+
 export function formatDateTime(value: string | null | undefined) {
   if (!value) {
     return "—";

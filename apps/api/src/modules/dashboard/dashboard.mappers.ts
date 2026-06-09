@@ -4,7 +4,6 @@ import {
   LOW_STOCK_ITEMS_LIMIT,
   type DashboardProductStockItem,
   type DashboardRecentSale,
-  roundMoney,
   toMoney
 } from "./dashboard.shared";
 

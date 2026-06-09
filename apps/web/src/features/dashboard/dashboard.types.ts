@@ -25,6 +25,23 @@ export type DashboardRecentSale = {
   };
 };
 
+export type DashboardSalesPeriod = {
+  count: number;
+  total: number;
+  averageTicket: number;
+};
+
+export type DashboardSalesPeriodComparison = {
+  current: DashboardSalesPeriod;
+  previous: DashboardSalesPeriod;
+  totalChangePercent: number;
+};
+
+export type DashboardSalesOutlook = {
+  last7Days: DashboardSalesPeriodComparison;
+  currentMonth: DashboardSalesPeriodComparison;
+};
+
 export type DashboardMetrics = {
   role: "ADMIN" | "CASHIER";
   generatedAt: string;
@@ -47,6 +64,7 @@ export type DashboardMetrics = {
     total: number;
     averageTicket: number;
   };
+  salesOutlook: DashboardSalesOutlook;
   recentSales: DashboardRecentSale[];
 };
 
