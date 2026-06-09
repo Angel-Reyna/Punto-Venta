@@ -11,8 +11,9 @@ import StorefrontIcon from "@mui/icons-material/Storefront";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 import {
-  formatEntityLabel,
+  formatAuditModuleLabel,
   formatRole,
+  getAuditModule,
   getAuditSeverity,
   type AuditLayoutVariant,
   type AuditLog,
@@ -54,17 +55,14 @@ function countBy<T extends string>(rows: AuditLog[], getKey: (row: AuditLog) => 
 }
 
 function getWorkArea(row: AuditLog): CountItem["label"] {
-  if (row.tableName === "Sale" || row.tableName === "SaleReturn") return "Ventas";
-  if (row.tableName === "Product") return "Catálogo";
-  if (row.tableName === "InventoryMovement") return "Inventario";
-  if (row.tableName === "User") return "Usuarios";
-  return formatEntityLabel(row.tableName);
+  return formatAuditModuleLabel(getAuditModule(row));
 }
 
 function getWorkAreaTone(label: string): Tone {
   if (label === "Ventas") return "success";
   if (label === "Inventario") return "warning";
-  if (label === "Usuarios") return "error";
+  if (label === "Usuarios" || label === "Seguridad") return "error";
+  if (label === "Sistema") return "info";
   return "primary";
 }
 
@@ -293,7 +291,7 @@ export function AuditInsightsPanel({
                 Mapa de actividad
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Cambios, responsables y áreas activas.
+                Cambios, responsables y módulos activos.
               </Typography>
             </Box>
           </Stack>
@@ -359,7 +357,7 @@ export function AuditInsightsPanel({
               >
                 <AuditMiniMetric label="Eventos" value={visibleCount} helper="visibles" tone="primary" icon={<EventAvailableIcon fontSize="small" />} />
                 <AuditMiniMetric label="Personas" value={uniqueUsers} helper="activas" tone="success" icon={<PeopleAltIcon fontSize="small" />} />
-                <AuditMiniMetric label="Áreas" value={areaItems.length} helper="con cambios" tone="warning" icon={<StorefrontIcon fontSize="small" />} />
+                <AuditMiniMetric label="Módulos" value={areaItems.length} helper="con cambios" tone="warning" icon={<StorefrontIcon fontSize="small" />} />
                 <AuditMiniMetric label="Altas" value={severityItems.find((item) => item.label === "Altas")?.value ?? 0} helper="importantes" tone="warning" icon={<WarningAmberIcon fontSize="small" />} />
               </Box>
             </Box>
@@ -378,7 +376,7 @@ export function AuditInsightsPanel({
                 icon={<StorefrontIcon color="primary" fontSize="small" />}
                 items={areaItems}
                 max={maxArea}
-                title="Áreas con más cambios"
+                title="Módulos con más cambios"
               />
               <InsightGroup
                 icon={<PeopleAltIcon color="success" fontSize="small" />}

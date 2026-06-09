@@ -21,11 +21,13 @@ export type AuditLog = {
 };
 
 export type AuditSeverity = "" | "critical" | "high" | "medium" | "low";
+export type AuditModule = "" | "catalog" | "inventory" | "sales" | "users" | "security" | "system";
 export type AuditLayoutVariant = "mobile" | "tablet" | "desktop";
 export type AuditView = "activity" | "events";
 
 export type AuditFilters = {
   q: string;
+  module: AuditModule;
   action: string;
   tableName: string;
   severity: AuditSeverity;
@@ -36,6 +38,7 @@ export type AuditFilters = {
 
 export const initialFilters: AuditFilters = {
   q: "",
+  module: "",
   action: "",
   tableName: "",
   severity: "",
@@ -45,6 +48,39 @@ export const initialFilters: AuditFilters = {
 };
 
 const SENSITIVE_KEY_PATTERN = /(password|token|secret|hash|pepper|credential|cookie|authorization)/i;
+
+export const AUDIT_MODULE_OPTIONS: Array<{
+  value: Exclude<AuditModule, "">;
+  label: string;
+  helper: string;
+}> = [
+  { value: "catalog", label: "Catálogo", helper: "Productos, precios e importaciones" },
+  { value: "inventory", label: "Inventario", helper: "Existencias, almacenes y movimientos" },
+  { value: "sales", label: "Ventas", helper: "Ventas, cancelaciones y devoluciones" },
+  { value: "users", label: "Usuarios", helper: "Accesos, roles y contraseñas" },
+  { value: "security", label: "Seguridad", helper: "Bloqueos, permisos y sesiones" },
+  { value: "system", label: "Sistema", helper: "Procesos automáticos o tareas internas" },
+];
+
+const TABLE_MODULES: Record<string, Exclude<AuditModule, "">> = {
+  InventoryMovement: "inventory",
+  InventoryStock: "inventory",
+  SellerStock: "inventory",
+  StockTransferRequest: "inventory",
+  Warehouse: "inventory",
+  Product: "catalog",
+  ProductImport: "catalog",
+  Sale: "sales",
+  SaleReturn: "sales",
+  SaleAdjustmentRequest: "sales",
+  Payment: "sales",
+  User: "users",
+  RefreshSession: "security",
+  Permission: "security",
+  AuthSession: "security",
+  AuditLog: "system",
+};
+
 
 const currencyFormatter = new Intl.NumberFormat("es-MX", {
   currency: "MXN",
@@ -189,20 +225,41 @@ const ACTION_REVIEW_HINTS: Record<string, string> = {
 };
 
 const ENTITY_LABELS: Record<string, string> = {
-  InventoryMovement: "Inventario",
+  InventoryMovement: "Movimiento de inventario",
+  InventoryStock: "Existencia de inventario",
+  SellerStock: "Stock físico de vendedor",
+  StockTransferRequest: "Solicitud de retiro",
   Warehouse: "Almacén",
   Product: "Producto",
+  ProductImport: "Importación de productos",
   Sale: "Venta",
   SaleReturn: "Devolución",
+  SaleAdjustmentRequest: "Solicitud de ajuste de venta",
+  Payment: "Pago",
   User: "Usuario",
+  RefreshSession: "Sesión",
+  Permission: "Permiso",
+  AuthSession: "Sesión",
+  AuditLog: "Auditoría",
 };
 
 const ENTITY_HELPERS: Record<string, string> = {
   InventoryMovement: "afectó existencias de inventario",
+  InventoryStock: "afectó existencias de inventario",
+  SellerStock: "afectó stock físico de vendedor",
+  StockTransferRequest: "afectó una solicitud de retiro",
+  Warehouse: "afectó un almacén",
   Product: "afectó el catálogo de productos",
+  ProductImport: "afectó una importación de productos",
   Sale: "afectó una venta",
   SaleReturn: "afectó una devolución",
+  SaleAdjustmentRequest: "afectó una solicitud de ajuste de venta",
+  Payment: "afectó un pago",
   User: "afectó una cuenta de usuario",
+  RefreshSession: "afectó una sesión",
+  Permission: "afectó permisos",
+  AuthSession: "afectó una sesión",
+  AuditLog: "afectó el historial de auditoría",
 };
 
 const FACT_LABELS: Array<{ label: string; pattern: RegExp }> = [
@@ -265,6 +322,26 @@ export function formatActionHelper(action: string) {
 
 export function formatEntityLabel(tableName: string) {
   return ENTITY_LABELS[tableName] ?? titleCase(tableName);
+}
+
+export function formatAuditModuleLabel(module: AuditModule) {
+  if (!module) return "Todos los módulos";
+  return AUDIT_MODULE_OPTIONS.find((option) => option.value === module)?.label ?? titleCase(module);
+}
+
+export function getAuditModule(log: Pick<AuditLog, "action" | "tableName" | "user">): Exclude<AuditModule, ""> {
+  const normalizedAction = normalizeAction(log.action);
+
+  if (TABLE_MODULES[log.tableName]) return TABLE_MODULES[log.tableName];
+  if (/LOGIN|LOGOUT|TOKEN|SESSION|PERMISSION|ACCESS|PASSWORD|DENIED|BLOCKED|AUTH/.test(normalizedAction)) {
+    return "security";
+  }
+  if (/SALE|RETURN|REFUND|CANCEL/.test(normalizedAction)) return "sales";
+  if (/INVENTORY|STOCK|WAREHOUSE|TRANSFER/.test(normalizedAction)) return "inventory";
+  if (/PRODUCT|PRICE|IMPORT|CATALOG/.test(normalizedAction)) return "catalog";
+  if (/USER|ROLE|PASSWORD/.test(normalizedAction)) return "users";
+
+  return "system";
 }
 
 export function formatEntityHelper(tableName: string) {
@@ -344,6 +421,11 @@ function getResultLabel(action: string) {
 export function filterAuditLogsBySeverity(logs: AuditLog[], severity: AuditSeverity) {
   if (!severity) return logs;
   return logs.filter((log) => getAuditSeverity(log).level === severity);
+}
+
+export function filterAuditLogsByModule(logs: AuditLog[], module: AuditModule) {
+  if (!module) return logs;
+  return logs.filter((log) => getAuditModule(log) === module);
 }
 
 export function filterAuditLogsByUser(logs: AuditLog[], userId: string) {
@@ -578,7 +660,7 @@ export function AuditLogCard({
   const severity = getAuditSeverity(log);
   const result = getResultLabel(log.action);
   const actionLabel = formatActionLabel(log.action);
-  const entityLabel = formatEntityLabel(log.tableName);
+  const moduleLabel = formatAuditModuleLabel(getAuditModule(log));
   const actor = log.user?.name ?? "Sistema";
   const actorHelper = formatRole(log.user?.role);
   const facts = extractImportantFacts(log);
@@ -624,7 +706,7 @@ export function AuditLogCard({
               }}
             >
               <AuditFactChip label="Responsable" value={actor} />
-              <AuditFactChip label="Área" value={entityLabel} />
+              <AuditFactChip label="Módulo" value={moduleLabel} />
             </Box>
             <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
               {actorHelper}
@@ -669,7 +751,7 @@ export function AuditLogCard({
             </Typography>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
               <AuditFactChip label="Responsable" value={actor} />
-              <AuditFactChip label="Área" value={entityLabel} />
+              <AuditFactChip label="Módulo" value={moduleLabel} />
               <AuditFactChip label="Rol" value={actorHelper} />
             </Stack>
             <ImportantFacts facts={facts} />
@@ -725,6 +807,9 @@ export function AuditLogCard({
                 </Typography>
                 <ClampedText lines={1}>{summary}</ClampedText>
                 <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ display: "block", mt: 0.35 }}>
+                  Qué significa: {details.meaning}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ display: "block", mt: 0.2 }}>
                   Qué revisar: {details.reviewHint}
                 </Typography>
               </Box>
@@ -756,10 +841,10 @@ export function AuditLogCard({
               </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Área
+                  Módulo
                 </Typography>
                 <Typography variant="body2" fontWeight={900}>
-                  {entityLabel}
+                  {moduleLabel}
                 </Typography>
               </Box>
             </Stack>

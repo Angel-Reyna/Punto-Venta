@@ -16,6 +16,7 @@ import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 
 import {
+  AUDIT_MODULE_OPTIONS,
   formatActionLabel,
   formatEntityLabel,
   type AuditFilters,
@@ -39,7 +40,7 @@ function getFilterCopy(layout: AuditLayoutVariant) {
   if (layout === "mobile") {
     return {
       title: "Buscar en la bitácora",
-      helper: "Busca por producto, usuario o venta. Usa filtros si necesitas afinar.",
+      helper: "Busca por producto, usuario o venta. Filtra por módulo si necesitas ubicar el cambio rápido.",
       searchPlaceholder: "Producto, usuario o venta",
     };
   }
@@ -47,15 +48,15 @@ function getFilterCopy(layout: AuditLayoutVariant) {
   if (layout === "tablet") {
     return {
       title: "Filtros",
-      helper: "Filtra sin perder de vista los cambios.",
+      helper: "Filtra por módulo, responsable o importancia sin perder contexto.",
       searchPlaceholder: "Producto, usuario o acción",
     };
   }
 
   return {
     title: "Filtros",
-    helper: "Encuentra cambios por acción, área o fecha.",
-    searchPlaceholder: "Producto, usuario o área",
+    helper: "Encuentra cambios por módulo, responsable, importancia o fecha.",
+    searchPlaceholder: "Producto, usuario o módulo",
   };
 }
 
@@ -133,6 +134,25 @@ function AuditFilterFields({
         <TextField
           select
           fullWidth
+          label="Módulo"
+          size={isMobile ? "small" : "medium"}
+          value={filters.module}
+          inputProps={{ "data-testid": "audit-module" }}
+          onChange={(event) => updateFilter("module", event.target.value as AuditFilters["module"])}
+        >
+          <MenuItem value="">Todos</MenuItem>
+          {AUDIT_MODULE_OPTIONS.map((option) => (
+            <MenuItem key={option.value} value={option.value} title={option.helper}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Grid>
+
+      <Grid item xs={12} sm={isMobile ? 12 : 6} lg={isDesktop ? 12 : 6}>
+        <TextField
+          select
+          fullWidth
           label="Qué ocurrió"
           size={isMobile ? "small" : "medium"}
           value={filters.action}
@@ -152,13 +172,13 @@ function AuditFilterFields({
         <TextField
           select
           fullWidth
-          label="Área afectada"
+          label="Detalle"
           size={isMobile ? "small" : "medium"}
           value={filters.tableName}
           inputProps={{ "data-testid": "audit-entity" }}
           onChange={(event) => updateFilter("tableName", event.target.value)}
         >
-          <MenuItem value="">Todas</MenuItem>
+          <MenuItem value="">Todos</MenuItem>
           {tableOptions.map((option) => (
             <MenuItem key={option} value={option}>
               {formatEntityLabel(option)}
@@ -385,7 +405,7 @@ export function AuditFiltersPanel({
 
           <Box data-testid="audit-active-filters">
             <Typography variant="subtitle2" fontWeight={900} sx={{ mb: 0.75 }}>
-              Vista actual
+              Filtros activos
             </Typography>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
               {activeFilterLabels.map((label) => (

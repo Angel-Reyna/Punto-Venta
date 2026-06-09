@@ -116,9 +116,10 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(page.getByRole("heading", { name: "Auditoría", level: 1 })).toBeVisible();
     await expect(page.getByText("Último cambio registrado")).toBeVisible();
     await expect(byTestId(page, "audit-insights-panel")).toContainText("Mapa de actividad");
-    await expect(byTestId(page, "audit-insights-panel")).toContainText("Áreas con más cambios");
+    await expect(byTestId(page, "audit-insights-panel")).toContainText("Módulos con más cambios");
     await page.getByRole("tab", { name: "Eventos recientes" }).click();
     await expect(byTestId(page, "audit-events-pagination-summary")).toContainText("Mostrando 1-3 de 3");
+    await expect(byTestId(page, "audit-active-filters")).toContainText("Módulo: Todos");
     await expect(byTestId(page, "audit-active-filters")).toContainText("Importancia: Todas");
     await expect(byTestId(page, "audit-date-presets")).toContainText("Mes pasado");
 
@@ -127,10 +128,20 @@ test.describe("cobertura funcional administrativa", () => {
     await clickByTestId(page, "audit-clear-button");
     await expect(byTestId(page, "audit-log-audit-1")).toContainText("Producto eliminado");
     await expect(byTestId(page, "audit-log-audit-1")).toContainText("Crítica");
-    await expect(byTestId(page, "audit-log-audit-1")).toContainText("Área");
+    await expect(byTestId(page, "audit-log-audit-1")).toContainText("Módulo");
     await expect(byTestId(page, "audit-log-audit-1")).toContainText("Producto eliminado");
     await expect(byTestId(page, "audit-log-audit-1")).not.toContainText("product-deleted-snapshot");
     await expect(byTestId(page, "audit-log-audit-1")).not.toContainText("Datos técnicos");
+
+    await page.getByRole("combobox", { name: "Módulo" }).click();
+    await page.getByRole("option", { name: "Ventas" }).click();
+
+    await expect(byTestId(page, "audit-active-filters")).toContainText("Módulo: Ventas");
+    await expect(byTestId(page, "audit-events-pagination-summary")).toContainText("Mostrando 1-1 de 1");
+    await expect(byTestId(page, "audit-log-audit-2")).toContainText("Venta registrada");
+    await expect(byTestId(page, "audit-log-audit-1")).toHaveCount(0);
+
+    await clickByTestId(page, "audit-clear-button");
 
     await page.getByRole("combobox", { name: "Importancia" }).click();
     await page.getByRole("option", { name: "Media" }).click();

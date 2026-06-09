@@ -3,9 +3,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getApiErrorMessage } from "../../utils/apiError";
 import { fetchAuditLogs } from "./auditApi";
 import {
+  filterAuditLogsByModule,
   filterAuditLogsBySeverity,
   filterAuditLogsByUser,
   formatActionLabel,
+  formatAuditModuleLabel,
   formatDate,
   formatEntityLabel,
   getAuditSeverity,
@@ -60,11 +62,22 @@ export function useAuditData() {
     void loadAuditLogs(filters);
   }, [filters, loadAuditLogs]);
 
-  const actionOptions = useMemo(() => Array.from(new Set(rows.map((row) => row.action))).sort(), [rows]);
+  const moduleRows = useMemo(() => filterAuditLogsByModule(rows, filters.module), [rows, filters.module]);
 
-  const tableOptions = useMemo(() => Array.from(new Set(rows.map((row) => row.tableName))).sort(), [rows]);
+  const actionOptions = useMemo(
+    () => Array.from(new Set(moduleRows.map((row) => row.action))).sort(),
+    [moduleRows],
+  );
 
-  const severityRows = useMemo(() => filterAuditLogsBySeverity(rows, filters.severity), [rows, filters.severity]);
+  const tableOptions = useMemo(
+    () => Array.from(new Set(moduleRows.map((row) => row.tableName))).sort(),
+    [moduleRows],
+  );
+
+  const severityRows = useMemo(
+    () => filterAuditLogsBySeverity(moduleRows, filters.severity),
+    [moduleRows, filters.severity],
+  );
 
   const visibleRows = useMemo(
     () => filterAuditLogsByUser(severityRows, filters.userId),
@@ -97,12 +110,13 @@ export function useAuditData() {
   const latestEvent = visibleRows[0]?.createdAt ? formatDate(visibleRows[0].createdAt) : "Sin actividad";
 
   const activeFilterLabels = [
+    filters.module ? `Módulo: ${formatAuditModuleLabel(filters.module)}` : "Módulo: Todos",
     filters.severity ? `Importancia: ${SEVERITY_LABELS[filters.severity]}` : "Importancia: Todas",
     filters.userId
       ? `Responsable: ${userOptions.find((option) => option.id === filters.userId)?.label ?? "Seleccionado"}`
       : "Responsable: Todos",
     filters.action ? `Qué ocurrió: ${formatActionLabel(filters.action)}` : "Qué ocurrió: Todo",
-    filters.tableName ? `Área: ${formatEntityLabel(filters.tableName)}` : "Área: Todas",
+    filters.tableName ? `Detalle: ${formatEntityLabel(filters.tableName)}` : "Detalle: Todos",
     filters.dateFrom || filters.dateTo
       ? `Periodo: ${filters.dateFrom || "inicio"} → ${filters.dateTo || "hoy"}`
       : "Periodo: últimos registros",
