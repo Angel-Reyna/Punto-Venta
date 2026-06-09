@@ -37,8 +37,24 @@ if (args.has('--help') || args.has('-h')) {
   process.exit(0);
 }
 
+function resolveExecutable(command) {
+  if (process.platform !== 'win32') {
+    return command;
+  }
+
+  if (/\\.(?:cmd|exe|bat)$/iu.test(command)) {
+    return command;
+  }
+
+  if (command === 'npm' || command === 'npx') {
+    return `${command}.cmd`;
+  }
+
+  return command;
+}
+
 function runCapture(command, commandArgs, options = {}) {
-  return spawnSync(command, commandArgs, {
+  return spawnSync(resolveExecutable(command), commandArgs, {
     cwd: options.cwd,
     env: options.env || process.env,
     encoding: 'utf8',
@@ -318,7 +334,7 @@ Reglas operativas:
 - Para Docker Compose completo, proyecto local bajado para evitar conflictos de puertos.
 - Antes de generar nuevos diagnósticos/snapshots/patches, limpiar temporales anteriores en \`.puntaventa_diagnostics/\`.
 - No crear scripts \`.sh\` ni \`.bak\` nuevos.
-- Mantener snapshots sin \`.env\`, secretos, builds, reportes de Playwright ni dependencias.
+- Mantener snapshots sin \`.env\` privados, secretos, builds, reportes de Playwright ni dependencias. Los \`.env.example\` sanitizados sí deben conservarse.
 
 Modelo funcional obligatorio:
 Punta Venta no es un POS clásico dependiente de caja. El flujo vigente es admin/dueño + vendedores. CASHIER puede existir como enum técnico, pero en UI/documentación debe tratarse como Vendedor.
