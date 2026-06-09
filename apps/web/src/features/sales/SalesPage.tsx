@@ -24,7 +24,6 @@ import { useSalesOperations } from "./useSalesOperations";
 import {
   applyWarehouseStockToProducts,
   buildCartRows,
-  buildFallbackWarehouseOption,
   calculateCartTotal,
   formatMoney,
   getExactSearchProduct,
@@ -132,20 +131,33 @@ export function SalesPage() {
       return warehouseOptions;
     }
 
-    const sellerWarehouseOptions = warehouseOptions.filter((warehouse) => {
-      return warehouse.type === "SELLER" && (!warehouse.sellerId || warehouse.sellerId === user.id);
+    return warehouseOptions.filter((warehouse) => {
+      return warehouse.type === "SELLER" && warehouse.sellerId === user.id;
     });
-
-    return [buildFallbackWarehouseOption(products), ...sellerWarehouseOptions];
-  }, [products, user?.id, user?.role, warehouseOptions]);
+  }, [user?.id, user?.role, warehouseOptions]);
 
   const selectedWarehouse = useMemo(() => {
     return visibleWarehouseOptions.find((warehouse) => warehouse.id === selectedWarehouseId) ?? null;
   }, [selectedWarehouseId, visibleWarehouseOptions]);
 
+  const sellerSaleRequiresAssignedStock = user?.role === "CASHIER";
+  const selectedWarehouseCanBeUsed =
+    !sellerSaleRequiresAssignedStock ||
+    Boolean(selectedWarehouse?.type === "SELLER" && selectedWarehouse.sellerId === user?.id);
+
   const productsForSelectedWarehouse = useMemo(
-    () => applyWarehouseStockToProducts(products, selectedWarehouse),
-    [products, selectedWarehouse],
+    () =>
+      selectedWarehouseCanBeUsed
+        ? applyWarehouseStockToProducts(products, selectedWarehouse)
+        : applyWarehouseStockToProducts(products, {
+            id: "",
+            name: "Stock asignado no disponible",
+            type: "SELLER",
+            sellerId: user?.id ?? null,
+            totalUnits: 0,
+            stockByProductId: {},
+          }),
+    [products, selectedWarehouse, selectedWarehouseCanBeUsed, user?.id],
   );
 
   const total = useMemo(() => calculateCartTotal(cart, productsForSelectedWarehouse), [cart, productsForSelectedWarehouse]);
@@ -157,10 +169,18 @@ export function SalesPage() {
   const change = Math.max(normalizedPaid - total, 0);
   const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const checkoutIsDisabled =
-    !canCreateSales || cartIsInvalid || isPaymentInsufficient || isSubmitting || saleDialogIsOpen;
+    !canCreateSales ||
+    !selectedWarehouseCanBeUsed ||
+    cartIsInvalid ||
+    isPaymentInsufficient ||
+    isSubmitting ||
+    saleDialogIsOpen;
 
   const checkoutDisabledReason = (() => {
     if (!canCreateSales) return "No tienes permiso para registrar ventas.";
+    if (!selectedWarehouseCanBeUsed) {
+      return "Selecciona tu stock asignado. Si no tienes producto disponible, solicita retiro al administrador.";
+    }
     if (saleDialogIsOpen) return "Termina o cierra el modal abierto antes de cobrar.";
     if (isSubmitting) return "Procesando operación...";
     if (cart.length === 0) return "Agrega al menos un producto al ticket.";
@@ -266,6 +286,11 @@ export function SalesPage() {
     setMessage("");
     setError("");
 
+    if (!selectedWarehouseCanBeUsed) {
+      setError("Selecciona tu stock asignado. Si no tienes producto disponible, solicita retiro al administrador.");
+      return;
+    }
+
     if (cartIsInvalid) {
       setError("Agrega al menos un producto y verifica que la cantidad no supere el stock disponible.");
       return;
@@ -310,6 +335,7 @@ export function SalesPage() {
     normalizedPaid,
     paymentMethod,
     selectedWarehouse?.id,
+    selectedWarehouseCanBeUsed,
     submitSale,
     total,
   ]);
@@ -477,12 +503,15 @@ export function SalesPage() {
                   selectedWarehouse={selectedWarehouse}
                   total={total}
                   warehouseOptions={visibleWarehouseOptions}
+                  sellerSaleRequiresAssignedStock={sellerSaleRequiresAssignedStock}
                   onWarehouseChange={handleWarehouseChange}
                 />
 
                 <SalesProductSearchPanel
                   filteredProducts={filteredProducts}
                   productSearch={productSearch}
+                  requiresAssignedSellerStock={sellerSaleRequiresAssignedStock}
+                  selectedWarehouseCanBeUsed={selectedWarehouseCanBeUsed}
                   searchInputRef={searchInputRef}
                   canAddExactSearchMatch={canAddExactSearchMatch}
                   isDisabled={isSubmitting || saleDialogIsOpen}

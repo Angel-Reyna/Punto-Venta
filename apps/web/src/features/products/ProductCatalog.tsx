@@ -386,7 +386,7 @@ function ProductCatalogItem({
           <ProductField label="Promo" value={formatPercent(product.promoPercent)} info={PROMO_INFO_TEXT} />
           {canViewAdminColumns && <ProductField label="Costo" value={formatCurrency(product.costPrice)} />}
           {canViewAdminColumns && (
-            <ProductField label="Margen" value={formatPercent(product.marginPercent)} info={MARGIN_INFO_TEXT} />
+            <ProductField label="Margen de ganancia" value={formatPercent(product.marginPercent)} info={MARGIN_INFO_TEXT} />
           )}
         </Box>
       </Stack>

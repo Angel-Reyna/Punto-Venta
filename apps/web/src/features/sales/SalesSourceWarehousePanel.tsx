@@ -9,6 +9,7 @@ export type SalesSourceWarehousePanelProps = {
   selectedWarehouse: SalesWarehouseOption | null;
   total: number;
   warehouseOptions: SalesWarehouseOption[];
+  sellerSaleRequiresAssignedStock: boolean;
   onWarehouseChange: (warehouseId: string) => void;
 };
 
@@ -19,6 +20,7 @@ export function SalesSourceWarehousePanel({
   selectedWarehouse,
   total,
   warehouseOptions,
+  sellerSaleRequiresAssignedStock,
   onWarehouseChange,
 }: SalesSourceWarehousePanelProps) {
   return (
@@ -35,7 +37,9 @@ export function SalesSourceWarehousePanel({
               Paso 0 · Almacén de salida
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              La venta descuenta stock del almacén elegido. Cambiarlo limpia el ticket para evitar mezclar existencias.
+              {sellerSaleRequiresAssignedStock
+                ? "La venta descuenta únicamente tu stock físico asignado. Si necesitas producto, solicita retiro al administrador."
+                : "La venta descuenta stock del almacén elegido. Cambiarlo limpia el ticket para evitar mezclar existencias."}
             </Typography>
           </Box>
 
@@ -61,7 +65,9 @@ export function SalesSourceWarehousePanel({
           helperText={
             selectedWarehouse
               ? `${selectedWarehouse.totalUnits} unidades disponibles en esta ubicación.`
-              : "Se usará el almacén principal por compatibilidad."
+              : sellerSaleRequiresAssignedStock
+                ? "No tienes stock asignado disponible para vender. Solicita retiro al administrador."
+                : "Se usará el almacén principal por compatibilidad."
           }
         >
           {warehouseOptions.map((warehouse) => (

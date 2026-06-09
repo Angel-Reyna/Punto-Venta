@@ -51,7 +51,8 @@
     "web:test:critical": "npm --prefix apps/web run test:critical",
     "web:typecheck": "npm --prefix apps/web run typecheck",
     "api:seed:demo-usage": "npm --prefix apps/api run seed:demo-usage --",
-    "api:validate:demo-usage": "npm --prefix apps/api run validate:demo-usage --"
+    "api:validate:demo-usage": "npm --prefix apps/api run validate:demo-usage --",
+    "products:demo-import": "npm --prefix apps/api run generate:products-demo-import --"
   },
   "engines": {
     "node": ">=22 <25"

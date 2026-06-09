@@ -23,7 +23,8 @@
     "test:critical": "jest critical-routes.permissions.test.ts auth.middleware.test.ts auth.service.test.ts cookieSecurity.test.ts sales.service.test.ts inventory.service.test.ts inventory.queries.test.ts products.import.test.ts products.delete.test.ts products.status.test.ts reports.service.test.ts security.redaction.test.ts --runInBand",
     "typecheck": "tsc --noEmit",
     "seed:demo-usage": "ts-node-dev --transpile-only --exit-child src/scripts/seed-demo-usage.ts",
-    "validate:demo-usage": "ts-node-dev --transpile-only --exit-child src/scripts/validate-demo-usage.ts"
+    "validate:demo-usage": "ts-node-dev --transpile-only --exit-child src/scripts/validate-demo-usage.ts",
+    "generate:products-demo-import": "ts-node-dev --transpile-only --exit-child src/scripts/generate-products-demo-import.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

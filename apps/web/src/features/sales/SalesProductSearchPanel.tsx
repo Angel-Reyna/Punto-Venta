@@ -1,6 +1,6 @@
 import type { KeyboardEventHandler, RefObject } from "react";
 
-import { Box, Button, Chip, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Stack, TextField, Typography } from "@mui/material";
 
 import AddShoppingCartIcon from "@mui/icons-material/AddShoppingCart";
 import SearchIcon from "@mui/icons-material/Search";
@@ -10,6 +10,8 @@ import { formatMoney, getProductFinalPrice, type Product } from "./salesShared";
 export type SalesProductSearchPanelProps = {
   filteredProducts: Product[];
   productSearch: string;
+  requiresAssignedSellerStock: boolean;
+  selectedWarehouseCanBeUsed: boolean;
   searchInputRef: RefObject<HTMLInputElement | null>;
   canAddExactSearchMatch: boolean;
   isDisabled: boolean;
@@ -22,6 +24,8 @@ export type SalesProductSearchPanelProps = {
 export function SalesProductSearchPanel({
   filteredProducts,
   productSearch,
+  requiresAssignedSellerStock,
+  selectedWarehouseCanBeUsed,
   searchInputRef,
   canAddExactSearchMatch,
   isDisabled,
@@ -84,6 +88,18 @@ export function SalesProductSearchPanel({
           Enter · Agregar
         </Button>
       </Box>
+
+      {!selectedWarehouseCanBeUsed && requiresAssignedSellerStock && (
+        <Alert severity="info" data-testid="sales-seller-stock-required-alert">
+          No tienes un stock físico asignado disponible para vender. Solicita retiro de producto al administrador y vuelve a actualizar la venta cuando sea aprobado.
+        </Alert>
+      )}
+
+      {selectedWarehouseCanBeUsed && filteredProducts.length === 0 && requiresAssignedSellerStock && (
+        <Alert severity="warning" data-testid="sales-seller-stock-empty-alert">
+          No hay productos disponibles en tu stock asignado. El almacén principal puede tener existencias, pero primero necesitas una solicitud de retiro aprobada.
+        </Alert>
+      )}
 
       <Box
         sx={{

@@ -146,3 +146,8 @@ Punta_Venta_current_*.tar.gz
 /playwright
 /punta-venta@*
 /punta-venta-web@*
+/eslint
+/jest
+/node
+/tsc
+/punta-venta-api@*

@@ -31,6 +31,7 @@ import {
   OTHER_CATEGORY_VALUE,
   Product,
   ProductFormValues,
+  generateLocalProductCode,
   initialForm,
   safeTrim,
   toNonNegativeNumber,
@@ -136,8 +137,14 @@ export function ProductsPage() {
   }
 
   function openCreateProductForm() {
+    const generatedCode = generateLocalProductCode();
+
     setEditingProduct(null);
-    setForm(initialForm);
+    setForm({
+      ...initialForm,
+      barcode: generatedCode,
+      sku: generatedCode,
+    });
     setOpen(true);
   }
 

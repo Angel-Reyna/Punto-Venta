@@ -298,6 +298,13 @@ async function resolveSaleWarehouse(
 ) {
   const requestedWarehouseId = warehouseId?.trim() || null;
 
+  if (!requestedWarehouseId && user.role === Role.CASHIER) {
+    throw new AppError(
+      400,
+      "Selecciona tu stock asignado para registrar la venta. Si no tienes producto disponible, solicita retiro al administrador."
+    );
+  }
+
   if (requestedWarehouseId) {
     const warehouse = await tx.warehouse.findUnique({
       where: {
@@ -460,10 +467,6 @@ function resolveRefundMethod(
   }
 
   return payments[0]?.method ?? PaymentMethod.CASH;
-}
-
-function hasCashRefund(refundMethod: PaymentMethod) {
-  return refundMethod === PaymentMethod.CASH;
 }
 
 function getReturnedQuantities(sale: {
@@ -1012,7 +1015,7 @@ async function executeCancelSale(
 
   const refundMethod = resolveRefundMethod(input.refundMethod, sale.payments);
 
-  const saleReturn = await tx.saleReturn.create({
+  await tx.saleReturn.create({
     data: {
       saleId: sale.id,
       cashierId: sale.cashierId,
@@ -1138,7 +1141,7 @@ async function executeReturnSaleItems(
 
   const refundMethod = resolveRefundMethod(input.refundMethod, sale.payments);
 
-  const saleReturn = await tx.saleReturn.create({
+  await tx.saleReturn.create({
     data: {
       saleId: sale.id,
       cashierId: sale.cashierId,

@@ -22,9 +22,14 @@ const targets = [
   'punta-venta-continuity-*.md',
   'Punta_Venta_after_patch_*.tar.gz',
   'Punta_Venta_current_*.tar.gz',
+  'eslint',
+  'jest',
+  'node',
   'npm',
   'playwright',
+  'tsc',
   'punta-venta@1.0.0',
+  'punta-venta-api@1.0.0',
   'punta-venta-web@1.0.0',
 ];
 

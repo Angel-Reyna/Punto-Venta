@@ -83,6 +83,15 @@ describe("sales.service", () => {
 
   it("aggregates duplicated product lines before creating sale and decrementing stock", async () => {
     const tx = {
+      warehouse: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "seller-warehouse-1",
+          name: "Stock vendedor",
+          type: WarehouseType.SELLER,
+          sellerId: "cashier-1",
+          isActive: true
+        })
+      },
       customer: {
         findUnique: jest.fn(),
         create: jest.fn()
@@ -141,10 +150,6 @@ describe("sales.service", () => {
     };
 
     prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
-    inventoryServiceMock.getOrCreateDefaultWarehouse.mockResolvedValue({
-      id: "warehouse-1"
-    });
-
     const sale = await createSale(
       {
         id: "cashier-1",
@@ -153,6 +158,7 @@ describe("sales.service", () => {
       },
       {
         paymentMethod: "CASH",
+        warehouseId: "seller-warehouse-1",
         customerId: null,
         customerName: null,
         items: [
@@ -199,7 +205,7 @@ describe("sales.service", () => {
       tx,
       expect.objectContaining({
         productId: "product-1",
-        warehouseId: "warehouse-1",
+        warehouseId: "seller-warehouse-1",
         quantity: 3,
         type: "SALE"
       })
@@ -369,8 +375,74 @@ describe("sales.service", () => {
   });
 
 
+  it("requires sellers to send their assigned seller warehouse when creating a sale", async () => {
+    const tx = {
+      warehouse: {
+        findUnique: jest.fn()
+      },
+      customer: {
+        findUnique: jest.fn(),
+        create: jest.fn()
+      },
+      product: {
+        findUnique: jest.fn()
+      },
+      sale: {
+        create: jest.fn()
+      },
+      sellerActivityLog: {
+        create: jest.fn()
+      }
+    };
+
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
+
+    await expect(
+      createSale(
+        {
+          id: "cashier-1",
+          email: "cashier@pos.local",
+          role: Role.CASHIER
+        },
+        {
+          paymentMethod: "CASH",
+          customerId: null,
+          customerName: null,
+          items: [
+            {
+              productId: "product-1",
+              quantity: 1
+            }
+          ]
+        },
+        {
+          ipAddress: "127.0.0.1",
+          userAgent: "jest"
+        }
+      )
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Selecciona tu stock asignado para registrar la venta. Si no tienes producto disponible, solicita retiro al administrador."
+    });
+
+    expect(tx.warehouse.findUnique).not.toHaveBeenCalled();
+    expect(tx.product.findUnique).not.toHaveBeenCalled();
+    expect(tx.sale.create).not.toHaveBeenCalled();
+    expect(inventoryServiceMock.decreaseStock).not.toHaveBeenCalled();
+  });
+
+
   it("allows cash sales without requiring an open cash register", async () => {
     const tx = {
+      warehouse: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "seller-warehouse-1",
+          name: "Stock vendedor",
+          type: WarehouseType.SELLER,
+          sellerId: "cashier-1",
+          isActive: true
+        })
+      },
       customer: {
         findUnique: jest.fn(),
         create: jest.fn()
@@ -408,9 +480,6 @@ describe("sales.service", () => {
     };
 
     prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
-    inventoryServiceMock.getOrCreateDefaultWarehouse.mockResolvedValue({
-      id: "warehouse-1"
-    });
     const sale = await createSale(
       {
         id: "cashier-1",
@@ -419,6 +488,7 @@ describe("sales.service", () => {
       },
       {
         paymentMethod: "CASH",
+        warehouseId: "seller-warehouse-1",
         customerId: null,
         customerName: null,
         items: [
@@ -440,6 +510,15 @@ describe("sales.service", () => {
 
   it("rejects sales when the paid amount is lower than the total", async () => {
     const tx = {
+      warehouse: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "seller-warehouse-1",
+          name: "Stock vendedor",
+          type: WarehouseType.SELLER,
+          sellerId: "cashier-1",
+          isActive: true
+        })
+      },
       customer: {
         findUnique: jest.fn(),
         create: jest.fn()
@@ -463,9 +542,6 @@ describe("sales.service", () => {
     };
 
     prismaMock.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) => callback(tx));
-    inventoryServiceMock.getOrCreateDefaultWarehouse.mockResolvedValue({
-      id: "warehouse-1"
-    });
 
     await expect(
       createSale(
@@ -476,6 +552,7 @@ describe("sales.service", () => {
         },
         {
           paymentMethod: "CASH",
+          warehouseId: "seller-warehouse-1",
           paidAmount: 50,
           customerId: null,
           customerName: null,
