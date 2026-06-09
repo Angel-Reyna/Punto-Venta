@@ -20,12 +20,15 @@ const generatedFilePatterns = [
   },
   {
     label: 'Punta Venta continuity snapshot archive',
-    test: (filePath) => /(^|\/)Punta_Venta_(current|after_patch)_.*\.tar\.gz$/u.test(filePath),
+    test: (filePath) =>
+      /(^|\/)(?:Punta_Venta_(?:current|after_patch)_.*|punta-venta-current-before-p\d+-.*)\.tar\.gz$/u.test(
+        filePath,
+      ),
   },
   {
     label: 'Punta Venta diagnostics/status text output',
     test: (filePath) =>
-      /(^|\/)punta-venta-(local-diagnostics|post-patches-diagnostics|after-patch|current-diagnostics|project-status-update)-.*\.txt$/u.test(
+      /(^|\/)(?:punta-venta-(?:local-diagnostics|post-patches-diagnostics|after-patch|current-diagnostics|project-status-update)-.*|(?:status|log|diff-files|diff-stat)-before-p\d+-.*)\.txt$/u.test(
         filePath,
       ),
   },
@@ -35,7 +38,7 @@ const generatedFilePatterns = [
   },
   {
     label: 'accidental command output file',
-    test: (filePath) => /^(npm|playwright|punta-venta@.*|punta-venta-web@.*)$/u.test(filePath),
+    test: (filePath) => /^(?:eslint|jest|node|npm|playwright|tsc|punta-venta@.*|punta-venta-api@.*|punta-venta-web@.*)$/u.test(filePath),
   },
 ];
 

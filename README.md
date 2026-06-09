@@ -185,7 +185,23 @@ Para borrar salidas locales que no deben commitearse:
 npm run clean:generated
 ```
 
-Esto elimina `dist`, `test-results`, `playwright-report`, `*.tsbuildinfo` y logs diagnósticos locales, sin tocar `.env` ni `node_modules`.
+Esto elimina `dist`, `test-results`, `playwright-report`, `*.tsbuildinfo`, diagnósticos locales y archivos accidentales conocidos, sin tocar `.env` ni `node_modules`.
+
+## Snapshot de continuidad
+
+Antes de generar un nuevo snapshot, limpia diagnósticos anteriores. El comando recomendado ya hace esa limpieza y genera un paquete sanitizado sin `.env`, secretos, dependencias ni builds:
+
+```bash
+npm run project:snapshot
+```
+
+Para incluir QA en el diagnóstico:
+
+```bash
+npm run project:snapshot:qa
+```
+
+Los archivos quedan en `.puntaventa_diagnostics/`. El snapshot se genera desde `git archive` cuando el árbol está limpio, por lo que solo incluye archivos versionados y evita adjuntar secretos locales por accidente.
 
 ## Documentación
 

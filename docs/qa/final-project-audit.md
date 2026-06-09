@@ -2,7 +2,7 @@
 
 Fecha de referencia: después de Patch 139.
 
-Este documento resume el estado final de la ronda de mejoras técnicas de Punta Venta y deja criterios objetivos para no perder el estándar alcanzado. La fuente de verdad sigue siendo el repositorio Git, la suite automatizada y el snapshot generado con `scripts/project/create-continuity-snapshot.sh`.
+Este documento resume el estado final de la ronda de mejoras técnicas de Punta Venta y deja criterios objetivos para no perder el estándar alcanzado. La fuente de verdad sigue siendo el repositorio Git, la suite automatizada y el snapshot generado con `npm run project:snapshot`.
 
 ## Resultado ejecutivo
 
@@ -110,7 +110,7 @@ Al cerrar definitivamente la ronda:
 npm run clean:generated
 git status --short --untracked-files=all
 npm run qa:full
-bash scripts/project/create-continuity-snapshot.sh --with-qa
+npm run project:snapshot:qa
 ```
 
 Adjunta en el siguiente chat los tres archivos generados por el snapshot y comienza con auditoría del estado real, no con un patch inmediato.

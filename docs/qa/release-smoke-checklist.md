@@ -95,5 +95,5 @@ Criterios de cierre:
 - si la ronda se cierra o cambia de chat, generar snapshot con:
 
 ```bash
-bash scripts/project/create-continuity-snapshot.sh --with-qa
+npm run project:snapshot:qa
 ```

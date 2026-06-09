@@ -99,7 +99,7 @@ npm --prefix apps/web install <paquete>
 
 ## Guardrail de artefactos generados
 
-`npm run ci:check-generated-artifacts` revisa únicamente archivos ya versionados con `git ls-files`. Su objetivo es bloquear commits que hayan incluido por accidente outputs locales como `dist`, `build`, `.vite`, `.cache`, `coverage`, `test-results`, `playwright-report`, `.puntaventa_diagnostics`, `*.tsbuildinfo`, snapshots `Punta_Venta_current_*.tar.gz` y diagnósticos `punta-venta-current-diagnostics-*.txt`.
+`npm run ci:check-generated-artifacts` revisa únicamente archivos ya versionados con `git ls-files`. Su objetivo es bloquear commits que hayan incluido por accidente outputs locales como `dist`, `build`, `.vite`, `.cache`, `coverage`, `test-results`, `playwright-report`, `.puntaventa_diagnostics`, `*.tsbuildinfo`, snapshots `Punta_Venta_current_*.tar.gz`, snapshots `punta-venta-current-before-p*.tar.gz`, diagnósticos `punta-venta-current-diagnostics-*.txt` y archivos creados por comandos pegados por error como `eslint`, `jest`, `node`, `npm`, `playwright`, `tsc` o `punta-venta-api@*`.
 
 Si falla, limpia el árbol y desversiona el archivo afectado:
 

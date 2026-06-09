@@ -89,7 +89,7 @@ Al cerrar la ronda visual:
 npm run clean:generated
 git status --short --untracked-files=all
 git diff --check
-bash scripts/project/create-continuity-snapshot.sh --with-qa
+npm run project:snapshot:qa
 ```
 
 No ejecutar `npm run clean:generated` después del snapshot, porque eliminaría `.puntaventa_diagnostics`.

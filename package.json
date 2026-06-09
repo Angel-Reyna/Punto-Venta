@@ -52,7 +52,9 @@
     "web:typecheck": "npm --prefix apps/web run typecheck",
     "api:seed:demo-usage": "npm --prefix apps/api run seed:demo-usage --",
     "api:validate:demo-usage": "npm --prefix apps/api run validate:demo-usage --",
-    "products:demo-import": "npm --prefix apps/api run generate:products-demo-import --"
+    "products:demo-import": "npm --prefix apps/api run generate:products-demo-import --",
+    "project:snapshot": "node scripts/project/create-continuity-snapshot.js --clean",
+    "project:snapshot:qa": "node scripts/project/create-continuity-snapshot.js --clean --with-qa"
   },
   "engines": {
     "node": ">=22 <25"

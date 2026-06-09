@@ -177,7 +177,7 @@ Cuando una ronda de patches llega a un cierre estable o el chat empieza a degrad
 
 ```bash
 npm run clean:generated
-bash scripts/project/create-continuity-snapshot.sh --with-qa
+npm run project:snapshot:qa
 ```
 
 Adjunta en el nuevo chat los archivos generados dentro de `.puntaventa_diagnostics/`:
