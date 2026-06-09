@@ -92,7 +92,7 @@ function SellerFocusCard({ seller }: { seller: SellerActivityBySeller }) {
             <UpdateIcon color="action" fontSize="small" />
             <Box minWidth={0}>
               <Typography variant="caption" color="text.secondary">
-                Última actividad visible
+                Última actividad del periodo
               </Typography>
               <Typography variant="body2" fontWeight={800} sx={{ overflowWrap: "anywhere" }}>
                 {seller.lastActivityAt ? formatDate(seller.lastActivityAt) : "Sin fecha"}
@@ -106,7 +106,7 @@ function SellerFocusCard({ seller }: { seller: SellerActivityBySeller }) {
 }
 
 export function SellerActivitySellerFocus({ summaries }: { summaries: SellerActivityBySeller[] }) {
-  const visibleSellersLabel = summaries.length === 1 ? "1 vendedor visible" : `${summaries.length} vendedores visibles`;
+  const periodSellersLabel = summaries.length === 1 ? "1 vendedor en periodo" : `${summaries.length} vendedores en periodo`;
 
   return (
     <Card
@@ -129,10 +129,10 @@ export function SellerActivitySellerFocus({ summaries }: { summaries: SellerActi
                 </Typography>
               </Stack>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Lectura rápida de quién operó, cuántas ventas registró y si tuvo bloqueos con los filtros actuales.
+                Lectura rápida de quién operó, cuántas ventas registró y si tuvo bloqueos con los filtros consultados en el servidor.
               </Typography>
             </Box>
-            <Chip size="small" color="primary" variant="outlined" label={visibleSellersLabel} />
+            <Chip size="small" color="primary" variant="outlined" label={periodSellersLabel} />
           </Stack>
 
           {summaries.length === 0 ? (
@@ -143,9 +143,9 @@ export function SellerActivitySellerFocus({ summaries }: { summaries: SellerActi
                 bgcolor: (theme) => alpha(theme.palette.action.hover, 0.6),
               }}
             >
-              <Typography fontWeight={800}>Sin vendedores visibles con la búsqueda actual.</Typography>
+              <Typography fontWeight={800}>Sin vendedores con actividad en el periodo consultado.</Typography>
               <Typography variant="body2" color="text.secondary">
-                Ajusta búsqueda, acción, vendedor o rango de fechas para volver a ver actividad.
+                Ajusta acción, vendedor o rango de fechas para volver a ver actividad agrupada.
               </Typography>
             </Box>
           ) : (

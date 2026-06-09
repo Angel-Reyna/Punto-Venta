@@ -197,6 +197,9 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(byTestId(page, "seller-activity-results-heading")).toContainText(
       "3 de 3 movimientos visibles",
     );
+    await expect(byTestId(page, "seller-activity-operational-insights")).toContainText("Señales operativas");
+    await expect(byTestId(page, "seller-activity-operational-insights")).toContainText("Vendedor más activo");
+    await expect(byTestId(page, "seller-activity-operational-insights")).toContainText("Bloqueos por cada 100 eventos");
     await expect(byTestId(page, "seller-activity-seller-focus")).toContainText("Actividad por vendedor");
     await expect(byTestId(page, "seller-activity-seller-focus")).toContainText("Vendedor E2E");
     await expect(byTestId(page, "seller-activity-seller-focus")).toContainText("Vendedor Inactivo E2E");
@@ -207,7 +210,8 @@ test.describe("cobertura funcional administrativa", () => {
 
     await expect(byTestId(page, "seller-activity-log-seller-activity-1")).toBeVisible();
     await expect(byTestId(page, "seller-activity-log-seller-activity-3")).toHaveCount(0);
-    await expect(byTestId(page, "seller-activity-seller-focus")).toContainText("1 vendedor visible");
+    await expect(byTestId(page, "seller-activity-operational-insights")).toContainText("1 evento");
+    await expect(byTestId(page, "seller-activity-seller-focus")).toContainText("1 vendedor en periodo");
 
     await page.getByRole("combobox", { name: "Acción" }).click();
     await page.getByRole("option", { name: "Acceso bloqueado" }).click();

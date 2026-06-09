@@ -819,6 +819,10 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
       return json(route, filterAuditLogs(auditLogs, url.searchParams));
     }
 
+    if (pathname.endsWith("/seller-activity/by-seller") && method === "GET") {
+      return json(route, summarizeSellerActivityBySeller(filterSellerActivity(sellerActivityLogs, url.searchParams)));
+    }
+
     if (pathname.endsWith("/seller-activity/summary") && method === "GET") {
       return json(route, summarizeSellerActivity(filterSellerActivity(sellerActivityLogs, url.searchParams)));
     }
@@ -1713,6 +1717,58 @@ function summarizeSellerActivity(logs: MockSellerActivityLog[]) {
   }
 
   return Array.from(counts.entries()).map(([action, count]) => ({ action, count }));
+}
+
+
+function summarizeSellerActivityBySeller(logs: MockSellerActivityLog[]) {
+  const summaries = new Map<
+    string,
+    {
+      sellerId: string;
+      sellerName: string;
+      sellerEmail: string;
+      isActive: boolean;
+      total: number;
+      saleCreatedCount: number;
+      failedAccessCount: number;
+      lastActivityAt: string | null;
+    }
+  >();
+
+  for (const log of logs) {
+    const current = summaries.get(log.sellerId) ?? {
+      sellerId: log.sellerId,
+      sellerName: log.seller.name,
+      sellerEmail: log.seller.email,
+      isActive: log.seller.isActive,
+      total: 0,
+      saleCreatedCount: 0,
+      failedAccessCount: 0,
+      lastActivityAt: null,
+    };
+
+    current.total += 1;
+    current.saleCreatedCount += log.action === "SALE_CREATED" ? 1 : 0;
+    current.failedAccessCount += log.action === "FAILED_ACCESS_ATTEMPT" ? 1 : 0;
+
+    if (
+      !current.lastActivityAt ||
+      new Date(log.createdAt).getTime() > new Date(current.lastActivityAt).getTime()
+    ) {
+      current.lastActivityAt = log.createdAt;
+    }
+
+    summaries.set(log.sellerId, current);
+  }
+
+  return Array.from(summaries.values()).sort((left, right) => {
+    if (right.total !== left.total) return right.total - left.total;
+
+    return (
+      new Date(right.lastActivityAt ?? 0).getTime() -
+      new Date(left.lastActivityAt ?? 0).getTime()
+    );
+  });
 }
 
 function operationsReportResponse() {

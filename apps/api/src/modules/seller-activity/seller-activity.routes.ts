@@ -12,6 +12,7 @@ import {
   setPaginationHeaders
 } from "../../utils/pagination";
 import {
+  getSellerActivitySellerSummary,
   getSellerActivitySummary,
   listSellerActivity
 } from "./seller-activity.service";
@@ -39,6 +40,20 @@ sellerActivityRouter.get(
     );
 
     res.json(result.logs);
+  })
+);
+
+
+sellerActivityRouter.get(
+  "/by-seller",
+  asyncHandler(async (req, res) => {
+    const { query } = parseSellerActivityRequest(
+      req.query as Record<string, unknown>
+    );
+
+    const summary = await getSellerActivitySellerSummary(query);
+
+    res.json(summary);
   })
 );
 

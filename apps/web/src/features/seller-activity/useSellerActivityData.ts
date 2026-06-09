@@ -10,9 +10,9 @@ import {
   getActionLabel,
   getDateRangeLabel,
   matchesSearch,
-  summarizeActivityBySeller,
   type Seller,
   type SellerActivityFilters,
+  type SellerActivityBySeller,
   type SellerActivityLog,
   type SummaryItem,
   summarizeActivity,
@@ -26,6 +26,7 @@ export function useSellerActivityData() {
   const [rows, setRows] = useState<SellerActivityLog[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [summary, setSummary] = useState<SummaryItem[]>([]);
+  const [sellerBreakdown, setSellerBreakdown] = useState<SellerActivityBySeller[]>([]);
 
   const [sellerId, setSellerId] = useState("");
   const [action, setAction] = useState("");
@@ -68,6 +69,7 @@ export function useSellerActivityData() {
 
         setRows(data.rows);
         setSummary(data.summary);
+        setSellerBreakdown(data.bySeller);
         setLastLoadedAt(new Date());
         setNow(new Date());
       } catch (err) {
@@ -109,7 +111,6 @@ export function useSellerActivityData() {
 
   const visibleRows = useMemo(() => rows.filter((row) => matchesSearch(row, search)), [rows, search]);
   const activitySummary = useMemo(() => summarizeActivity(rows), [rows]);
-  const sellerBreakdown = useMemo(() => summarizeActivityBySeller(visibleRows), [visibleRows]);
   const relativeLastUpdated = formatRelativeLastUpdated(lastLoadedAt, now);
   const autoRefreshIntervalSeconds = Math.round(SELLER_ACTIVITY_AUTO_REFRESH_INTERVAL_MS / 1000);
   const selectedSeller = sellers.find((seller) => seller.id === sellerId);

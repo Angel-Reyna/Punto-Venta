@@ -4,6 +4,7 @@ import {
   type Seller,
   type SellerActivityFilters,
   type SellerActivityLog,
+  type SellerActivityBySeller,
   type SummaryItem,
 } from "./sellerActivityShared";
 
@@ -16,12 +17,14 @@ export async function fetchSellerUsers() {
 export async function fetchSellerActivity(filters: SellerActivityFilters) {
   const query = buildQuery(filters);
 
-  const [rows, summary] = await Promise.all([
+  const [rows, summary, bySeller] = await Promise.all([
     getJson<SellerActivityLog[]>(`/seller-activity?${query}`),
     getJson<SummaryItem[]>(`/seller-activity/summary?${query}`),
+    getJson<SellerActivityBySeller[]>(`/seller-activity/by-seller?${query}`),
   ]);
 
   return {
+    bySeller,
     rows,
     summary,
   };
