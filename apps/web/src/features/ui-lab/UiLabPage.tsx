@@ -95,7 +95,7 @@ const inventoryRows: InventoryRow[] = [
   },
   {
     action: "Mover",
-    category: "DEMO Abarrotes",
+    category: "Abarrotes",
     minimumStock: 36,
     name: "Agua natural 1 L",
     sku: "DEMO-AGUA-1L",
