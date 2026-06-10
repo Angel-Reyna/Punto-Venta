@@ -10,7 +10,7 @@ import {
 } from "../../utils/pagination";
 import { getProductStocks } from "../inventory/inventory.service";
 
-import { resolveProductCategorySelection } from "./products.categories";
+import { isLegacyDemoCategoryName, resolveProductCategorySelection } from "./products.categories";
 
 import {
   mapProductForRole,
@@ -152,7 +152,7 @@ export async function listProducts(
 }
 
 export async function listProductCategories() {
-  return prisma.productCategory.findMany({
+  const categories = await prisma.productCategory.findMany({
     where: {
       isActive: true
     },
@@ -164,6 +164,8 @@ export async function listProductCategories() {
       name: true
     }
   });
+
+  return categories.filter((category) => !isLegacyDemoCategoryName(category.name));
 }
 
 export type ProductUpdateInput = Prisma.ProductUpdateInput & {

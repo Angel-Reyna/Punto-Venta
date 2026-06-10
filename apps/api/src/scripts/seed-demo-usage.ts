@@ -414,14 +414,14 @@ async function upsertUsers() {
 
 async function upsertProducts(): Promise<DemoProduct[]> {
   const category = await prisma.productCategory.upsert({
-    where: { name: "DEMO Abarrotes" },
+    where: { name: "General" },
     update: {
-      description: "Categoría demo para simulación de uso realista",
+      description: "Categoria general",
       isActive: true
     },
     create: {
-      name: "DEMO Abarrotes",
-      description: "Categoría demo para simulación de uso realista",
+      name: "General",
+      description: "Categoria general",
       isActive: true
     }
   });

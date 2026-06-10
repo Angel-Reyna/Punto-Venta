@@ -254,51 +254,21 @@ export function isInventoryFormInvalid(form: InventoryMovementForm) {
   return Boolean(getInventoryFormDisabledReason(form));
 }
 
-function normalizeStockLocations(item: StockItem) {
-  const locations = (item.locations ?? []).map((location) => ({
-    ...location,
-    quantity: Math.max(Number(location.quantity ?? 0), 0),
-  }));
-
-  if (locations.length > 0) {
-    return locations;
-  }
-
-  return [
-    {
-      warehouseId: "default",
-      warehouseName: "Principal",
-      quantity: Math.max(Number(item.stock ?? 0), 0),
-    },
-  ];
-}
-
-function getStockLocationFlags(item: StockItem) {
+function getProductStockLevel(item: StockItem) {
+  const stock = Math.max(Number(item.stock ?? 0), 0);
   const minStock = Math.max(Number(item.minStock ?? 0), 0);
-  const locations = normalizeStockLocations(item);
-  const hasOutOfStockLocation = locations.some((location) => location.quantity <= 0);
-  const hasLowStockLocation = locations.some(
-    (location) => location.quantity > 0 && minStock > 0 && location.quantity <= minStock,
-  );
-  const hasAvailableLocation = locations.some((location) => location.quantity > 0);
 
-  return {
-    hasAvailableLocation,
-    hasLowStockLocation,
-    hasOutOfStockLocation,
-  };
+  if (stock <= 0) return "out" as const;
+  if (minStock > 0 && stock <= minStock) return "low" as const;
+
+  return "available" as const;
 }
 
 export function getInventoryStockSummary(rows: StockItem[]) {
-  const outOfStock = rows.filter(
-    (item) => getStockLocationFlags(item).hasOutOfStockLocation,
-  ).length;
-  const lowStock = rows.filter(
-    (item) => getStockLocationFlags(item).hasLowStockLocation,
-  ).length;
-  const available = rows.filter(
-    (item) => getStockLocationFlags(item).hasAvailableLocation,
-  ).length;
+  const levels = rows.map(getProductStockLevel);
+  const outOfStock = levels.filter((level) => level === "out").length;
+  const lowStock = levels.filter((level) => level === "low").length;
+  const available = levels.filter((level) => level === "available").length;
   const units = rows.reduce((total, item) => total + item.stock, 0);
   const categories = new Set(
     rows.map((item) => item.category?.name).filter(Boolean),
@@ -320,35 +290,35 @@ export function filterStockRowsByStatus(
   status: StockStatusFilter,
 ) {
   if (status === "available") {
-    return rows.filter((item) => getStockLocationFlags(item).hasAvailableLocation);
+    return rows.filter((item) => getProductStockLevel(item) === "available");
   }
 
   if (status === "low") {
-    return rows.filter((item) => getStockLocationFlags(item).hasLowStockLocation);
+    return rows.filter((item) => getProductStockLevel(item) === "low");
   }
 
   if (status === "out") {
-    return rows.filter((item) => getStockLocationFlags(item).hasOutOfStockLocation);
+    return rows.filter((item) => getProductStockLevel(item) === "out");
   }
 
   return rows;
 }
 
 export function getStockStatus(item: StockItem) {
-  const flags = getStockLocationFlags(item);
+  const level = getProductStockLevel(item);
 
-  if (!flags.hasAvailableLocation || flags.hasOutOfStockLocation) {
+  if (level === "out") {
     return {
       color: "error" as const,
-      helper: "Hay una ubicación sin unidades disponibles.",
+      helper: "El producto no tiene unidades disponibles en total.",
       label: "Sin stock",
     };
   }
 
-  if (flags.hasLowStockLocation || item.lowStock) {
+  if (level === "low") {
     return {
       color: "warning" as const,
-      helper: "Está en el umbral de reposición.",
+      helper: "El stock total esta en o debajo del minimo.",
       label: "Bajo inventario",
     };
   }

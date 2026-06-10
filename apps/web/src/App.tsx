@@ -48,9 +48,11 @@ const AuditPage = lazy(() =>
 const SellerActivityPage = lazy(() =>
   import("./features/seller-activity/SellerActivityPage").then((module) => ({ default: module.SellerActivityPage }))
 );
-const UiLabPage = lazy(() =>
-  import("./features/ui-lab/UiLabPage").then((module) => ({ default: module.UiLabPage }))
-);
+const UiLabPage = import.meta.env.DEV
+  ? lazy(() =>
+      import("./features/ui-lab/UiLabPage").then((module) => ({ default: module.UiLabPage }))
+    )
+  : null;
 
 function FullPageLoader() {
   return (
@@ -212,7 +214,7 @@ export default function App() {
         <Route
           path="/ui-lab"
           element={
-            import.meta.env.DEV ? withSuspense(<UiLabPage />) : <Navigate to="/" replace />
+            import.meta.env.DEV && UiLabPage ? withSuspense(<UiLabPage />) : <Navigate to="/" replace />
           }
         />
 

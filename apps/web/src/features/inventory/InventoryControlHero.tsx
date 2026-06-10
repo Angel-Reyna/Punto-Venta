@@ -504,7 +504,7 @@ function getStatusSignals(summary: ReturnType<typeof getInventoryStockSummary>):
     {
       action: "Operable",
       count: summary.available,
-      description: "Productos con unidades para vender.",
+      description: "Productos con stock total suficiente para vender.",
       icon: CheckCircleIcon,
       label: "Disponible",
       tone: "success",
@@ -512,7 +512,7 @@ function getStatusSignals(summary: ReturnType<typeof getInventoryStockSummary>):
     {
       action: "Revisar",
       count: summary.lowStock,
-      description: "Productos en o debajo del mínimo.",
+      description: "Productos cuyo stock total esta en o debajo del minimo.",
       icon: WarningAmberIcon,
       label: "Stock bajo",
       tone: "warning",
@@ -520,7 +520,7 @@ function getStatusSignals(summary: ReturnType<typeof getInventoryStockSummary>):
     {
       action: "Urgente",
       count: summary.outOfStock,
-      description: "Productos sin unidades visibles.",
+      description: "Productos sin unidades disponibles en total.",
       icon: ErrorOutlineIcon,
       label: "Sin stock",
       tone: "error",

@@ -47,7 +47,7 @@ test.describe("catálogo e inventario responsive", () => {
     await expect(stockItem.getByText("Coca-Cola 600 ml", { exact: true })).toBeVisible();
     await expect(stockItem).toContainText("Stock actual y mínimo");
     await expect(stockItem).toContainText("Actual: 24");
-    await expect(page.getByTestId("inventory-stock-status-COCA-600")).toContainText("Stock bajo");
+    await expect(page.getByTestId("inventory-stock-status-COCA-600")).toContainText("Disponible");
     await expect(stockItem).toContainText("Almacén: Principal");
   });
 });

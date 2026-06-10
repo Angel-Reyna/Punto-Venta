@@ -11,12 +11,32 @@ export type ProductCategorySelectionOptions = {
   defaultToNull: boolean;
 };
 
+const LEGACY_DEMO_CATEGORY_KEY = "demo abarrotes";
+export const LEGACY_DEMO_CATEGORY_REPLACEMENT = "General";
+
+function normalizeCategoryKey(value?: string | null) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+export function isLegacyDemoCategoryName(value?: string | null) {
+  return normalizeCategoryKey(value) === LEGACY_DEMO_CATEGORY_KEY;
+}
+
+export function replaceLegacyDemoCategoryName(value?: string | null) {
+  return isLegacyDemoCategoryName(value) ? LEGACY_DEMO_CATEGORY_REPLACEMENT : value;
+}
+
 function hasOwn(input: ProductCategorySelectionInput, key: keyof ProductCategorySelectionInput) {
   return Object.prototype.hasOwnProperty.call(input, key);
 }
 
 export function normalizeProductCategoryName(value?: string | null) {
-  const normalized = String(value ?? "")
+  const normalized = String(replaceLegacyDemoCategoryName(value) ?? "")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -44,6 +64,10 @@ async function assertActiveCategory(
 
   if (!category.isActive) {
     throw new AppError(400, `Categoría inactiva: ${category.name}`);
+  }
+
+  if (isLegacyDemoCategoryName(category.name)) {
+    throw new AppError(400, "Categoria no disponible. Usa General u otra categoria real.");
   }
 
   return category.id;
