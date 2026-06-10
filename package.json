@@ -54,7 +54,8 @@
     "api:validate:demo-usage": "npm --prefix apps/api run validate:demo-usage --",
     "products:demo-import": "npm --prefix apps/api run generate:products-demo-import --",
     "project:snapshot": "node scripts/project/create-continuity-snapshot.js --clean",
-    "project:snapshot:qa": "node scripts/project/create-continuity-snapshot.js --clean --with-qa"
+    "project:snapshot:qa": "node scripts/project/create-continuity-snapshot.js --clean --with-qa",
+    "web:ui-lab": "npm --prefix apps/web run dev -- --host 127.0.0.1 --port 5176 --strictPort"
   },
   "engines": {
     "node": ">=22 <25"

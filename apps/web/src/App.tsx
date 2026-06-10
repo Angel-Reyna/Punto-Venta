@@ -48,6 +48,9 @@ const AuditPage = lazy(() =>
 const SellerActivityPage = lazy(() =>
   import("./features/seller-activity/SellerActivityPage").then((module) => ({ default: module.SellerActivityPage }))
 );
+const UiLabPage = lazy(() =>
+  import("./features/ui-lab/UiLabPage").then((module) => ({ default: module.UiLabPage }))
+);
 
 function FullPageLoader() {
   return (
@@ -204,6 +207,13 @@ export default function App() {
               </PermissionRoute>
             </ProtectedLayout>
           )}
+        />
+
+        <Route
+          path="/ui-lab"
+          element={
+            import.meta.env.DEV ? withSuspense(<UiLabPage />) : <Navigate to="/" replace />
+          }
         />
 
         <Route path="*" element={<Navigate to="/" replace />} />
