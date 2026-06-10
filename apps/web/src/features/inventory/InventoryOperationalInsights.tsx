@@ -75,7 +75,7 @@ export function InventoryOperationalInsights({
                 Señales operativas
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Lectura rápida del stock central, stock asignado a vendedores y productos que requieren atención.
+                Resumen del stock central, stock asignado a vendedores y productos que requieren atención.
               </Typography>
             </Box>
             <Chip
@@ -124,7 +124,7 @@ export function InventoryOperationalInsights({
             />
             <InsightMetricCard
               testId="inventory-operational-pending-transfers"
-              label="Retiros pendientes"
+              label="Asignaciones pendientes"
               value={formatCount(insights.pendingTransferCount)}
               helper={`${formatCount(insights.pendingTransferUnits)} unidad${insights.pendingTransferUnits === 1 ? "" : "es"} solicitada${insights.pendingTransferUnits === 1 ? "" : "s"}.`}
               tone={insights.pendingTransferCount > 0 ? "warning" : "success"}

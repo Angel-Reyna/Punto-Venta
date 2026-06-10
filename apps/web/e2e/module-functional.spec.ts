@@ -259,10 +259,8 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await page.goto("/inventory");
 
     await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();
-    await expect(
-      byTestId(page, "inventory-stock-item-COCA-600").getByRole("heading", { name: "24 unidades" }),
-    ).toBeVisible();
-    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Clave interna/SKU: COCA-600");
+    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Actual: 24");
+    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Código interno: COCA-600");
     await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Código del producto: 7501055300075");
     await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Almacén: Principal");
 
@@ -288,9 +286,7 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await clickByTestId(page, "inventory-submit-in");
 
     await expect(page.getByText("Entrada registrada correctamente.")).toBeVisible();
-    await expect(
-      byTestId(page, "inventory-stock-item-COCA-600").getByRole("heading", { name: "29 unidades" }),
-    ).toBeVisible();
+    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Actual: 29");
 
     await page.getByRole("tab", { name: "Salidas" }).click();
     await expect(byTestId(page, "inventory-form-reason")).toHaveValue("");
@@ -321,13 +317,11 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await clickByTestId(page, "inventory-submit-out");
 
     await expect(page.getByText("Salida registrada correctamente.")).toBeVisible();
-    await expect(
-      byTestId(page, "inventory-stock-item-COCA-600").getByRole("heading", { name: "24 unidades" }),
-    ).toBeVisible();
+    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Actual: 24");
 
     await page.getByRole("tab", { name: "Existencias" }).click();
-    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Stock total");
-    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("24 unidades");
+    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Stock actual y mínimo");
+    await expect(byTestId(page, "inventory-stock-item-COCA-600")).toContainText("Actual: 24");
     const principalStockLocation = byTestId(page, "inventory-stock-location-COCA-600-warehouse-1");
     const bodegaStockLocation = page
       .locator('[data-testid^="inventory-stock-location-COCA-600-"]')
@@ -336,10 +330,8 @@ test.describe("cobertura funcional por módulos críticos", () => {
 
     await expect(principalStockLocation).toContainText("Almacén: Principal");
     await expect(principalStockLocation).toContainText("24 disponibles");
-    await expect(principalStockLocation).toContainText("Disponible");
     await expect(bodegaStockLocation).toContainText("Almacén: Bodega norte E2E");
     await expect(bodegaStockLocation).toContainText("0 disponibles");
-    await expect(bodegaStockLocation).toContainText("Sin stock");
 
     await page.getByRole("tab", { name: "Historial" }).click();
     await expect(page.getByText(/Mostrando 1-\d+ de/)).toBeVisible();
@@ -373,35 +365,35 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(expirationMovement).toContainText("Almacén: Bodega norte E2E");
   });
 
-  test("vendedor solicita retiro de stock para aprobación", async ({ page }) => {
+  test("vendedor solicita asignación de stock para aprobación", async ({ page }) => {
     await mockApi(page, { role: "CASHIER" });
 
     await page.goto("/inventory");
 
     await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();
-    await page.getByRole("tab", { name: "Retiros" }).click();
+    await page.getByRole("tab", { name: "Asignaciones" }).click();
 
     const requestsPanel = byTestId(page, "inventory-transfer-requests-panel");
     await expect(requestsPanel).toBeVisible();
-    await expect(requestsPanel).toContainText("Solicitar producto al almacén");
+    await expect(requestsPanel).toContainText("Solicitar asignación de stock");
 
     await byTestId(page, "inventory-transfer-product").selectOption("product-1");
     await fillByTestId(page, "inventory-transfer-quantity", "3");
     await fillByTestId(page, "inventory-transfer-reason", "Surtir ruta E2E");
     await clickByTestId(page, "inventory-transfer-submit");
 
-    await expect(page.getByText("Solicitud de retiro enviada al administrador.")).toBeVisible();
+    await expect(page.getByText("Solicitud de asignación enviada al administrador.")).toBeVisible();
     await expect(requestsPanel).toContainText("Surtir ruta E2E");
     await expect(requestsPanel).toContainText("Pendiente");
   });
 
-  test("admin aprueba solicitud de retiro y transfiere stock", async ({ page }) => {
+  test("admin aprueba solicitud de asignación y transfiere stock", async ({ page }) => {
     await mockApi(page, { role: "ADMIN" });
 
     await page.goto("/inventory");
 
     await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();
-    await page.getByRole("tab", { name: "Retiros" }).click();
+    await page.getByRole("tab", { name: "Asignaciones" }).click();
 
     const requestCard = byTestId(page, "inventory-transfer-request-transfer-1");
     await expect(requestCard).toContainText("Pendiente");
@@ -409,12 +401,12 @@ test.describe("cobertura funcional por módulos críticos", () => {
 
     await clickByTestId(requestCard, "inventory-transfer-approve-transfer-1");
 
-    const reviewDialog = dialogByName(page, "Aprobar solicitud de retiro");
+    const reviewDialog = dialogByName(page, "Aprobar solicitud de asignación");
     await expect(reviewDialog).toBeVisible();
     await fillByTestId(reviewDialog, "inventory-transfer-review-note", "Aprobado para ruta E2E");
     await clickByTestId(reviewDialog, "inventory-transfer-review-submit");
 
-    await expect(page.getByText("Solicitud de retiro aprobada. El stock fue transferido.")).toBeVisible();
+    await expect(page.getByText("Solicitud de asignación aprobada. El stock fue transferido.")).toBeVisible();
     await expect(requestCard).toContainText("Aprobada");
     await expect(requestCard).toContainText("Aprobado para ruta E2E");
   });
@@ -436,7 +428,7 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(page.getByRole("heading", { name: "Inventario", level: 1 })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Existencias" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Historial" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Retiros" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Asignaciones" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Entradas" })).toHaveCount(0);
     await expect(page.getByRole("tab", { name: "Salidas" })).toHaveCount(0);
     await expect(byTestId(page, "inventory-submit-in")).toHaveCount(0);

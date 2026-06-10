@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Box,
@@ -11,11 +11,17 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControl,
   Grid,
+  InputLabel,
+  MenuItem,
+  Pagination,
+  Select,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import type { SelectChangeEvent } from "@mui/material/Select";
 import { alpha } from "@mui/material/styles";
 
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -40,9 +46,20 @@ import type {
 } from "./inventoryShared";
 
 const TRANSFER_REVIEW_TITLES = {
-  approve: "Aprobar solicitud de retiro",
-  reject: "Rechazar solicitud de retiro",
+  approve: "Aprobar solicitud de asignación",
+  reject: "Rechazar solicitud de asignación",
 } as const;
+
+const TRANSFER_PAGE_SIZE_OPTIONS = [5, 10] as const;
+type TransferPageSize = (typeof TRANSFER_PAGE_SIZE_OPTIONS)[number];
+type TransferStatusFilter = "all" | InventoryTransferRequest["status"];
+
+const TRANSFER_STATUS_FILTERS: Array<{ label: string; value: TransferStatusFilter }> = [
+  { label: "Todas", value: "all" },
+  { label: "Pendientes", value: "PENDING" },
+  { label: "Aprobadas", value: "APPROVED" },
+  { label: "Rechazadas", value: "REJECTED" },
+];
 
 type ReviewMode = keyof typeof TRANSFER_REVIEW_TITLES;
 
@@ -54,6 +71,7 @@ type ReviewDialogState = {
 export function InventoryTransferRequestsPanel({
   canCreateTransferRequest,
   canReviewTransferRequest,
+  initialProductId,
   isSubmitting,
   onApprove,
   onCreate,
@@ -65,6 +83,7 @@ export function InventoryTransferRequestsPanel({
 }: {
   canCreateTransferRequest: boolean;
   canReviewTransferRequest: boolean;
+  initialProductId?: string;
   isSubmitting: boolean;
   onApprove: (requestId: string, payload: { reviewNote?: string | null }) => Promise<boolean>;
   onCreate: (payload: {
@@ -81,6 +100,25 @@ export function InventoryTransferRequestsPanel({
   const [form, setForm] = useState(initialInventoryTransferRequestForm);
   const [reviewNote, setReviewNote] = useState("");
   const [reviewDialog, setReviewDialog] = useState<ReviewDialogState>(null);
+  const [statusFilter, setStatusFilter] = useState<TransferStatusFilter>("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<TransferPageSize>(5);
+
+  useEffect(() => {
+    if (!initialProductId) {
+      return;
+    }
+
+    setForm((current) =>
+      current.productId === initialProductId
+        ? current
+        : {
+            ...current,
+            productId: initialProductId,
+            quantity: 0,
+          },
+    );
+  }, [initialProductId]);
 
   const pendingRequests = requests.filter((request) => request.status === "PENDING");
   const selectedWarehouseId = form.fromWarehouseId || warehouses[0]?.id || "";
@@ -112,9 +150,28 @@ export function InventoryTransferRequestsPanel({
   const reviewNoteDisabled = reviewDialog?.mode === "reject" && reviewNote.trim().length < 3;
 
   const requestSummary = useMemo(() => getTransferRequestSummary(requests), [requests]);
+  const filteredRequests = useMemo(
+    () => sortTransferRequests(statusFilter === "all" ? requests : requests.filter((request) => request.status === statusFilter)),
+    [requests, statusFilter],
+  );
+  const pageCount = Math.max(1, Math.ceil(filteredRequests.length / pageSize));
+  const visibleRequests = useMemo(() => {
+    const start = (page - 1) * pageSize;
+
+    return filteredRequests.slice(start, start + pageSize);
+  }, [filteredRequests, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filteredRequests, pageSize, statusFilter]);
 
   function updateForm(patch: Partial<InventoryTransferRequestForm>) {
     setForm((current) => ({ ...current, ...patch }));
+  }
+
+  function handlePageSizeChange(event: SelectChangeEvent) {
+    setPageSize(Number(event.target.value) as TransferPageSize);
+    setPage(1);
   }
 
   async function submitTransferRequest() {
@@ -164,10 +221,10 @@ export function InventoryTransferRequestsPanel({
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} justifyContent="space-between">
             <Box>
               <Typography component="h2" variant="h6" fontWeight={900}>
-                Solicitudes de retiro
+                Asignaciones de stock
               </Typography>
               <Typography color="text.secondary" variant="body2">
-                Vendedores solicitan producto físico y el admin aprueba antes de mover stock.
+                Solicitudes para asignar producto físico desde almacén a vendedores con aprobación administrativa.
               </Typography>
             </Box>
 
@@ -188,7 +245,7 @@ export function InventoryTransferRequestsPanel({
                 <LocalShippingIcon color="primary" />
                 <Box>
                   <Typography component="h3" fontWeight={900}>
-                    Solicitar producto al almacén
+                    Solicitar asignación de stock
                   </Typography>
                   <Typography color="text.secondary" variant="body2">
                     La solicitud queda pendiente hasta que un administrador la apruebe.
@@ -285,11 +342,54 @@ export function InventoryTransferRequestsPanel({
       <Card variant="outlined">
         <CardContent>
           <Stack spacing={1.5}>
-            <Typography component="h3" fontWeight={900}>
-              Historial de solicitudes
-            </Typography>
+            <Stack direction={{ xs: "column", md: "row" }} spacing={1.2} justifyContent="space-between" alignItems={{ xs: "stretch", md: "center" }}>
+              <Box>
+                <Typography component="h3" fontWeight={900}>
+                  Historial de asignaciones
+                </Typography>
+                <Typography color="text.secondary" variant="body2">
+                  Las solicitudes pendientes se muestran primero.
+                </Typography>
+              </Box>
 
-            {requests.length === 0 ? (
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "stretch", sm: "center" }}>
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <InputLabel id="inventory-transfer-status-filter-label">Estado</InputLabel>
+                  <Select
+                    labelId="inventory-transfer-status-filter-label"
+                    id="inventory-transfer-status-filter"
+                    label="Estado"
+                    value={statusFilter}
+                    onChange={(event) => setStatusFilter(event.target.value as TransferStatusFilter)}
+                  >
+                    {TRANSFER_STATUS_FILTERS.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl size="small" sx={{ minWidth: 142 }}>
+                  <InputLabel id="inventory-transfer-page-size-label">Por página</InputLabel>
+                  <Select
+                    labelId="inventory-transfer-page-size-label"
+                    id="inventory-transfer-page-size"
+                    label="Por página"
+                    value={String(pageSize)}
+                    onChange={handlePageSizeChange}
+                  >
+                    {TRANSFER_PAGE_SIZE_OPTIONS.map((option) => (
+                      <MenuItem key={option} value={String(option)}>
+                        {option} solicitudes
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Stack>
+
+            {filteredRequests.length === 0 ? (
               <Box sx={(theme) => ({
                 border: 1,
                 borderColor: "divider",
@@ -297,14 +397,14 @@ export function InventoryTransferRequestsPanel({
                 bgcolor: alpha(theme.palette.primary.main, 0.04),
                 p: 2,
               })}>
-                <Typography fontWeight={800}>Sin solicitudes de retiro.</Typography>
+                <Typography fontWeight={800}>Sin solicitudes de asignación.</Typography>
                 <Typography color="text.secondary" variant="body2">
-                  Cuando un vendedor solicite stock, aparecerá aquí.
+                  Cuando un vendedor solicite stock físico, aparecerá aquí.
                 </Typography>
               </Box>
             ) : (
               <Stack spacing={1.25}>
-                {requests.map((request) => (
+                {visibleRequests.map((request) => (
                   <TransferRequestCard
                     key={request.id}
                     canReview={canReviewTransferRequest}
@@ -314,6 +414,17 @@ export function InventoryTransferRequestsPanel({
                     request={request}
                   />
                 ))}
+
+                {pageCount > 1 ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", pt: 0.5 }}>
+                    <Pagination
+                      color="primary"
+                      count={pageCount}
+                      page={page}
+                      onChange={(_, value) => setPage(value)}
+                    />
+                  </Box>
+                ) : null}
               </Stack>
             )}
           </Stack>
@@ -334,7 +445,7 @@ export function InventoryTransferRequestsPanel({
           <Stack spacing={1.5} sx={{ pt: 1 }}>
             <Typography color="text.secondary" variant="body2">
               {reviewDialog?.mode === "approve"
-                ? "Al aprobar se moverá el stock del almacén origen al stock físico del vendedor."
+                ? "Al aprobar se asignará stock del almacén origen al stock físico del vendedor."
                 : "Al rechazar, la solicitud quedará cerrada sin mover inventario."}
             </Typography>
             {reviewDialog && (
@@ -481,6 +592,22 @@ function TransferRequestCard({
       </Stack>
     </Box>
   );
+}
+
+function sortTransferRequests(requests: InventoryTransferRequest[]) {
+  const statusPriority: Record<InventoryTransferRequest["status"], number> = {
+    PENDING: 0,
+    APPROVED: 1,
+    REJECTED: 2,
+  };
+
+  return [...requests].sort((left, right) => {
+    const statusOrder = statusPriority[left.status] - statusPriority[right.status];
+
+    if (statusOrder !== 0) return statusOrder;
+
+    return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+  });
 }
 
 function getTransferRequestSummary(requests: InventoryTransferRequest[]) {

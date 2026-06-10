@@ -78,7 +78,7 @@ export function useInventoryData() {
       setError("");
       setTransferRequests(await listInventoryTransferRequests());
     } catch {
-      setError("No se pudieron cargar las solicitudes de retiro.");
+      setError("No se pudieron cargar las solicitudes de asignación.");
     }
   }, []);
 
@@ -195,7 +195,7 @@ export function useInventoryData() {
 
       try {
         await createInventoryTransferRequest(payload);
-        setMessage("Solicitud de retiro enviada al administrador.");
+        setMessage("Solicitud de asignación enviada al administrador.");
         await loadTransferRequests();
 
         return true;
@@ -203,7 +203,7 @@ export function useInventoryData() {
         setError(
           getApiErrorMessage(
             err,
-            "No se pudo enviar la solicitud de retiro. Verifica producto, almacén y cantidad.",
+            "No se pudo enviar la solicitud de asignación. Verifica producto, almacén y cantidad.",
           ),
         );
 
@@ -223,7 +223,7 @@ export function useInventoryData() {
 
       try {
         await approveInventoryTransferRequest(requestId, payload);
-        setMessage("Solicitud de retiro aprobada. El stock fue transferido.");
+        setMessage("Solicitud de asignación aprobada. El stock fue transferido.");
         await reloadInventoryViews();
 
         return true;
@@ -231,7 +231,7 @@ export function useInventoryData() {
         setError(
           getApiErrorMessage(
             err,
-            "No se pudo aprobar la solicitud de retiro. Verifica stock disponible e intenta de nuevo.",
+            "No se pudo aprobar la solicitud de asignación. Verifica stock disponible e intenta de nuevo.",
           ),
         );
 
@@ -251,7 +251,7 @@ export function useInventoryData() {
 
       try {
         await rejectInventoryTransferRequest(requestId, payload);
-        setMessage("Solicitud de retiro rechazada.");
+        setMessage("Solicitud de asignación rechazada.");
         await loadTransferRequests();
 
         return true;
@@ -259,7 +259,7 @@ export function useInventoryData() {
         setError(
           getApiErrorMessage(
             err,
-            "No se pudo rechazar la solicitud de retiro. Agrega una nota e intenta de nuevo.",
+            "No se pudo rechazar la solicitud de asignación. Agrega una nota e intenta de nuevo.",
           ),
         );
 

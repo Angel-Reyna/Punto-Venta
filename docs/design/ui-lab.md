@@ -29,6 +29,7 @@ La ruta `/ui-lab` solo está disponible en modo desarrollo (`import.meta.env.DEV
 - Definir medidas en `apps/web/src/design-lab/pvVisualTokens.ts` antes de mover UI real.
 - Crear variantes por dispositivo: móvil, tablet, laptop y desktop amplio.
 - Revisar estados con datos mock: stock sano, stock bajo, stock cero, vendedor sin stock asignado, ticket activo y flujo admin/vendedor.
+- Priorizar impacto visual con semántica: iconos, color, chips y tarjetas deben representar datos o acciones reales. Evitar barras decorativas si el dato no es progreso, capacidad o distribución proporcional.
 - Migrar a la app real solo la variante aprobada.
 - Validar después con lint, build y E2E funcional.
 
@@ -36,8 +37,7 @@ La ruta `/ui-lab` solo está disponible en modo desarrollo (`import.meta.env.DEV
 
 Este primer prototipo incluye:
 
-- Inventario: tabla responsive compacta que se convierte en tarjetas móviles, con colores por severidad y stock por almacén.
-- Ventas: flujo de vendedor con stock físico asignado y ticket activo, sin dependencia de caja abierta.
+- Inventario: página completa candidata con movimientos visuales, existencias semánticas, acciones visibles y distribución por almacén/vendedor.
 
 ## Siguientes pasos recomendados
 

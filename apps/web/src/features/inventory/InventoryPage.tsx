@@ -15,7 +15,6 @@ import type { InventoryView } from "./inventoryShared";
 import { InventoryAdjustmentForm } from "./InventoryAdjustmentForm";
 import { InventoryControlHero } from "./InventoryControlHero";
 import { InventoryMovementsSection } from "./InventoryMovementsSection";
-import { InventoryOperationalInsights } from "./InventoryOperationalInsights";
 import { InventoryStockSection } from "./InventoryStockSection";
 import { InventoryTransferRequestsPanel } from "./InventoryTransferRequestsPanel";
 import { useInventoryData } from "./useInventoryData";
@@ -52,7 +51,6 @@ export function InventoryPage() {
 
   const [activeView, setActiveView] = useState<InventoryView>("stock");
   const [form, setForm] = useState(initialInventoryMovementForm);
-
   function changeView(view: InventoryView) {
     setActiveView(view);
 
@@ -159,10 +157,6 @@ export function InventoryPage() {
 
       {activeView === "stock" && (
         <>
-          <InventoryOperationalInsights
-            stockRows={stockRows}
-            transferRequests={transferRequests}
-          />
           <InventoryStockSection
             rows={stockRows}
             searchQuery={stockSearch}

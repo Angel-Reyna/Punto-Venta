@@ -35,23 +35,19 @@ test.describe("catálogo e inventario responsive", () => {
     await expect(
       page.getByRole("heading", { name: "Inventario", level: 1 }),
     ).toBeVisible();
-    await expect(page.getByTestId("inventory-visual-dashboard")).toBeVisible();
-    await expect(page.getByText("Control de inventario")).toBeVisible();
-    await expect(page.getByText("Estado de existencias")).toBeVisible();
-    await expect(page.getByTestId("inventory-operational-insights")).toBeVisible();
-    await expect(page.getByTestId("inventory-operational-central-units")).toContainText("Stock central");
-    await expect(page.getByTestId("inventory-operational-seller-units")).toContainText("Stock con vendedores");
-    await expect(page.getByTestId("inventory-operational-risk-products")).toContainText("Productos en riesgo");
-    await expect(page.getByTestId("inventory-operational-pending-transfers")).toContainText("Retiros pendientes");
-    await expect(page.getByTestId("inventory-operational-warehouse-principal")).toContainText("Principal");
-    await expect(page.getByTestId("inventory-operational-seller-stock")).toContainText("Stock de Vendedor E2E");
+    const visualDashboard = page.getByTestId("inventory-visual-dashboard");
+    await expect(visualDashboard).toBeVisible();
+    await expect(visualDashboard.getByRole("heading", { name: "Estado y movimientos" })).toBeVisible();
+    await expect(visualDashboard).toContainText("Movimientos");
+    await expect(visualDashboard).toContainText("Unidades");
+    await expect(page.getByRole("tab", { name: "Asignaciones" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Filtros/i })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Existencias actuales" })).toBeVisible();
     const stockItem = inventoryStockItem(page, "COCA-600");
-    await expect(stockItem.getByRole("heading", { name: "Coca-Cola 600 ml" })).toBeVisible();
-    await expect(stockItem.getByText("Stock total")).toBeVisible();
-    await expect(stockItem.getByRole("heading", { name: "24 unidades" })).toBeVisible();
-    await expect(page.getByTestId("inventory-stock-status-COCA-600")).toContainText("Bajo inventario");
+    await expect(stockItem.getByText("Coca-Cola 600 ml", { exact: true })).toBeVisible();
+    await expect(stockItem).toContainText("Stock actual y mínimo");
+    await expect(stockItem).toContainText("Actual: 24");
+    await expect(page.getByTestId("inventory-stock-status-COCA-600")).toContainText("Stock bajo");
     await expect(stockItem).toContainText("Almacén: Principal");
   });
 });

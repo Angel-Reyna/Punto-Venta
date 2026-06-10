@@ -44,6 +44,11 @@ function normalizeCategoryName(label: string) {
 
 export function getCategoryDisplayName(label?: string | null) {
   const normalized = label?.trim();
+
+  if (normalized && normalizeCategoryName(normalized) === "demo abarrotes") {
+    return "Otros";
+  }
+
   return normalized ? normalized : FALLBACK_CATEGORY_LABEL;
 }
 
