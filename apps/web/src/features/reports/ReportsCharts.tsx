@@ -1,10 +1,15 @@
-import { Box, Chip, Grid, Stack, Typography } from "@mui/material";
+import { useState, type ReactNode } from "react";
+
+import { Box, Chip, Divider, Grid, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
 import {
   EmptyText,
   ReportPanel,
   formatMoney,
+  paymentMethodLabel,
+  statusColor,
+  statusLabel,
   type OperationsReport
 } from "./reportShared";
 
@@ -31,49 +36,49 @@ export function ReportsChartsGrid({ data }: { data: OperationsReport }) {
       id: "gross-sales",
       label: "Venta bruta",
       value: data.sales.gross,
-      helper: "Antes de devoluciones.",
+      helper: "Total vendido antes de restar reembolsos.",
       kind: "positive"
     },
     {
       id: "refunds",
       label: "Devoluciones",
       value: -data.sales.refunded,
-      helper: "Monto regresado al cliente.",
+      helper: "Reembolsos que disminuyen la venta real.",
       kind: "negative"
     },
     {
       id: "net-sales",
       label: "Venta neta",
       value: data.sales.net,
-      helper: "Base real del periodo.",
+      helper: "Lo que realmente quedó vendido después de devoluciones.",
       kind: "result"
     },
     {
       id: "net-cost",
       label: "Costo neto",
       value: -netCost,
-      helper: "Costo histórico vendido.",
+      helper: "Costo de los productos que sí quedaron vendidos.",
       kind: "negative"
     },
     {
       id: "profit-before-shrinkage",
       label: "Utilidad antes de merma",
       value: data.sales.profit.netProfit,
-      helper: "Resultado comercial.",
+      helper: "Venta neta menos costo neto; todavía no descuenta merma.",
       kind: "result"
     },
     {
       id: "shrinkage",
       label: "Merma",
       value: -shrinkageCost,
-      helper: "Caducidad registrada.",
+      helper: "Costo perdido por salidas marcadas como caducidad.",
       kind: "negative"
     },
     {
       id: "operating-profit",
       label: "Utilidad operativa",
       value: operatingProfit,
-      helper: "Resultado después de merma.",
+      helper: "Utilidad final estimada después de descontar costo y merma.",
       kind: "result"
     }
   ];
@@ -133,71 +138,146 @@ export function ReportsChartsGrid({ data }: { data: OperationsReport }) {
         />
       </Grid>
 
-      <Grid item xs={12}>
+      <Grid item xs={12} lg={8}>
         <ParetoPanel
           emptyText="Sin merma por caducidad en el periodo."
           formatValue={formatMoney}
           items={shrinkageByProduct}
-          subtitle="Productos ordenados por costo perdido y porcentaje acumulado de la merma."
+          subtitle="Productos ordenados por el costo perdido por caducidad. Úsalo para detectar qué artículos están generando pérdida en el periodo."
           testId="reports-chart-shrinkage-pareto"
-          title="Pareto de merma por producto"
+          title="Productos que generan merma"
           tone="error"
         />
+      </Grid>
+
+      <Grid item xs={12} lg={4}>
+        <StatusAndMethodsPanel data={data} />
       </Grid>
     </Grid>
   );
 }
 
 function ProfitBridgePanel({ steps }: { steps: BridgeStep[] }) {
+  const maxMagnitude = Math.max(...steps.map((step) => Math.abs(step.value)), 1);
+
   return (
     <Box data-testid="reports-chart-profit-bridge">
       <ReportPanel
         title="Puente financiero"
-        subtitle="De venta bruta a utilidad operativa, mostrando qué resta valor en el periodo."
+        subtitle="Visualiza cómo la venta bruta se convierte en utilidad operativa: cada bloque suma, descuenta o muestra un subtotal."
       >
-        <Grid container spacing={1.25}>
-          {steps.map((step, index) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={step.id}>
-              <BridgeStepCard index={index} step={step} />
-            </Grid>
-          ))}
-        </Grid>
+        <Stack spacing={2}>
+          <Box
+            sx={{
+              bgcolor: (theme) => alpha(theme.palette.info.main, 0.08),
+              border: "1px solid",
+              borderColor: (theme) => alpha(theme.palette.info.main, 0.2),
+              borderRadius: 2,
+              p: 1.25
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Léelo de izquierda a derecha: primero aparece la venta registrada, después se descuentan devoluciones, costo y merma, y al final queda la utilidad operativa estimada.
+            </Typography>
+          </Box>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "repeat(7, minmax(0, 1fr))"
+              },
+              gap: 1.25,
+              alignItems: "stretch"
+            }}
+          >
+            {steps.map((step, index) => (
+              <WaterfallStep key={step.id} index={index} maxMagnitude={maxMagnitude} step={step} />
+            ))}
+          </Box>
+
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            divider={<Divider flexItem orientation="vertical" />}
+            spacing={1.25}
+            sx={{ color: "text.secondary" }}
+          >
+            <Typography variant="caption">Azul: entrada inicial.</Typography>
+            <Typography variant="caption">Rojo: descuentos o pérdidas.</Typography>
+            <Typography variant="caption">Verde: subtotal o resultado.</Typography>
+          </Stack>
+        </Stack>
       </ReportPanel>
     </Box>
   );
 }
 
-function BridgeStepCard({ index, step }: { index: number; step: BridgeStep }) {
+function WaterfallStep({
+  index,
+  maxMagnitude,
+  step
+}: {
+  index: number;
+  maxMagnitude: number;
+  step: BridgeStep;
+}) {
   const tone = bridgeTone(step);
-  const prefix = step.kind === "negative" ? "Resta" : step.kind === "result" ? "Resultado" : "Suma";
+  const prefix = bridgeStepPrefix(step, index);
+  const barHeight = Math.max(18, (Math.abs(step.value) / maxMagnitude) * 92);
 
   return (
     <Box
       sx={{
-        height: "100%",
+        minHeight: 190,
         border: 1,
-        borderColor: "divider",
+        borderColor: (theme) => alpha(theme.palette[tone].main, 0.28),
         borderRadius: 2,
-        p: 1.5,
-        bgcolor: (theme) => alpha(theme.palette[tone].main, step.kind === "result" ? 0.11 : 0.06)
+        p: 1.25,
+        bgcolor: (theme) => alpha(theme.palette[tone].main, step.kind === "result" ? 0.1 : 0.055),
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between"
       }}
     >
-      <Stack spacing={1}>
-        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-          <Chip size="small" label={`${index + 1}. ${prefix}`} color={tone} variant="outlined" />
-        </Stack>
+      <Stack spacing={0.75}>
+        <Chip size="small" label={prefix} color={tone} variant="outlined" sx={{ alignSelf: "flex-start" }} />
         <Typography variant="body2" fontWeight={900}>
           {step.label}
         </Typography>
         <Typography variant="h6" fontWeight={950} color={`${tone}.main`}>
           {formatMoney(step.value)}
         </Typography>
-        {step.helper && (
-          <Typography variant="caption" color="text.secondary">
-            {step.helper}
-          </Typography>
-        )}
       </Stack>
+
+      <Box
+        aria-hidden="true"
+        sx={{
+          height: 108,
+          display: "flex",
+          alignItems: step.kind === "negative" ? "flex-start" : "flex-end",
+          justifyContent: "center",
+          py: 0.75
+        }}
+      >
+        <Box
+          sx={{
+            width: "58%",
+            minWidth: 28,
+            height: barHeight,
+            borderRadius: 1.5,
+            bgcolor: `${tone}.main`,
+            opacity: 0.9
+          }}
+        />
+      </Box>
+
+      {step.helper && (
+        <Typography variant="caption" color="text.secondary">
+          {step.helper}
+        </Typography>
+      )}
     </Box>
   );
 }
@@ -231,6 +311,14 @@ function LineTrendPanel({
   });
   const points = coords.map((coord) => `${coord.x.toFixed(2)},${coord.y.toFixed(2)}`).join(" ");
   const baselineY = 40 - ((0 - minValue) / range) * 34;
+  const lastPoint = coords[coords.length - 1];
+  const [activeId, setActiveId] = useState<string | null>(lastPoint?.id ?? null);
+  const activePoint = coords.find((coord) => coord.id === activeId) ?? lastPoint;
+  const average = values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+  const bestPoint = coords.reduce<(typeof coords)[number] | undefined>(
+    (best, coord) => (!best || coord.value > best.value ? coord : best),
+    undefined
+  );
 
   return (
     <Box data-testid={testId} sx={{ height: "100%" }}>
@@ -239,19 +327,31 @@ function LineTrendPanel({
           <EmptyText>{emptyText}</EmptyText>
         ) : (
           <Stack spacing={1.5}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <TrendInsight
+                label="Día seleccionado"
+                value={activePoint ? `${activePoint.label} · ${formatValue(activePoint.value)}` : "Sin dato"}
+              />
+              <TrendInsight
+                label="Mejor día"
+                value={bestPoint ? `${bestPoint.label} · ${formatValue(bestPoint.value)}` : "Sin dato"}
+              />
+              <TrendInsight label="Promedio diario" value={formatValue(average)} />
+            </Stack>
+
             <Box
               component="svg"
-              viewBox="0 0 100 44"
+              viewBox="0 0 100 48"
               role="img"
               aria-label={title}
               sx={{
                 width: "100%",
-                height: { xs: 150, sm: 180 },
+                height: { xs: 155, sm: 185 },
                 color: `${tone}.main`,
                 overflow: "visible"
               }}
             >
-              <line x1="0" x2="100" y1={baselineY} y2={baselineY} stroke="currentColor" strokeWidth="0.6" opacity="0.25" />
+              <line x1="0" x2="100" y1={baselineY} y2={baselineY} stroke="currentColor" strokeWidth="0.6" opacity="0.22" />
               <polyline
                 fill="none"
                 points={points}
@@ -260,23 +360,82 @@ function LineTrendPanel({
                 strokeLinejoin="round"
                 strokeWidth="2.2"
               />
-              {coords.map((coord) => (
-                <circle key={coord.id} cx={coord.x} cy={coord.y} fill="currentColor" r="2.1" />
-              ))}
-            </Box>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {coords.map((coord) => (
-                <Chip
-                  key={coord.id}
-                  label={`${coord.label}: ${formatValue(coord.value)}`}
-                  size="small"
-                  variant="outlined"
+              {coords.map((coord) => {
+                const isActive = activePoint?.id === coord.id;
+
+                return (
+                  <g key={coord.id}>
+                    <circle
+                      cx={coord.x}
+                      cy={coord.y}
+                      fill="currentColor"
+                      onClick={() => setActiveId(coord.id)}
+                      onFocus={() => setActiveId(coord.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          setActiveId(coord.id);
+                        }
+                      }}
+                      onMouseEnter={() => setActiveId(coord.id)}
+                      r={isActive ? 3.1 : 2.1}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${coord.label}: ${formatValue(coord.value)}. ${coord.helper ?? ""}`}
+                      style={{ cursor: "pointer" }}
+                    />
+                    <title>{`${coord.label}: ${formatValue(coord.value)} · ${coord.helper ?? ""}`}</title>
+                  </g>
+                );
+              })}
+              {activePoint && (
+                <line
+                  x1={activePoint.x}
+                  x2={activePoint.x}
+                  y1="6"
+                  y2="42"
+                  stroke="currentColor"
+                  strokeDasharray="2 2"
+                  strokeWidth="0.7"
+                  opacity="0.45"
                 />
+              )}
+            </Box>
+
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {coords.slice(0, 1).map((coord) => (
+                <Chip key={coord.id} label={`Inicio: ${coord.label}`} size="small" variant="outlined" />
+              ))}
+              {activePoint && <Chip color={tone} label={`Seleccionado: ${activePoint.label}`} size="small" variant="outlined" />}
+              {coords.slice(-1).map((coord) => (
+                <Chip key={coord.id} label={`Cierre: ${coord.label}`} size="small" variant="outlined" />
               ))}
             </Stack>
           </Stack>
         )}
       </ReportPanel>
+    </Box>
+  );
+}
+
+function TrendInsight({ label, value }: { label: string; value: string }) {
+  return (
+    <Box
+      sx={{
+        flex: 1,
+        minWidth: 0,
+        border: 1,
+        borderColor: "divider",
+        borderRadius: 2,
+        p: 1,
+        bgcolor: "background.default"
+      }}
+    >
+      <Typography variant="caption" color="text.secondary" display="block" fontWeight={850}>
+        {label}
+      </Typography>
+      <Typography variant="body2" fontWeight={900} noWrap title={value}>
+        {value}
+      </Typography>
     </Box>
   );
 }
@@ -392,9 +551,8 @@ function ParetoPanel({
   title: string;
   tone: ChartTone;
 }) {
-  const visibleItems = items.slice(0, 6);
+  const visibleItems = items.slice(0, 5);
   const total = visibleItems.reduce((sum, item) => sum + Math.max(0, item.value), 0);
-  let cumulative = 0;
 
   return (
     <Box data-testid={testId}>
@@ -405,11 +563,9 @@ function ParetoPanel({
           <Stack spacing={1.25}>
             {visibleItems.map((item, index) => {
               const share = total <= 0 ? 0 : (Math.max(0, item.value) / total) * 100;
-              cumulative += share;
 
               return (
                 <ParetoRow
-                  cumulative={cumulative}
                   formatValue={formatValue}
                   index={index}
                   item={item}
@@ -427,14 +583,12 @@ function ParetoPanel({
 }
 
 function ParetoRow({
-  cumulative,
   formatValue,
   index,
   item,
   share,
   tone
 }: {
-  cumulative: number;
   formatValue: (value: number) => string;
   index: number;
   item: ChartItem;
@@ -465,13 +619,92 @@ function ParetoRow({
           </Box>
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-          <Chip label={formatValue(item.value)} size="small" />
-          <Chip label={`${share.toFixed(1)}% del costo`} size="small" variant="outlined" />
-          <Chip label={`${Math.min(cumulative, 100).toFixed(1)}% acumulado`} size="small" variant="outlined" />
+          <Chip label={`Costo perdido: ${formatValue(item.value)}`} size="small" />
+          <Chip label={`${share.toFixed(1)}% del costo de merma`} size="small" variant="outlined" />
         </Stack>
       </Stack>
     </Box>
   );
+}
+
+
+function StatusAndMethodsPanel({ data }: { data: OperationsReport }) {
+  return (
+    <Box data-testid="reports-chart-status-methods" sx={{ height: "100%" }}>
+      <ReportPanel title="Estados y métodos" subtitle="Resume cómo se cerraron las ventas y por qué método entró o salió dinero.">
+        <Stack spacing={2}>
+          <SummaryChipGroup title="Estado de ventas">
+            {Object.entries(data.sales.byStatus).length === 0 ? (
+              <EmptyText>Sin ventas.</EmptyText>
+            ) : (
+              Object.entries(data.sales.byStatus).map(([status, count]) => (
+                <Chip key={status} color={statusColor(status)} label={`${statusLabel(status)}: ${count}`} />
+              ))
+            )}
+          </SummaryChipGroup>
+
+          <SummaryChipGroup title="Cobros recibidos">
+            {Object.entries(data.sales.paymentSummary).length === 0 ? (
+              <EmptyText>Sin cobros registrados.</EmptyText>
+            ) : (
+              Object.entries(data.sales.paymentSummary).map(([method, amount]) => (
+                <Chip
+                  key={method}
+                  color="primary"
+                  variant="outlined"
+                  label={`${paymentMethodLabel(method)}: ${formatMoney(amount)}`}
+                />
+              ))
+            )}
+          </SummaryChipGroup>
+
+          <SummaryChipGroup title="Devoluciones pagadas">
+            {Object.entries(data.returns.byMethod).length === 0 ? (
+              <EmptyText>Sin devoluciones registradas.</EmptyText>
+            ) : (
+              Object.entries(data.returns.byMethod).map(([method, amount]) => (
+                <Chip
+                  key={method}
+                  color="warning"
+                  variant="outlined"
+                  label={`${paymentMethodLabel(method)}: ${formatMoney(amount)}`}
+                />
+              ))
+            )}
+          </SummaryChipGroup>
+        </Stack>
+      </ReportPanel>
+    </Box>
+  );
+}
+
+function SummaryChipGroup({ children, title }: { children: ReactNode; title: string }) {
+  return (
+    <Box>
+      <Typography variant="body2" color="text.secondary" fontWeight={850} mb={1}>
+        {title}
+      </Typography>
+      <Stack direction="row" flexWrap="wrap" gap={1}>
+        {children}
+      </Stack>
+    </Box>
+  );
+}
+
+function bridgeStepPrefix(step: BridgeStep, index: number) {
+  if (index === 0) {
+    return "Punto de partida";
+  }
+
+  if (step.kind === "negative") {
+    return "Se descuenta";
+  }
+
+  if (step.id === "operating-profit") {
+    return "Resultado final";
+  }
+
+  return "Subtotal";
 }
 
 function bridgeTone(step: BridgeStep): ChartTone {

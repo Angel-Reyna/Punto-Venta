@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import { useState } from "react";
 
-import { Box, Card, CardContent, Chip, Grid, Stack, Typography } from "@mui/material";
+import { Box, Button, Card, CardContent, Chip, Stack, Typography } from "@mui/material";
 
 import { LabelWithInfo } from "../../components/InfoTooltip";
 import {
@@ -21,47 +21,100 @@ type ProductReportItem = OperationsReport["topProducts"][number];
 type RecentSaleItem = OperationsReport["sales"]["recent"][number];
 type ReturnReportItem = OperationsReport["returns"]["latest"][number];
 
+type ReportDetailSection = "vendedores" | "productos" | "historial" | "devoluciones";
+
+const REPORT_DETAIL_SECTIONS: Array<{ label: string; value: ReportDetailSection }> = [
+  { label: "Vendedores", value: "vendedores" },
+  { label: "Productos", value: "productos" },
+  { label: "Ventas", value: "historial" },
+  { label: "Devoluciones", value: "devoluciones" }
+];
+
 export function ReportsDetailSections({
-  data,
   filteredRecentSales,
   filteredReturns,
   filteredSellers,
   filteredTopProducts
 }: {
-  data: OperationsReport;
   filteredRecentSales: RecentSaleItem[];
   filteredReturns: ReturnReportItem[];
   filteredSellers: SellerReportItem[];
   filteredTopProducts: ProductReportItem[];
 }) {
+  const [activeSection, setActiveSection] = useState<ReportDetailSection>("vendedores");
+
   return (
-    <>
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={12} lg={7}>
-          <SellersPanel sellers={filteredSellers} />
-        </Grid>
+    <Stack spacing={2} sx={{ mb: 2 }}>
+      <Card
+        sx={{
+          border: "1px solid",
+          borderColor: "divider",
+          boxShadow: "0 12px 36px rgba(15, 23, 42, 0.06)"
+        }}
+      >
+        <CardContent sx={{ p: { xs: 1.75, md: 2 } }}>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            justifyContent="space-between"
+            alignItems={{ xs: "stretch", md: "center" }}
+            gap={1.5}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="overline" color="text.secondary" fontWeight={900}>
+                Detalle
+              </Typography>
+              <Typography variant="subtitle1" fontWeight={900}>
+                Análisis operativo
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>
+                Elige una vista para revisar vendedores, productos, ventas o devoluciones.
+              </Typography>
+            </Box>
 
-        <Grid item xs={12} lg={5}>
-          <StatusAndMethodsPanel data={data} />
-        </Grid>
-      </Grid>
+            <Box
+              sx={{
+                minWidth: 0,
+                width: { xs: "100%", md: "auto" }
+              }}
+            >
+              <Stack
+                direction="row"
+                gap={0.6}
+                sx={{
+                  flexWrap: { xs: "wrap", md: "nowrap" },
+                  justifyContent: { xs: "flex-start", md: "flex-end" }
+                }}
+              >
+                {REPORT_DETAIL_SECTIONS.map((section) => (
+                  <Button
+                    key={section.value}
+                    size="small"
+                    variant={activeSection === section.value ? "contained" : "outlined"}
+                    onClick={() => setActiveSection(section.value)}
+                    sx={{
+                      borderRadius: 999,
+                      flexShrink: 0,
+                      fontSize: { xs: "0.78rem", md: "0.82rem" },
+                      minHeight: 40,
+                      minWidth: { xs: 112, md: 118 },
+                      px: { xs: 1.15, md: 1.35 },
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    {section.label}
+                  </Button>
+                ))}
+              </Stack>
+            </Box>
+          </Stack>
+        </CardContent>
+      </Card>
 
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={12} lg={5}>
-          <TopProductsPanel products={filteredTopProducts} />
-        </Grid>
-
-        <Grid item xs={12} lg={7}>
-          <RecentSalesPanel sales={filteredRecentSales} />
-        </Grid>
-      </Grid>
-
-      <Grid container spacing={2}>
-        <Grid item xs={12}>
-          <ReturnsPanel returns={filteredReturns} />
-        </Grid>
-      </Grid>
-    </>
+      {activeSection === "vendedores" && <SellersPanel sellers={filteredSellers} />}
+      {activeSection === "productos" && <TopProductsPanel products={filteredTopProducts} />}
+      {activeSection === "historial" && <RecentSalesPanel sales={filteredRecentSales} />}
+      {activeSection === "devoluciones" && <ReturnsPanel returns={filteredReturns} />}
+    </Stack>
   );
 }
 
@@ -120,67 +173,6 @@ function SellersPanel({ sellers }: { sellers: SellerReportItem[] }) {
         </Stack>
       )}
     </ReportPanel>
-  );
-}
-
-function StatusAndMethodsPanel({ data }: { data: OperationsReport }) {
-  return (
-    <ReportPanel title="Estados y métodos" subtitle="Cómo se cerraron las ventas y por dónde entró o salió el dinero.">
-      <Stack spacing={2}>
-        <SummaryChipGroup title="Ventas por estado">
-          {Object.entries(data.sales.byStatus).length === 0 ? (
-            <EmptyText>Sin ventas.</EmptyText>
-          ) : (
-            Object.entries(data.sales.byStatus).map(([status, count]) => (
-              <Chip key={status} color={statusColor(status)} label={`${statusLabel(status)}: ${count}`} />
-            ))
-          )}
-        </SummaryChipGroup>
-
-        <SummaryChipGroup title="Cobros por método">
-          {Object.entries(data.sales.paymentSummary).length === 0 ? (
-            <EmptyText>Sin cobros registrados.</EmptyText>
-          ) : (
-            Object.entries(data.sales.paymentSummary).map(([method, amount]) => (
-              <Chip
-                key={method}
-                color="primary"
-                variant="outlined"
-                label={`${paymentMethodLabel(method)}: ${formatMoney(amount)}`}
-              />
-            ))
-          )}
-        </SummaryChipGroup>
-
-        <SummaryChipGroup title="Devoluciones por método">
-          {Object.entries(data.returns.byMethod).length === 0 ? (
-            <EmptyText>Sin devoluciones registradas.</EmptyText>
-          ) : (
-            Object.entries(data.returns.byMethod).map(([method, amount]) => (
-              <Chip
-                key={method}
-                color="warning"
-                variant="outlined"
-                label={`${paymentMethodLabel(method)}: ${formatMoney(amount)}`}
-              />
-            ))
-          )}
-        </SummaryChipGroup>
-      </Stack>
-    </ReportPanel>
-  );
-}
-
-function SummaryChipGroup({ children, title }: { children: ReactNode; title: string }) {
-  return (
-    <Box>
-      <Typography variant="body2" color="text.secondary" mb={1}>
-        {title}
-      </Typography>
-      <Stack direction="row" flexWrap="wrap" gap={1}>
-        {children}
-      </Stack>
-    </Box>
   );
 }
 

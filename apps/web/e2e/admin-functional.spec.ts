@@ -82,9 +82,11 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(byTestId(page, "reports-chart-seller-dot-plot")).toContainText("Vendedor E2E");
     await expect(byTestId(page, "reports-chart-shrinkage-pareto")).toContainText("Coca-Cola 600 ml");
     await expect(page.getByRole("region", { name: "Ventas por vendedor" })).toContainText("Vendedor E2E");
+    await page.getByRole("button", { name: "Productos" }).click();
     await expect(page.getByRole("region", { name: "Productos más vendidos" })).toContainText(
       "Producto eliminado snapshot E2E",
     );
+    await page.getByRole("button", { name: "Ventas" }).click();
     await expect(page.getByRole("region", { name: "Ventas recientes" })).toContainText("PV-0001");
     await expect(byTestId(page, "reports-download-pdf-button")).toBeEnabled();
 
@@ -96,6 +98,7 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(byTestId(page, "reports-download-pdf-button")).toBeEnabled();
 
     await fillByTestId(page, "reports-search", "SNAP-DEL");
+    await page.getByRole("button", { name: "Productos" }).click();
 
     await expect(page.getByRole("region", { name: "Productos más vendidos" })).toContainText("SNAP-DEL");
 

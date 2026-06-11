@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import {
-  Avatar,
   Box,
   Card,
   CardContent,
@@ -295,36 +294,42 @@ export function MetricCard({
           `linear-gradient(135deg, ${alpha(theme.palette[tone].main, 0.1)} 0%, ${alpha(
             theme.palette.background.paper,
             0.96
-          )} 58%)`
+          )} 58%)`,
+        overflow: "hidden",
+        position: "relative"
       }}
     >
-      <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2}>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography color="text.secondary">
-              <LabelWithInfo label={label} info={info} ariaLabel={info} />
-            </Typography>
-            <Typography variant="h5" fontWeight={900} sx={{ mt: 0.5, overflowWrap: "anywhere" }}>
-              {value}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" mt={0.5}>
-              {helper}
-            </Typography>
-          </Box>
+      {icon && (
+        <Box
+          aria-hidden="true"
+          sx={{
+            bottom: -26,
+            color: (theme) => alpha(theme.palette[tone].main, 0.15),
+            display: "inline-flex",
+            position: "absolute",
+            right: -18,
+            transform: "rotate(-8deg)",
+            "& svg": {
+              fontSize: { xs: 96, md: 112 }
+            }
+          }}
+        >
+          {icon}
+        </Box>
+      )}
 
-          {icon && (
-            <Avatar
-              sx={{
-                bgcolor: (theme) => alpha(theme.palette[tone].main, 0.12),
-                color: (theme) => theme.palette[tone].main,
-                width: 44,
-                height: 44
-              }}
-            >
-              {icon}
-            </Avatar>
-          )}
-        </Stack>
+      <CardContent sx={{ p: { xs: 2, md: 2.5 }, position: "relative", zIndex: 1 }}>
+        <Box sx={{ minWidth: 0, pr: { xs: 5, md: 6 } }}>
+          <Typography color="text.secondary">
+            <LabelWithInfo label={label} info={info} ariaLabel={info} />
+          </Typography>
+          <Typography variant="h5" fontWeight={900} sx={{ mt: 0.5, overflowWrap: "anywhere" }}>
+            {value}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mt={0.5}>
+            {helper}
+          </Typography>
+        </Box>
       </CardContent>
     </Card>
   );
