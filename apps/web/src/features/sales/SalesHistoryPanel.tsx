@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Card, CardContent, Chip, MenuItem, Pagination, Stack, TextField, Typography } from "@mui/material";
 
 import UndoIcon from "@mui/icons-material/Undo";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -17,13 +17,14 @@ import {
   SALE_STATUS_FILTER_OPTIONS,
   statusColor,
   statusLabel,
-  summarizeSales,
   type PaymentMethod,
   type Sale,
   type SalesAdjustmentRequest,
   type SaleStatus,
 } from "./salesShared";
 import type { SalesOperationMode } from "./useSalesOperations";
+
+const HISTORY_PAGE_SIZE_OPTIONS = [5, 10] as const;
 
 type SalesHistoryPanelProps = {
   adjustmentRequests: SalesAdjustmentRequest[];
@@ -51,46 +52,32 @@ export function SalesHistoryPanel({
   const [saleSearch, setSaleSearch] = useState("");
   const [saleStatusFilter, setSaleStatusFilter] = useState<SaleStatus | "ALL">("ALL");
   const [salePaymentFilter, setSalePaymentFilter] = useState<PaymentMethod | "ALL">("ALL");
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState<(typeof HISTORY_PAGE_SIZE_OPTIONS)[number]>(5);
 
   const filteredSales = useMemo(
     () => getFilteredSales(sales, saleSearch, saleStatusFilter, salePaymentFilter),
     [salePaymentFilter, saleSearch, saleStatusFilter, sales],
   );
 
-  const salesSummary = useMemo(() => summarizeSales(sales), [sales]);
+  const historyPageCount = Math.max(Math.ceil(filteredSales.length / historyPageSize), 1);
+  const safeHistoryPage = Math.min(historyPage, historyPageCount);
+  const historyPageStart = (safeHistoryPage - 1) * historyPageSize;
+  const paginatedSales = filteredSales.slice(historyPageStart, historyPageStart + historyPageSize);
+  const visibleHistoryFrom = filteredSales.length === 0 ? 0 : historyPageStart + 1;
+  const visibleHistoryTo = Math.min(historyPageStart + historyPageSize, filteredSales.length);
+
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historyPageSize, salePaymentFilter, saleSearch, saleStatusFilter]);
+
+  useEffect(() => {
+    setHistoryPage((currentPage) => Math.min(currentPage, historyPageCount));
+  }, [historyPageCount]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(4, minmax(0, 1fr))",
-          },
-          gap: 2,
-        }}
-      >
-        {[
-          ["Ventas cargadas", salesSummary.totalCount.toString()],
-          ["Completadas", salesSummary.completedCount.toString()],
-          ["Total completado", formatMoney(salesSummary.totalSold)],
-          ["Canceladas/devueltas", salesSummary.cancelledOrReturned.toString()],
-        ].map(([label, value]) => (
-          <Card key={label} variant="outlined" sx={{ boxShadow: "none" }}>
-            <CardContent>
-              <Typography variant="caption" color="text.secondary">
-                {label}
-              </Typography>
-              <Typography variant="h5" fontWeight={900} sx={{ mt: 0.5 }}>
-                {value}
-              </Typography>
-            </CardContent>
-          </Card>
-        ))}
-      </Box>
-
       <SearchToolbar
         query={saleSearch}
         onQueryChange={setSaleSearch}
@@ -150,6 +137,23 @@ export function SalesHistoryPanel({
                   </MenuItem>
                 ))}
               </TextField>
+
+              <TextField
+                select
+                size="small"
+                label="Por página"
+                value={historyPageSize}
+                onChange={(event) => {
+                  setHistoryPageSize(Number(event.target.value) as (typeof HISTORY_PAGE_SIZE_OPTIONS)[number]);
+                }}
+                sx={{ minWidth: { xs: "100%", sm: 130 } }}
+              >
+                {HISTORY_PAGE_SIZE_OPTIONS.map((option) => (
+                  <MenuItem key={option} value={option}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Stack>
           </Stack>
 
@@ -167,7 +171,7 @@ export function SalesHistoryPanel({
             </Box>
           ) : (
             <Box sx={{ display: "grid", gap: 1.5 }}>
-              {filteredSales.map((sale) => {
+              {paginatedSales.map((sale) => {
                 const hasReturnableItems = (sale.items ?? []).some(
                   (item) => getReturnableQuantity(sale, item) > 0,
                 );
@@ -308,6 +312,28 @@ export function SalesHistoryPanel({
                 );
               })}
             </Box>
+          )}
+
+          {filteredSales.length > 0 && (
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              alignItems={{ xs: "stretch", sm: "center" }}
+              justifyContent="space-between"
+              sx={{ mt: 2 }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                Mostrando {visibleHistoryFrom}-{visibleHistoryTo} de {filteredSales.length} ventas
+              </Typography>
+              <Pagination
+                count={historyPageCount}
+                page={safeHistoryPage}
+                onChange={(_, page) => setHistoryPage(page)}
+                size="small"
+                shape="rounded"
+                color="primary"
+              />
+            </Stack>
           )}
         </CardContent>
       </Card>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Box, Button, Card, CardContent, Chip } from "@mui/material";
+import { Box, Button, Card, CardContent, Chip, Tab, Tabs, Typography } from "@mui/material";
 
 import RefreshIcon from "@mui/icons-material/Refresh";
 
@@ -12,7 +12,6 @@ import { getApiErrorMessage } from "../../utils/apiError";
 
 import { SalesAdjustmentRequestsPanel } from "./SalesAdjustmentRequestsPanel";
 import { SalesCheckoutPanel } from "./SalesCheckoutPanel";
-import { SalesHero } from "./SalesHero";
 import { SalesHistoryPanel } from "./SalesHistoryPanel";
 import { SalesOperationDialogs } from "./SalesOperationDialogs";
 import { SalesProductSearchPanel } from "./SalesProductSearchPanel";
@@ -40,6 +39,8 @@ import {
   updateSalesTicketQuantity,
 } from "./salesTicket";
 
+type SalesRecordsView = "history" | "adjustments";
+
 export function SalesPage() {
   const { can, user } = useAuth();
 
@@ -49,6 +50,7 @@ export function SalesPage() {
   const canRequestSalesAdjustments = can(PERMISSIONS.SalesAdjustmentRequestCreate);
   const canReviewAdjustmentRequests = can(PERMISSIONS.SalesAdjustmentRequestReview);
   const canShowSellerInfo = canCancelSales || canReturnSales || canReviewAdjustmentRequests;
+  const canShowAdjustmentRequestsPanel = canReviewAdjustmentRequests || canRequestSalesAdjustments;
 
   const {
     adjustmentRequests,
@@ -70,6 +72,7 @@ export function SalesPage() {
   const [productSearch, setProductSearch] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
   const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
+  const [recordsView, setRecordsView] = useState<SalesRecordsView>("history");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -196,6 +199,10 @@ export function SalesPage() {
     () => getFilteredProducts(productsForSelectedWarehouse, productSearch),
     [productSearch, productsForSelectedWarehouse],
   );
+  const sellableProductsCount = useMemo(
+    () => productsForSelectedWarehouse.filter((product) => product.stock > 0).length,
+    [productsForSelectedWarehouse],
+  );
   const exactProductSearchMatch = useMemo(
     () => getExactSearchProduct(productsForSelectedWarehouse, productSearch),
     [productSearch, productsForSelectedWarehouse],
@@ -223,6 +230,12 @@ export function SalesPage() {
 
     setSelectedWarehouseId((preferredWarehouse ?? visibleWarehouseOptions[0]).id);
   }, [selectedWarehouseId, user?.role, visibleWarehouseOptions]);
+
+  useEffect(() => {
+    if (!canShowAdjustmentRequestsPanel && recordsView === "adjustments") {
+      setRecordsView("history");
+    }
+  }, [canShowAdjustmentRequestsPanel, recordsView]);
 
   function handleWarehouseChange(warehouseId: string) {
     if (warehouseId === selectedWarehouseId) {
@@ -464,127 +477,161 @@ export function SalesPage() {
         onErrorClose={() => setError("")}
       />
 
-      <SalesHero
-        cartItemsCount={cartItemsCount}
-        cartLinesCount={cart.length}
-        filteredProductsCount={filteredProducts.length}
-        isPaymentInsufficient={isPaymentInsufficient}
-        normalizedPaid={normalizedPaid}
-        total={total}
-      />
-
       {canCreateSales && (
-        <Card
-          sx={{
-            mb: 2,
-            border: "1px solid",
-            borderColor: "divider",
-            overflow: "hidden",
-          }}
-        >
-          <CardContent sx={{ p: { xs: 1.5, sm: 2, lg: 2.5 } }}>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  md: "minmax(0, 1.25fr) minmax(300px, 0.75fr)",
-                  xl: "minmax(0, 1fr) 380px",
-                },
-                gap: { xs: 2, lg: 2.5 },
-                alignItems: "start",
-              }}
-            >
-              <Box sx={{ display: "grid", gap: { xs: 2, lg: 2.5 } }}>
-                <SalesSourceWarehousePanel
-                  cartItemsCount={cartItemsCount}
-                  isDisabled={isSubmitting || saleDialogIsOpen}
-                  selectedWarehouseId={selectedWarehouseId}
-                  selectedWarehouse={selectedWarehouse}
-                  total={total}
-                  warehouseOptions={visibleWarehouseOptions}
-                  sellerSaleRequiresAssignedStock={sellerSaleRequiresAssignedStock}
-                  onWarehouseChange={handleWarehouseChange}
-                />
+        <Box sx={{ display: "grid", gap: 2, mb: 2 }}>
+          <SalesSourceWarehousePanel
+            isDisabled={isSubmitting || saleDialogIsOpen}
+            selectedWarehouseId={selectedWarehouseId}
+            selectedWarehouse={selectedWarehouse}
+            warehouseOptions={visibleWarehouseOptions}
+            sellerSaleRequiresAssignedStock={sellerSaleRequiresAssignedStock}
+            onWarehouseChange={handleWarehouseChange}
+          />
 
-                <SalesProductSearchPanel
-                  filteredProducts={filteredProducts}
-                  productSearch={productSearch}
-                  requiresAssignedSellerStock={sellerSaleRequiresAssignedStock}
-                  selectedWarehouseCanBeUsed={selectedWarehouseCanBeUsed}
-                  searchInputRef={searchInputRef}
-                  canAddExactSearchMatch={canAddExactSearchMatch}
-                  isDisabled={isSubmitting || saleDialogIsOpen}
-                  onProductSearchChange={setProductSearch}
-                  onProductSearchKeyDown={handleProductSearchKeyDown}
-                  onAddExactSearchMatch={addExactSearchMatchToCart}
-                  onAddProduct={addProductToCart}
-                />
+          <Card
+            data-testid="sales-operation-panel"
+            sx={{
+              border: "1px solid",
+              borderColor: "divider",
+              overflow: "hidden",
+              boxShadow: "none",
+            }}
+          >
+            <CardContent sx={{ display: "grid", gap: { xs: 1.5, md: 2 }, p: { xs: 1.5, sm: 2, lg: 2.5 } }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: { xs: "column", lg: "row" },
+                  gap: 1.25,
+                  justifyContent: "space-between",
+                  alignItems: { xs: "flex-start", lg: "center" },
+                }}
+              >
+                <Box>
+                  <Typography variant="overline" color="primary" fontWeight={900}>
+                    Operación
+                  </Typography>
+                  <Typography variant="h5" fontWeight={900} letterSpacing="-0.03em">
+                    Venta en curso
+                  </Typography>
+                  <Typography color="text.secondary" sx={{ maxWidth: 720 }}>
+                    Selecciona productos del almacén activo, cobra y revisa el ticket sin perder contexto.
+                  </Typography>
+                </Box>
 
-                <SalesTicketPanel
-                  cartRows={cartRows}
-                  isDisabled={isSubmitting || saleDialogIsOpen}
-                  onQuantityChange={updateCartQuantity}
-                  onRemoveItem={removeCartItem}
+                <Chip
+                  color="success"
+                  variant="outlined"
+                  label={`${selectedWarehouse?.name ?? "Almacén"} · ${sellableProductsCount} producto(s) vendibles`}
+                  sx={{ fontWeight: 800 }}
                 />
               </Box>
 
               <Box
                 sx={{
-                  position: {
-                    xs: "static",
-                    md: "sticky",
-                  },
-                  top: 96,
                   display: "grid",
-                  gap: 2,
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    lg: "minmax(0, 1.24fr) minmax(332px, 0.76fr)",
+                    xl: "minmax(0, 1.28fr) minmax(350px, 0.72fr)",
+                  },
+                  gap: { xs: 1.5, lg: 2 },
+                  alignItems: "start",
                 }}
               >
-                <SalesCheckoutPanel
-                  cartItemsCount={cartItemsCount}
-                  cartLinesCount={cart.length}
-                  change={change}
-                  checkoutDisabledReason={checkoutDisabledReason}
-                  customerName={customerName}
-                  isCheckoutDisabled={checkoutIsDisabled}
-                  isPaymentInsufficient={isPaymentInsufficient}
-                  normalizedPaid={normalizedPaid}
-                  paidAmount={paidAmount}
-                  paymentMethod={paymentMethod}
-                  total={total}
-                  onCheckout={createSale}
-                  onCustomerNameChange={setCustomerName}
-                  onPaidAmountChange={setPaidAmount}
-                  onPaymentMethodChange={setPaymentMethod}
-                />
+                <Box sx={{ display: "grid", gap: 1.5, minWidth: 0 }}>
+                  <SalesProductSearchPanel
+                    filteredProducts={filteredProducts}
+                    productSearch={productSearch}
+                    requiresAssignedSellerStock={sellerSaleRequiresAssignedStock}
+                    selectedWarehouseCanBeUsed={selectedWarehouseCanBeUsed}
+                    searchInputRef={searchInputRef}
+                    canAddExactSearchMatch={canAddExactSearchMatch}
+                    isDisabled={isSubmitting || saleDialogIsOpen}
+                    onProductSearchChange={setProductSearch}
+                    onProductSearchKeyDown={handleProductSearchKeyDown}
+                    onAddExactSearchMatch={addExactSearchMatchToCart}
+                    onAddProduct={addProductToCart}
+                  />
+
+                  <SalesTicketPanel
+                    cartRows={cartRows}
+                    cartItemsCount={cartItemsCount}
+                    isDisabled={isSubmitting || saleDialogIsOpen}
+                    onQuantityChange={updateCartQuantity}
+                    onRemoveItem={removeCartItem}
+                  />
+                </Box>
+
+                <Box
+                  sx={{
+                    position: { xs: "static", lg: "sticky" },
+                    top: 96,
+                    display: "grid",
+                    gap: 1.5,
+                  }}
+                >
+                  <SalesCheckoutPanel
+                    cartItemsCount={cartItemsCount}
+                    cartLinesCount={cart.length}
+                    change={change}
+                    checkoutDisabledReason={checkoutDisabledReason}
+                    customerName={customerName}
+                    isCheckoutDisabled={checkoutIsDisabled}
+                    isPaymentInsufficient={isPaymentInsufficient}
+                    normalizedPaid={normalizedPaid}
+                    paidAmount={paidAmount}
+                    paymentMethod={paymentMethod}
+                    total={total}
+                    onCheckout={createSale}
+                    onCustomerNameChange={setCustomerName}
+                    onPaidAmountChange={setPaidAmount}
+                    onPaymentMethodChange={setPaymentMethod}
+                  />
+                </Box>
               </Box>
-            </Box>
+            </CardContent>
+          </Card>
+        </Box>
+      )}
+
+      {canShowAdjustmentRequestsPanel && (
+        <Card data-testid="sales-records-switcher" sx={{ mb: 2 }}>
+          <CardContent sx={{ p: { xs: 1, sm: 1.25 } }}>
+            <Tabs
+              value={recordsView}
+              onChange={(_, value: SalesRecordsView) => setRecordsView(value)}
+              aria-label="Vista de seguimiento de ventas"
+              variant="scrollable"
+              allowScrollButtonsMobile
+            >
+              <Tab label="Historial operativo" value="history" />
+              <Tab label="Solicitudes de ajuste" value="adjustments" />
+            </Tabs>
           </CardContent>
         </Card>
       )}
 
-      <SalesHistoryPanel
-        adjustmentRequests={adjustmentRequests}
-        canCancelSales={canCancelSales}
-        canRequestSalesAdjustments={canRequestSalesAdjustments}
-        canReturnSales={canReturnSales}
-        canShowSellerInfo={canShowSellerInfo}
-        isSubmitting={isSubmitting}
-        sales={sales}
-        onOpenCancelDialog={openCancelDialog}
-        onOpenReturnDialog={openReturnDialog}
-      />
-
-      {(canReviewAdjustmentRequests || canRequestSalesAdjustments) && (
-        <Box sx={{ mt: 2 }}>
-          <SalesAdjustmentRequestsPanel
-            adjustmentRequests={adjustmentRequests}
-            canReviewAdjustmentRequests={canReviewAdjustmentRequests}
-            isSubmitting={isSubmitting}
-            onApproveAdjustmentRequest={approveAdjustment}
-            onRejectAdjustmentRequest={rejectAdjustment}
-          />
-        </Box>
+      {recordsView === "history" || !canShowAdjustmentRequestsPanel ? (
+        <SalesHistoryPanel
+          adjustmentRequests={adjustmentRequests}
+          canCancelSales={canCancelSales}
+          canRequestSalesAdjustments={canRequestSalesAdjustments}
+          canReturnSales={canReturnSales}
+          canShowSellerInfo={canShowSellerInfo}
+          isSubmitting={isSubmitting}
+          sales={sales}
+          onOpenCancelDialog={openCancelDialog}
+          onOpenReturnDialog={openReturnDialog}
+        />
+      ) : (
+        <SalesAdjustmentRequestsPanel
+          adjustmentRequests={adjustmentRequests}
+          canReviewAdjustmentRequests={canReviewAdjustmentRequests}
+          isSubmitting={isSubmitting}
+          onApproveAdjustmentRequest={approveAdjustment}
+          onRejectAdjustmentRequest={rejectAdjustment}
+        />
       )}
 
       <SalesOperationDialogs

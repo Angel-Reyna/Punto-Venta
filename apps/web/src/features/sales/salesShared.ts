@@ -432,19 +432,17 @@ export function isCartInvalid(cart: CartItem[], products: Product[]) {
 
 export function getFilteredProducts(products: Product[], search: string) {
   const query = normalizeSearch(search);
-  const activeProducts = products.filter((product) => product.stock > 0);
+  const sellableProducts = products.filter((product) => product.stock > 0);
 
   if (!query) {
-    return activeProducts.slice(0, 8);
+    return sellableProducts;
   }
 
-  return activeProducts
-    .filter((product) => {
-      return [product.sku, product.barcode ?? "", product.name, product.id].some(
-        (value) => value.toLowerCase().includes(query)
-      );
-    })
-    .slice(0, 8);
+  return sellableProducts.filter((product) => {
+    return [product.sku, product.barcode ?? "", product.name, product.id].some(
+      (value) => value.toLowerCase().includes(query)
+    );
+  });
 }
 
 export function buildCartRows(cart: CartItem[], products: Product[]): CartRow[] {

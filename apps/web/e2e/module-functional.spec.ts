@@ -117,16 +117,20 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await clickByTestId(returnDialog, "sales-return-submit");
 
     await expect(page.getByText("Solicitud de devolución enviada al administrador.")).toBeVisible();
-    await expect(byTestId(page, "sales-adjustment-requests-panel")).toContainText("Devolución solicitada");
-    await expect(byTestId(page, "sales-adjustment-requests-panel")).toContainText("Pendiente");
     await expect(salesHistorySale(page, "sale-1")).toContainText("Ajuste pendiente");
     await expect(salesHistorySale(page, "sale-1").getByRole("button", { name: "Solicitar devolución" })).toBeDisabled();
+
+    await page.getByRole("tab", { name: "Solicitudes de ajuste" }).click();
+    await expect(byTestId(page, "sales-adjustment-requests-panel")).toContainText("Devolución solicitada");
+    await expect(byTestId(page, "sales-adjustment-requests-panel")).toContainText("Pendiente");
   });
 
   test("admin aprueba una solicitud de ajuste pendiente", async ({ page }) => {
     await mockApi(page, { role: "ADMIN" });
 
     await page.goto("/sales");
+
+    await page.getByRole("tab", { name: "Solicitudes de ajuste" }).click();
 
     const requestsPanel = byTestId(page, "sales-adjustment-requests-panel");
     await expect(requestsPanel).toBeVisible();
@@ -140,7 +144,10 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await clickByTestId(reviewDialog, "sales-adjustment-review-submit");
 
     await expect(page.getByText("Solicitud aprobada correctamente. El ajuste fue aplicado.")).toBeVisible();
+    await requestsPanel.getByRole("button", { name: "Aprobadas" }).click();
     await expect(byTestId(page, "sales-adjustment-request-adjustment-1")).toContainText("Aprobada");
+
+    await page.getByRole("tab", { name: "Historial operativo" }).click();
     await expect(byTestId(page, "sales-history-sale-sale-1")).toContainText("Devolución parcial");
   });
 

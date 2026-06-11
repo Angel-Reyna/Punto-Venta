@@ -12,7 +12,7 @@ test.describe("flujo crítico de ventas", () => {
     await expect(page.getByRole("heading", { name: "Ventas", level: 1 })).toBeVisible();
     await expect(page.getByText("Vista vendedor: ajustes con aprobación")).toBeVisible();
     const warehousePanel = byTestId(page, "sales-source-warehouse-panel");
-    await expect(warehousePanel).toContainText("Paso 0 · Almacén de salida");
+    await expect(warehousePanel).toContainText("Almacén de salida");
     await expect(warehousePanel).toContainText("Stock de Vendedor E2E · 10 unidades");
 
     await page.getByLabel("F3 · Buscar por SKU o nombre").fill("COCA-600");

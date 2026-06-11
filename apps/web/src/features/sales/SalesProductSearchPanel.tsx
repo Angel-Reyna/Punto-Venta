@@ -35,24 +35,52 @@ export function SalesProductSearchPanel({
   onAddProduct,
 }: SalesProductSearchPanelProps) {
   return (
-    <Box sx={{ display: "grid", gap: { xs: 1.5, md: 2 } }}>
-      <Box>
-        <Typography variant="overline" color="primary" fontWeight={900}>
-          Paso 1 · Elegir productos
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          En celular trabaja como una lista táctil; en PC usa F3, escribe SKU o nombre y selecciona el producto correcto.
-        </Typography>
-      </Box>
+    <Box
+      sx={{
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 3,
+        boxShadow: "none",
+        display: "grid",
+        gap: { xs: 1.25, md: 1.5 },
+        p: { xs: 1.25, sm: 1.5 },
+      }}
+    >
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1}
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        justifyContent="space-between"
+      >
+        <Box>
+          <Typography variant="overline" color="primary" fontWeight={900}>
+            Venta
+          </Typography>
+          <Typography variant="h6" fontWeight={900} letterSpacing="-0.025em">
+            Elegir productos
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 680 }}>
+            Toca una tarjeta para agregarla al ticket. Solo aparecen productos con stock en el almacén seleccionado.
+          </Typography>
+        </Box>
+
+        <Chip
+          color="success"
+          variant="outlined"
+          size="small"
+          label={`${filteredProducts.length} visibles`}
+          sx={{ fontWeight: 800 }}
+        />
+      </Stack>
 
       <Box
         sx={{
           display: "grid",
           gridTemplateColumns: {
             xs: "1fr",
-            md: "minmax(0, 1fr) 220px",
+            md: "minmax(0, 1fr) 170px",
           },
-          gap: 1.5,
+          gap: 1,
         }}
       >
         <TextField
@@ -60,7 +88,7 @@ export function SalesProductSearchPanel({
           label="F3 · Buscar por SKU o nombre"
           value={productSearch}
           autoFocus
-          placeholder="Escribe SKU o nombre para buscar"
+          placeholder="SKU o producto"
           inputProps={{
             "data-testid": "sales-product-search",
           }}
@@ -68,6 +96,7 @@ export function SalesProductSearchPanel({
           onKeyDown={onProductSearchKeyDown}
           onChange={(event) => onProductSearchChange(event.target.value)}
           disabled={isDisabled}
+          size="small"
           InputProps={{
             startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />,
           }}
@@ -83,9 +112,9 @@ export function SalesProductSearchPanel({
               ? "Agregar coincidencia exacta"
               : "Busca por SKU exacto para agregar con Enter."
           }
-          sx={{ minHeight: { xs: 52, md: "auto" } }}
+          sx={{ minHeight: 40 }}
         >
-          Enter · Agregar
+          Enter
         </Button>
       </Box>
 
@@ -95,9 +124,9 @@ export function SalesProductSearchPanel({
         </Alert>
       )}
 
-      {selectedWarehouseCanBeUsed && filteredProducts.length === 0 && requiresAssignedSellerStock && (
-        <Alert severity="warning" data-testid="sales-seller-stock-empty-alert">
-          No hay productos disponibles en tu stock asignado. El almacén principal puede tener existencias, pero primero necesitas una solicitud de retiro aprobada.
+      {selectedWarehouseCanBeUsed && filteredProducts.length === 0 && (
+        <Alert severity="info" data-testid="sales-products-empty-alert">
+          No hay productos con stock que coincidan con la búsqueda actual en este almacén. Cambia el almacén de salida o limpia la búsqueda.
         </Alert>
       )}
 
@@ -105,31 +134,39 @@ export function SalesProductSearchPanel({
         sx={{
           display: "grid",
           gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(4, minmax(0, 1fr))",
+            xs: "repeat(2, minmax(0, 1fr))",
+            sm: "repeat(4, minmax(0, 1fr))",
+            lg: "repeat(5, minmax(0, 1fr))",
+            xl: "repeat(6, minmax(0, 1fr))",
           },
-          gap: { xs: 1, md: 1.25 },
+          gap: { xs: 0.65, md: 0.75 },
         }}
       >
         {filteredProducts.map((product) => {
           const finalPrice = getProductFinalPrice(product);
+          const canAddProduct = selectedWarehouseCanBeUsed && product.stock > 0 && !isDisabled;
 
           return (
             <Button
               key={product.id}
               variant="outlined"
               color="inherit"
-              onClick={() => onAddProduct(product.id)}
-              disabled={isDisabled}
+              onClick={() => {
+                if (canAddProduct) {
+                  onAddProduct(product.id);
+                }
+              }}
+              disabled={!canAddProduct}
+              title="Agregar al ticket"
               sx={(theme) => ({
-                justifyContent: "space-between",
-                minHeight: { xs: 92, md: 104 },
-                textAlign: "left",
-                alignItems: "stretch",
+                minHeight: { xs: 72, md: 76 },
+                textAlign: "center",
+                alignItems: "center",
                 display: "grid",
-                gap: 0.75,
-                p: { xs: 1.25, md: 1.5 },
+                gap: 0.35,
+                justifyItems: "center",
+                p: { xs: 0.7, md: 0.8 },
+                borderRadius: 2.5,
                 borderColor: product.stock <= 3 ? theme.palette.warning.light : "divider",
                 bgcolor:
                   product.stock <= 3
@@ -147,53 +184,36 @@ export function SalesProductSearchPanel({
                 },
               })}
             >
-              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                <Typography
-                  fontWeight={900}
-                  sx={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    minWidth: 0,
-                  }}
-                >
-                  {product.name}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    minWidth: 0,
-                  }}
-                >
-                  {product.sku}
-                </Typography>
-              </Stack>
-
-              <Stack
-                direction="row"
-                spacing={1}
-                alignItems="center"
-                justifyContent="space-between"
-                sx={{ minWidth: 0 }}
+              <Typography
+                fontSize={{ xs: 12.2, md: 12.6 }}
+                fontWeight={900}
+                lineHeight={1.15}
+                sx={{
+                  display: "-webkit-box",
+                  overflow: "hidden",
+                  WebkitBoxOrient: "vertical",
+                  WebkitLineClamp: 2,
+                }}
               >
-                <Typography fontWeight={900}>{formatMoney(finalPrice)}</Typography>
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  label={`Stock ${product.stock}`}
-                  sx={{
-                    maxWidth: "100%",
-                    flexShrink: 0,
-                    ".MuiChip-label": {
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    },
-                  }}
-                />
+                {product.name}
+              </Typography>
+
+              <Typography variant="caption" color="text.secondary" lineHeight={1} noWrap sx={{ maxWidth: "100%" }}>
+                {product.sku}
+              </Typography>
+
+              <Stack alignItems="center" spacing={0.1} sx={{ minWidth: 0 }}>
+                <Typography fontSize={13.5} fontWeight={900} lineHeight={1.05}>
+                  {formatMoney(finalPrice)}
+                </Typography>
+                <Typography
+                  color={product.stock <= 3 ? "warning.main" : "text.secondary"}
+                  fontSize={11.3}
+                  fontWeight={800}
+                  lineHeight={1.1}
+                >
+                  Disp. {product.stock}
+                </Typography>
               </Stack>
             </Button>
           );
