@@ -7,6 +7,7 @@ import {
   CardContent,
   Chip,
   InputAdornment,
+  LinearProgress,
   Stack,
   TextField,
   Typography,
@@ -14,22 +15,21 @@ import {
 import { alpha, type SxProps, type Theme, useTheme } from "@mui/material/styles";
 
 import AddCircleIcon from "@mui/icons-material/AddCircle";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CategoryIcon from "@mui/icons-material/Category";
+import DeleteIcon from "@mui/icons-material/Delete";
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
+import EditIcon from "@mui/icons-material/Edit";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import HistoryIcon from "@mui/icons-material/History";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
-import KeyboardReturnIcon from "@mui/icons-material/KeyboardReturn";
-import LocalShippingIcon from "@mui/icons-material/LocalShipping";
-import MoveToInboxIcon from "@mui/icons-material/MoveToInbox";
-import OutboxIcon from "@mui/icons-material/Outbox";
-import PersonIcon from "@mui/icons-material/Person";
-import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
-import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import QrCode2Icon from "@mui/icons-material/QrCode2";
 import SearchIcon from "@mui/icons-material/Search";
 import SortIcon from "@mui/icons-material/Sort";
-import SyncIcon from "@mui/icons-material/Sync";
-import WarehouseIcon from "@mui/icons-material/Warehouse";
+import StorefrontIcon from "@mui/icons-material/Storefront";
+import ToggleOffIcon from "@mui/icons-material/ToggleOff";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 import { pvVisualTokens } from "../../design-lab/pvVisualTokens";
@@ -37,126 +37,156 @@ import { CategoryPill } from "../products/categoryVisuals";
 
 type Tone = "primary" | "success" | "warning" | "error" | "info" | "secondary";
 
-type InventoryRow = {
-  action: "Mover" | "Reponer";
+type ProductStatus = "Activo" | "Inactivo";
+type StockStatus = "Disponible" | "Bajo stock" | "Sin stock";
+
+type ProductPrototypeRow = {
+  barcode: string;
   category: string;
-  minimumStock: number;
+  costPrice: number;
+  description: string;
+  finalPrice: number;
+  margin: number;
+  minStock: number;
   name: string;
+  promoPercent: number;
+  salePrice: number;
   sku: string;
-  status: "Disponible" | "Stock bajo" | "Sin stock";
+  status: ProductStatus;
   stock: number;
-  tone: Extract<Tone, "success" | "warning" | "error">;
-  warehouses: Array<{
-    label: string;
-    stock: number;
-    type: "main" | "seller";
-  }>;
+  stockStatus: StockStatus;
+  tone: Extract<Tone, "success" | "warning" | "error" | "secondary">;
 };
 
-type MovementStat = {
-  count: number;
+type Metric = {
+  description: string;
   icon: ElementType;
-  impact: "Aumenta existencias" | "Reduce existencias";
   label: string;
   tone: Tone;
-  units: number;
+  value: string;
 };
 
-const inventoryRows: InventoryRow[] = [
+const productRows: ProductPrototypeRow[] = [
   {
-    action: "Mover",
+    barcode: "7501055300075",
     category: "Bebidas frías",
-    minimumStock: 24,
+    costPrice: 11.5,
+    description: "Refresco individual de alta rotación. Visible para venta directa y reportes por vendedor.",
+    finalPrice: 18,
+    margin: 36.1,
+    minStock: 24,
     name: "Coca-Cola 600 ml",
+    promoPercent: 0,
+    salePrice: 18,
     sku: "BEB-COCA-600",
-    status: "Disponible",
+    status: "Activo",
     stock: 72,
+    stockStatus: "Disponible",
     tone: "success",
-    warehouses: [
-      { label: "Principal", stock: 42, type: "main" },
-      { label: "Ana", stock: 18, type: "seller" },
-      { label: "Luis", stock: 12, type: "seller" },
-    ],
   },
   {
-    action: "Reponer",
-    category: "Snacks",
-    minimumStock: 12,
-    name: "Sabritas Original 45 g",
-    sku: "BOT-SAB-045",
-    status: "Stock bajo",
-    stock: 8,
-    tone: "warning",
-    warehouses: [
-      { label: "Principal", stock: 5, type: "main" },
-      { label: "Ana", stock: 3, type: "seller" },
-      { label: "Luis", stock: 0, type: "seller" },
-    ],
-  },
-  {
-    action: "Mover",
+    barcode: "PV-MAR-250G",
     category: "Abarrotes",
-    minimumStock: 36,
-    name: "Agua natural 1 L",
-    sku: "DEMO-AGUA-1L",
-    status: "Disponible",
-    stock: 1957,
+    costPrice: 18,
+    description: "Producto base para despensa. Debe conservar código interno claro para importación Excel.",
+    finalPrice: 25.5,
+    margin: 29.4,
+    minStock: 20,
+    name: "Harina de maíz 250 g",
+    promoPercent: 15,
+    salePrice: 30,
+    sku: "ABA-HARINA-250",
+    status: "Activo",
+    stock: 14,
+    stockStatus: "Bajo stock",
+    tone: "warning",
+  },
+  {
+    barcode: "PV-SAB-045",
+    category: "Snacks",
+    costPrice: 12,
+    description: "Botana sin unidades disponibles. Se mantiene visible para auditoría y reposición.",
+    finalPrice: 17,
+    margin: 29.4,
+    minStock: 12,
+    name: "Sabritas Original 45 g",
+    promoPercent: 0,
+    salePrice: 17,
+    sku: "BOT-SAB-045",
+    status: "Activo",
+    stock: 0,
+    stockStatus: "Sin stock",
+    tone: "error",
+  },
+  {
+    barcode: "PV-LIM-CLORO-1L",
+    category: "Limpieza",
+    costPrice: 15,
+    description: "Producto pausado temporalmente. No debe venderse, pero conserva historial e importaciones.",
+    finalPrice: 24,
+    margin: 37.5,
+    minStock: 8,
+    name: "Cloro multiusos 1 L",
+    promoPercent: 0,
+    salePrice: 24,
+    sku: "LIM-CLORO-1L",
+    status: "Inactivo",
+    stock: 31,
+    stockStatus: "Disponible",
+    tone: "secondary",
+  },
+];
+
+const productMetrics: Metric[] = [
+  {
+    description: "Productos disponibles para operación diaria.",
+    icon: StorefrontIcon,
+    label: "Activos",
     tone: "success",
-    warehouses: [
-      { label: "DEMO Almacén Principal", stock: 859, type: "main" },
-      { label: "DEMO Almacén Norte", stock: 29, type: "main" },
-      { label: "Bodega Centro", stock: 80, type: "main" },
-      { label: "Ana", stock: 332, type: "seller" },
-      { label: "Luis", stock: 0, type: "seller" },
-      { label: "Carlos", stock: 74, type: "seller" },
-      { label: "Ruta Norte", stock: 228, type: "seller" },
-      { label: "Ruta Centro", stock: 248, type: "seller" },
-      { label: "Ruta Sur", stock: 107, type: "seller" },
-    ],
-  },
-];
-
-const movementStats: MovementStat[] = [
-  { count: 38, icon: MoveToInboxIcon, impact: "Aumenta existencias", label: "Entradas", tone: "success", units: 516 },
-  { count: 14, icon: OutboxIcon, impact: "Reduce existencias", label: "Salidas", tone: "error", units: 196 },
-  { count: 41, icon: PointOfSaleIcon, impact: "Reduce existencias", label: "Ventas", tone: "primary", units: 392 },
-  { count: 3, icon: KeyboardReturnIcon, impact: "Aumenta existencias", label: "Devoluciones", tone: "secondary", units: 28 },
-];
-
-const statusSignals = [
-  {
-    action: "Operable",
-    count: 18,
-    description: "Productos con unidades suficientes para vender.",
-    icon: CheckCircleIcon,
-    label: "Disponible",
-    tone: "success" as const,
+    value: "34",
   },
   {
-    action: "Revisar",
-    count: 5,
-    description: "Productos en o debajo del mínimo definido.",
+    description: "En o debajo del mínimo configurado.",
     icon: WarningAmberIcon,
-    label: "Stock bajo",
-    tone: "warning" as const,
+    label: "Bajo stock",
+    tone: "warning",
+    value: "6",
   },
   {
-    action: "Urgente",
-    count: 2,
-    description: "Productos sin unidades, visibles para auditoría.",
+    description: "Visibles para auditoría y reposición.",
     icon: ErrorOutlineIcon,
     label: "Sin stock",
-    tone: "error" as const,
+    tone: "error",
+    value: "3",
+  },
+  {
+    description: "Con descuento aplicado al precio final.",
+    icon: LocalOfferIcon,
+    label: "Promoción",
+    tone: "info",
+    value: "5",
   },
 ];
 
-const inventoryNavItems = [
-  { icon: Inventory2Icon, label: "Existencias", tone: "primary" as const },
-  { icon: AddCircleIcon, label: "Entradas", tone: "success" as const },
-  { icon: RemoveCircleIcon, label: "Salidas", tone: "error" as const },
-  { icon: HistoryIcon, label: "Historial", tone: "secondary" as const },
-  { icon: LocalShippingIcon, label: "Retiros", tone: "info" as const },
+const filterChips = ["Todos", "Activos", "Inactivos", "Bajo stock", "Sin stock", "Con promoción"];
+
+const formFields = [
+  ["Clave interna/SKU", "BEB-COCA-600", "Identificador único para inventario e importación."],
+  ["Código del producto", "7501055300075", "Código físico, de proveedor o generado por el sistema."],
+  ["Nombre", "Coca-Cola 600 ml", "Nombre visible para ventas y reportes."],
+  ["Categoría", "Bebidas frías", "Usa categoría real; sin categorías demo."],
+  ["Costo unitario", "$11.50", "Base para margen de utilidad."],
+  ["Precio de venta", "$18.00", "Precio antes de promoción."],
+  ["Promoción", "0%", "Descuento porcentual opcional."],
+  ["Stock mínimo", "24", "Alerta cuando stock actual llega a este número o queda debajo."],
 ];
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("es-MX", {
+    currency: "MXN",
+    style: "currency",
+  }).format(value);
+}
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("es-MX").format(value);
@@ -182,22 +212,6 @@ function Surface({ children, sx }: { children: ReactNode; sx?: SxProps<Theme> })
   );
 }
 
-function SectionHeader({ description, eyebrow, title }: { description: string; eyebrow: string; title: string }) {
-  return (
-    <Stack spacing={0.75}>
-      <Typography color="primary.main" fontWeight={850} letterSpacing="0.08em" textTransform="uppercase" variant="caption">
-        {eyebrow}
-      </Typography>
-      <Typography component="h2" fontWeight={900} letterSpacing="-0.035em" variant="h4">
-        {title}
-      </Typography>
-      <Typography color="text.secondary" sx={{ maxWidth: 920 }} variant="body1">
-        {description}
-      </Typography>
-    </Stack>
-  );
-}
-
 function IconTile({ icon: Icon, size = 42, tone }: { icon: ElementType; size?: number; tone: Tone }) {
   const theme = useTheme();
   const color = toneMain(theme, tone);
@@ -210,7 +224,6 @@ function IconTile({ icon: Icon, size = 42, tone }: { icon: ElementType; size?: n
         border: "1px solid",
         borderColor: alpha(color, 0.28),
         borderRadius: size > 44 ? 3.25 : 2.4,
-        boxShadow: `inset 0 0 0 1px ${alpha(theme.palette.common.white, 0.04)}`,
         color,
         display: "grid",
         flex: `0 0 ${size}px`,
@@ -224,614 +237,129 @@ function IconTile({ icon: Icon, size = 42, tone }: { icon: ElementType; size?: n
   );
 }
 
-function MetricPill({ label, tone, value }: { label: string; tone: Tone; value: string }) {
-  const theme = useTheme();
-  const color = toneMain(theme, tone);
-
+function SectionHeader({ description, eyebrow, title }: { description: string; eyebrow: string; title: string }) {
   return (
-    <Box
-      sx={{
-        alignItems: "center",
-        backgroundColor: alpha(color, 0.085),
-        border: "1px solid",
-        borderColor: alpha(color, 0.18),
-        borderRadius: 2.2,
-        display: "grid",
-        gap: 0.55,
-        gridTemplateColumns: "auto auto",
-        minHeight: 30,
-        px: 0.85,
-        py: 0.55,
-      }}
-    >
-      <Typography color="text.secondary" fontSize={10} fontWeight={900} lineHeight={1} textTransform="uppercase">
-        {label}
+    <Stack spacing={0.75}>
+      <Typography color="primary.main" fontWeight={850} letterSpacing="0.08em" textTransform="uppercase" variant="caption">
+        {eyebrow}
       </Typography>
-      <Typography color={color} fontSize={15} fontWeight={950} lineHeight={1}>
-        {value}
+      <Typography component="h2" fontWeight={950} letterSpacing="-0.04em" variant="h4">
+        {title}
       </Typography>
-    </Box>
+      <Typography color="text.secondary" sx={{ maxWidth: 960 }} variant="body1">
+        {description}
+      </Typography>
+    </Stack>
   );
 }
 
-function HealthGauge() {
+function MetricCard({ metric }: { metric: Metric }) {
   const theme = useTheme();
-  const healthy = theme.palette.success.main;
-  const warning = theme.palette.warning.main;
-  const error = theme.palette.error.main;
-  const totalSignals = statusSignals.reduce((sum, signal) => sum + signal.count, 0);
+  const color = toneMain(theme, metric.tone);
 
   return (
     <Box
       sx={{
-        alignItems: "stretch",
-        background:
-          theme.palette.mode === "dark"
-            ? "linear-gradient(140deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.42))"
-            : "linear-gradient(140deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.82))",
+        background: `linear-gradient(145deg, ${alpha(color, 0.13)}, ${alpha(theme.palette.background.paper, 0.82)})`,
         border: "1px solid",
-        borderColor: alpha(theme.palette.success.main, 0.2),
-        borderRadius: 3.2,
+        borderColor: alpha(color, 0.24),
+        borderRadius: 3.25,
         display: "grid",
-        gap: { xs: 1.2, sm: 1.45 },
-        gridTemplateColumns: { xs: "1fr", sm: "178px minmax(0, 1fr)" },
-        p: { xs: 1.15, sm: 1.3 },
+        gap: 1.2,
+        gridTemplateColumns: "auto minmax(0, 1fr)",
+        minHeight: 112,
+        p: 1.35,
       }}
     >
-      <Stack alignItems="center" justifyContent="center" spacing={0.75}>
-        <Box
-          sx={{
-            alignItems: "center",
-            background: `conic-gradient(${healthy} 0deg 259deg, ${warning} 259deg 331deg, ${error} 331deg 360deg)`,
-            borderRadius: "50%",
-            boxShadow: `0 18px 44px ${alpha(theme.palette.success.main, 0.18)}`,
-            display: "grid",
-            height: { xs: 140, sm: 156 },
-            justifyItems: "center",
-            position: "relative",
-            width: { xs: 140, sm: 156 },
-            "&::after": {
-              backgroundColor: theme.palette.background.paper,
-              borderRadius: "50%",
-              boxShadow: `inset 0 0 0 1px ${alpha(theme.palette.divider, 0.5)}`,
-              content: '""',
-              height: "68%",
-              position: "absolute",
-              width: "68%",
-            },
-          }}
-        >
-          <Stack alignItems="center" spacing={0.15} sx={{ position: "relative", zIndex: 1 }}>
-            <Typography fontSize={{ xs: 34, sm: 38 }} fontWeight={950} lineHeight={1}>
-              72%
-            </Typography>
-            <Typography color="text.secondary" fontSize={10.5} fontWeight={850} letterSpacing="0.08em" textTransform="uppercase">
-              saludable
-            </Typography>
-          </Stack>
-        </Box>
-        <Typography color="text.secondary" fontSize={11.5} fontWeight={800} textAlign="center">
-          Salud general del inventario
+      <IconTile icon={metric.icon} size={44} tone={metric.tone} />
+      <Stack minWidth={0} spacing={0.3}>
+        <Typography color="text.secondary" fontSize={11} fontWeight={900} letterSpacing="0.07em" textTransform="uppercase">
+          {metric.label}
+        </Typography>
+        <Typography color={color} fontSize={30} fontWeight={950} lineHeight={1}>
+          {metric.value}
+        </Typography>
+        <Typography color="text.secondary" fontSize={12.25} lineHeight={1.25}>
+          {metric.description}
         </Typography>
       </Stack>
-
-      <Stack justifyContent="center" spacing={0.85}>
-        <Box>
-          <Typography fontWeight={950} letterSpacing="-0.025em" variant="subtitle1">
-            Estado operativo
-          </Typography>
-          <Typography color="text.secondary" fontSize={12.25}>
-            Lectura rápida por nivel de atención: vender, revisar o reponer.
-          </Typography>
-        </Box>
-
-        <Stack spacing={0.68}>
-          {statusSignals.map((signal) => {
-            const color = toneMain(theme, signal.tone);
-            const Icon = signal.icon;
-            const percentage = Math.round((signal.count / totalSignals) * 100);
-
-            return (
-              <Box
-                key={signal.label}
-                sx={{
-                  alignItems: "center",
-                  backgroundColor: alpha(color, 0.07),
-                  border: "1px solid",
-                  borderColor: alpha(color, 0.17),
-                  borderRadius: 2.4,
-                  display: "grid",
-                  gap: 0.9,
-                  gridTemplateColumns: "34px minmax(0, 1fr) auto",
-                  minHeight: 52,
-                  px: 1,
-                  py: 0.7,
-                }}
-              >
-                <Box sx={{ color, display: "grid", placeItems: "center" }}>
-                  <Icon fontSize="small" />
-                </Box>
-                <Box minWidth={0}>
-                  <Typography fontSize={13.5} fontWeight={950} lineHeight={1.15} noWrap>
-                    {signal.label}
-                  </Typography>
-                  <Typography color="text.secondary" fontSize={11.25} lineHeight={1.25} noWrap>
-                    {signal.action} · {signal.description}
-                  </Typography>
-                </Box>
-                <Stack alignItems="flex-end" spacing={0.1}>
-                  <Typography color={color} fontSize={20} fontWeight={950} lineHeight={1}>
-                    {signal.count}
-                  </Typography>
-                  <Typography color="text.secondary" fontSize={10.5} fontWeight={850}>
-                    {percentage}%
-                  </Typography>
-                </Stack>
-              </Box>
-            );
-          })}
-        </Stack>
-      </Stack>
     </Box>
   );
 }
 
-function MovementsPanel() {
-  const theme = useTheme();
-  const totalMovements = movementStats.reduce((sum, item) => sum + item.count, 0);
-  const totalUnits = movementStats.reduce((sum, item) => sum + item.units, 0);
-  const inflow = movementStats
-    .filter((item) => item.impact === "Aumenta existencias")
-    .reduce((sum, item) => sum + item.units, 0);
-  const outflow = movementStats
-    .filter((item) => item.impact === "Reduce existencias")
-    .reduce((sum, item) => sum + item.units, 0);
-  const net = inflow - outflow;
-
+function ProductsHero() {
   return (
-    <Box
-      sx={{
+    <Surface
+      sx={(theme) => ({
         background:
           theme.palette.mode === "dark"
-            ? "radial-gradient(circle at top left, rgba(96, 165, 250, 0.16), transparent 44%), rgba(15, 23, 42, 0.48)"
-            : "radial-gradient(circle at top left, rgba(37, 99, 235, 0.1), transparent 44%), rgba(255, 255, 255, 0.8)",
+            ? "linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(15, 23, 42, 0.7))"
+            : "linear-gradient(135deg, rgba(37, 99, 235, 0.11), rgba(255, 255, 255, 0.92) 48%, rgba(34, 197, 94, 0.08))",
         border: "1px solid",
-        borderColor: alpha(theme.palette.primary.main, 0.16),
-        borderRadius: 3.5,
-        p: { xs: 1, md: 1.15 },
-      }}
+        borderColor: alpha(theme.palette.primary.main, 0.18),
+      })}
     >
-      <Stack spacing={0.95}>
-        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
-          <Stack direction="row" spacing={0.9}>
-            <IconTile icon={SyncIcon} size={40} tone="primary" />
-            <Box>
-              <Typography fontWeight={950} letterSpacing="-0.025em" variant="subtitle1">
-                Movimientos del periodo
-              </Typography>
-              <Typography color="text.secondary" variant="caption">
-                Entradas, salidas, ventas y devoluciones que cambiaron el stock.
-              </Typography>
-            </Box>
-          </Stack>
-          <Stack direction="row" flexWrap="wrap" gap={0.65}>
-            <MetricPill label="Movimientos" tone="primary" value={formatNumber(totalMovements)} />
-            <MetricPill label="Unidades" tone="info" value={formatNumber(totalUnits)} />
-            <MetricPill label="Neto" tone={net < 0 ? "error" : "success"} value={String(net)} />
-          </Stack>
+      <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" spacing={2.2}>
+        <Stack direction="row" spacing={1.35}>
+          <IconTile icon={StorefrontIcon} size={56} tone="primary" />
+          <Box>
+            <Typography color="text.secondary" fontWeight={850} letterSpacing="0.08em" textTransform="uppercase" variant="caption">
+              Desktop 1366 × 900 · Productos
+            </Typography>
+            <Typography component="h1" fontWeight={950} letterSpacing="-0.04em" variant="h4">
+              Catálogo de productos
+            </Typography>
+            <Typography color="text.secondary" sx={{ maxWidth: 820 }} variant="body2">
+              Prototipo visual para administrar productos, códigos, categorías, precios, promociones, estados y alertas de stock antes de migrar a la página real.
+            </Typography>
+          </Box>
         </Stack>
 
-        <Box
-          sx={{
-            display: "grid",
-            gap: 0.75,
-            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", xl: "repeat(4, minmax(0, 1fr))" },
-          }}
-        >
-          {movementStats.map((item) => {
-            const color = toneMain(theme, item.tone);
-            const Icon = item.icon;
-
-            return (
-              <Box
-                key={item.label}
-                sx={{
-                  alignItems: "center",
-                  background: `linear-gradient(150deg, ${alpha(color, 0.13)}, ${alpha(theme.palette.background.paper, 0.42)})`,
-                  border: "1px solid",
-                  borderColor: alpha(color, 0.22),
-                  borderLeft: "3px solid",
-                  borderLeftColor: color,
-                  borderRadius: 2.5,
-                  display: "grid",
-                  gridTemplateColumns: "minmax(0, 1fr) minmax(76px, 38%)",
-                  minHeight: 86,
-                  overflow: "hidden",
-                  p: 1,
-                  position: "relative",
-                }}
-              >
-                <Icon
-                  sx={{
-                    color: alpha(color, 0.1),
-                    fontSize: 72,
-                    position: "absolute",
-                    right: -9,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                  }}
-                />
-
-                <Stack
-                  alignItems="center"
-                  direction="row"
-                  spacing={0.95}
-                  sx={{ minWidth: 0, position: "relative", zIndex: 1 }}
-                >
-                  <IconTile icon={item.icon} size={42} tone={item.tone} />
-                  <Box minWidth={0}>
-                    <Typography fontSize={14.5} fontWeight={950} lineHeight={1.1} noWrap>
-                      {item.label}
-                    </Typography>
-                    <Typography color="text.secondary" fontSize={11.2} fontWeight={800} lineHeight={1.2} noWrap>
-                      {item.impact}
-                    </Typography>
-                  </Box>
-                </Stack>
-
-                <Stack
-                  alignItems="center"
-                  justifyContent="center"
-                  spacing={0.25}
-                  sx={{ minHeight: 58, position: "relative", zIndex: 1 }}
-                >
-                  <Typography color={color} fontSize={26} fontWeight={950} lineHeight={1} textAlign="center">
-                    {item.count}
-                  </Typography>
-                  <Typography color="text.secondary" fontSize={11.5} fontWeight={850} lineHeight={1.1} textAlign="center" noWrap>
-                    movimientos · {formatNumber(item.units)}
-                  </Typography>
-                </Stack>
-              </Box>
-            );
-          })}
-        </Box>
-      </Stack>
-    </Box>
-  );
-}
-
-function InventoryOperationalPanel() {
-  return (
-    <Surface>
-      <Stack spacing={1.25}>
-        <Box>
-          <Typography color="primary.main" fontWeight={850} letterSpacing="0.08em" textTransform="uppercase" variant="caption">
-            Lectura rápida
-          </Typography>
-          <Typography fontWeight={950} letterSpacing="-0.03em" variant="h5">
-            Estado y movimientos
-          </Typography>
-          <Typography color="text.secondary" variant="body2">
-            Señales para decidir qué vender, reponer o revisar sin repetir los datos de la tabla.
-          </Typography>
-        </Box>
-        <Box sx={{ display: "grid", gap: 1.15, gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 0.92fr) minmax(0, 1.08fr)" } }}>
-          <HealthGauge />
-          <MovementsPanel />
-        </Box>
+        <Stack alignItems={{ xs: "stretch", sm: "center", lg: "flex-end" }} direction={{ xs: "column", sm: "row", lg: "column" }} spacing={1}>
+          <Button startIcon={<AddCircleIcon />} variant="contained">
+            Nuevo producto
+          </Button>
+          <Stack direction="row" flexWrap="wrap" gap={1} justifyContent={{ xs: "flex-start", lg: "flex-end" }}>
+            <Button startIcon={<FileDownloadIcon />} variant="outlined">
+              Formato Excel
+            </Button>
+            <Button startIcon={<UploadFileIcon />} variant="outlined">
+              Importar
+            </Button>
+            <Button color="error" startIcon={<DeleteSweepIcon />} variant="outlined">
+              Eliminar catálogo
+            </Button>
+          </Stack>
+        </Stack>
       </Stack>
     </Surface>
   );
 }
 
-function InventoryNav() {
+function ProductsMetrics() {
   return (
-    <Stack direction="row" flexWrap="wrap" gap={1}>
-      {inventoryNavItems.map((item, index) => (
-        <Button
-          color={item.tone}
-          key={item.label}
-          startIcon={<item.icon />}
-          sx={{ minHeight: pvVisualTokens.density.compactControlHeight, px: 1.7 }}
-          variant={index === 0 ? "contained" : "outlined"}
-        >
-          {item.label}
-        </Button>
+    <Box sx={{ display: "grid", gap: 1.2, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", xl: "repeat(4, minmax(0, 1fr))" } }}>
+      {productMetrics.map((metric) => (
+        <MetricCard key={metric.label} metric={metric} />
       ))}
-    </Stack>
-  );
-}
-
-function getDistributionTone(warehouse: InventoryRow["warehouses"][number]): Tone {
-  if (warehouse.stock === 0) {
-    return "error";
-  }
-
-  return warehouse.type === "main" ? "info" : "secondary";
-}
-
-function getDistributionLabel(warehouse: InventoryRow["warehouses"][number]) {
-  return warehouse.type === "main" ? `Almacén: ${warehouse.label}` : `Vendedor: ${warehouse.label}`;
-}
-
-function DistributionLocationLine({ warehouse }: { warehouse: InventoryRow["warehouses"][number] }) {
-  const theme = useTheme();
-  const tone = getDistributionTone(warehouse);
-  const color = toneMain(theme, tone);
-  const Icon = warehouse.type === "main" ? WarehouseIcon : PersonIcon;
-
-  return (
-    <Box
-      sx={{
-        alignItems: "center",
-        background: alpha(color, theme.palette.mode === "dark" ? 0.11 : 0.08),
-        border: "1px solid",
-        borderColor: alpha(color, 0.26),
-        borderRadius: 2.25,
-        display: "grid",
-        gap: 0.9,
-        gridTemplateColumns: "30px minmax(0, 1fr) auto",
-        minHeight: 34,
-        px: 0.8,
-        py: 0.55,
-      }}
-    >
-      <Box
-        sx={{
-          alignItems: "center",
-          background: alpha(color, 0.18),
-          border: "1px solid",
-          borderColor: alpha(color, 0.28),
-          borderRadius: "50%",
-          color,
-          display: "grid",
-          height: 28,
-          justifyContent: "center",
-          width: 28,
-        }}
-      >
-        <Icon sx={{ fontSize: 16 }} />
-      </Box>
-      <Typography color="text.primary" fontSize={12.25} fontWeight={850} lineHeight={1.15} noWrap>
-        {getDistributionLabel(warehouse)}
-      </Typography>
-      <Typography color={warehouse.stock === 0 ? "error.main" : "text.primary"} fontSize={13} fontWeight={950} whiteSpace="nowrap">
-        {warehouse.stock} disponibles
-      </Typography>
     </Box>
   );
 }
 
-function DistributionSummary({ item }: { item: InventoryRow }) {
-  const sortedWarehouses = [...item.warehouses].sort((a, b) => {
-    if (a.stock === 0 && b.stock !== 0) {
-      return -1;
-    }
-    if (a.stock !== 0 && b.stock === 0) {
-      return 1;
-    }
-    if (a.type !== b.type) {
-      return a.type === "main" ? -1 : 1;
-    }
-
-    return b.stock - a.stock;
-  });
-  const visibleWarehouses = sortedWarehouses.slice(0, 4);
-  const hiddenCount = Math.max(sortedWarehouses.length - visibleWarehouses.length, 0);
-  const warehouseCount = item.warehouses.filter((warehouse) => warehouse.type === "main").length;
-  const sellerCount = item.warehouses.filter((warehouse) => warehouse.type === "seller").length;
-  const emptyCount = item.warehouses.filter((warehouse) => warehouse.stock === 0).length;
-
-  return (
-    <Stack minWidth={0} spacing={0.85}>
-      <Stack alignItems="center" direction="row" justifyContent="space-between" spacing={1}>
-        <Typography color="text.secondary" fontSize={10.5} fontWeight={900} letterSpacing="0.07em" textTransform="uppercase">
-          Distribución real
-        </Typography>
-        <Chip label={`${item.warehouses.length} ubicaciones`} size="small" variant="outlined" sx={{ fontSize: 11, fontWeight: 900, height: 24 }} />
-      </Stack>
-
-      <Stack direction="row" flexWrap="wrap" gap={0.55}>
-        <Chip label={`${warehouseCount} ${warehouseCount === 1 ? "almacén" : "almacenes"}`} size="small" variant="outlined" sx={{ fontSize: 11, fontWeight: 850, height: 23 }} />
-        <Chip label={`${sellerCount} ${sellerCount === 1 ? "vendedor" : "vendedores"}`} size="small" variant="outlined" sx={{ fontSize: 11, fontWeight: 850, height: 23 }} />
-        {emptyCount > 0 ? <Chip color="error" label={`${emptyCount} sin stock`} size="small" variant="outlined" sx={{ fontSize: 11, fontWeight: 850, height: 23 }} /> : null}
-      </Stack>
-
-      <Stack spacing={0.55}>
-        {visibleWarehouses.map((warehouse) => (
-          <DistributionLocationLine key={`${item.sku}-${warehouse.label}`} warehouse={warehouse} />
-        ))}
-        {hiddenCount > 0 ? (
-          <Box
-            sx={(theme) => ({
-              alignItems: "center",
-              border: "1px dashed",
-              borderColor: alpha(theme.palette.primary.main, 0.36),
-              borderRadius: 2,
-              display: "flex",
-              justifyContent: "center",
-              minHeight: 30,
-              px: 1,
-            })}
-          >
-            <Typography color="primary.main" fontSize={12} fontWeight={900}>
-              +{hiddenCount} ubicaciones más en detalle
-            </Typography>
-          </Box>
-        ) : null}
-      </Stack>
-    </Stack>
-  );
-}
-
-function StockMeterCard({ item }: { item: InventoryRow }) {
-  const theme = useTheme();
-  const color = toneMain(theme, item.tone);
-  const diff = item.stock - item.minimumStock;
-  const diffLabel = diff >= 0 ? `+${diff} sobre el mínimo` : `Faltan ${Math.abs(diff)}`;
-
-  return (
-    <Box
-      sx={{
-        alignItems: "center",
-        background: `linear-gradient(135deg, ${alpha(color, 0.2)} 0%, ${alpha(theme.palette.background.paper, 0.72)} 45%, ${alpha(color, 0.08)} 100%)`,
-        border: "1px solid",
-        borderColor: alpha(color, 0.38),
-        borderRadius: 3,
-        boxShadow: `inset 0 0 0 1px ${alpha(theme.palette.common.white, theme.palette.mode === "dark" ? 0.035 : 0.22)}`,
-        display: "grid",
-        minHeight: 112,
-        overflow: "hidden",
-        placeItems: "center",
-        position: "relative",
-        px: 1.25,
-        py: 1,
-        textAlign: "center",
-        "&::before": {
-          background: color,
-          borderRadius: 999,
-          bottom: 14,
-          content: '""',
-          left: 10,
-          position: "absolute",
-          top: 14,
-          width: 5,
-        },
-        "&::after": {
-          background: `linear-gradient(90deg, ${alpha(color, 0.9)} 0%, ${alpha(color, 0.34)} 60%, ${alpha(color, 0.14)} 100%)`,
-          borderRadius: 999,
-          bottom: 8,
-          content: '""',
-          height: 4,
-          left: 18,
-          position: "absolute",
-          right: 18,
-        },
-      }}
-    >
-      <Stack alignItems="center" justifyContent="center" spacing={0.8} sx={{ width: "100%" }}>
-        <Typography color="text.secondary" fontSize={10.5} fontWeight={900} letterSpacing="0.08em" textTransform="uppercase">
-          Stock actual y mínimo
-        </Typography>
-        <Box
-          sx={{
-            alignItems: "center",
-            display: "grid",
-            gap: 1.2,
-            gridTemplateColumns: "auto minmax(0, 1fr)",
-            justifyContent: "center",
-            maxWidth: 250,
-            width: "100%",
-          }}
-        >
-          <Typography color={color} fontSize={38} fontWeight={950} lineHeight={1} sx={{ minWidth: 72, textAlign: "center" }}>
-            {item.stock}
-          </Typography>
-          <Box
-            component="ul"
-            sx={{
-              color: "text.primary",
-              fontSize: 12.5,
-              fontWeight: 850,
-              lineHeight: 1.4,
-              listStylePosition: "inside",
-              m: 0,
-              p: 0,
-              textAlign: "left",
-            }}
-          >
-            <li>Actual: {item.stock}</li>
-            <li>Mínimo: {item.minimumStock}</li>
-            <li>{diffLabel}</li>
-          </Box>
-        </Box>
-      </Stack>
-    </Box>
-  );
-}
-
-function InventoryRowCard({ item }: { item: InventoryRow }) {
-  const theme = useTheme();
-  const color = toneMain(theme, item.tone);
-
-  const actionButtonSx = {
-    borderRadius: 2.25,
-    fontSize: 12.5,
-    fontWeight: 950,
-    minHeight: 34,
-    minWidth: 94,
-    px: 1.35,
-    py: 0.45,
-  } as const;
-
-  return (
-    <Box
-      sx={{
-        background: alpha(theme.palette.background.paper, 0.72),
-        border: "1px solid",
-        borderColor: alpha(color, 0.24),
-        borderLeft: "5px solid",
-        borderLeftColor: color,
-        borderRadius: 3.5,
-        display: "grid",
-        gap: 1.25,
-        gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1.2fr) 300px minmax(360px, 1fr) 102px" },
-        p: 1.35,
-      }}
-    >
-      <Stack alignItems="center" direction="row" minWidth={0} spacing={1.25}>
-        <IconTile icon={Inventory2Icon} size={58} tone={item.tone} />
-        <Stack minWidth={0} spacing={0.55}>
-          <Stack alignItems="center" direction="row" flexWrap="wrap" gap={0.75}>
-            <Typography fontWeight={950}>{item.name}</Typography>
-            <Chip color={item.tone} label={item.status} size="small" />
-          </Stack>
-          <Typography color="text.secondary" variant="body2">
-            Código del producto: {item.sku}
-          </Typography>
-          <CategoryPill label={item.category} />
-        </Stack>
-      </Stack>
-
-      <StockMeterCard item={item} />
-
-      <DistributionSummary item={item} />
-
-      <Stack alignItems={{ xs: "stretch", md: "flex-end" }} justifyContent="center" spacing={0.55}>
-        <Button size="small" sx={actionButtonSx} variant="outlined">
-          Detalle
-        </Button>
-        <Button color={item.tone === "success" ? "primary" : item.tone} size="small" sx={actionButtonSx} variant="contained">
-          {item.action}
-        </Button>
-      </Stack>
-    </Box>
-  );
-}
-
-
-
-function InventoryTablePrototype() {
+function ProductsToolbarPrototype() {
   return (
     <Surface>
-      <Stack spacing={1.75}>
-        <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.25}>
+      <Stack spacing={1.5}>
+        <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.4}>
           <Box>
             <Typography fontWeight={950} letterSpacing="-0.025em" variant="h5">
-              Existencias actuales
+              Gestión del catálogo
             </Typography>
             <Typography color="text.secondary" variant="body2">
-              Resumen compacto por producto; la distribución completa queda para detalle cuando hay muchas ubicaciones.
+              La búsqueda queda como acción principal; filtros y orden son secundarios para no saturar móvil.
             </Typography>
           </Box>
           <Stack direction="row" flexWrap="wrap" gap={1}>
-            <TextField
-              placeholder="Buscar por producto, código o almacén"
-              size="small"
-              slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
-              sx={{ minWidth: { xs: "100%", sm: 290 } }}
-            />
             <Button startIcon={<SortIcon />} variant="outlined">
               Ordenar
             </Button>
@@ -841,9 +369,31 @@ function InventoryTablePrototype() {
           </Stack>
         </Stack>
 
-        <Stack spacing={1.05}>
-          {inventoryRows.map((item) => (
-            <InventoryRowCard item={item} key={item.sku} />
+        <TextField
+          fullWidth
+          placeholder="Buscar por producto, SKU, código, categoría o descripción"
+          size="small"
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+
+        <Stack direction="row" flexWrap="wrap" gap={0.8}>
+          {filterChips.map((filter, index) => (
+            <Chip
+              color={index === 0 ? "primary" : "default"}
+              key={filter}
+              label={filter}
+              size="small"
+              variant={index === 0 ? "filled" : "outlined"}
+              sx={{ fontWeight: 850 }}
+            />
           ))}
         </Stack>
       </Stack>
@@ -851,9 +401,286 @@ function InventoryTablePrototype() {
   );
 }
 
+function ProductIdentity({ product }: { product: ProductPrototypeRow }) {
+  return (
+    <Stack direction="row" minWidth={0} spacing={1.25}>
+      <IconTile icon={Inventory2Icon} size={58} tone={product.tone} />
+      <Stack minWidth={0} spacing={0.7}>
+        <Stack alignItems="center" direction="row" flexWrap="wrap" gap={0.75}>
+          <Typography fontWeight={950} sx={{ overflowWrap: "anywhere" }}>
+            {product.name}
+          </Typography>
+          <Chip color={product.status === "Activo" ? "success" : "default"} label={product.status} size="small" sx={{ fontWeight: 850 }} />
+          <Chip color={product.tone} label={product.stockStatus} size="small" variant="outlined" sx={{ fontWeight: 850 }} />
+        </Stack>
+        <Typography color="text.secondary" fontSize={12.5} lineHeight={1.35}>
+          {product.description}
+        </Typography>
+        <CategoryPill label={product.category} />
+      </Stack>
+    </Stack>
+  );
+}
 
+function CodeBlock({ product }: { product: ProductPrototypeRow }) {
+  return (
+    <Stack spacing={0.75}>
+      <Stack direction="row" spacing={0.75} alignItems="center">
+        <QrCode2Icon color="primary" fontSize="small" />
+        <Typography color="text.secondary" fontSize={10.5} fontWeight={900} letterSpacing="0.08em" textTransform="uppercase">
+          Identificación
+        </Typography>
+      </Stack>
+      <Box sx={{ display: "grid", gap: 0.7 }}>
+        <Box>
+          <Typography color="text.secondary" fontSize={11.5} fontWeight={850}>
+            Clave interna/SKU
+          </Typography>
+          <Typography fontSize={13.5} fontWeight={950} sx={{ overflowWrap: "anywhere" }}>
+            {product.sku}
+          </Typography>
+        </Box>
+        <Box>
+          <Typography color="text.secondary" fontSize={11.5} fontWeight={850}>
+            Código del producto
+          </Typography>
+          <Typography fontSize={13.5} fontWeight={850} sx={{ overflowWrap: "anywhere" }}>
+            {product.barcode}
+          </Typography>
+        </Box>
+      </Box>
+    </Stack>
+  );
+}
 
-function MobilePreview() {
+function PriceBlock({ product }: { product: ProductPrototypeRow }) {
+  return (
+    <Stack spacing={0.8}>
+      <Stack direction="row" spacing={0.75} alignItems="center">
+        <LocalOfferIcon color="primary" fontSize="small" />
+        <Typography color="text.secondary" fontSize={10.5} fontWeight={900} letterSpacing="0.08em" textTransform="uppercase">
+          Precio y margen
+        </Typography>
+      </Stack>
+      <Box sx={{ display: "grid", gap: 0.7, gridTemplateColumns: "1fr 1fr" }}>
+        <MiniField label="Costo" value={formatCurrency(product.costPrice)} />
+        <MiniField label="Venta" value={formatCurrency(product.salePrice)} />
+        <MiniField label="Final" value={formatCurrency(product.finalPrice)} emphasize />
+        <MiniField label="Margen" value={`${product.margin.toFixed(1)}%`} />
+      </Box>
+      {product.promoPercent > 0 ? <Chip color="info" label={`${product.promoPercent}% de promoción`} size="small" sx={{ alignSelf: "flex-start", fontWeight: 850 }} /> : null}
+    </Stack>
+  );
+}
+
+function MiniField({ emphasize = false, label, value }: { emphasize?: boolean; label: string; value: string }) {
+  return (
+    <Box>
+      <Typography color="text.secondary" fontSize={11.5} fontWeight={850}>
+        {label}
+      </Typography>
+      <Typography fontSize={13.5} fontWeight={emphasize ? 950 : 850}>
+        {value}
+      </Typography>
+    </Box>
+  );
+}
+
+function StockBlock({ product }: { product: ProductPrototypeRow }) {
+  const theme = useTheme();
+  const color = toneMain(theme, product.tone);
+  const progressValue = product.stock <= 0 ? 0 : Math.min(100, Math.round((product.stock / Math.max(product.minStock * 2, 1)) * 100));
+  const delta = product.stock - product.minStock;
+
+  return (
+    <Box
+      sx={{
+        backgroundColor: alpha(color, 0.08),
+        border: "1px solid",
+        borderColor: alpha(color, 0.22),
+        borderRadius: 3,
+        p: 1.15,
+      }}
+    >
+      <Stack spacing={0.9} sx={{ pt: 0.35 }}>
+        <Stack alignItems="center" direction="row" justifyContent="space-between" spacing={1}>
+          <Typography color="text.secondary" fontSize={10.5} fontWeight={900} letterSpacing="0.08em" textTransform="uppercase">
+            Stock actual/mínimo
+          </Typography>
+          <Typography color={color} fontSize={12.5} fontWeight={950}>
+            {product.stockStatus}
+          </Typography>
+        </Stack>
+        <Stack alignItems="baseline" direction="row" spacing={1}>
+          <Typography color={color} fontSize={34} fontWeight={950} lineHeight={1}>
+            {formatNumber(product.stock)}
+          </Typography>
+          <Typography color="text.secondary" fontSize={12.5} fontWeight={850}>
+            mínimo {formatNumber(product.minStock)}
+          </Typography>
+        </Stack>
+        <LinearProgress color={product.tone} value={progressValue} variant="determinate" sx={{ borderRadius: 999, height: 7 }} />
+        <Typography color="text.secondary" fontSize={12.25}>
+          {delta >= 0 ? `+${formatNumber(delta)} sobre el mínimo` : `Faltan ${formatNumber(Math.abs(delta))} unidades`}
+        </Typography>
+      </Stack>
+    </Box>
+  );
+}
+
+function ProductActions({ product }: { product: ProductPrototypeRow }) {
+  const buttonSx = { borderRadius: 2.25, fontSize: 12.5, fontWeight: 900, justifyContent: "flex-start", minHeight: 34 } as const;
+
+  return (
+    <Stack spacing={0.7}>
+      <Typography color="text.secondary" fontSize={10.5} fontWeight={900} letterSpacing="0.08em" textTransform="uppercase">
+        Acciones admin
+      </Typography>
+      <Button size="small" startIcon={<EditIcon fontSize="small" />} sx={buttonSx} variant="contained">
+        Editar
+      </Button>
+      <Button color={product.status === "Activo" ? "warning" : "success"} size="small" startIcon={<ToggleOffIcon fontSize="small" />} sx={buttonSx} variant="outlined">
+        {product.status === "Activo" ? "Desactivar" : "Activar"}
+      </Button>
+      <Button color="error" size="small" startIcon={<DeleteIcon fontSize="small" />} sx={buttonSx} variant="outlined">
+        Eliminar
+      </Button>
+    </Stack>
+  );
+}
+
+function ProductRowCard({ product }: { product: ProductPrototypeRow }) {
+  const theme = useTheme();
+  const color = toneMain(theme, product.tone);
+
+  return (
+    <Box
+      sx={{
+        background:
+          product.status === "Inactivo"
+            ? alpha(theme.palette.action.disabledBackground, 0.62)
+            : `linear-gradient(135deg, ${alpha(color, 0.08)}, ${alpha(theme.palette.background.paper, 0.84)} 44%)`,
+        border: "1px solid",
+        borderColor: alpha(color, product.status === "Inactivo" ? 0.14 : 0.26),
+        borderLeft: "5px solid",
+        borderLeftColor: color,
+        borderRadius: 3.5,
+        display: "grid",
+        gap: 1.35,
+        gridTemplateColumns: {
+          xs: "1fr",
+          md: "minmax(0, 1.25fr) minmax(170px, 0.7fr) minmax(190px, 0.75fr)",
+          xl: "minmax(0, 1.3fr) minmax(180px, 0.64fr) minmax(220px, 0.74fr) minmax(220px, 0.76fr) 126px",
+        },
+        p: 1.35,
+      }}
+    >
+      <ProductIdentity product={product} />
+      <CodeBlock product={product} />
+      <PriceBlock product={product} />
+      <StockBlock product={product} />
+      <ProductActions product={product} />
+    </Box>
+  );
+}
+
+function ProductCatalogPrototype() {
+  return (
+    <Surface>
+      <Stack spacing={1.6}>
+        <SectionHeader
+          description="Lista compacta para PC que baja a tarjetas en móvil. Mantiene todo lo administrativo, pero separa identidad, precio, stock y acciones para que no se mezclen."
+          eyebrow="Catálogo"
+          title="Productos actuales"
+        />
+        <Stack spacing={1.05}>
+          {productRows.map((product) => (
+            <ProductRowCard key={product.sku} product={product} />
+          ))}
+        </Stack>
+      </Stack>
+    </Surface>
+  );
+}
+
+function ProductFormPrototype() {
+  return (
+    <Surface>
+      <Stack spacing={1.7}>
+        <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.4}>
+          <SectionHeader
+            description="La captura queda dividida por intención: identificación, categoría, precio e inventario. Los ceros no deben estorbar; cada campo muestra una ayuda breve."
+            eyebrow="Crear / editar"
+            title="Formulario de producto"
+          />
+          <Stack direction="row" flexWrap="wrap" gap={1} sx={{ alignSelf: { xs: "stretch", md: "flex-start" } }}>
+            <Button startIcon={<QrCode2Icon />} variant="outlined">
+              Generar código
+            </Button>
+            <Button variant="contained">Guardar</Button>
+          </Stack>
+        </Stack>
+
+        <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "repeat(4, minmax(0, 1fr))" } }}>
+          {formFields.map(([label, value, helper]) => (
+            <Box
+              key={label}
+              sx={(theme) => ({
+                border: "1px solid",
+                borderColor: alpha(theme.palette.divider, 0.9),
+                borderRadius: 3,
+                minHeight: 104,
+                p: 1.25,
+              })}
+            >
+              <Typography color="text.secondary" fontSize={11} fontWeight={900} letterSpacing="0.07em" textTransform="uppercase">
+                {label}
+              </Typography>
+              <Typography fontSize={16} fontWeight={950} sx={{ mt: 0.5, overflowWrap: "anywhere" }}>
+                {value}
+              </Typography>
+              <Typography color="text.secondary" fontSize={12.25} lineHeight={1.3} sx={{ mt: 0.55 }}>
+                {helper}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+
+        <Box
+          sx={(theme) => ({
+            backgroundColor: alpha(theme.palette.info.main, 0.06),
+            border: "1px solid",
+            borderColor: alpha(theme.palette.info.main, 0.22),
+            borderRadius: 3,
+            p: 1.35,
+          })}
+        >
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.2} justifyContent="space-between">
+            <Stack direction="row" spacing={1}>
+              <IconTile icon={CategoryIcon} size={40} tone="info" />
+              <Box>
+                <Typography fontWeight={950}>Importación Excel como herramienta secundaria</Typography>
+                <Typography color="text.secondary" variant="body2">
+                  El flujo manual debe seguir siendo claro. Excel queda para altas o actualizaciones masivas de administrador.
+                </Typography>
+              </Box>
+            </Stack>
+            <Stack direction="row" flexWrap="wrap" gap={1}>
+              <Button startIcon={<FileDownloadIcon />} variant="outlined">
+                Descargar formato
+              </Button>
+              <Button startIcon={<UploadFileIcon />} variant="outlined">
+                Subir .xlsx
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
+      </Stack>
+    </Surface>
+  );
+}
+
+function MobileProductsPreview() {
   return (
     <Surface sx={{ display: { xs: "none", lg: "block" } }}>
       <Stack spacing={1.5}>
@@ -867,7 +694,7 @@ function MobilePreview() {
         </Box>
         <Box
           sx={(theme) => ({
-            backgroundColor: alpha(theme.palette.background.default, 0.7),
+            backgroundColor: alpha(theme.palette.background.default, 0.74),
             border: "1px solid",
             borderColor: "divider",
             borderRadius: 5,
@@ -877,33 +704,25 @@ function MobilePreview() {
             p: 1.25,
           })}
         >
-          <Stack spacing={1.1}>
-            <Typography fontWeight={950}>Control de inventario</Typography>
-            <HealthGauge />
-            <Box sx={{ display: "grid", gap: 0.8, gridTemplateColumns: "1fr 1fr" }}>
-              {movementStats.map((movement) => (
-                <Box key={movement.label} sx={{ border: "1px solid", borderColor: `${movement.tone}.main`, borderRadius: 2.5, p: 0.85 }}>
-                  <Typography color="text.secondary" fontSize={10} fontWeight={800}>
-                    {movement.label}
-                  </Typography>
-                  <Typography color={`${movement.tone}.main`} fontSize={18} fontWeight={950}>
-                    {movement.count} movimientos
-                  </Typography>
-                </Box>
+          <Stack spacing={1.05}>
+            <Typography fontWeight={950}>Productos</Typography>
+            <TextField placeholder="Buscar producto" size="small" fullWidth />
+            <Stack direction="row" flexWrap="wrap" gap={0.6}>
+              {filterChips.slice(0, 4).map((chip, index) => (
+                <Chip color={index === 0 ? "primary" : "default"} key={chip} label={chip} size="small" variant={index === 0 ? "filled" : "outlined"} />
               ))}
-            </Box>
-            <Chip label="Existencias · Entradas · Salidas · Retiros" size="small" variant="outlined" />
-            {inventoryRows.slice(0, 1).map((item) => (
-              <Box key={item.sku} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, p: 1 }}>
+            </Stack>
+            {productRows.slice(0, 2).map((product) => (
+              <Box key={product.sku} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, p: 1 }}>
                 <Stack direction="row" justifyContent="space-between" spacing={1}>
-                  <Typography fontWeight={900}>{item.name}</Typography>
-                  <Chip color={item.tone} label={item.status} size="small" />
+                  <Typography fontWeight={900}>{product.name}</Typography>
+                  <Chip color={product.tone} label={product.stockStatus} size="small" />
                 </Stack>
-                <Typography color="text.secondary" variant="body2">
-                  Stock {item.stock} · mínimo {item.minimumStock}
+                <Typography color="text.secondary" fontSize={12.5}>
+                  {product.sku} · {formatCurrency(product.finalPrice)}
                 </Typography>
-                <Typography color="text.secondary" fontSize={12}>
-                  Principal, vendedor y sin stock visibles
+                <Typography color="text.secondary" fontSize={12.5}>
+                  Stock {product.stock} · mínimo {product.minStock}
                 </Typography>
               </Box>
             ))}
@@ -932,9 +751,9 @@ function DesignTokenSummary() {
     <Surface>
       <Stack spacing={1.6}>
         <SectionHeader
-          description="Estos números evitan que el diseño se implemente a ojo. La maqueta aprobada debe migrarse con los mismos radios, gaps, tamaños y breakpoints."
+          description="Estos tokens evitan migrar el diseño a ojo. La página real debe respetar radios, gaps, tamaños y breakpoints aprobados aquí."
           eyebrow="Tokens"
-          title="Medidas que sí se pueden implementar"
+          title="Medidas para migración"
         />
         <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, minmax(0, 1fr))" } }}>
           {tokens.map(([label, value]) => (
@@ -953,39 +772,15 @@ function DesignTokenSummary() {
   );
 }
 
-function InventoryEditablePrototype() {
+function ProductsEditablePrototype() {
   return (
     <Stack spacing={2}>
-      <Surface
-        sx={(theme) => ({
-          background:
-            theme.palette.mode === "dark"
-              ? "linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(15, 23, 42, 0.64))"
-              : "linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(255, 255, 255, 0.9))",
-        })}
-      >
-        <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={2}>
-          <Stack direction="row" spacing={1.3}>
-            <IconTile icon={Inventory2Icon} size={54} tone="primary" />
-            <Box>
-              <Typography color="text.secondary" fontWeight={850} letterSpacing="0.08em" textTransform="uppercase" variant="caption">
-                Desktop 1366 × 900 · Inventario completo
-              </Typography>
-              <Typography component="h1" fontWeight={950} letterSpacing="-0.04em" variant="h4">
-                Control de inventario
-              </Typography>
-              <Typography color="text.secondary" sx={{ maxWidth: 820 }} variant="body2">
-                Existencias, movimientos, entradas, salidas, historial y retiros de stock. Basado en el tablero editable que subiste.
-              </Typography>
-            </Box>
-          </Stack>
-        </Stack>
-      </Surface>
-
-      <InventoryOperationalPanel />
-      <InventoryNav />
-      <InventoryTablePrototype />
-      <MobilePreview />
+      <ProductsHero />
+      <ProductsMetrics />
+      <ProductsToolbarPrototype />
+      <ProductCatalogPrototype />
+      <ProductFormPrototype />
+      <MobileProductsPreview />
       <DesignTokenSummary />
     </Stack>
   );
@@ -1000,7 +795,7 @@ export function UiLabPage() {
         background:
           theme.palette.mode === "dark"
             ? "radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 34%), #070f1d"
-            : "radial-gradient(circle at top left, rgba(37, 99, 235, 0.10), transparent 34%), #f6f8fb",
+            : "radial-gradient(circle at top left, rgba(37, 99, 235, 0.1), transparent 34%), #f6f8fb",
         minHeight: "100vh",
         px: {
           xs: `${pvVisualTokens.layout.mobileContentPadding}px`,
@@ -1015,18 +810,19 @@ export function UiLabPage() {
           <Stack spacing={1.25}>
             <Stack direction="row" flexWrap="wrap" gap={1}>
               <Chip color="primary" label="UI Lab" />
-              <Chip label="Inventario desde Excalidraw" variant="outlined" />
+              <Chip label="Productos" variant="outlined" />
               <Chip label="No toca backend" variant="outlined" />
+              <Chip label="Dev-only" variant="outlined" />
             </Stack>
             <SectionHeader
-              description="Prototipo ejecutable para revisar una página completa antes de migrarla a Inventario real. Usa datos mock, MUI y tokens medibles."
+              description="Prototipo ejecutable para revisar Productos antes de tocar la página real. Usa datos mock, Material UI y tokens medibles."
               eyebrow="Punta Venta"
-              title="Referencia visual editable convertida a UI Lab"
+              title="Laboratorio visual de Productos"
             />
           </Stack>
         </Surface>
 
-        <InventoryEditablePrototype />
+        <ProductsEditablePrototype />
       </Stack>
     </Box>
   );

@@ -29,16 +29,17 @@ export function ProductImportActions({
         onClick={onDownloadTemplate}
         disabled={isDownloadingTemplate || isImportingExcel}
       >
-        {isDownloadingTemplate ? "Descargando..." : "Descargar formato"}
+        {isDownloadingTemplate ? "Descargando..." : "Formato Excel"}
       </Button>
 
       <Button
         fullWidth
         component="label"
+        variant="outlined"
         startIcon={<UploadIcon />}
         disabled={isImportingExcel || isDownloadingTemplate}
       >
-        {isImportingExcel ? "Importando..." : "Importar productos"}
+        {isImportingExcel ? "Importando..." : "Importar"}
         <input
           hidden
           type="file"

@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 
 import {
   Box,
@@ -6,19 +6,37 @@ import {
   Card,
   CardContent,
   Chip,
-  Divider,
+  InputAdornment,
+  LinearProgress,
+  Menu,
+  MenuItem,
+  Pagination,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import Inventory2Icon from "@mui/icons-material/Inventory2";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import QrCode2Icon from "@mui/icons-material/QrCode2";
+import SearchIcon from "@mui/icons-material/Search";
+import SortIcon from "@mui/icons-material/Sort";
 import ToggleOffIcon from "@mui/icons-material/ToggleOff";
 
 import { EmptyStatePanel } from "../../components/data-display";
-import { CategoryInlineLabel } from "./categoryVisuals";
 import { InfoTooltip } from "../../components/InfoTooltip";
+import { CategoryPill } from "./categoryVisuals";
+import {
+  PRODUCT_FILTER_OPTIONS,
+  PRODUCT_SORT_OPTIONS,
+  type ProductFilterOption,
+  type ProductSortOption,
+} from "./ProductCatalogToolbar";
 import {
   FINAL_PRICE_INFO_TEXT,
   MIN_STOCK_INFO_TEXT,
@@ -33,15 +51,31 @@ import {
 const MARGIN_INFO_TEXT =
   "Porcentaje de ganancia estimado entre el costo unitario y el precio de venta.";
 
+const PRODUCT_PAGE_SIZE_OPTIONS = [5, 10, 25] as const;
+
+type ProductTone = "error" | "warning" | "success" | "secondary";
+
 type StockChip = {
-  color: "error" | "warning" | "success";
+  color: ProductTone;
   label: string;
   shortLabel: string;
 };
 
+function formatNumber(value: unknown) {
+  return new Intl.NumberFormat("es-MX").format(Number(value ?? 0));
+}
+
 function getStockChip(product: Product): StockChip {
   const stock = Number(product.stock ?? 0);
   const minStock = Number(product.minStock ?? 0);
+
+  if (product.isActive === false) {
+    return {
+      color: "secondary",
+      label: "Producto inactivo",
+      shortLabel: "Inactivo",
+    };
+  }
 
   if (stock <= 0) {
     return {
@@ -66,6 +100,15 @@ function getStockChip(product: Product): StockChip {
   };
 }
 
+function getStockProgress(product: Product) {
+  const stock = Number(product.stock ?? 0);
+  const minStock = Number(product.minStock ?? 0);
+
+  if (stock <= 0) return 0;
+
+  return Math.min(100, Math.round((stock / Math.max(minStock * 2, 1)) * 100));
+}
+
 type ProductFieldProps = {
   label: string;
   value: ReactNode;
@@ -73,14 +116,20 @@ type ProductFieldProps = {
   emphasize?: boolean;
 };
 
-function ProductField({ label, value, info, emphasize = false }: ProductFieldProps) {
+function ProductField({
+  label,
+  value,
+  info,
+  emphasize = false,
+}: ProductFieldProps) {
   return (
-    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+    <Box sx={{ minWidth: 0 }}>
       <Stack direction="row" spacing={0.5} alignItems="center">
         <Typography
-          variant="caption"
           color="text.secondary"
-          sx={{ fontWeight: 800, letterSpacing: 0.18, lineHeight: 1.25 }}
+          fontSize={11.5}
+          fontWeight={850}
+          lineHeight={1.25}
         >
           {label}
         </Typography>
@@ -93,16 +142,38 @@ function ProductField({ label, value, info, emphasize = false }: ProductFieldPro
       </Stack>
 
       <Typography
-        variant="body2"
-        sx={{
-          fontWeight: emphasize ? 900 : 650,
-          minWidth: 0,
-          overflowWrap: "anywhere",
-        }}
+        fontSize={13.5}
+        fontWeight={emphasize ? 950 : 850}
+        sx={{ minWidth: 0, overflowWrap: "anywhere" }}
       >
         {value === null || value === undefined || value === "" ? "N/A" : value}
       </Typography>
-    </Stack>
+    </Box>
+  );
+}
+
+function ProductIconTile({ tone }: { tone: ProductTone }) {
+  return (
+    <Box
+      aria-hidden="true"
+      sx={(theme) => ({
+        background: `radial-gradient(circle at 30% 20%, ${alpha(
+          theme.palette[tone].main,
+          0.28,
+        )}, ${alpha(theme.palette[tone].main, 0.08)} 68%)`,
+        border: 1,
+        borderColor: alpha(theme.palette[tone].main, 0.28),
+        borderRadius: 3.25,
+        color: theme.palette[tone].main,
+        display: "grid",
+        flex: "0 0 58px",
+        height: 58,
+        placeItems: "center",
+        width: 58,
+      })}
+    >
+      <Inventory2Icon sx={{ fontSize: 32 }} />
+    </Box>
   );
 }
 
@@ -131,16 +202,33 @@ function ProductActions({
 }: ProductActionsProps) {
   const isToggleInProgress = togglingProductId === product.id;
   const isDeleteInProgress = deletingProductId === product.id;
+  const buttonSx = {
+    borderRadius: 2.25,
+    fontSize: 12.5,
+    fontWeight: 900,
+    justifyContent: "flex-start",
+    minHeight: 34,
+  } as const;
 
-  if (!canUpdateProducts && !canToggleProducts && !canDeleteProducts) return null;
+  if (!canUpdateProducts && !canToggleProducts && !canDeleteProducts)
+    return null;
 
   return (
     <Stack
       aria-label={`Acciones para ${product.name}`}
-      direction={{ xs: "column", sm: "row", lg: "column" }}
-      spacing={1}
+      spacing={0.7}
       sx={{ alignItems: "stretch" }}
     >
+      <Typography
+        color="text.secondary"
+        fontSize={10.5}
+        fontWeight={900}
+        letterSpacing="0.08em"
+        textTransform="uppercase"
+      >
+        Acciones admin
+      </Typography>
+
       {canUpdateProducts && (
         <Button
           title="Editar producto"
@@ -150,7 +238,7 @@ function ProductActions({
           variant="contained"
           startIcon={<EditIcon fontSize="small" />}
           onClick={() => onEditProduct(product)}
-          sx={{ justifyContent: "flex-start" }}
+          sx={buttonSx}
         >
           Editar
         </Button>
@@ -167,7 +255,7 @@ function ProductActions({
           startIcon={<ToggleOffIcon fontSize="small" />}
           onClick={() => onToggleProduct(product)}
           disabled={isToggleInProgress}
-          sx={{ justifyContent: "flex-start" }}
+          sx={buttonSx}
         >
           {isToggleInProgress
             ? "Guardando"
@@ -188,7 +276,7 @@ function ProductActions({
           startIcon={<DeleteIcon fontSize="small" />}
           onClick={() => onDeleteProduct(product)}
           disabled={isDeleteInProgress}
-          sx={{ justifyContent: "flex-start" }}
+          sx={buttonSx}
         >
           {isDeleteInProgress ? "Eliminando" : "Eliminar"}
         </Button>
@@ -210,6 +298,285 @@ type ProductCatalogItemProps = {
   togglingProductId: string | null;
 };
 
+function ProductIdentity({
+  canViewAdminColumns,
+  product,
+  stockChip,
+}: {
+  canViewAdminColumns: boolean;
+  product: Product;
+  stockChip: StockChip;
+}) {
+  const hasPromo = Number(product.promoPercent ?? 0) > 0;
+
+  return (
+    <Stack direction="row" minWidth={0} spacing={1.25}>
+      <ProductIconTile tone={stockChip.color} />
+      <Stack minWidth={0} spacing={0.7}>
+        <Stack alignItems="center" direction="row" flexWrap="wrap" gap={0.75}>
+          <Typography
+            fontWeight={950}
+            sx={{ lineHeight: 1.25, overflowWrap: "anywhere" }}
+          >
+            {product.name}
+          </Typography>
+          {canViewAdminColumns && (
+            <Chip
+              color={product.isActive ? "success" : "default"}
+              label={product.isActive ? "Activo" : "Inactivo"}
+              size="small"
+              sx={{ fontWeight: 850 }}
+            />
+          )}
+          <Chip
+            color={stockChip.color}
+            label={stockChip.shortLabel}
+            size="small"
+            variant="outlined"
+            sx={{ fontWeight: 850 }}
+          />
+          {hasPromo && (
+            <Chip
+              color="info"
+              label={`Promo ${formatPercent(product.promoPercent)}`}
+              size="small"
+              variant="outlined"
+              sx={{ fontWeight: 850 }}
+            />
+          )}
+        </Stack>
+
+        {product.description && (
+          <Typography
+            color="text.secondary"
+            fontSize={12.5}
+            lineHeight={1.35}
+            sx={{
+              display: "-webkit-box",
+              overflow: "hidden",
+              WebkitBoxOrient: "vertical",
+              WebkitLineClamp: 2,
+            }}
+          >
+            {product.description}
+          </Typography>
+        )}
+
+        <CategoryPill label={product.category?.name} />
+      </Stack>
+    </Stack>
+  );
+}
+
+function ProductCodeBlock({ product }: { product: Product }) {
+  return (
+    <Stack spacing={0.75}>
+      <Stack direction="row" spacing={0.75} alignItems="center">
+        <QrCode2Icon color="primary" fontSize="small" />
+        <Typography
+          color="text.secondary"
+          fontSize={10.5}
+          fontWeight={900}
+          letterSpacing="0.08em"
+          textTransform="uppercase"
+        >
+          Identificación
+        </Typography>
+      </Stack>
+
+      <Box sx={{ display: "grid", gap: 0.7 }}>
+        <ProductField
+          label="Clave interna/SKU"
+          value={product.sku}
+          info={SKU_INFO_TEXT}
+        />
+        <ProductField
+          label="Código del producto"
+          value={product.barcode || "N/A"}
+          info={PRODUCT_CODE_INFO_TEXT}
+        />
+      </Box>
+    </Stack>
+  );
+}
+
+function ProductPriceBlock({
+  canViewAdminColumns,
+  product,
+}: {
+  canViewAdminColumns: boolean;
+  product: Product;
+}) {
+  const hasPromo = Number(product.promoPercent ?? 0) > 0;
+
+  return (
+    <Stack spacing={0.8}>
+      <Stack direction="row" spacing={0.75} alignItems="center">
+        <LocalOfferIcon color="primary" fontSize="small" />
+        <Typography
+          color="text.secondary"
+          fontSize={10.5}
+          fontWeight={900}
+          letterSpacing="0.08em"
+          textTransform="uppercase"
+        >
+          Precio y margen
+        </Typography>
+      </Stack>
+
+      <Box sx={{ display: "grid", gap: 0.7, gridTemplateColumns: "1fr 1fr" }}>
+        {canViewAdminColumns && (
+          <ProductField
+            label="Costo"
+            value={formatCurrency(product.costPrice)}
+          />
+        )}
+        <ProductField label="Venta" value={formatCurrency(product.salePrice)} />
+        <ProductField
+          label="Final"
+          value={formatCurrency(product.finalPrice)}
+          info={FINAL_PRICE_INFO_TEXT}
+          emphasize
+        />
+        {canViewAdminColumns && (
+          <ProductField
+            label="Margen"
+            value={formatPercent(product.marginPercent)}
+            info={MARGIN_INFO_TEXT}
+          />
+        )}
+      </Box>
+
+      {hasPromo ? (
+        <Chip
+          color="info"
+          label={`${formatPercent(product.promoPercent)} de promoción`}
+          size="small"
+          sx={{ alignSelf: "flex-start", fontWeight: 850 }}
+        />
+      ) : null}
+      {!hasPromo && (
+        <ProductField
+          label="Promo"
+          value={formatPercent(product.promoPercent)}
+          info={PROMO_INFO_TEXT}
+        />
+      )}
+    </Stack>
+  );
+}
+
+function ProductStockBlock({
+  canViewAdminColumns,
+  product,
+  stockChip,
+}: {
+  canViewAdminColumns: boolean;
+  product: Product;
+  stockChip: StockChip;
+}) {
+  const stock = Number(product.stock ?? 0);
+  const minStock = Number(product.minStock ?? 0);
+  const delta = stock - minStock;
+
+  return (
+    <Box
+      sx={(theme) => ({
+        backgroundColor: alpha(theme.palette[stockChip.color].main, 0.08),
+        border: 1,
+        borderColor: alpha(theme.palette[stockChip.color].main, 0.22),
+        borderRadius: 3,
+        display: "flex",
+        alignItems: "center",
+        height: "100%",
+        p: 1.15,
+      })}
+    >
+      <Stack spacing={0.9} sx={{ width: "100%" }}>
+        <Stack
+          alignItems="center"
+          direction="row"
+          justifyContent="space-between"
+          spacing={1}
+        >
+          <Typography
+            color="text.secondary"
+            fontSize={10.5}
+            fontWeight={900}
+            letterSpacing="0.08em"
+            textTransform="uppercase"
+            sx={{ pl: { xs: 1.05, sm: 1.4 } }}
+          >
+            Stock actual/mínimo
+          </Typography>
+          <Typography
+            color={`${stockChip.color}.main`}
+            fontSize={12.5}
+            fontWeight={950}
+            sx={{ transform: "translateX(-6px)" }}
+          >
+            {stockChip.label}
+          </Typography>
+        </Stack>
+
+        <Stack
+          alignItems="center"
+          direction="row"
+          spacing={1}
+          sx={{ pl: { xs: 1.05, sm: 1.4 } }}
+        >
+          <Typography
+            color={`${stockChip.color}.main`}
+            fontSize={34}
+            fontWeight={950}
+            lineHeight={1}
+          >
+            {formatNumber(stock)}
+          </Typography>
+          <Typography
+            color="text.secondary"
+            fontSize={12.5}
+            fontWeight={850}
+            lineHeight={1.1}
+          >
+            mínimo {formatNumber(minStock)}
+          </Typography>
+        </Stack>
+
+        <LinearProgress
+          color={stockChip.color}
+          value={getStockProgress(product)}
+          variant="determinate"
+          sx={{ borderRadius: 999, height: 7 }}
+        />
+
+        {canViewAdminColumns ? (
+          <Stack spacing={0.4} sx={{ pl: { xs: 1.05, sm: 1.4 } }}>
+            <Typography color="text.secondary" fontSize={12.25}>
+              {delta >= 0
+                ? `+${formatNumber(delta)} sobre el mínimo`
+                : `Faltan ${formatNumber(Math.abs(delta))} unidades`}
+            </Typography>
+            <ProductField
+              label="Stock mínimo"
+              value={product.minStock ?? 0}
+              info={MIN_STOCK_INFO_TEXT}
+            />
+          </Stack>
+        ) : (
+          <Typography
+            color="text.secondary"
+            fontSize={12.25}
+            sx={{ pl: { xs: 1.05, sm: 1.4 } }}
+          >
+            {stockChip.shortLabel}
+          </Typography>
+        )}
+      </Stack>
+    </Box>
+  );
+}
+
 function ProductCatalogItem({
   canDeleteProducts,
   canToggleProducts,
@@ -223,206 +590,61 @@ function ProductCatalogItem({
   togglingProductId,
 }: ProductCatalogItemProps) {
   const stockChip = getStockChip(product);
-  const hasPromo = Number(product.promoPercent ?? 0) > 0;
-  const hasActions = canUpdateProducts || canToggleProducts || canDeleteProducts;
+  const hasActions =
+    canUpdateProducts || canToggleProducts || canDeleteProducts;
 
   return (
     <Box
       data-testid={`product-row-${product.sku}`}
       sx={(theme) => ({
-        display: "grid",
-        gap: { xs: 1.75, lg: 2.25 },
-        gridTemplateColumns: {
-          xs: "1fr",
-          lg: hasActions
-            ? "minmax(0, 1.35fr) minmax(190px, 0.82fr) minmax(160px, 0.68fr) minmax(150px, auto)"
-            : "minmax(0, 1.35fr) minmax(190px, 0.82fr) minmax(160px, 0.68fr)",
-        },
-        p: { xs: 1.75, sm: 2, lg: 2.25 },
-        border: 1,
-        borderColor:
-          product.isActive === false
-            ? alpha(theme.palette.text.secondary, 0.16)
-            : alpha(theme.palette[stockChip.color].main, 0.28),
-        borderRadius: { xs: 3, lg: 0 },
-        borderLeft: { xs: 1, lg: 5 },
-        borderLeftColor: `${stockChip.color}.main`,
         background:
           product.isActive === false
-            ? alpha(theme.palette.action.disabledBackground, 0.65)
+            ? alpha(theme.palette.action.disabledBackground, 0.62)
             : `linear-gradient(135deg, ${alpha(
                 theme.palette[stockChip.color].main,
-                0.06,
-              )}, ${alpha(theme.palette.background.paper, 0.97)} 40%)`,
-        boxShadow: { xs: theme.shadows[1], lg: "none" },
-        transition: "background-color 120ms ease, box-shadow 120ms ease, transform 120ms ease",
+                0.08,
+              )}, ${alpha(theme.palette.background.paper, 0.84)} 44%)`,
+        border: 1,
+        borderColor: alpha(
+          theme.palette[stockChip.color].main,
+          product.isActive === false ? 0.14 : 0.26,
+        ),
+        borderLeft: 5,
+        borderLeftColor: theme.palette[stockChip.color].main,
+        borderRadius: 3.5,
+        display: "grid",
+        gap: 1.35,
+        gridTemplateColumns: {
+          xs: "1fr",
+          md: "minmax(0, 1.25fr) minmax(170px, 0.7fr) minmax(190px, 0.75fr)",
+          xl: hasActions
+            ? "minmax(0, 1.3fr) minmax(180px, 0.64fr) minmax(220px, 0.74fr) minmax(220px, 0.76fr) 126px"
+            : "minmax(0, 1.3fr) minmax(180px, 0.64fr) minmax(220px, 0.74fr) minmax(220px, 0.76fr)",
+        },
+        p: 1.35,
+        transition:
+          "background-color 120ms ease, box-shadow 120ms ease, transform 120ms ease",
         "&:hover": {
-          backgroundColor:
-            product.isActive === false
-              ? alpha(theme.palette.action.disabledBackground, 0.82)
-              : "action.hover",
           boxShadow: theme.shadows[2],
           transform: "translateY(-1px)",
         },
       })}
     >
-      <Stack spacing={1.4} sx={{ minWidth: 0 }}>
-        <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="flex-start"
-            justifyContent="space-between"
-            sx={{ minWidth: 0 }}
-          >
-            <Box sx={{ minWidth: 0 }}>
-              <Typography
-                variant="subtitle1"
-                fontWeight={950}
-                sx={{ overflowWrap: "anywhere", lineHeight: 1.25 }}
-              >
-                {product.name}
-              </Typography>
-              <Box sx={{ mt: 0.5 }}>
-                <CategoryInlineLabel label={product.category?.name} />
-              </Box>
-            </Box>
-
-            <Chip
-              size="small"
-              color={stockChip.color}
-              label={stockChip.shortLabel}
-              sx={{ flexShrink: 0, fontWeight: 800 }}
-            />
-          </Stack>
-
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
-            {canViewAdminColumns && (
-              <Chip
-                size="small"
-                color={product.isActive ? "success" : "default"}
-                variant={product.isActive ? "filled" : "outlined"}
-                label={product.isActive ? "Activo para venta" : "Oculto para venta"}
-              />
-            )}
-            {hasPromo && (
-              <Chip
-                size="small"
-                color="info"
-                variant="outlined"
-                label={`Promo ${formatPercent(product.promoPercent)}`}
-              />
-            )}
-          </Stack>
-        </Stack>
-
-        {product.description && (
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{
-              display: "-webkit-box",
-              overflow: "hidden",
-              WebkitBoxOrient: "vertical",
-              WebkitLineClamp: 2,
-            }}
-          >
-            {product.description}
-          </Typography>
-        )}
-
-        <Box
-          sx={{
-            display: "grid",
-            gap: 1.2,
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, minmax(0, 1fr))",
-              lg: "1fr",
-            },
-          }}
-        >
-          <ProductField label="Clave interna/SKU" value={product.sku} info={SKU_INFO_TEXT} />
-          <ProductField
-            label="Código del producto"
-            value={product.barcode || "N/A"}
-            info={PRODUCT_CODE_INFO_TEXT}
-          />
-        </Box>
-      </Stack>
-
-      <Stack spacing={1.25}>
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          spacing={1}
-        >
-          <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 950, lineHeight: 1 }}>
-            Precio para venta
-          </Typography>
-          <Typography variant="h6" fontWeight={950} color="primary.main">
-            {formatCurrency(product.finalPrice)}
-          </Typography>
-        </Stack>
-
-        <Box
-          sx={{
-            display: "grid",
-            gap: 1.15,
-            gridTemplateColumns: {
-              xs: "repeat(2, minmax(0, 1fr))",
-              lg: "1fr",
-            },
-          }}
-        >
-          <ProductField label="Venta" value={formatCurrency(product.salePrice)} />
-          <ProductField
-            label="Final"
-            value={formatCurrency(product.finalPrice)}
-            info={FINAL_PRICE_INFO_TEXT}
-            emphasize
-          />
-          <ProductField label="Promo" value={formatPercent(product.promoPercent)} info={PROMO_INFO_TEXT} />
-          {canViewAdminColumns && <ProductField label="Costo" value={formatCurrency(product.costPrice)} />}
-          {canViewAdminColumns && (
-            <ProductField label="Margen de ganancia" value={formatPercent(product.marginPercent)} info={MARGIN_INFO_TEXT} />
-          )}
-        </Box>
-      </Stack>
-
-      <Stack spacing={1.25}>
-        <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 950, lineHeight: 1 }}>
-          Inventario
-        </Typography>
-
-        <Box
-          sx={(theme) => ({
-            p: 1.25,
-            borderRadius: 2.5,
-            border: 1,
-            borderColor: alpha(theme.palette[stockChip.color].main, 0.24),
-            bgcolor: alpha(theme.palette[stockChip.color].main, 0.07),
-          })}
-        >
-          <Stack spacing={0.8}>
-            <Typography variant="h5" fontWeight={950}>
-              {product.stock}
-            </Typography>
-            <Typography variant="body2" fontWeight={800} color={`${stockChip.color}.main`}>
-              {stockChip.label}
-            </Typography>
-            {canViewAdminColumns && (
-              <ProductField
-                label="Stock mínimo"
-                value={product.minStock ?? 0}
-                info={MIN_STOCK_INFO_TEXT}
-              />
-            )}
-          </Stack>
-        </Box>
-      </Stack>
-
+      <ProductIdentity
+        canViewAdminColumns={canViewAdminColumns}
+        product={product}
+        stockChip={stockChip}
+      />
+      <ProductCodeBlock product={product} />
+      <ProductPriceBlock
+        canViewAdminColumns={canViewAdminColumns}
+        product={product}
+      />
+      <ProductStockBlock
+        canViewAdminColumns={canViewAdminColumns}
+        product={product}
+        stockChip={stockChip}
+      />
       <ProductActions
         canDeleteProducts={canDeleteProducts}
         canToggleProducts={canToggleProducts}
@@ -446,11 +668,215 @@ type ProductCatalogProps = {
   deletingProductId: string | null;
   onDeleteProduct: (product: Product) => void;
   onEditProduct: (product: Product) => void;
+  onFilterChange: (filter: ProductFilterOption) => void;
+  onSearchQueryChange: (query: string) => void;
+  onSortChange: (sort: ProductSortOption) => void;
   onToggleProduct: (product: Product) => void;
+  productSearchHelper: string;
+  resultCount: number;
   rows: Product[];
   searchQuery: string;
+  selectedFilter: ProductFilterOption;
+  selectedSort: ProductSortOption;
   togglingProductId: string | null;
+  totalCount: number;
 };
+
+function ProductCatalogControls({
+  onFilterChange,
+  onSearchQueryChange,
+  onSortChange,
+  pageSize,
+  productSearchHelper,
+  searchQuery,
+  selectedFilter,
+  selectedSort,
+  setPageSize,
+}: {
+  onFilterChange: (filter: ProductFilterOption) => void;
+  onSearchQueryChange: (query: string) => void;
+  onSortChange: (sort: ProductSortOption) => void;
+  pageSize: number;
+  productSearchHelper: string;
+  searchQuery: string;
+  selectedFilter: ProductFilterOption;
+  selectedSort: ProductSortOption;
+  setPageSize: (pageSize: number) => void;
+}) {
+  const [filterMenuAnchor, setFilterMenuAnchor] = useState<null | HTMLElement>(
+    null,
+  );
+  const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(
+    null,
+  );
+  const selectedSortLabel =
+    PRODUCT_SORT_OPTIONS.find((option) => option.value === selectedSort)
+      ?.label ?? "Nombre A-Z";
+  const selectedFilterLabel =
+    selectedFilter === "Todos" ? "Todos los productos" : selectedFilter;
+  const filterMenuOpen = Boolean(filterMenuAnchor);
+  const sortMenuOpen = Boolean(sortMenuAnchor);
+
+  function selectSort(sort: ProductSortOption) {
+    onSortChange(sort);
+    setSortMenuAnchor(null);
+  }
+
+  function selectFilter(filter: ProductFilterOption) {
+    onFilterChange(filter);
+    setFilterMenuAnchor(null);
+  }
+
+  const controlButtonSx = {
+    borderRadius: 2.35,
+    flexShrink: 0,
+    fontSize: 12.5,
+    fontWeight: 900,
+    minHeight: 40,
+    px: 1.35,
+    whiteSpace: "nowrap",
+  } as const;
+
+  return (
+    <Stack spacing={0.7}>
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={1}
+        alignItems={{ xs: "stretch", md: "center" }}
+        sx={{ minWidth: 0 }}
+      >
+        <TextField
+          fullWidth
+          label="Buscar productos"
+          placeholder="SKU, nombre o código"
+          size="small"
+          value={searchQuery}
+          onChange={(event) => onSearchQueryChange(event.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="primary" fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
+          sx={{
+            flex: { xs: "1 1 100%", md: "0 1 320px", lg: "0 1 360px" },
+            maxWidth: { md: 360 },
+            minWidth: { md: 240 },
+          }}
+        />
+
+        <Stack
+          alignItems="center"
+          direction="row"
+          flexWrap="wrap"
+          gap={0.85}
+          justifyContent={{ xs: "flex-start", md: "flex-end" }}
+          sx={{
+            flex: "1 1 auto",
+            minWidth: 0,
+          }}
+        >
+          <Button
+            aria-controls={sortMenuOpen ? "products-sort-menu" : undefined}
+            aria-expanded={sortMenuOpen ? "true" : undefined}
+            aria-haspopup="menu"
+            aria-label={`Ordenar productos. Orden actual: ${selectedSortLabel}`}
+            data-testid="products-sort-button"
+            endIcon={<ExpandMoreIcon />}
+            onClick={(event) => setSortMenuAnchor(event.currentTarget)}
+            startIcon={<SortIcon />}
+            sx={controlButtonSx}
+            title={`Orden actual: ${selectedSortLabel}`}
+            variant="outlined"
+          >
+            Ordenar
+          </Button>
+          <Menu
+            id="products-sort-menu"
+            anchorEl={sortMenuAnchor}
+            open={sortMenuOpen}
+            onClose={() => setSortMenuAnchor(null)}
+            MenuListProps={{ dense: true, "aria-label": "Ordenar productos" }}
+          >
+            {PRODUCT_SORT_OPTIONS.map((option) => (
+              <MenuItem
+                key={option.value}
+                selected={selectedSort === option.value}
+                onClick={() => selectSort(option.value)}
+                sx={{ fontWeight: selectedSort === option.value ? 900 : 600 }}
+              >
+                {option.label}
+              </MenuItem>
+            ))}
+          </Menu>
+
+          <Button
+            aria-controls={filterMenuOpen ? "products-filter-menu" : undefined}
+            aria-expanded={filterMenuOpen ? "true" : undefined}
+            aria-haspopup="menu"
+            aria-label={`Filtros de productos. Filtro actual: ${selectedFilterLabel}`}
+            color={selectedFilter === "Todos" ? "inherit" : "primary"}
+            data-testid="products-filter-button"
+            endIcon={<ExpandMoreIcon />}
+            onClick={(event) => setFilterMenuAnchor(event.currentTarget)}
+            startIcon={<FilterListIcon />}
+            sx={controlButtonSx}
+            title={`Filtro actual: ${selectedFilterLabel}`}
+            variant={selectedFilter === "Todos" ? "outlined" : "contained"}
+          >
+            Filtros
+          </Button>
+          <Menu
+            id="products-filter-menu"
+            anchorEl={filterMenuAnchor}
+            open={filterMenuOpen}
+            onClose={() => setFilterMenuAnchor(null)}
+            MenuListProps={{ dense: true, "aria-label": "Filtrar productos" }}
+          >
+            {PRODUCT_FILTER_OPTIONS.map((filter) => (
+              <MenuItem
+                key={filter}
+                selected={selectedFilter === filter}
+                onClick={() => selectFilter(filter)}
+                sx={{ fontWeight: selectedFilter === filter ? 900 : 600 }}
+              >
+                {filter}
+              </MenuItem>
+            ))}
+          </Menu>
+
+          <TextField
+            select
+            size="small"
+            label="Por página"
+            value={pageSize}
+            onChange={(event) => setPageSize(Number(event.target.value))}
+            sx={{
+              flex: "0 0 100px",
+              minWidth: 100,
+              maxWidth: 108,
+              "& .MuiSelect-select": {
+                pr: "30px !important",
+              },
+            }}
+          >
+            {PRODUCT_PAGE_SIZE_OPTIONS.map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Stack>
+      </Stack>
+      {productSearchHelper && (
+        <Typography color="text.secondary" variant="caption">
+          {productSearchHelper}
+        </Typography>
+      )}
+    </Stack>
+  );
+}
 
 export function ProductCatalog({
   canDeleteProducts,
@@ -460,29 +886,41 @@ export function ProductCatalog({
   deletingProductId,
   onDeleteProduct,
   onEditProduct,
+  onFilterChange,
+  onSearchQueryChange,
+  onSortChange,
   onToggleProduct,
+  productSearchHelper,
+  resultCount,
   rows,
   searchQuery,
+  selectedFilter,
+  selectedSort,
   togglingProductId,
+  totalCount,
 }: ProductCatalogProps) {
-  if (rows.length === 0) {
-    return (
-      <EmptyStatePanel>
-        <Stack spacing={1} alignItems="center" textAlign="center">
-          <Typography variant="h6" fontWeight={850} color="text.primary">
-            {searchQuery.trim()
-              ? "No hay productos que coincidan con la búsqueda"
-              : "No hay productos registrados"}
-          </Typography>
-          <Typography color="text.secondary" sx={{ maxWidth: 560 }}>
-            {searchQuery.trim()
-              ? "Intenta buscar por nombre, clave interna/SKU, código, categoría o descripción."
-              : "Crea un producto o importa un archivo Excel para iniciar tu catálogo."}
-          </Typography>
-        </Stack>
-      </EmptyStatePanel>
-    );
-  }
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(5);
+  const hasActiveSearchOrFilter =
+    Boolean(searchQuery.trim()) || selectedFilter !== "Todos";
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize, searchQuery, selectedFilter, selectedSort]);
+
+  useEffect(() => {
+    setPage((currentPage) => Math.min(currentPage, pageCount));
+  }, [pageCount]);
+
+  const visibleRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+
+    return rows.slice(start, start + pageSize);
+  }, [page, pageSize, rows]);
+
+  const fromItem = rows.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const toItem = rows.length === 0 ? 0 : Math.min(page * pageSize, rows.length);
 
   return (
     <Card
@@ -490,82 +928,126 @@ export function ProductCatalog({
         overflow: "hidden",
         border: 1,
         borderColor: alpha(theme.palette.primary.main, 0.16),
+        borderRadius: 4,
       })}
     >
-      <CardContent sx={{ p: 0, "&:last-child": { pb: 0 } }}>
-        <Box
-          sx={(theme) => ({
-            px: { xs: 1.75, sm: 2.25, lg: 2.75 },
-            py: { xs: 1.75, sm: 2 },
-            borderBottom: 1,
-            borderColor: "divider",
-            background: `linear-gradient(135deg, ${alpha(
-              theme.palette.primary.main,
-              0.08,
-            )}, ${alpha(theme.palette.background.paper, 0.96)})`,
-          })}
-        >
+      <CardContent sx={{ p: { xs: 1.4, sm: 1.6, lg: 1.8 } }}>
+        <Stack spacing={1.6}>
           <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            alignItems={{ xs: "flex-start", sm: "center" }}
+            direction={{ xs: "column", md: "row" }}
+            spacing={1.25}
+            alignItems={{ xs: "flex-start", md: "center" }}
             justifyContent="space-between"
           >
-            <Box>
-              <Typography variant="h6" fontWeight={950}>
-                Productos encontrados
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                color="primary.main"
+                fontWeight={850}
+                letterSpacing="0.08em"
+                textTransform="uppercase"
+                variant="caption"
+              >
+                Catálogo
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Celular muestra tarjetas simples, tablet usa catálogo táctil y PC conserva lectura detallada.
+              <Typography
+                variant="h5"
+                fontWeight={950}
+                letterSpacing="-0.025em"
+              >
+                Productos actuales
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ maxWidth: 900 }}
+              >
+                Busca, filtra, ordena y revisa el catálogo en una sola vista
+                compacta.
               </Typography>
             </Box>
 
             <Chip
-              color="primary"
-              variant="outlined"
-              label={`${rows.length} producto${rows.length === 1 ? "" : "s"}`}
+              color={hasActiveSearchOrFilter ? "primary" : "default"}
+              variant={hasActiveSearchOrFilter ? "filled" : "outlined"}
+              label={`${resultCount} de ${totalCount} producto${totalCount === 1 ? "" : "s"}`}
+              sx={{ fontWeight: 850 }}
             />
           </Stack>
-        </Box>
 
-        <Box
-          sx={{
-            display: "grid",
-            gap: { xs: 1.25, lg: 0 },
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, minmax(0, 1fr))",
-              lg: "1fr",
-            },
-            p: { xs: 1.25, sm: 1.5, lg: 0 },
-          }}
-        >
-          {rows.map((product, index) => (
-            <Box key={product.id} sx={{ display: "contents" }}>
-              <ProductCatalogItem
-                canDeleteProducts={canDeleteProducts}
-                canToggleProducts={canToggleProducts}
-                canUpdateProducts={canUpdateProducts}
-                canViewAdminColumns={canViewAdminColumns}
-                deletingProductId={deletingProductId}
-                onDeleteProduct={onDeleteProduct}
-                onEditProduct={onEditProduct}
-                onToggleProduct={onToggleProduct}
-                product={product}
-                togglingProductId={togglingProductId}
-              />
-              {index < rows.length - 1 && (
-                <Divider
-                  flexItem
-                  sx={{
-                    display: { xs: "none", lg: "block" },
-                    gridColumn: "1 / -1",
-                  }}
+          <ProductCatalogControls
+            onFilterChange={onFilterChange}
+            onSearchQueryChange={onSearchQueryChange}
+            onSortChange={onSortChange}
+            pageSize={pageSize}
+            productSearchHelper={productSearchHelper}
+            searchQuery={searchQuery}
+            selectedFilter={selectedFilter}
+            selectedSort={selectedSort}
+            setPageSize={setPageSize}
+          />
+
+          {rows.length === 0 ? (
+            <EmptyStatePanel>
+              <Stack spacing={1} alignItems="center" textAlign="center">
+                <Typography variant="h6" fontWeight={850} color="text.primary">
+                  {searchQuery.trim() || selectedFilter !== "Todos"
+                    ? "No hay productos que coincidan con la búsqueda o filtro"
+                    : "No hay productos registrados"}
+                </Typography>
+                <Typography color="text.secondary" sx={{ maxWidth: 560 }}>
+                  {searchQuery.trim() || selectedFilter !== "Todos"
+                    ? "Intenta buscar por nombre, clave interna/SKU, código, categoría o descripción, o cambia el filtro rápido."
+                    : "Crea un producto o importa un archivo Excel para iniciar tu catálogo."}
+                </Typography>
+              </Stack>
+            </EmptyStatePanel>
+          ) : (
+            <>
+              <Stack spacing={1.05}>
+                {visibleRows.map((product) => (
+                  <ProductCatalogItem
+                    key={product.id}
+                    canDeleteProducts={canDeleteProducts}
+                    canToggleProducts={canToggleProducts}
+                    canUpdateProducts={canUpdateProducts}
+                    canViewAdminColumns={canViewAdminColumns}
+                    deletingProductId={deletingProductId}
+                    onDeleteProduct={onDeleteProduct}
+                    onEditProduct={onEditProduct}
+                    onToggleProduct={onToggleProduct}
+                    product={product}
+                    togglingProductId={togglingProductId}
+                  />
+                ))}
+              </Stack>
+
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                alignItems={{ xs: "stretch", sm: "center" }}
+                justifyContent="space-between"
+              >
+                <Typography
+                  color="text.secondary"
+                  fontSize={12.5}
+                  fontWeight={750}
+                >
+                  Mostrando {fromItem}-{toItem} de {rows.length} producto
+                  {rows.length === 1 ? "" : "s"}
+                </Typography>
+                <Pagination
+                  color="primary"
+                  count={pageCount}
+                  page={page}
+                  onChange={(_, nextPage) => setPage(nextPage)}
+                  shape="rounded"
+                  size="small"
+                  sx={{ alignSelf: { xs: "center", sm: "auto" } }}
                 />
-              )}
-            </Box>
-          ))}
-        </Box>
+              </Stack>
+            </>
+          )}
+        </Stack>
       </CardContent>
     </Card>
   );

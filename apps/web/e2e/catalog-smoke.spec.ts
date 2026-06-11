@@ -15,7 +15,15 @@ test.describe("catálogo e inventario responsive", () => {
       page.getByRole("heading", { name: "Productos", level: 1 }),
     ).toBeVisible();
     await expect(page.getByTestId("products-visual-dashboard")).toBeVisible();
-    await expect(page.getByText("Gestión de catálogo")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Productos actuales" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Ordenar/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Filtros/i }),
+    ).toBeVisible();
     await expect(page.getByText("Requieren atención")).toBeVisible();
     await expect(page.getByText("Coca-Cola 600 ml")).toBeVisible();
 

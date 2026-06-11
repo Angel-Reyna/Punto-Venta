@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
-import AddIcon from "@mui/icons-material/Add";
+import AddCircleIcon from "@mui/icons-material/AddCircle";
 import CategoryIcon from "@mui/icons-material/Category";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
@@ -31,14 +31,19 @@ import {
   OTHER_CATEGORY_VALUE,
   Product,
   ProductFormValues,
+  formatCurrency,
   generateLocalProductCode,
   initialForm,
   safeTrim,
   toNonNegativeNumber,
 } from "./productShared";
 import { ProductCatalog } from "./ProductCatalog";
-import { ProductCatalogToolbar } from "./ProductCatalogToolbar";
+import {
+  type ProductFilterOption,
+  type ProductSortOption,
+} from "./ProductCatalogToolbar";
 import { ProductFormDialog } from "./ProductFormDialog";
+import { ProductImportActions } from "./ProductImportActions";
 import { useProductsData } from "./useProductsData";
 
 function numberToFormValue(value: unknown) {
@@ -63,6 +68,59 @@ function productToForm(product: Product): ProductFormValues {
   };
 }
 
+function matchesProductFilter(product: Product, filter: ProductFilterOption) {
+  const isActive = product.isActive !== false;
+  const stock = Number(product.stock ?? 0);
+  const minStock = Number(product.minStock ?? 0);
+  const promoPercent = Number(product.promoPercent ?? 0);
+
+  switch (filter) {
+    case "Activos":
+      return isActive;
+    case "Inactivos":
+      return !isActive;
+    case "Bajo stock":
+      return isActive && minStock > 0 && stock > 0 && stock <= minStock;
+    case "Sin stock":
+      return isActive && stock <= 0;
+    case "Con promoción":
+      return isActive && promoPercent > 0;
+    case "Todos":
+    default:
+      return true;
+  }
+}
+
+function sortProducts(products: Product[], sort: ProductSortOption) {
+  return [...products].sort((firstProduct, secondProduct) => {
+    switch (sort) {
+      case "stock-asc":
+        return (
+          Number(firstProduct.stock ?? 0) - Number(secondProduct.stock ?? 0)
+        );
+      case "stock-desc":
+        return (
+          Number(secondProduct.stock ?? 0) - Number(firstProduct.stock ?? 0)
+        );
+      case "price-asc":
+        return (
+          Number(firstProduct.finalPrice ?? 0) -
+          Number(secondProduct.finalPrice ?? 0)
+        );
+      case "price-desc":
+        return (
+          Number(secondProduct.finalPrice ?? 0) -
+          Number(firstProduct.finalPrice ?? 0)
+        );
+      case "name-asc":
+      default:
+        return firstProduct.name.localeCompare(secondProduct.name, "es", {
+          sensitivity: "base",
+        });
+    }
+  });
+}
+
 export function ProductsPage() {
   const { can } = useAuth();
   const canCreateProduct = can(PERMISSIONS.ProductsCreate);
@@ -82,6 +140,9 @@ export function ProductsPage() {
   const [bulkDeleteConfirmation, setBulkDeleteConfirmation] = useState("");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductFormValues>(initialForm);
+  const [productFilter, setProductFilter] =
+    useState<ProductFilterOption>("Todos");
+  const [productSort, setProductSort] = useState<ProductSortOption>("name-asc");
 
   const {
     categories,
@@ -108,7 +169,9 @@ export function ProductsPage() {
     toggleProduct,
     updatingProductId,
     updateProduct,
-  } = useProductsData({ canCreateProduct: canCreateProduct || canUpdateProducts });
+  } = useProductsData({
+    canCreateProduct: canCreateProduct || canUpdateProducts,
+  });
 
   function closeBulkDeleteDialog() {
     if (isDeletingAllProducts) return;
@@ -202,29 +265,45 @@ export function ProductsPage() {
 
   const normalizedSearchQuery = searchQuery.trim();
 
+  const catalogRows = useMemo(() => {
+    const filteredRows = rows.filter((product) =>
+      matchesProductFilter(product, productFilter),
+    );
+
+    return sortProducts(filteredRows, productSort);
+  }, [productFilter, productSort, rows]);
+
   const productStats = useMemo(() => {
     const activeProducts = rows.filter(
       (product) => product.isActive !== false,
     ).length;
     const inactiveProducts = rows.length - activeProducts;
-    const lowStockProducts = rows.filter((product) => {
+    const activeRows = rows.filter((product) => product.isActive !== false);
+    const lowStockProducts = activeRows.filter((product) => {
       const stock = Number(product.stock ?? 0);
       const minStock = Number(product.minStock ?? 0);
 
       return minStock > 0 && stock > 0 && stock <= minStock;
     }).length;
-    const outOfStockProducts = rows.filter(
+    const outOfStockProducts = activeRows.filter(
       (product) => Number(product.stock ?? 0) <= 0,
     ).length;
-    const promotedProducts = rows.filter(
+    const promotedProducts = activeRows.filter(
       (product) => Number(product.promoPercent ?? 0) > 0,
     ).length;
     const categoryCount = new Set(
       rows.map((product) => product.category?.name).filter(Boolean),
     ).size;
+    const inventoryValue = activeRows.reduce((total, product) => {
+      const stock = Math.max(0, Number(product.stock ?? 0));
+      const costPrice = Math.max(0, Number(product.costPrice ?? 0));
+
+      return total + stock * costPrice;
+    }, 0);
 
     return {
       activeProducts,
+      inventoryValue,
       categoryCount,
       inactiveProducts,
       lowStockProducts,
@@ -235,12 +314,20 @@ export function ProductsPage() {
   }, [rows]);
 
   const productSearchHelper = useMemo(() => {
-    if (!normalizedSearchQuery) {
+    if (!normalizedSearchQuery && productFilter === "Todos") {
       return "Busca por nombre, clave interna/SKU, código del producto, categoría o descripción.";
     }
 
-    return `Mostrando coincidencias para “${normalizedSearchQuery}”.`;
-  }, [normalizedSearchQuery]);
+    if (normalizedSearchQuery && productFilter !== "Todos") {
+      return `Mostrando “${normalizedSearchQuery}” dentro de ${productFilter.toLowerCase()}.`;
+    }
+
+    if (normalizedSearchQuery) {
+      return `Mostrando coincidencias para “${normalizedSearchQuery}”.`;
+    }
+
+    return `Mostrando productos en filtro ${productFilter.toLowerCase()}.`;
+  }, [normalizedSearchQuery, productFilter]);
 
   return (
     <>
@@ -251,104 +338,160 @@ export function ProductsPage() {
           overflow: "hidden",
           border: 1,
           borderColor: alpha(theme.palette.primary.main, 0.18),
+          borderRadius: 4,
           background: `linear-gradient(135deg, ${alpha(
             theme.palette.primary.main,
             0.12,
-          )}, ${alpha(theme.palette.background.paper, 0.96)} 46%, ${alpha(
+          )}, ${alpha(theme.palette.background.paper, 0.96)} 48%, ${alpha(
             theme.palette.success.main,
             0.08,
           )})`,
         })}
       >
-        <CardContent sx={{ p: { xs: 2, md: 3 } }}>
-          <Stack spacing={2.5}>
+        <CardContent sx={{ p: { xs: 1.75, md: 2.4 } }}>
+          <Stack spacing={2.25}>
             <Stack
-              direction={{ xs: "column", md: "row" }}
-              spacing={2}
-              alignItems={{ xs: "stretch", md: "flex-start" }}
+              direction={{ xs: "column", lg: "row" }}
+              spacing={2.2}
+              alignItems={{ xs: "stretch", lg: "flex-start" }}
               justifyContent="space-between"
             >
-              <Stack spacing={1} sx={{ maxWidth: 760 }}>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  useFlexGap
-                  flexWrap="wrap"
-                  alignItems="center"
+              <Stack direction="row" spacing={1.35} sx={{ minWidth: 0 }}>
+                <Box
+                  aria-hidden="true"
+                  sx={(theme) => ({
+                    background: `radial-gradient(circle at 30% 20%, ${alpha(
+                      theme.palette.primary.main,
+                      0.28,
+                    )}, ${alpha(theme.palette.primary.main, 0.08)} 68%)`,
+                    border: 1,
+                    borderColor: alpha(theme.palette.primary.main, 0.28),
+                    borderRadius: 3.25,
+                    color: "primary.main",
+                    display: "grid",
+                    flex: "0 0 56px",
+                    height: 56,
+                    placeItems: "center",
+                    width: 56,
+                  })}
                 >
-                  <Chip
-                    icon={<StorefrontIcon />}
-                    color={canViewAdminColumns ? "primary" : "success"}
-                    label={
-                      canViewAdminColumns
-                        ? "Gestión de catálogo"
-                        : "Catálogo disponible"
-                    }
-                  />
-                  <Chip
-                    variant="outlined"
-                    label={`${productStats.totalProducts} producto${
-                      productStats.totalProducts === 1 ? "" : "s"
-                    } visibles`}
-                  />
-                </Stack>
+                  <StorefrontIcon sx={{ fontSize: 31 }} />
+                </Box>
 
-                <Box>
-                  <Typography variant="h4" component="h1" fontWeight={900}>
+                <Box sx={{ minWidth: 0, maxWidth: 820 }}>
+                  <Typography
+                    color="primary.main"
+                    fontWeight={850}
+                    letterSpacing="0.08em"
+                    textTransform="uppercase"
+                    variant="caption"
+                  >
                     Productos
                   </Typography>
-                  <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                  <Typography
+                    variant="h4"
+                    component="h1"
+                    fontWeight={950}
+                    letterSpacing="-0.04em"
+                    sx={{ mt: 0.1 }}
+                  >
+                    Catálogo de productos
+                  </Typography>
+                  <Typography
+                    color="text.secondary"
+                    sx={{ mt: 0.45, maxWidth: 780 }}
+                    variant="body2"
+                  >
                     {canViewAdminColumns
-                      ? "Revisa qué se puede vender, qué necesita reposición y administra precios sin saturar la pantalla."
+                      ? "Administra productos, códigos, categorías, precios, promociones, estados y alertas de stock sin saturar la pantalla."
                       : "Consulta productos activos, precios finales y disponibilidad antes de vender."}
                   </Typography>
+                  <Stack
+                    direction="row"
+                    flexWrap="wrap"
+                    gap={0.85}
+                    sx={{ mt: 1.2 }}
+                  >
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label="Códigos y SKU"
+                      sx={{ fontWeight: 850 }}
+                    />
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label="Precios y margen"
+                      sx={{ fontWeight: 850 }}
+                    />
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label="Stock mínimo"
+                      sx={{ fontWeight: 850 }}
+                    />
+                  </Stack>
                 </Box>
               </Stack>
 
-              {(canCreateProduct || canDeleteProducts) && (
+              {(canCreateProduct || canImportProducts || canDeleteProducts) && (
                 <Stack
-                  direction={{ xs: "column", sm: "row" }}
+                  alignItems={{ xs: "stretch", sm: "center", lg: "flex-end" }}
+                  direction={{ xs: "column", sm: "row", lg: "column" }}
                   spacing={1}
-                  sx={{ alignSelf: { xs: "stretch", md: "flex-start" } }}
+                  sx={{ alignSelf: { xs: "stretch", lg: "flex-start" } }}
                 >
                   {canCreateProduct && (
                     <Button
                       size="large"
-                      startIcon={<AddIcon />}
+                      variant="contained"
+                      startIcon={<AddCircleIcon />}
                       onClick={openCreateProductForm}
                       data-testid="products-create-button"
                     >
                       Nuevo producto
                     </Button>
                   )}
-                  {canDeleteProducts && (
-                    <Button
-                      color="error"
-                      size="large"
-                      startIcon={<DeleteSweepIcon />}
-                      variant="outlined"
-                      onClick={() => setBulkDeleteOpen(true)}
-                      data-testid="products-delete-all-button"
-                    >
-                      Eliminar catálogo
-                    </Button>
-                  )}
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    flexWrap={{ sm: "wrap" }}
+                    gap={1}
+                    justifyContent={{ xs: "flex-start", lg: "flex-end" }}
+                    sx={{ width: { xs: "100%", sm: "auto" } }}
+                  >
+                    {canImportProducts && (
+                      <ProductImportActions
+                        isDownloadingTemplate={isDownloadingTemplate}
+                        isImportingExcel={isImportingExcel}
+                        onDownloadTemplate={downloadTemplate}
+                        onImportExcel={importExcel}
+                      />
+                    )}
+                    {canDeleteProducts && (
+                      <Button
+                        color="error"
+                        size="large"
+                        startIcon={<DeleteSweepIcon />}
+                        variant="outlined"
+                        onClick={() => setBulkDeleteOpen(true)}
+                        data-testid="products-delete-all-button"
+                      >
+                        Eliminar catálogo
+                      </Button>
+                    )}
+                  </Stack>
                 </Stack>
               )}
             </Stack>
 
-            <Grid container spacing={1.5}>
+            <Grid container spacing={1.2}>
               <Grid item xs={12} sm={6} lg={3}>
                 <VisualMetricCard
                   tone="primary"
                   icon={<Inventory2Icon />}
-                  label="Catálogo visible"
-                  value={productStats.totalProducts}
-                  helper={`${productStats.activeProducts} activos${
-                    productStats.inactiveProducts
-                      ? ` · ${productStats.inactiveProducts} inactivos`
-                      : ""
-                  }`}
+                  label="Valor de inventario"
+                  value={formatCurrency(productStats.inventoryValue)}
+                  helper="Costo estimado del stock activo"
                 />
               </Grid>
               <Grid item xs={12} sm={6} lg={3}>
@@ -374,7 +517,7 @@ export function ProductsPage() {
                   icon={<CategoryIcon />}
                   label="Categorías"
                   value={productStats.categoryCount}
-                  helper="Agrupación detectada en los resultados actuales"
+                  helper="Categorías reales asignadas al catálogo"
                 />
               </Grid>
               <Grid item xs={12} sm={6} lg={3}>
@@ -398,27 +541,23 @@ export function ProductsPage() {
         onErrorClose={() => setError("")}
       />
 
-      <ProductCatalogToolbar
-        canImportProducts={canImportProducts}
-        isDownloadingTemplate={isDownloadingTemplate}
-        isImportingExcel={isImportingExcel}
-        onDownloadTemplate={downloadTemplate}
-        onImportExcel={importExcel}
-        onSearchQueryChange={setSearchQuery}
-        productSearchHelper={productSearchHelper}
-        resultCount={rows.length}
-        searchQuery={searchQuery}
-      />
-
       <ProductCatalog
-        rows={rows}
+        rows={catalogRows}
         searchQuery={searchQuery}
+        selectedFilter={productFilter}
+        selectedSort={productSort}
+        productSearchHelper={productSearchHelper}
+        resultCount={catalogRows.length}
+        totalCount={rows.length}
         canViewAdminColumns={canViewAdminColumns}
         canToggleProducts={canToggleProducts}
         canUpdateProducts={canUpdateProducts}
         canDeleteProducts={canDeleteProducts}
         togglingProductId={togglingProductId}
         deletingProductId={deletingProductId}
+        onSearchQueryChange={setSearchQuery}
+        onFilterChange={setProductFilter}
+        onSortChange={setProductSort}
         onToggleProduct={toggleProduct}
         onEditProduct={openEditProductForm}
         onDeleteProduct={setProductPendingDelete}
@@ -447,7 +586,8 @@ export function ProductsPage() {
                 color="error"
                 onClick={confirmDeleteAllProducts}
                 disabled={
-                  isDeletingAllProducts || bulkDeleteConfirmation !== "ELIMINAR TODO"
+                  isDeletingAllProducts ||
+                  bulkDeleteConfirmation !== "ELIMINAR TODO"
                 }
                 data-testid="products-delete-all-confirm-button"
               >
@@ -458,25 +598,31 @@ export function ProductsPage() {
         >
           <Stack spacing={2}>
             <Alert severity="warning">
-              Se eliminarán todos los productos del catálogo, no solo los visibles
-              con el filtro actual. Esta acción no debe usarse para ocultar
-              productos temporalmente; para eso usa desactivar.
+              Se eliminarán todos los productos del catálogo, no solo los
+              visibles con el filtro actual. Esta acción no debe usarse para
+              ocultar productos temporalmente; para eso usa desactivar.
             </Alert>
             <Box>
               <Typography fontWeight={900}>
                 Escribe ELIMINAR TODO para confirmar.
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                El historial operativo se conserva mediante snapshots de nombre y
-                SKU en ventas, devoluciones y movimientos de inventario. Esta acción
-                no se puede deshacer desde la aplicación.
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mt: 0.5 }}
+              >
+                El historial operativo se conserva mediante snapshots de nombre
+                y SKU en ventas, devoluciones y movimientos de inventario. Esta
+                acción no se puede deshacer desde la aplicación.
               </Typography>
             </Box>
             <TextField
               autoComplete="off"
               label="Confirmación"
               value={bulkDeleteConfirmation}
-              onChange={(event) => setBulkDeleteConfirmation(event.target.value)}
+              onChange={(event) =>
+                setBulkDeleteConfirmation(event.target.value)
+              }
               placeholder="ELIMINAR TODO"
               fullWidth
               inputProps={{ "data-testid": "products-delete-all-confirm-text" }}
