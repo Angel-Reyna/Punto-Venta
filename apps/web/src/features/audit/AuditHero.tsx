@@ -40,7 +40,7 @@ function LatestChangeBlock({ latestEvent }: { latestEvent: string }) {
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="caption" color="text.secondary" fontWeight={900}>
-            Último cambio registrado
+            Último cambio
           </Typography>
           <Typography fontWeight={950} sx={{ overflowWrap: "anywhere" }}>
             {latestEvent}
@@ -57,14 +57,12 @@ export function AuditHero({
   latestEvent,
   mode = "desktop",
   onViewChange,
-  visibleCount,
 }: {
   activeView: AuditView;
   criticalEvents: number;
   latestEvent: string;
   mode?: AuditLayoutVariant;
   onViewChange: (value: AuditView) => void;
-  visibleCount: number;
 }) {
   const isMobile = mode === "mobile";
   const hasCritical = criticalEvents > 0;
@@ -95,8 +93,7 @@ export function AuditHero({
               useFlexGap
               justifyContent={isMobile ? "flex-start" : "flex-end"}
             >
-              <Chip color="primary" icon={<SecurityIcon />} label="Solo administradores" size="small" />
-              <Chip color="info" icon={<EventAvailableIcon />} label={`${visibleCount} visible(s)`} size="small" variant="outlined" />
+              <Chip color="primary" icon={<SecurityIcon />} label="Acceso admin" size="small" />
               <Chip
                 color={hasCritical ? "error" : "success"}
                 icon={hasCritical ? <WarningAmberIcon /> : <SecurityIcon />}

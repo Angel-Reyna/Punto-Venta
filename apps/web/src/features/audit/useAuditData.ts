@@ -110,18 +110,16 @@ export function useAuditData() {
   const latestEvent = visibleRows[0]?.createdAt ? formatDate(visibleRows[0].createdAt) : "Sin actividad";
 
   const activeFilterLabels = [
-    filters.module ? `Módulo: ${formatAuditModuleLabel(filters.module)}` : "Módulo: Todos",
-    filters.severity ? `Importancia: ${SEVERITY_LABELS[filters.severity]}` : "Importancia: Todas",
+    filters.module ? `Módulo: ${formatAuditModuleLabel(filters.module)}` : null,
+    filters.severity ? `Importancia: ${SEVERITY_LABELS[filters.severity]}` : null,
     filters.userId
       ? `Responsable: ${userOptions.find((option) => option.id === filters.userId)?.label ?? "Seleccionado"}`
-      : "Responsable: Todos",
-    filters.action ? `Qué ocurrió: ${formatActionLabel(filters.action)}` : "Qué ocurrió: Todo",
-    filters.tableName ? `Detalle: ${formatEntityLabel(filters.tableName)}` : "Detalle: Todos",
-    filters.dateFrom || filters.dateTo
-      ? `Periodo: ${filters.dateFrom || "inicio"} → ${filters.dateTo || "hoy"}`
-      : "Periodo: últimos registros",
-    filters.q.trim() ? `Búsqueda: ${filters.q.trim()}` : "Búsqueda: sin texto",
-  ];
+      : null,
+    filters.action ? `Qué ocurrió: ${formatActionLabel(filters.action)}` : null,
+    filters.tableName ? `Detalle: ${formatEntityLabel(filters.tableName)}` : null,
+    filters.dateFrom || filters.dateTo ? `Periodo: ${filters.dateFrom || "inicio"} → ${filters.dateTo || "hoy"}` : null,
+    filters.q.trim() ? `Búsqueda: ${filters.q.trim()}` : null,
+  ].filter((label): label is string => Boolean(label));
 
   return {
     actionOptions,

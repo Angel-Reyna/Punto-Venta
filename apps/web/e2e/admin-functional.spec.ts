@@ -117,13 +117,12 @@ test.describe("cobertura funcional administrativa", () => {
     await page.goto("/audit");
 
     await expect(page.getByRole("heading", { name: "Auditoría", level: 1 })).toBeVisible();
-    await expect(page.getByText("Último cambio registrado")).toBeVisible();
+    await expect(page.getByText("Último cambio")).toBeVisible();
     await expect(byTestId(page, "audit-insights-panel")).toContainText("Mapa de actividad");
     await expect(byTestId(page, "audit-insights-panel")).toContainText("Módulos con más cambios");
     await page.getByRole("tab", { name: "Eventos recientes" }).click();
     await expect(byTestId(page, "audit-events-pagination-summary")).toContainText("Mostrando 1-3 de 3");
-    await expect(byTestId(page, "audit-active-filters")).toContainText("Módulo: Todos");
-    await expect(byTestId(page, "audit-active-filters")).toContainText("Importancia: Todas");
+    await expect(byTestId(page, "audit-active-filters")).toContainText("Sin filtros activos");
     await expect(byTestId(page, "audit-date-presets")).toContainText("Mes pasado");
 
     await clickByTestId(page, "audit-date-preset-previous-month");

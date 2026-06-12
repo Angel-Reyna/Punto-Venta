@@ -22,173 +22,73 @@ function AuditError({ error }: { error?: string | null }) {
   );
 }
 
-function AuditMobileScreen({ audit }: { audit: AuditPageData }) {
+function AuditContent({ audit, layout }: { audit: AuditPageData; layout: "mobile" | "tablet" | "desktop" }) {
   const [activeView, setActiveView] = useState<AuditView>("activity");
 
   return (
-    <Box sx={{ mx: { xs: -1.5, sm: 0 }, pb: 8 }}>
-      <PageHeader
-        title="Auditoría"
-        subtitle="Cambios, responsables y puntos a revisar."
+    <Stack spacing={layout === "mobile" ? 1.25 : 1.6}>
+      <AuditHero
+        activeView={activeView}
+        criticalEvents={audit.criticalEvents}
+        latestEvent={audit.latestEvent}
+        mode={layout}
+        onViewChange={setActiveView}
       />
 
-      <AuditError error={audit.error} />
+      <AuditFiltersPanel
+        actionOptions={audit.actionOptions}
+        activeFilterLabels={audit.activeFilterLabels}
+        clearFilters={audit.clearFilters}
+        consult={audit.consult}
+        filters={audit.filters}
+        isLoading={audit.isLoading}
+        layout={layout}
+        tableOptions={audit.tableOptions}
+        userOptions={audit.userOptions}
+        updateFilter={audit.updateFilter}
+      />
 
-      <Stack spacing={1.25}>
-        <AuditHero
-          activeView={activeView}
+      {activeView === "activity" && (
+        <AuditInsightsPanel mode={layout} uniqueUsers={audit.uniqueUsers} visibleRows={audit.visibleRows} />
+      )}
+
+      {activeView === "events" && (
+        <AuditResultsSection
           criticalEvents={audit.criticalEvents}
-          latestEvent={audit.latestEvent}
-          mode="mobile"
-          onViewChange={setActiveView}
-          visibleCount={audit.visibleRows.length}
+          layoutVariant={layout}
+          visibleRows={audit.visibleRows}
         />
+      )}
+    </Stack>
+  );
+}
 
-        {activeView === "activity" && (
-          <AuditInsightsPanel mode="mobile" uniqueUsers={audit.uniqueUsers} visibleRows={audit.visibleRows} />
-        )}
-
-        <AuditFiltersPanel
-          actionOptions={audit.actionOptions}
-          activeFilterLabels={audit.activeFilterLabels}
-          clearFilters={audit.clearFilters}
-          consult={audit.consult}
-          filters={audit.filters}
-          isLoading={audit.isLoading}
-          layout="mobile"
-          tableOptions={audit.tableOptions}
-          userOptions={audit.userOptions}
-          updateFilter={audit.updateFilter}
-        />
-
-        {activeView === "events" && (
-          <AuditResultsSection
-            criticalEvents={audit.criticalEvents}
-            layoutVariant="mobile"
-            visibleRows={audit.visibleRows}
-          />
-        )}
-      </Stack>
+function AuditMobileScreen({ audit }: { audit: AuditPageData }) {
+  return (
+    <Box sx={{ mx: { xs: -1.5, sm: 0 }, pb: 8 }}>
+      <PageHeader title="Auditoría" subtitle="Cambios, responsables y puntos a revisar." />
+      <AuditError error={audit.error} />
+      <AuditContent audit={audit} layout="mobile" />
     </Box>
   );
 }
 
 function AuditTabletScreen({ audit }: { audit: AuditPageData }) {
-  const [activeView, setActiveView] = useState<AuditView>("activity");
-
   return (
     <Box>
-      <PageHeader
-        title="Auditoría"
-        subtitle="Actividad reciente con filtros y señales claras."
-      />
-
+      <PageHeader title="Auditoría" subtitle="Actividad reciente con filtros y señales claras." />
       <AuditError error={audit.error} />
-
-      <Box
-        sx={{
-          display: "grid",
-          gap: 2,
-          gridTemplateColumns: "minmax(300px, 340px) minmax(0, 1fr)",
-          alignItems: "start",
-        }}
-      >
-        <Stack spacing={1.5} sx={{ position: "sticky", top: 84 }}>
-          <AuditHero
-            activeView={activeView}
-            criticalEvents={audit.criticalEvents}
-            latestEvent={audit.latestEvent}
-            mode="tablet"
-            onViewChange={setActiveView}
-            visibleCount={audit.visibleRows.length}
-          />
-          <AuditFiltersPanel
-            actionOptions={audit.actionOptions}
-            activeFilterLabels={audit.activeFilterLabels}
-            clearFilters={audit.clearFilters}
-            consult={audit.consult}
-            filters={audit.filters}
-            isLoading={audit.isLoading}
-            layout="tablet"
-            tableOptions={audit.tableOptions}
-            userOptions={audit.userOptions}
-            updateFilter={audit.updateFilter}
-          />
-        </Stack>
-
-        <Stack spacing={1.5}>
-          {activeView === "activity" && (
-            <AuditInsightsPanel mode="tablet" uniqueUsers={audit.uniqueUsers} visibleRows={audit.visibleRows} />
-          )}
-          {activeView === "events" && (
-            <AuditResultsSection
-              criticalEvents={audit.criticalEvents}
-              layoutVariant="tablet"
-              visibleRows={audit.visibleRows}
-            />
-          )}
-        </Stack>
-      </Box>
+      <AuditContent audit={audit} layout="tablet" />
     </Box>
   );
 }
 
 function AuditDesktopScreen({ audit }: { audit: AuditPageData }) {
-  const [activeView, setActiveView] = useState<AuditView>("activity");
-
   return (
     <Box>
-      <PageHeader
-        title="Auditoría"
-        subtitle="Cambios recientes, responsables y alertas principales."
-      />
-
+      <PageHeader title="Auditoría" subtitle="Cambios recientes, responsables y alertas principales." />
       <AuditError error={audit.error} />
-
-      <Box
-        sx={{
-          display: "grid",
-          gap: 2,
-          gridTemplateColumns: { md: "320px minmax(0, 1fr)", xl: "340px minmax(0, 1fr)" },
-          alignItems: "start",
-        }}
-      >
-        <Stack spacing={1.5} sx={{ position: "sticky", top: 84 }}>
-          <AuditFiltersPanel
-            actionOptions={audit.actionOptions}
-            activeFilterLabels={audit.activeFilterLabels}
-            clearFilters={audit.clearFilters}
-            consult={audit.consult}
-            filters={audit.filters}
-            isLoading={audit.isLoading}
-            layout="desktop"
-            tableOptions={audit.tableOptions}
-            userOptions={audit.userOptions}
-            updateFilter={audit.updateFilter}
-          />
-        </Stack>
-
-        <Stack spacing={2}>
-          <AuditHero
-            activeView={activeView}
-            criticalEvents={audit.criticalEvents}
-            latestEvent={audit.latestEvent}
-            mode="desktop"
-            onViewChange={setActiveView}
-            visibleCount={audit.visibleRows.length}
-          />
-          {activeView === "activity" && (
-            <AuditInsightsPanel mode="desktop" uniqueUsers={audit.uniqueUsers} visibleRows={audit.visibleRows} />
-          )}
-          {activeView === "events" && (
-            <AuditResultsSection
-              criticalEvents={audit.criticalEvents}
-              layoutVariant="desktop"
-              visibleRows={audit.visibleRows}
-            />
-          )}
-        </Stack>
-      </Box>
+      <AuditContent audit={audit} layout="desktop" />
     </Box>
   );
 }

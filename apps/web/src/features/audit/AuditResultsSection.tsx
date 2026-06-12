@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   Box,
+  Card,
+  CardContent,
   FormControl,
   MenuItem,
   Pagination,
@@ -11,7 +13,10 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import type { SelectChangeEvent } from "@mui/material/Select";
+
+import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 
 import { EmptyStatePanel } from "../../components/data-display";
 import { AuditLogCard, type AuditLayoutVariant, type AuditLog } from "./auditShared";
@@ -43,7 +48,7 @@ function getPageSummary(total: number, page: number, pageSize: AuditEventsPageSi
 }
 
 export function AuditResultsSection({
-  criticalEvents: _criticalEvents,
+  criticalEvents,
   layoutVariant,
   visibleRows,
 }: {
@@ -53,6 +58,7 @@ export function AuditResultsSection({
 }) {
   const detectedLayoutVariant = useAuditLayoutVariant();
   const variant = layoutVariant ?? detectedLayoutVariant;
+  const isMobile = variant === "mobile";
   const [rowsPerPage, setRowsPerPage] = useState<AuditEventsPageSize>(3);
   const [page, setPage] = useState(1);
   const rowSignature = useMemo(() => visibleRows.map((log) => log.id).join("|"), [visibleRows]);
@@ -78,29 +84,82 @@ export function AuditResultsSection({
   };
 
   return (
-    <Stack data-testid="audit-events-section" spacing={variant === "mobile" ? 1.1 : 1.35}>
-      {visibleRows.length === 0 ? (
-        <EmptyStatePanel>
-          No hay cambios con los filtros actuales. Limpia filtros o consulta otro periodo.
-        </EmptyStatePanel>
-      ) : (
-        <>
-          <Stack
-            direction={variant === "mobile" ? "column" : "row"}
-            spacing={1}
-            alignItems={variant === "mobile" ? "stretch" : "center"}
-            justifyContent="space-between"
-            sx={{ px: { xs: 0.25, sm: 0.5 } }}
-          >
+    <Card
+      data-testid="audit-events-section"
+      sx={{
+        border: 1,
+        borderColor: "divider",
+        borderRadius: 3.5,
+        boxShadow: isMobile ? "none" : "0 12px 28px rgba(15, 23, 42, 0.05)",
+        overflow: "hidden",
+      }}
+    >
+      <Box
+        sx={(theme) => ({
+          px: { xs: 1.5, sm: 2.25 },
+          py: { xs: 1.4, sm: 1.75 },
+          borderBottom: 1,
+          borderColor: alpha(theme.palette.primary.main, 0.16),
+          bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.04 : 0.025),
+        })}
+      >
+        <Stack
+          direction={isMobile ? "column" : "row"}
+          spacing={1.25}
+          alignItems={isMobile ? "stretch" : "center"}
+          justifyContent="space-between"
+        >
+          <Stack direction="row" spacing={1.2} alignItems="center" sx={{ minWidth: 0 }}>
+            <Box
+              sx={(theme) => ({
+                alignItems: "center",
+                bgcolor: alpha(theme.palette.primary.main, 0.13),
+                borderRadius: 2.35,
+                color: "primary.main",
+                display: "inline-flex",
+                flex: "0 0 auto",
+                height: 42,
+                justifyContent: "center",
+                width: 42,
+              })}
+            >
+              <EventAvailableIcon />
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant={isMobile ? "subtitle1" : "h5"} fontWeight={950} sx={{ letterSpacing: -0.25 }}>
+                Eventos recientes
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Cambios auditados con responsable, impacto y fecha.
+              </Typography>
+            </Box>
+          </Stack>
+
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent={isMobile ? "flex-start" : "flex-end"}>
             <Typography
               data-testid="audit-events-pagination-summary"
               variant="body2"
               color="text.secondary"
-              fontWeight={800}
+              fontWeight={900}
             >
               {summary}
             </Typography>
+            {criticalEvents > 0 && (
+              <Typography variant="body2" color="error.main" fontWeight={900}>
+                {criticalEvents} por revisar
+              </Typography>
+            )}
+          </Stack>
+        </Stack>
+      </Box>
 
+      <CardContent sx={{ p: isMobile ? 1.25 : 1.5 }}>
+        {visibleRows.length === 0 ? (
+          <EmptyStatePanel>
+            No hay cambios con los filtros actuales. Limpia filtros o consulta otro periodo.
+          </EmptyStatePanel>
+        ) : (
+          <Stack spacing={1.25}>
             <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
               <Typography variant="caption" color="text.secondary" fontWeight={800}>
                 Por página
@@ -121,35 +180,29 @@ export function AuditResultsSection({
                 </Select>
               </FormControl>
             </Stack>
+
+            <Box sx={{ display: "grid", gap: isMobile ? 1 : 1.15, gridTemplateColumns: "1fr" }}>
+              {pageRows.map((log, index) => (
+                <AuditLogCard key={log.id} index={(currentPage - 1) * rowsPerPage + index + 1} log={log} variant={variant} />
+              ))}
+            </Box>
+
+            {totalPages > 1 && (
+              <Stack direction="row" justifyContent="center" sx={{ pt: 0.25 }}>
+                <Pagination
+                  color="primary"
+                  count={totalPages}
+                  page={currentPage}
+                  onChange={(_event, nextPage) => setPage(nextPage)}
+                  shape="rounded"
+                  siblingCount={isMobile ? 0 : 1}
+                  boundaryCount={1}
+                />
+              </Stack>
+            )}
           </Stack>
-
-          <Box
-            sx={{
-              display: "grid",
-              gap: variant === "mobile" ? 1 : 1.15,
-              gridTemplateColumns: "1fr",
-            }}
-          >
-            {pageRows.map((log, index) => (
-              <AuditLogCard key={log.id} index={(currentPage - 1) * rowsPerPage + index + 1} log={log} variant={variant} />
-            ))}
-          </Box>
-
-          {totalPages > 1 && (
-            <Stack direction="row" justifyContent="center" sx={{ pt: 0.25 }}>
-              <Pagination
-                color="primary"
-                count={totalPages}
-                page={currentPage}
-                onChange={(_event, nextPage) => setPage(nextPage)}
-                shape="rounded"
-                siblingCount={variant === "mobile" ? 0 : 1}
-                boundaryCount={1}
-              />
-            </Stack>
-          )}
-        </>
-      )}
-    </Stack>
+        )}
+      </CardContent>
+    </Card>
   );
 }
