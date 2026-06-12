@@ -12,8 +12,11 @@ import { AppError } from "../../utils/AppError";
 import { movementInclude } from "./inventory.mappers";
 import {
   DEFAULT_WAREHOUSE_NAME,
+  DAMAGE_REASON_LABEL,
   EXPIRATION_REASON_LABEL,
   INVENTORY_REASON_TYPES,
+  isShrinkageReasonType,
+  type InventoryReasonType,
   type InventoryTransferRequestInput,
   type StockMovementInput,
   type WarehouseInput
@@ -113,15 +116,19 @@ async function resolveWarehouse(
 function normalizeMovementReason(input: StockMovementInput) {
   const reasonType = input.reasonType ?? INVENTORY_REASON_TYPES.OTHER;
 
-  if (reasonType === INVENTORY_REASON_TYPES.EXPIRATION && input.type !== InventoryType.OUT) {
-    throw new AppError(400, "Caducidad solo puede registrarse como salida de inventario");
+  if (isShrinkageReasonType(reasonType) && input.type !== InventoryType.OUT) {
+    throw new AppError(400, "Caducidad o daños solo pueden registrarse como salida de inventario");
   }
+
+  const structuredReasonLabels: Partial<Record<InventoryReasonType, string>> = {
+    [INVENTORY_REASON_TYPES.EXPIRATION]: EXPIRATION_REASON_LABEL,
+    [INVENTORY_REASON_TYPES.DAMAGE]: DAMAGE_REASON_LABEL
+  };
+  const trimmedCustomReason = input.reason?.trim() || null;
 
   return {
     reasonType,
-    reason: reasonType === INVENTORY_REASON_TYPES.EXPIRATION
-      ? EXPIRATION_REASON_LABEL
-      : input.reason?.trim() || null
+    reason: structuredReasonLabels[reasonType] ?? trimmedCustomReason
   };
 }
 

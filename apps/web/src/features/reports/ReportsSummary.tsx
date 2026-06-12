@@ -42,7 +42,7 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
     },
     {
       id: "shrinkage",
-      label: "Merma por caducidad",
+      label: "Merma por caducidad o daños",
       value: formatMoney(shrinkageCost),
       helper: `${shrinkageUnits} unidades dadas de baja.`,
       info: REPORT_INFO_TEXT.shrinkage,

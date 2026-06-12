@@ -18,6 +18,8 @@ import {
   Pagination,
   Select,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
@@ -52,10 +54,9 @@ const TRANSFER_REVIEW_TITLES = {
 
 const TRANSFER_PAGE_SIZE_OPTIONS = [5, 10] as const;
 type TransferPageSize = (typeof TRANSFER_PAGE_SIZE_OPTIONS)[number];
-type TransferStatusFilter = "all" | InventoryTransferRequest["status"];
+type TransferStatusFilter = InventoryTransferRequest["status"];
 
 const TRANSFER_STATUS_FILTERS: Array<{ label: string; value: TransferStatusFilter }> = [
-  { label: "Todas", value: "all" },
   { label: "Pendientes", value: "PENDING" },
   { label: "Aprobadas", value: "APPROVED" },
   { label: "Rechazadas", value: "REJECTED" },
@@ -100,7 +101,7 @@ export function InventoryTransferRequestsPanel({
   const [form, setForm] = useState(initialInventoryTransferRequestForm);
   const [reviewNote, setReviewNote] = useState("");
   const [reviewDialog, setReviewDialog] = useState<ReviewDialogState>(null);
-  const [statusFilter, setStatusFilter] = useState<TransferStatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<TransferStatusFilter>("PENDING");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<TransferPageSize>(5);
 
@@ -151,7 +152,7 @@ export function InventoryTransferRequestsPanel({
 
   const requestSummary = useMemo(() => getTransferRequestSummary(requests), [requests]);
   const filteredRequests = useMemo(
-    () => sortTransferRequests(statusFilter === "all" ? requests : requests.filter((request) => request.status === statusFilter)),
+    () => sortTransferRequests(requests.filter((request) => request.status === statusFilter)),
     [requests, statusFilter],
   );
   const pageCount = Math.max(1, Math.ceil(filteredRequests.length / pageSize));
@@ -209,6 +210,7 @@ export function InventoryTransferRequestsPanel({
       : await onReject(reviewDialog.request.id, payload);
 
     if (success) {
+      setStatusFilter(reviewDialog.mode === "approve" ? "APPROVED" : "REJECTED");
       setReviewDialog(null);
       setReviewNote("");
     }
@@ -348,27 +350,42 @@ export function InventoryTransferRequestsPanel({
                   Historial de asignaciones
                 </Typography>
                 <Typography color="text.secondary" variant="body2">
-                  Las solicitudes pendientes se muestran primero.
+                  Selecciona pendientes, aprobadas o rechazadas para revisar cada grupo sin mezclar estados.
                 </Typography>
               </Box>
 
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "stretch", sm: "center" }}>
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                  <InputLabel id="inventory-transfer-status-filter-label">Estado</InputLabel>
-                  <Select
-                    labelId="inventory-transfer-status-filter-label"
-                    id="inventory-transfer-status-filter"
-                    label="Estado"
-                    value={statusFilter}
-                    onChange={(event) => setStatusFilter(event.target.value as TransferStatusFilter)}
-                  >
-                    {TRANSFER_STATUS_FILTERS.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Tabs
+                  value={statusFilter}
+                  onChange={(_, value: TransferStatusFilter) => setStatusFilter(value)}
+                  aria-label="Secciones de historial de asignaciones"
+                  variant="scrollable"
+                  allowScrollButtonsMobile
+                  sx={(theme) => ({
+                    minHeight: 38,
+                    maxWidth: { xs: "100%", sm: 420 },
+                    "& .MuiTab-root": {
+                      border: "1px solid",
+                      borderColor: alpha(theme.palette.divider, 0.9),
+                      borderRadius: 999,
+                      fontSize: 12,
+                      fontWeight: 900,
+                      minHeight: 36,
+                      minWidth: 0,
+                      mx: 0.25,
+                      px: 1.5,
+                      textTransform: "none",
+                    },
+                    "& .Mui-selected": {
+                      bgcolor: alpha(theme.palette.primary.main, 0.14),
+                    },
+                    "& .MuiTabs-indicator": { display: "none" },
+                  })}
+                >
+                  {TRANSFER_STATUS_FILTERS.map((option) => (
+                    <Tab key={option.value} label={option.label} value={option.value} />
+                  ))}
+                </Tabs>
 
                 <FormControl size="small" sx={{ minWidth: 142 }}>
                   <InputLabel id="inventory-transfer-page-size-label">Por página</InputLabel>
@@ -397,9 +414,9 @@ export function InventoryTransferRequestsPanel({
                 bgcolor: alpha(theme.palette.primary.main, 0.04),
                 p: 2,
               })}>
-                <Typography fontWeight={800}>Sin solicitudes de asignación.</Typography>
+                <Typography fontWeight={800}>Sin solicitudes en esta sección.</Typography>
                 <Typography color="text.secondary" variant="body2">
-                  Cuando un vendedor solicite stock físico, aparecerá aquí.
+                  Cambia de sección para revisar solicitudes con otro estado.
                 </Typography>
               </Box>
             ) : (

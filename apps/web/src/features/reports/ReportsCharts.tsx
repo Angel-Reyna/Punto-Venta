@@ -71,7 +71,7 @@ export function ReportsChartsGrid({ data }: { data: OperationsReport }) {
       id: "shrinkage",
       label: "Merma",
       value: -shrinkageCost,
-      helper: "Costo perdido por salidas marcadas como caducidad.",
+      helper: "Costo perdido por salidas marcadas como caducidad o daños.",
       kind: "negative"
     },
     {
@@ -104,7 +104,7 @@ export function ReportsChartsGrid({ data }: { data: OperationsReport }) {
       id: item.product.id,
       label: item.product.name,
       value: item.cost,
-      helper: `${item.quantity} unidad(es) caducada(s)`
+      helper: `${item.quantity} unidad(es) retirada(s)`
     }))
     .sort((a, b) => b.value - a.value);
 
@@ -140,10 +140,10 @@ export function ReportsChartsGrid({ data }: { data: OperationsReport }) {
 
       <Grid item xs={12} lg={8}>
         <ParetoPanel
-          emptyText="Sin merma por caducidad en el periodo."
+          emptyText="Sin merma por caducidad o daños en el periodo."
           formatValue={formatMoney}
           items={shrinkageByProduct}
-          subtitle="Productos ordenados por el costo perdido por caducidad. Úsalo para detectar qué artículos están generando pérdida en el periodo."
+          subtitle="Productos ordenados por el costo perdido por caducidad o daños. Úsalo para detectar qué artículos están generando pérdida en el periodo."
           testId="reports-chart-shrinkage-pareto"
           title="Productos que generan merma"
           tone="error"

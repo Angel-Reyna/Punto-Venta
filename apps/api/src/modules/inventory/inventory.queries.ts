@@ -26,8 +26,9 @@ import {
   type InventoryTransferRequestWithDetails
 } from "./inventory.service";
 import {
+  DAMAGE_REASON_LABEL,
   EXPIRATION_REASON_LABEL,
-  INVENTORY_REASON_TYPES
+  SHRINKAGE_REASON_TYPES
 } from "./inventory.shared";
 
 export async function listWarehouses() {
@@ -42,14 +43,21 @@ export async function listWarehouses() {
   });
 }
 
-const EXPIRATION_SEARCH_TERMS = [
+const SHRINKAGE_SEARCH_TERMS = [
   EXPIRATION_REASON_LABEL,
+  DAMAGE_REASON_LABEL,
+  "daño",
+  "danio",
+  "daños",
+  "danios",
   "merma",
   "merma economica",
   "expiration",
   "expired",
   "vencimiento",
-  "vencido"
+  "vencido",
+  "damage",
+  "damaged"
 ] as const;
 
 function normalizeSearchTerm(value: string) {
@@ -60,14 +68,14 @@ function normalizeSearchTerm(value: string) {
     .toLowerCase();
 }
 
-function matchesExpirationSearchTerm(q: string) {
+function matchesShrinkageSearchTerm(q: string) {
   const normalizedQuery = normalizeSearchTerm(q);
 
   if (!normalizedQuery) {
     return false;
   }
 
-  return EXPIRATION_SEARCH_TERMS.some((term) => {
+  return SHRINKAGE_SEARCH_TERMS.some((term) => {
     const normalizedTerm = normalizeSearchTerm(term);
 
     return (
@@ -115,9 +123,11 @@ function buildMovementSearchFilters(q: string): Prisma.InventoryMovementWhereInp
     }
   ];
 
-  if (matchesExpirationSearchTerm(q)) {
+  if (matchesShrinkageSearchTerm(q)) {
     filters.push({
-      reasonType: INVENTORY_REASON_TYPES.EXPIRATION
+      reasonType: {
+        in: [...SHRINKAGE_REASON_TYPES]
+      }
     });
   }
 

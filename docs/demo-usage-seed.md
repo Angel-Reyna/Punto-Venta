@@ -2,18 +2,18 @@
 
 Este seed inserta datos de demostración para simular uso real de Punta Venta durante los últimos días. Está pensado para desarrollo, QA visual y revisión de reportes, gráficas, auditoría, inventario y ventas.
 
-No reemplaza el seed base de la aplicación. Genera datos con prefijo `DEMO` y correos bajo `demo.puntaventa.local` para poder limpiarlos sin tocar datos manuales.
+No reemplaza el seed base de la aplicación. Genera datos operativos con SKUs/folios `DEMO` y correos bajo `demo.puntaventa.local` para poder limpiarlos sin tocar datos manuales. Los nombres visibles usan datos normales para probar la app como usuario real.
 
 ## Qué genera
 
-- Admin demo y tres vendedores demo.
-- Productos demo de abarrotes.
-- Almacenes demo normales y almacenes de stock físico por vendedor.
+- Admin “Laura Méndez” y tres vendedores: “Ana López”, “Carlos Ruiz” y “Mariana Torres”.
+- Productos normales de abarrotes sin crear categorías nuevas.
+- Almacenes “Almacén Principal”, “Almacén Norte” y stock físico por vendedor.
 - Entradas de inventario, transferencias aprobadas, solicitudes pendientes/rechazadas de retiro.
 - Ventas distribuidas entre este mes y el mes pasado.
 - Tickets con varios productos, descuentos ocasionales y distintos métodos de pago.
 - Devoluciones, cancelaciones solicitadas y ajustes pendientes/rechazados.
-- Mermas por caducidad para alimentar reportes de utilidad operativa y Pareto de merma.
+- Mermas por caducidad y daños para alimentar dashboard, reportes de utilidad operativa y Pareto de merma.
 - Actividad de vendedores y auditoría operativa.
 
 ## Uso recomendado
@@ -40,10 +40,10 @@ docker compose up -d --build api web
 Credenciales demo generadas:
 
 ```text
-Admin:    demo.admin@demo.puntaventa.local
-Vendedor: demo.vendedor.norte@demo.puntaventa.local
-Vendedor: demo.vendedor.centro@demo.puntaventa.local
-Vendedor: demo.vendedor.ruta@demo.puntaventa.local
+Admin:    demo.admin@demo.puntaventa.local       (Laura Méndez)
+Vendedor: ana.lopez@demo.puntaventa.local       (Ana López)
+Vendedor: carlos.ruiz@demo.puntaventa.local     (Carlos Ruiz)
+Vendedor: mariana.torres@demo.puntaventa.local  (Mariana Torres)
 Password: Demo12345DevOnly
 ```
 
@@ -53,7 +53,7 @@ Password: Demo12345DevOnly
 npm run api:seed:demo-usage -- --only-clean
 ```
 
-`--only-clean` elimina solo registros con prefijo/correos demo. No usa `docker compose down -v` y no borra la base completa.
+`--only-clean` elimina solo registros identificados por SKUs/folios `DEMO`, correos demo, auditoría demo y almacenes de esta prueba. No usa `docker compose down -v` y no borra la base completa.
 
 ## Opciones
 

@@ -34,7 +34,7 @@ export function buildPrimaryNavigationAction(
   }
 
   return {
-    label: "Nueva venta",
+    label: "Ventas",
     description: "Registrar venta",
     to: "/sales",
     icon: <PointOfSaleIcon />,

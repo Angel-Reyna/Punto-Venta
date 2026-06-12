@@ -69,9 +69,10 @@ test.describe("cobertura funcional por módulos críticos", () => {
   test("ventas permite devolver varios productos en una misma operación", async ({ page }) => {
     await mockApi(page, { role: "ADMIN" });
 
-    await page.goto("/sales");
+    await page.goto("/sales?view=history");
 
     await expect(page.getByRole("heading", { name: "Ventas", level: 1 })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Historial operativo", selected: true })).toBeVisible();
     const saleCard = salesHistorySale(page, "sale-1");
     await expect(saleCard.getByText("PV-0001", { exact: true })).toBeVisible();
     await expect(saleCard).toContainText("1× Coca-Cola 600 ml · 2× Botana Salada 50g");
@@ -101,10 +102,12 @@ test.describe("cobertura funcional por módulos críticos", () => {
   test("vendedor solicita devolución para aprobación del administrador", async ({ page }) => {
     await mockApi(page, { role: "CASHIER" });
 
-    await page.goto("/sales");
+    await page.goto("/sales?view=history");
 
     await expect(page.getByRole("heading", { name: "Ventas", level: 1 })).toBeVisible();
     await expect(page.getByText("Vista vendedor: ajustes con aprobación")).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Historial operativo", selected: true })).toBeVisible();
+    await expect(salesHistorySale(page, "sale-1")).toContainText("PV-0001");
 
     await page.getByRole("button", { name: "Solicitar devolución" }).click();
 
@@ -319,7 +322,7 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(byTestId(page, "inventory-form-quantity")).toHaveValue("5");
     await expect(page.getByText("Se ajustó la salida de 999 unidades al máximo disponible. Almacén: Bodega norte E2E. Disponible: 5 unidades.")).toBeVisible();
     await page.getByRole("combobox", { name: /^Motivo\b/i }).click();
-    await page.getByRole("option", { name: "Caducidad" }).click();
+    await page.getByRole("option", { name: "Daños" }).click();
     await expect(byTestId(page, "inventory-submit-in")).toHaveCount(0);
     await clickByTestId(page, "inventory-submit-out");
 
@@ -355,21 +358,25 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(entryMovement).not.toContainText("Otros");
 
     await page.getByLabel("Buscar movimientos").fill("merma");
-    const expirationResult = page.locator('[data-testid^="inventory-movement-"]').filter({ hasText: "Caducidad" }).first();
-    await expect(expirationResult).toBeVisible();
+    const shrinkageResult = page.locator('[data-testid^="inventory-movement-"]').filter({ hasText: "Daños" }).first();
+    await expect(shrinkageResult).toBeVisible();
+
+    await page.getByLabel("Buscar movimientos").fill("");
+    await page.getByRole("button", { name: "Merma" }).click();
+    await expect(shrinkageResult).toBeVisible();
 
     await page.getByLabel("Buscar movimientos").fill("Bodega norte E2E");
 
-    const expirationMovement = page
+    const shrinkageMovement = page
       .locator('[data-testid^="inventory-movement-"]')
-      .filter({ hasText: "Caducidad" })
+      .filter({ hasText: "Daños" })
       .filter({ hasText: "Almacén: Bodega norte E2E" })
       .first();
 
-    await expect(expirationMovement).toContainText("Clave interna/SKU: COCA-600");
-    await expect(expirationMovement).toContainText("Código del producto: 7501055300075");
-    await expect(expirationMovement).toContainText("Coca-Cola 600 ml");
-    await expect(expirationMovement).toContainText("Almacén: Bodega norte E2E");
+    await expect(shrinkageMovement).toContainText("Clave interna/SKU: COCA-600");
+    await expect(shrinkageMovement).toContainText("Código del producto: 7501055300075");
+    await expect(shrinkageMovement).toContainText("Coca-Cola 600 ml");
+    await expect(shrinkageMovement).toContainText("Almacén: Bodega norte E2E");
   });
 
   test("vendedor solicita asignación de stock para aprobación", async ({ page }) => {

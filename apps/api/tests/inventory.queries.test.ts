@@ -32,8 +32,8 @@ describe("inventory.queries", () => {
     prismaMock.inventoryTransferRequest.findMany.mockResolvedValue([]);
   });
 
-  it.each(["merma", "caducidad", "expiration", "vencimiento"])(
-    "maps inventory movement search term %s to expiration reason type",
+  it.each(["merma", "caducidad", "daños", "danios", "expiration", "damage", "vencimiento"])(
+    "maps inventory movement search term %s to shrinkage reason types",
     async (q) => {
       await listInventoryMovements({ q });
 
@@ -42,7 +42,9 @@ describe("inventory.queries", () => {
           where: expect.objectContaining({
             OR: expect.arrayContaining([
               {
-                reasonType: "EXPIRATION"
+                reasonType: {
+                  in: ["EXPIRATION", "DAMAGE"]
+                }
               }
             ])
           })
@@ -53,7 +55,9 @@ describe("inventory.queries", () => {
           where: expect.objectContaining({
             OR: expect.arrayContaining([
               {
-                reasonType: "EXPIRATION"
+                reasonType: {
+                  in: ["EXPIRATION", "DAMAGE"]
+                }
               }
             ])
           })
@@ -90,7 +94,9 @@ describe("inventory.queries", () => {
       ])
     );
     expect(where.OR).not.toContainEqual({
-      reasonType: "EXPIRATION"
+      reasonType: {
+        in: ["EXPIRATION", "DAMAGE"]
+      }
     });
   });
 });

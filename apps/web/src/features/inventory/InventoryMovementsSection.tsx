@@ -5,14 +5,16 @@ import { alpha } from "@mui/material/styles";
 
 import { SearchToolbar } from "../../components/SearchToolbar";
 import type { Movement } from "./inventoryShared";
+import { isInventoryShrinkageReason } from "./inventoryShared";
 import { InventoryMovementTimeline } from "./InventoryMovementTimeline";
 
-type MovementFilter = "all" | Movement["type"];
+type MovementFilter = "all" | "shrinkage" | Movement["type"];
 
 const MOVEMENT_FILTERS: Array<{ label: string; value: MovementFilter }> = [
   { label: "Todos", value: "all" },
   { label: "Entradas", value: "IN" },
   { label: "Salidas", value: "OUT" },
+  { label: "Merma", value: "shrinkage" },
   { label: "Ventas", value: "SALE" },
   { label: "Devoluciones", value: "RETURN" },
 ];
@@ -31,7 +33,9 @@ export function InventoryMovementsSection({
     () =>
       movementFilter === "all"
         ? movements
-        : movements.filter((movement) => movement.type === movementFilter),
+        : movementFilter === "shrinkage"
+          ? movements.filter((movement) => movement.type === "OUT" && isInventoryShrinkageReason(movement.reasonType))
+          : movements.filter((movement) => movement.type === movementFilter),
     [movements, movementFilter],
   );
 
@@ -39,11 +43,11 @@ export function InventoryMovementsSection({
     <>
       <SearchToolbar
         label="Buscar movimientos"
-        placeholder="Ej. entrada, salida, venta, producto, almacén o motivo"
+        placeholder="Ej. entrada, salida, merma, venta, producto, almacén o motivo"
         query={searchQuery}
         onQueryChange={onSearchChange}
         resultCount={filteredMovements.length}
-        helperText="Filtra movimientos recientes por producto, clave interna/SKU, código, almacén, tipo o motivo."
+        helperText="Filtra movimientos recientes por producto, clave interna/SKU, código, almacén, tipo, motivo o merma."
       />
 
       <Box

@@ -98,9 +98,9 @@ const productCatalog = [
 ] as const;
 
 const sellerCatalog = [
-  { name: "Demo Vendedor Norte", email: `demo.vendedor.norte@${DEMO_EMAIL_DOMAIN}` },
-  { name: "Demo Vendedor Centro", email: `demo.vendedor.centro@${DEMO_EMAIL_DOMAIN}` },
-  { name: "Demo Vendedor Ruta", email: `demo.vendedor.ruta@${DEMO_EMAIL_DOMAIN}` }
+  { name: "Ana López", email: `ana.lopez@${DEMO_EMAIL_DOMAIN}` },
+  { name: "Carlos Ruiz", email: `carlos.ruiz@${DEMO_EMAIL_DOMAIN}` },
+  { name: "Mariana Torres", email: `mariana.torres@${DEMO_EMAIL_DOMAIN}` }
 ] as const;
 
 function parseArgs(argv: string[]): CliOptions {
@@ -249,7 +249,12 @@ async function cleanDemoData() {
   const demoProductIds = demoProducts.map((product) => product.id);
 
   const demoWarehouses = await prisma.warehouse.findMany({
-    where: { name: { startsWith: `${DEMO_PREFIX} ` } },
+    where: {
+      OR: [
+        { name: { in: ["Almacén Principal", "Almacén Norte"] } },
+        { name: { startsWith: "Stock de " }, seller: { email: { endsWith: `@${DEMO_EMAIL_DOMAIN}` } } }
+      ]
+    },
     select: { id: true }
   });
   const demoWarehouseIds = demoWarehouses.map((warehouse) => warehouse.id);
@@ -349,7 +354,6 @@ async function cleanDemoData() {
       }
     }),
     prisma.product.deleteMany({ where: { id: { in: demoProductIds } } }),
-    prisma.productCategory.deleteMany({ where: { name: { startsWith: `${DEMO_PREFIX} ` } } }),
     prisma.customer.deleteMany({
       where: {
         OR: [
@@ -370,13 +374,13 @@ async function upsertUsers() {
   const admin = await prisma.user.upsert({
     where: { email: `demo.admin@${DEMO_EMAIL_DOMAIN}` },
     update: {
-      name: "DEMO Admin",
+      name: "Laura Méndez",
       passwordHash,
       role: Role.ADMIN,
       isActive: true
     },
     create: {
-      name: "DEMO Admin",
+      name: "Laura Méndez",
       email: `demo.admin@${DEMO_EMAIL_DOMAIN}`,
       passwordHash,
       role: Role.ADMIN,
@@ -413,26 +417,13 @@ async function upsertUsers() {
 }
 
 async function upsertProducts(): Promise<DemoProduct[]> {
-  const category = await prisma.productCategory.upsert({
-    where: { name: "General" },
-    update: {
-      description: "Categoria general",
-      isActive: true
-    },
-    create: {
-      name: "General",
-      description: "Categoria general",
-      isActive: true
-    }
-  });
-
   const products: DemoProduct[] = [];
 
   for (const item of productCatalog) {
     const product = await prisma.product.upsert({
       where: { sku: item.sku },
       update: {
-        categoryId: category.id,
+        categoryId: null,
         barcode: item.barcode,
         name: item.name,
         description: "Producto demo para reportes y pruebas de operación",
@@ -443,7 +434,7 @@ async function upsertProducts(): Promise<DemoProduct[]> {
         isActive: true
       },
       create: {
-        categoryId: category.id,
+        categoryId: null,
         sku: item.sku,
         barcode: item.barcode,
         name: item.name,
@@ -481,7 +472,7 @@ async function upsertProducts(): Promise<DemoProduct[]> {
 
 async function upsertWarehouses(sellers: Array<{ id: string; name: string; email: string }>) {
   const mainWarehouse = await prisma.warehouse.upsert({
-    where: { name: "DEMO Almacén Principal" },
+    where: { name: "Almacén Principal" },
     update: {
       description: "Almacén demo principal para simulación",
       type: WarehouseType.STORAGE,
@@ -489,7 +480,7 @@ async function upsertWarehouses(sellers: Array<{ id: string; name: string; email
       isActive: true
     },
     create: {
-      name: "DEMO Almacén Principal",
+      name: "Almacén Principal",
       description: "Almacén demo principal para simulación",
       type: WarehouseType.STORAGE,
       isActive: true
@@ -498,7 +489,7 @@ async function upsertWarehouses(sellers: Array<{ id: string; name: string; email
   });
 
   const secondaryWarehouse = await prisma.warehouse.upsert({
-    where: { name: "DEMO Almacén Norte" },
+    where: { name: "Almacén Norte" },
     update: {
       description: "Almacén demo secundario para variación operativa",
       type: WarehouseType.STORAGE,
@@ -506,7 +497,7 @@ async function upsertWarehouses(sellers: Array<{ id: string; name: string; email
       isActive: true
     },
     create: {
-      name: "DEMO Almacén Norte",
+      name: "Almacén Norte",
       description: "Almacén demo secundario para variación operativa",
       type: WarehouseType.STORAGE,
       isActive: true
@@ -517,7 +508,7 @@ async function upsertWarehouses(sellers: Array<{ id: string; name: string; email
   const sellerWarehouses: DemoSeller[] = [];
 
   for (const seller of sellers) {
-    const warehouseName = `DEMO Stock ${seller.name}`;
+    const warehouseName = `Stock de ${seller.name}`;
     const warehouse = await prisma.warehouse.upsert({
       where: { name: warehouseName },
       update: {
@@ -645,6 +636,55 @@ async function adjustBalance(tx: Prisma.TransactionClient, args: {
   });
 }
 
+async function ensureDemoStockForOut(tx: Prisma.TransactionClient, args: {
+  product: DemoProduct;
+  warehouseId: string;
+  quantity: number;
+  createdBy: string;
+  createdAt: Date;
+  reason: string;
+}) {
+  const current = await tx.inventoryBalance.findUnique({
+    where: {
+      productId_warehouseId: {
+        productId: args.product.id,
+        warehouseId: args.warehouseId
+      }
+    },
+    select: { quantity: true }
+  });
+
+  const available = current?.quantity ?? 0;
+
+  if (available >= args.quantity) {
+    return;
+  }
+
+  const refillQuantity = Math.max(args.quantity - available, Math.ceil(args.quantity * 1.5), 12);
+
+  await adjustBalance(tx, {
+    productId: args.product.id,
+    warehouseId: args.warehouseId,
+    delta: refillQuantity
+  });
+
+  await tx.inventoryMovement.create({
+    data: {
+      productId: args.product.id,
+      productSku: args.product.sku,
+      productName: args.product.name,
+      warehouseId: args.warehouseId,
+      type: InventoryType.IN,
+      quantity: refillQuantity,
+      reason: args.reason,
+      reasonType: InventoryReasonType.OTHER,
+      unitCostAtMovement: args.product.costPrice,
+      costAmount: money(args.product.costPrice * refillQuantity),
+      createdBy: args.createdBy,
+      createdAt: args.createdAt
+    }
+  });
+}
 
 async function ensureDemoStockForSale(tx: Prisma.TransactionClient, args: {
   product: DemoProduct;
@@ -781,6 +821,15 @@ async function createApprovedTransfer(args: {
     });
 
     for (const { product, quantity } of args.items) {
+      await ensureDemoStockForOut(tx, {
+        product,
+        warehouseId: args.fromWarehouse.id,
+        quantity,
+        createdBy: args.adminId,
+        createdAt: args.createdAt,
+        reason: `${DEMO_PREFIX}: refuerzo de stock para transferencia demo`
+      });
+
       await adjustBalance(tx, {
         productId: product.id,
         warehouseId: args.fromWarehouse.id,
@@ -1408,6 +1457,15 @@ async function seedShrinkage(args: {
       const createdAt = randomDateAt(args.random, day, 10, 18);
 
       await prisma.$transaction(async (tx) => {
+        await ensureDemoStockForOut(tx, {
+          product,
+          warehouseId: warehouse.id,
+          quantity,
+          createdBy: args.adminId,
+          createdAt,
+          reason: `${DEMO_PREFIX}: refuerzo de stock para merma demo`
+        });
+
         await adjustBalance(tx, {
           productId: product.id,
           warehouseId: warehouse.id,
@@ -1422,8 +1480,8 @@ async function seedShrinkage(args: {
             warehouseId: warehouse.id,
             type: InventoryType.OUT,
             quantity,
-            reason: "Caducidad",
-            reasonType: InventoryReasonType.EXPIRATION,
+            reason: count % 2 === 0 ? "Daños" : "Caducidad",
+            reasonType: count % 2 === 0 ? InventoryReasonType.DAMAGE : InventoryReasonType.EXPIRATION,
             unitCostAtMovement: product.costPrice,
             costAmount: money(product.costPrice * quantity),
             createdBy: args.adminId,
@@ -1434,9 +1492,9 @@ async function seedShrinkage(args: {
         await tx.auditLog.create({
           data: {
             userId: args.adminId,
-            action: `${DEMO_PREFIX}_INVENTORY_EXPIRATION_OUT`,
+            action: count % 2 === 0 ? `${DEMO_PREFIX}_INVENTORY_DAMAGE_OUT` : `${DEMO_PREFIX}_INVENTORY_EXPIRATION_OUT`,
             tableName: "InventoryMovement",
-            recordId: `${DEMO_PREFIX}-EXP-${count.toString().padStart(4, "0")}`,
+            recordId: `${DEMO_PREFIX}-${count % 2 === 0 ? "DMG" : "EXP"}-${count.toString().padStart(4, "0")}`,
             newData: {
               sku: product.sku,
               quantity,

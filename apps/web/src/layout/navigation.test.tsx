@@ -63,7 +63,7 @@ describe("navigation visibility", () => {
   it("shows the primary sales action only when sales read and create permissions exist", () => {
     expect(buildPrimaryNavigationAction(canFrom(CASHIER_PERMISSIONS))).toEqual(
       expect.objectContaining({
-        label: "Nueva venta",
+        label: "Ventas",
         to: "/sales",
       }),
     );

@@ -241,6 +241,8 @@ function inventoryReasonTypeLabel(reasonType: string) {
   switch (reasonType) {
     case "EXPIRATION":
       return "Caducidad";
+    case "DAMAGE":
+      return "Daños";
     case "OTHER":
       return "Otros";
     default:
@@ -438,7 +440,7 @@ function drawSummary(cursor: ReportCursor, report: OperationsReport) {
     .fillColor(COLORS.muted)
     .fontSize(8.4)
     .text(
-      `Ticket promedio: ${formatMoney(avgTicket)}. Devoluciones sobre venta bruta: ${formatPercent(refundRate)}. Ventas activas: ${formatNumber(transactions)}. Merma por caducidad: ${formatMoney(report.inventory.shrinkage.totalCost)}. Margen operativo: ${formatPercent(operatingMarginPercent(report))}.`,
+      `Ticket promedio: ${formatMoney(avgTicket)}. Devoluciones sobre venta bruta: ${formatPercent(refundRate)}. Ventas activas: ${formatNumber(transactions)}. Merma de inventario: ${formatMoney(report.inventory.shrinkage.totalCost)}. Margen operativo: ${formatPercent(operatingMarginPercent(report))}.`,
       x + 16,
       y + 68,
       { lineGap: 2, width: cursor.width - asideWidth - 42 }
@@ -648,14 +650,14 @@ function drawTrendAndShrinkageGrid(cursor: ReportCursor, report: OperationsRepor
   );
   drawBarPanel(
     cursor,
-    "Merma por caducidad",
-    "Costo perdido por producto caducado",
+    "Merma de inventario",
+    "Costo perdido por caducidad o daños",
     report.inventory.shrinkage.byProduct.map((item) => ({
-      helper: `${formatNumber(item.quantity)} unidad(es) caducada(s)`,
+      helper: `${formatNumber(item.quantity)} unidad(es) retirada(s)`,
       label: item.product.name,
       value: item.cost
     })),
-    "Sin merma por caducidad en el periodo.",
+    "Sin merma de inventario en el periodo.",
     formatMoney,
     { panelWidth, tone: "danger", x: cursor.left + panelWidth + gap, y }
   );
@@ -667,7 +669,7 @@ function drawInventoryHighlights(cursor: ReportCursor, report: OperationsReport)
   drawSection(
     cursor,
     "Inventario y merma",
-    "Entradas, salidas y pérdidas por caducidad registradas durante el periodo."
+    "Entradas, salidas y mermas por caducidad o daños registradas durante el periodo."
   );
   drawCards(
     cursor,
@@ -684,7 +686,7 @@ function drawInventoryHighlights(cursor: ReportCursor, report: OperationsReport)
         tone: report.inventory.movements.unitsOut > 0 ? "warning" : "success"
       },
       {
-        label: "Merma caducidad",
+        label: "Merma inventario",
         value: formatMoney(report.inventory.shrinkage.totalCost),
         helper: `${formatNumber(report.inventory.shrinkage.totalUnits)} unidad(es)`,
         tone: report.inventory.shrinkage.totalCost > 0 ? "danger" : "success"
@@ -719,8 +721,8 @@ function drawInventoryHighlights(cursor: ReportCursor, report: OperationsReport)
 
   drawSection(
     cursor,
-    "Caducidades recientes",
-    "Detalle de productos caducados con costo histórico capturado en el movimiento."
+    "Mermas recientes",
+    "Detalle de productos retirados por caducidad o daños con costo histórico capturado."
   );
   drawTable(
     cursor,
@@ -733,7 +735,7 @@ function drawInventoryHighlights(cursor: ReportCursor, report: OperationsReport)
       { align: "right", header: "Merma", value: (movement) => formatMoney(movement.costAmount), width: cursor.width - 92 - 142 - 86 - 45 - 70 }
     ],
     report.inventory.shrinkage.latest,
-    "Sin caducidades registradas en el periodo."
+    "Sin mermas por caducidad o daños registradas en el periodo."
   );
 }
 
@@ -935,7 +937,7 @@ export function writeOperationsPdf(doc: PDFKit.PDFDocument, report: OperationsRe
       helper: "Venta neta / ventas activas"
     },
     {
-      label: "Merma caducidad",
+      label: "Merma inventario",
       value: formatMoney(report.inventory.shrinkage.totalCost),
       helper: `${formatNumber(report.inventory.shrinkage.totalUnits)} unidad(es)`,
       tone: report.inventory.shrinkage.totalCost > 0 ? "danger" : "success"

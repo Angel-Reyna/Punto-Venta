@@ -2,7 +2,7 @@ import { InventoryType, SaleStatus } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { RECENT_SALES_LIMIT } from "./dashboard.shared";
-import { INVENTORY_REASON_TYPES } from "../inventory/inventory.shared";
+import { SHRINKAGE_REASON_TYPES } from "../inventory/inventory.shared";
 
 export type DashboardScopeWhere = {
   cashierId?: string;
@@ -155,7 +155,7 @@ export async function fetchDashboardSummaryData(input: {
       ? prisma.inventoryMovement.aggregate({
           where: {
             type: InventoryType.OUT,
-            reasonType: INVENTORY_REASON_TYPES.EXPIRATION,
+            reasonType: { in: [...SHRINKAGE_REASON_TYPES] },
             createdAt: {
               gte: todayStart
             }

@@ -38,7 +38,7 @@ export type Warehouse = {
   isActive: boolean;
 };
 
-export type InventoryReasonType = "EXPIRATION" | "OTHER";
+export type InventoryReasonType = "EXPIRATION" | "DAMAGE" | "OTHER";
 
 export type InventoryTransferRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -146,8 +146,25 @@ export const MOVEMENT_TYPE_INFO_TEXT =
 
 export const INVENTORY_REASON_TYPE_LABELS: Record<InventoryReasonType, string> = {
   EXPIRATION: "Caducidad",
+  DAMAGE: "Daños",
   OTHER: "Otros",
 };
+
+export const INVENTORY_SHRINKAGE_REASON_TYPES = [
+  "EXPIRATION",
+  "DAMAGE",
+] as const satisfies readonly InventoryReasonType[];
+
+export type InventoryShrinkageReasonType = (typeof INVENTORY_SHRINKAGE_REASON_TYPES)[number];
+
+export function isInventoryShrinkageReason(
+  reasonType?: InventoryReasonType | null,
+): reasonType is InventoryShrinkageReasonType {
+  return Boolean(
+    reasonType &&
+      INVENTORY_SHRINKAGE_REASON_TYPES.includes(reasonType as InventoryShrinkageReasonType),
+  );
+}
 
 export const INVENTORY_TRANSFER_STATUS_LABELS: Record<InventoryTransferRequestStatus, string> = {
   PENDING: "Pendiente",
@@ -242,7 +259,7 @@ export function getWarehouseStockForProduct({
 export function getInventoryFormDisabledReason(form: InventoryMovementForm) {
   if (!form.productId) return "Selecciona un producto.";
   if (form.quantity <= 0) return "La cantidad debe ser mayor a cero.";
-  if (form.reasonType === "EXPIRATION") return "";
+  if (isInventoryShrinkageReason(form.reasonType)) return "";
 
   if (!form.reason.trim() || form.reason.trim().length < 3) {
     return "Describe el motivo con al menos 3 caracteres.";

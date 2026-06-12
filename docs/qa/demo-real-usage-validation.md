@@ -38,7 +38,7 @@ La validación revisa:
 - devoluciones/cancelaciones aprobadas;
 - solicitudes pendientes de ajustes de venta;
 - transferencias/retiros de stock;
-- merma por caducidad;
+- merma por caducidad y daños;
 - auditoría;
 - actividad de vendedores;
 - ausencia de balances negativos.
@@ -77,9 +77,9 @@ Credenciales demo:
 
 ```text
 Admin:    demo.admin@demo.puntaventa.local
-Vendedor: demo.vendedor.norte@demo.puntaventa.local
-Vendedor: demo.vendedor.centro@demo.puntaventa.local
-Vendedor: demo.vendedor.ruta@demo.puntaventa.local
+Vendedor: ana.lopez@demo.puntaventa.local
+Vendedor: carlos.ruiz@demo.puntaventa.local
+Vendedor: mariana.torres@demo.puntaventa.local
 Password: Demo12345DevOnly
 ```
 
@@ -94,7 +94,7 @@ Como admin:
 - Revisar tendencia diaria de venta neta.
 - Revisar venta neta por vendedor.
 - Revisar Pareto de merma por producto.
-- Confirmar que la utilidad operativa descuenta merma por caducidad.
+- Confirmar que la utilidad operativa descuenta merma por caducidad y daños.
 - Confirmar que el PDF solo se descarga después de consultar datos.
 
 ### Inventario

@@ -336,6 +336,25 @@ describe("reports.service", () => {
         }
       },
       {
+        id: "inventory-damage",
+        productId: "product-1",
+        productSku: "CAF-001",
+        productName: "Café",
+        warehouseId: "warehouse-1",
+        type: "OUT",
+        quantity: 1,
+        reason: "Daños",
+        reasonType: "DAMAGE",
+        unitCostAtMovement: 20,
+        costAmount: 20,
+        createdBy: "admin-1",
+        createdAt: new Date("2026-05-20T09:30:00.000Z"),
+        warehouse: {
+          id: "warehouse-1",
+          name: "Principal"
+        }
+      },
+      {
         id: "inventory-2",
         productId: "product-1",
         productSku: "CAF-001",
@@ -403,10 +422,10 @@ describe("reports.service", () => {
       grossProfit: 100,
       returnedProfit: 30,
       netProfit: 70,
-      shrinkageCost: 40,
-      operatingProfit: 30,
+      shrinkageCost: 60,
+      operatingProfit: 10,
       marginPercent: 46.67,
-      operatingMarginPercent: 20
+      operatingMarginPercent: 6.67
     });
     expect(report.sales.paymentSummary).toEqual({
       CASH: 200
@@ -478,9 +497,9 @@ describe("reports.service", () => {
       }
     ]);
     expect(report.inventory.movements.unitsIn).toBe(7);
-    expect(report.inventory.movements.unitsOut).toBe(2);
-    expect(report.inventory.shrinkage.totalUnits).toBe(2);
-    expect(report.inventory.shrinkage.totalCost).toBe(40);
+    expect(report.inventory.movements.unitsOut).toBe(3);
+    expect(report.inventory.shrinkage.totalUnits).toBe(3);
+    expect(report.inventory.shrinkage.totalCost).toBe(60);
     expect(report.inventory.shrinkage.byProduct).toEqual([
       {
         product: {
@@ -488,8 +507,8 @@ describe("reports.service", () => {
           sku: "CAF-001",
           name: "Café"
         },
-        quantity: 2,
-        cost: 40
+        quantity: 3,
+        cost: 60
       }
     ]);
     expect(report.sales.recent).toEqual([

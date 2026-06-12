@@ -4,6 +4,7 @@ import { z } from "zod";
 export const DEFAULT_WAREHOUSE_NAME = "Principal";
 export const INVENTORY_REASON_TYPES = {
   EXPIRATION: "EXPIRATION",
+  DAMAGE: "DAMAGE",
   OTHER: "OTHER"
 } as const;
 
@@ -11,6 +12,20 @@ export type InventoryReasonType =
   (typeof INVENTORY_REASON_TYPES)[keyof typeof INVENTORY_REASON_TYPES];
 
 export const EXPIRATION_REASON_LABEL = "Caducidad";
+export const DAMAGE_REASON_LABEL = "Daños";
+
+export const SHRINKAGE_REASON_TYPES = [
+  INVENTORY_REASON_TYPES.EXPIRATION,
+  INVENTORY_REASON_TYPES.DAMAGE
+] as const;
+
+export type InventoryShrinkageReasonType = (typeof SHRINKAGE_REASON_TYPES)[number];
+
+export function isShrinkageReasonType(
+  reasonType: string | null | undefined
+): reasonType is InventoryShrinkageReasonType {
+  return SHRINKAGE_REASON_TYPES.includes(reasonType as InventoryShrinkageReasonType);
+}
 
 export type WarehouseInput = {
   name: string;

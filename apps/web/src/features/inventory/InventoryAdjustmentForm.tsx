@@ -32,6 +32,7 @@ import {
   getWarehouseStockForProduct,
   INVENTORY_REASON_TYPE_LABELS,
   WAREHOUSE_INFO_TEXT,
+  isInventoryShrinkageReason,
 } from "./inventoryShared";
 
 type InventoryAdjustmentType = "in" | "out";
@@ -272,7 +273,10 @@ export function InventoryAdjustmentForm({
   }
 
   const effectiveReasonType = mode === "in" ? "OTHER" : form.reasonType;
-  const isExpirationReason = mode === "out" && effectiveReasonType === "EXPIRATION";
+  const isShrinkageReason = mode === "out" && isInventoryShrinkageReason(effectiveReasonType);
+  const shrinkageReasonLabel = isShrinkageReason
+    ? INVENTORY_REASON_TYPE_LABELS[effectiveReasonType]
+    : "";
   const selectedProduct = products.find(
     (product) => product.id === form.productId,
   );
@@ -299,7 +303,7 @@ export function InventoryAdjustmentForm({
       : mode === "out" && selectedProduct
         ? `Almacén: ${effectiveWarehouseName}. Stock disponible: ${selectedProductWarehouseStock}. No puedes retirar más unidades de este almacén.`
         : "Escribe la cantidad exacta. Solo se aceptan números enteros.";
-  const expirationLossPreview = isExpirationReason
+  const shrinkageLossPreview = isShrinkageReason
     ? Number(selectedProduct?.costPrice ?? 0) *
       Math.max(Number(form.quantity) || 0, 0)
     : 0;
@@ -522,13 +526,18 @@ export function InventoryAdjustmentForm({
                         reasonType: event.target
                           .value as InventoryMovementForm["reasonType"],
                         reason:
-                          event.target.value === "EXPIRATION" ? "" : form.reason,
+                          isInventoryShrinkageReason(
+                            event.target.value as InventoryMovementForm["reasonType"],
+                          )
+                            ? ""
+                            : form.reason,
                       })
                     }
-                    helperText="Caducidad se reporta como merma en dinero"
+                    helperText="Caducidad y daños se reportan como merma en dinero"
                   >
                     <MenuItem value="OTHER">{INVENTORY_REASON_TYPE_LABELS.OTHER}</MenuItem>
                     <MenuItem value="EXPIRATION">{INVENTORY_REASON_TYPE_LABELS.EXPIRATION}</MenuItem>
+                    <MenuItem value="DAMAGE">{INVENTORY_REASON_TYPE_LABELS.DAMAGE}</MenuItem>
                   </TextField>
                 </Grid>
               )}
@@ -537,11 +546,11 @@ export function InventoryAdjustmentForm({
                 <TextField
                   fullWidth
                   label={mode === "in" ? "Motivo de entrada" : "Detalle del motivo"}
-                  value={isExpirationReason ? "Caducidad" : form.reason}
-                  disabled={isExpirationReason}
+                  value={isShrinkageReason ? shrinkageReasonLabel : form.reason}
+                  disabled={isShrinkageReason}
                   helperText={
-                    isExpirationReason
-                      ? `Pérdida estimada: ${formatInventoryMoney(expirationLossPreview)}`
+                    isShrinkageReason
+                      ? `Pérdida estimada: ${formatInventoryMoney(shrinkageLossPreview)}`
                       : mode === "in"
                         ? "Reabastecimiento queda por defecto. Puedes cambiarlo si aplica."
                         : "Describe el motivo cuando elijas Otros"
@@ -557,13 +566,13 @@ export function InventoryAdjustmentForm({
                 <Box
                   sx={(theme) => ({
                     border: 1,
-                    borderColor: isExpirationReason
+                    borderColor: isShrinkageReason
                       ? "warning.main"
                       : mode === "in"
                         ? "success.main"
                         : "divider",
                     borderRadius: 3,
-                    bgcolor: isExpirationReason
+                    bgcolor: isShrinkageReason
                       ? theme.palette.warning.main + "14"
                       : mode === "in"
                         ? theme.palette.success.main + "10"
@@ -574,15 +583,15 @@ export function InventoryAdjustmentForm({
                 >
                   <Stack spacing={0.5}>
                     <Typography variant="subtitle2" fontWeight={900}>
-                      {isExpirationReason
-                        ? "Salida por caducidad"
+                      {isShrinkageReason
+                        ? `Salida por ${shrinkageReasonLabel.toLowerCase()}`
                         : mode === "in"
                           ? "Entrada operativa"
                           : "Salida operativa"}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {isExpirationReason
-                        ? `Se descontarán ${form.quantity || 0} unidades y se registrará una merma estimada de ${formatInventoryMoney(expirationLossPreview)}.`
+                      {isShrinkageReason
+                        ? `Se descontarán ${form.quantity || 0} unidades y se registrará una merma estimada de ${formatInventoryMoney(shrinkageLossPreview)}.`
                         : mode === "in"
                           ? "La entrada aumentará existencias en el almacén seleccionado."
                           : "La salida descontará existencias y quedará registrada con el motivo capturado."}
@@ -615,8 +624,8 @@ export function InventoryAdjustmentForm({
                   message={
                     isInvalid
                       ? disabledReason
-                      : isExpirationReason
-                        ? "Caducidad solo se registra como salida."
+                      : isShrinkageReason
+                        ? "Caducidad y daños solo se registran como salida."
                         : ""
                   }
                 />

@@ -40,7 +40,7 @@ import {
   updateSalesTicketQuantity,
 } from "./salesTicket";
 
-type SalesRecordsView = "history" | "adjustments";
+type SalesWorkspaceView = "sale" | "history" | "adjustments";
 
 export function SalesPage() {
   const { can, user } = useAuth();
@@ -74,9 +74,13 @@ export function SalesPage() {
   const [productSearch, setProductSearch] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
   const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
-  const requestedRecordsView = searchParams.get("view");
-  const [recordsView, setRecordsView] = useState<SalesRecordsView>(
-    requestedRecordsView === "adjustments" ? "adjustments" : "history",
+  const requestedSalesView = searchParams.get("view");
+  const [activeSalesView, setActiveSalesView] = useState<SalesWorkspaceView>(
+    requestedSalesView === "adjustments"
+      ? "adjustments"
+      : requestedSalesView === "history" || !canCreateSales
+        ? "history"
+        : "sale",
   );
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -237,21 +241,29 @@ export function SalesPage() {
   }, [selectedWarehouseId, user?.role, visibleWarehouseOptions]);
 
   useEffect(() => {
-    if (requestedRecordsView === "adjustments" && canShowAdjustmentRequestsPanel) {
-      setRecordsView("adjustments");
+    if (requestedSalesView === "adjustments" && canShowAdjustmentRequestsPanel) {
+      setActiveSalesView("adjustments");
       return;
     }
 
-    setRecordsView("history");
-  }, [canShowAdjustmentRequestsPanel, requestedRecordsView]);
+    if (requestedSalesView === "history") {
+      setActiveSalesView("history");
+      return;
+    }
 
-  function changeRecordsView(value: SalesRecordsView) {
-    setRecordsView(value);
+    setActiveSalesView(canCreateSales ? "sale" : "history");
+  }, [canCreateSales, canShowAdjustmentRequestsPanel, requestedSalesView]);
+
+  function changeSalesView(value: SalesWorkspaceView) {
+    setActiveSalesView(value);
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
 
       if (value === "adjustments") {
         next.set("view", "adjustments");
+      } else if (value === "history") {
+        next.set("view", "history");
+        next.delete("status");
       } else {
         next.delete("view");
         next.delete("status");
@@ -351,6 +363,13 @@ export function SalesPage() {
       });
 
       setMessage("Venta registrada correctamente.");
+      setActiveSalesView("sale");
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current);
+        next.delete("view");
+        next.delete("status");
+        return next;
+      }, { replace: true });
 
       setCart([]);
       setCustomerName("");
@@ -373,6 +392,7 @@ export function SalesPage() {
     paymentMethod,
     selectedWarehouse?.id,
     selectedWarehouseCanBeUsed,
+    setSearchParams,
     submitSale,
     total,
   ]);
@@ -501,7 +521,23 @@ export function SalesPage() {
         onErrorClose={() => setError("")}
       />
 
-      {canCreateSales && (
+      <Card data-testid="sales-records-switcher" sx={{ mb: 2 }}>
+        <CardContent sx={{ p: { xs: 1, sm: 1.25 } }}>
+          <Tabs
+            value={activeSalesView}
+            onChange={(_, value: SalesWorkspaceView) => changeSalesView(value)}
+            aria-label="Secciones de ventas"
+            variant="scrollable"
+            allowScrollButtonsMobile
+          >
+            {canCreateSales && <Tab label="Venta" value="sale" />}
+            <Tab label="Historial operativo" value="history" />
+            {canShowAdjustmentRequestsPanel && <Tab label="Solicitudes de ajuste" value="adjustments" />}
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      {canCreateSales && activeSalesView === "sale" && (
         <Box sx={{ display: "grid", gap: 2, mb: 2 }}>
           <SalesSourceWarehousePanel
             isDisabled={isSubmitting || saleDialogIsOpen}
@@ -619,24 +655,7 @@ export function SalesPage() {
         </Box>
       )}
 
-      {canShowAdjustmentRequestsPanel && (
-        <Card data-testid="sales-records-switcher" sx={{ mb: 2 }}>
-          <CardContent sx={{ p: { xs: 1, sm: 1.25 } }}>
-            <Tabs
-              value={recordsView}
-              onChange={(_, value: SalesRecordsView) => changeRecordsView(value)}
-              aria-label="Vista de seguimiento de ventas"
-              variant="scrollable"
-              allowScrollButtonsMobile
-            >
-              <Tab label="Historial operativo" value="history" />
-              <Tab label="Solicitudes de ajuste" value="adjustments" />
-            </Tabs>
-          </CardContent>
-        </Card>
-      )}
-
-      {recordsView === "history" || !canShowAdjustmentRequestsPanel ? (
+      {activeSalesView === "history" ? (
         <SalesHistoryPanel
           adjustmentRequests={adjustmentRequests}
           canCancelSales={canCancelSales}
@@ -648,7 +667,7 @@ export function SalesPage() {
           onOpenCancelDialog={openCancelDialog}
           onOpenReturnDialog={openReturnDialog}
         />
-      ) : (
+      ) : activeSalesView === "adjustments" && canShowAdjustmentRequestsPanel ? (
         <SalesAdjustmentRequestsPanel
           adjustmentRequests={adjustmentRequests}
           canReviewAdjustmentRequests={canReviewAdjustmentRequests}
@@ -656,7 +675,7 @@ export function SalesPage() {
           onApproveAdjustmentRequest={approveAdjustment}
           onRejectAdjustmentRequest={rejectAdjustment}
         />
-      )}
+      ) : null}
 
       <SalesOperationDialogs
         cancelDialogOpen={cancelDialogOpen}

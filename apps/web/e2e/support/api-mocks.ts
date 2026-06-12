@@ -149,7 +149,7 @@ type MockInventoryMovement = {
   type: "IN" | "OUT" | "SALE" | "RETURN" | "ADJUSTMENT";
   quantity: number;
   reason: string;
-  reasonType?: "EXPIRATION" | "OTHER";
+  reasonType?: "EXPIRATION" | "DAMAGE" | "OTHER";
   unitCostAtMovement?: number;
   costAmount?: number;
   createdAt: string;
@@ -744,7 +744,7 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
         productId?: string;
         quantity?: number;
         reason?: string;
-        reasonType?: "EXPIRATION" | "OTHER";
+        reasonType?: "EXPIRATION" | "DAMAGE" | "OTHER";
         warehouseId?: string;
       };
       const product = products.find((item) => item.id === payload.productId);
@@ -789,7 +789,11 @@ export async function mockApi(page: Page, options: MockSessionOptions = {}) {
         sequence: inventoryMovements.length + 1,
         type,
         quantity,
-        reason: payload.reasonType === "EXPIRATION" ? "Caducidad" : payload.reason ?? "Movimiento E2E",
+        reason: payload.reasonType === "EXPIRATION"
+          ? "Caducidad"
+          : payload.reasonType === "DAMAGE"
+            ? "Daños"
+            : payload.reason ?? "Movimiento E2E",
         reasonType: payload.reasonType ?? "OTHER",
         warehouse,
       });
@@ -1361,7 +1365,7 @@ function buildInventoryMovement(
     type: MockInventoryMovement["type"];
     quantity: number;
     reason: string;
-    reasonType?: "EXPIRATION" | "OTHER";
+    reasonType?: "EXPIRATION" | "DAMAGE" | "OTHER";
     warehouse?: { id: string; name: string };
   },
 ): MockInventoryMovement {
@@ -1390,18 +1394,24 @@ function buildInventoryMovement(
   };
 }
 
-const expirationMovementSearchTerms = [
+const shrinkageMovementSearchTerms = [
   "caducidad",
   "merma",
   "merma economica",
   "expiration",
   "expired",
+  "daño",
+  "daños",
+  "danio",
+  "danios",
+  "damage",
+  "damaged",
   "vencimiento",
   "vencido",
 ];
 
-function matchesExpirationMovementSearch(query: string) {
-  return expirationMovementSearchTerms.some((term) => {
+function matchesShrinkageMovementSearch(query: string) {
+  return shrinkageMovementSearchTerms.some((term) => {
     const normalizedTerm = normalize(term);
 
     return normalizedTerm.includes(query) || query.includes(normalizedTerm);
@@ -1425,7 +1435,7 @@ function filterMovements(movements: MockInventoryMovement[], query: string | nul
 
     return (
       searchableValues.some((value) => normalize(value).includes(normalizedQuery)) ||
-      (movement.reasonType === "EXPIRATION" && matchesExpirationMovementSearch(normalizedQuery))
+      (["EXPIRATION", "DAMAGE"].includes(movement.reasonType ?? "") && matchesShrinkageMovementSearch(normalizedQuery))
     );
   });
 }
@@ -1914,7 +1924,8 @@ function operationsReportResponse() {
           OUT: 6,
         },
         byReasonType: {
-          EXPIRATION: 4,
+          EXPIRATION: 3,
+          DAMAGE: 1,
           OTHER: 2,
         },
         latest: [

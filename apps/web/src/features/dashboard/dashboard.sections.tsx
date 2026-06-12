@@ -286,11 +286,11 @@ export function DashboardExecutiveSummary({
       ? [
           {
             action: "Ver merma",
-            description: "Pérdida registrada por caducidad hoy.",
+            description: "Pérdida registrada por caducidad o daños hoy.",
             icon: DeleteSweepIcon,
             label: "Merma hoy",
             tone: (metrics?.productSummary.shrinkageCostToday ?? 0) > 0 ? "error" : "success",
-            to: "/inventory?view=movements&search=Caducidad",
+            to: "/inventory?view=movements&search=merma",
             value: formatMoney(metrics?.productSummary.shrinkageCostToday),
           },
         ] satisfies ExecutiveMetric[]
@@ -324,7 +324,7 @@ export function DashboardQuickActions({ isAdmin }: { isAdmin: boolean }) {
     {
       description: "Registrar una venta con stock asignado.",
       icon: PointOfSaleIcon,
-      label: "Nueva venta",
+      label: "Ventas",
       tone: "success",
       to: "/sales",
     },

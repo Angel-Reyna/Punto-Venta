@@ -29,10 +29,15 @@ test.describe("flujo crítico de ventas", () => {
     await page.getByRole("button", { name: /Cobrar venta/i }).click();
 
     await expect(page.getByText("Venta registrada correctamente.")).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Venta", selected: true })).toBeVisible();
+    await expect(page.getByText("Busca o selecciona un producto para iniciar la venta.")).toBeVisible();
+
+    await page.goto("/sales?view=history");
+    await expect(page.getByRole("tab", { name: "Historial operativo", selected: true })).toBeVisible();
+
     const createdSale = salesHistorySale(page, "sale-created-2");
     await expect(createdSale.getByText("PV-E2E-0002")).toBeVisible();
     await expect(createdSale.getByText("Cliente E2E")).toBeVisible();
     await expect(createdSale.getByText("Almacén: Stock de Vendedor E2E")).toBeVisible();
-    await expect(page.getByText("Busca o selecciona un producto para iniciar la venta.")).toBeVisible();
   });
 });

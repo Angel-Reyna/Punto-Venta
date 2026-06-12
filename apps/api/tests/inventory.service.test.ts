@@ -951,6 +951,52 @@ describe("inventory.service", () => {
       );
     });
 
+
+    it("records damage shrinkage with a structured reason type", async () => {
+      const tx = createTransactionMock();
+      tx.product.findUnique.mockResolvedValue({
+        id: "product-1",
+        sku: "CAFE-250",
+        name: "Café",
+        costPrice: 10,
+        isActive: true
+      });
+      tx.warehouse.findUnique.mockResolvedValue({
+        id: "warehouse-1",
+        name: "Principal",
+        isActive: true
+      });
+      tx.inventoryBalance.updateMany.mockResolvedValue({
+        count: 1
+      });
+      tx.inventoryMovement.create.mockResolvedValue({
+        id: "movement-damage"
+      });
+
+      await decreaseStock(tx as never, {
+        productId: "product-1",
+        warehouseId: "warehouse-1",
+        quantity: 1,
+        reasonType: "DAMAGE",
+        reason: "Texto ignorado",
+        createdBy: "admin-1",
+        type: "OUT"
+      });
+
+      expect(tx.inventoryMovement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: "OUT",
+            quantity: 1,
+            reason: "Daños",
+            reasonType: "DAMAGE",
+            unitCostAtMovement: 10,
+            costAmount: expect.any(Object)
+          })
+        })
+      );
+    });
+
     it("throws 409 with current stock when the atomic decrement fails", async () => {
       const tx = createTransactionMock();
       tx.product.findUnique.mockResolvedValue({

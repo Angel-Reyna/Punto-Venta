@@ -11,8 +11,18 @@ const INVENTORY_MOVEMENT_TYPES = {
 
 const INVENTORY_REASON_TYPES = {
   EXPIRATION: "EXPIRATION",
+  DAMAGE: "DAMAGE",
   OTHER: "OTHER"
 } as const;
+
+const SHRINKAGE_REASON_TYPES = new Set<string>([
+  INVENTORY_REASON_TYPES.EXPIRATION,
+  INVENTORY_REASON_TYPES.DAMAGE
+]);
+
+function isShrinkageMovement(movement: { type: string; reasonType: string }) {
+  return movement.type === INVENTORY_MOVEMENT_TYPES.OUT && SHRINKAGE_REASON_TYPES.has(movement.reasonType);
+}
 
 export async function getOperationsReport(range: ReportDateRange): Promise<OperationsReport> {
   const [
@@ -286,13 +296,9 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
   const returnedProfit = roundMoney(
     returnedItems.reduce((sum, item) => sum + Number(item.grossProfit ?? 0), 0)
   );
-  const expirationMovements = inventoryMovements.filter(
-    (movement) =>
-      movement.type === INVENTORY_MOVEMENT_TYPES.OUT &&
-      movement.reasonType === INVENTORY_REASON_TYPES.EXPIRATION
-  );
-  const expirationCost = roundMoney(
-    expirationMovements.reduce(
+  const shrinkageMovements = inventoryMovements.filter(isShrinkageMovement);
+  const shrinkageCost = roundMoney(
+    shrinkageMovements.reduce(
       (sum, movement) =>
         sum + Number(movement.costAmount ?? Number(movement.unitCostAtMovement ?? 0) * movement.quantity),
       0
@@ -304,7 +310,7 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     grossProfit: soldProfit,
     returnedProfit,
     netSales,
-    shrinkageCost: expirationCost
+    shrinkageCost
   });
 
   const sellerTotals = new Map<
@@ -459,7 +465,7 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     {}
   );
 
-  const expirationUnits = expirationMovements.reduce(
+  const shrinkageUnits = shrinkageMovements.reduce(
     (sum, movement) => sum + Number(movement.quantity),
     0
   );
@@ -487,7 +493,7 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     }
   >();
 
-  for (const movement of expirationMovements) {
+  for (const movement of shrinkageMovements) {
     const movementCost = roundMoney(
       Number(movement.costAmount ?? Number(movement.unitCostAtMovement ?? 0) * movement.quantity)
     );
@@ -548,7 +554,7 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
     createdAt: movement.createdAt
   }));
 
-  const latestExpirationMovements = expirationMovements.slice(0, 15).map((movement) => ({
+  const latestShrinkageMovements = shrinkageMovements.slice(0, 15).map((movement) => ({
     id: movement.id,
     type: movement.type,
     reasonType: movement.reasonType,
@@ -630,8 +636,8 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
         latest: latestInventoryMovements
       },
       shrinkage: {
-        totalUnits: expirationUnits,
-        totalCost: expirationCost,
+        totalUnits: shrinkageUnits,
+        totalCost: shrinkageCost,
         byProduct: [...shrinkageByProduct.values()]
           .sort((a, b) =>
             b.cost - a.cost ||
@@ -646,7 +652,7 @@ export async function getOperationsReport(range: ReportDateRange): Promise<Opera
             a.warehouse.name.localeCompare(b.warehouse.name)
           )
           .slice(0, 10),
-        latest: latestExpirationMovements
+        latest: latestShrinkageMovements
       }
     },
     topProducts: sortedTopProducts.map((item) => ({

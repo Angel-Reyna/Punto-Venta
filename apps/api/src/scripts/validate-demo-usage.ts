@@ -221,6 +221,7 @@ async function buildSummary(options: CliOptions): Promise<DemoValidationSummary>
     payments,
     returns,
     expirationMovements,
+    damageMovements,
     inventoryMovements,
     transferRequests,
     adjustmentRequests,
@@ -239,8 +240,8 @@ async function buildSummary(options: CliOptions): Promise<DemoValidationSummary>
     prisma.user.count({ where: { ...demoUserWhere, role: "CASHIER" } }),
     prisma.product.count({ where: demoProductWhere }),
     prisma.customer.count({ where: { email: { endsWith: `@${DEMO_EMAIL_DOMAIN}` } } }),
-    prisma.warehouse.count({ where: { name: { startsWith: `${DEMO_PREFIX} ` }, type: WarehouseType.STORAGE } }),
-    prisma.warehouse.count({ where: { name: { startsWith: `${DEMO_PREFIX} Stock ` }, type: WarehouseType.SELLER } }),
+    prisma.warehouse.count({ where: { name: { in: ["Almacén Principal", "Almacén Norte"] }, type: WarehouseType.STORAGE } }),
+    prisma.warehouse.count({ where: { name: { startsWith: "Stock de " }, seller: demoUserWhere, type: WarehouseType.SELLER } }),
     prisma.sale.count({ where: demoSaleWhere }),
     prisma.saleItem.count({ where: { sale: demoSaleWhere } }),
     prisma.payment.count({ where: { sale: demoSaleWhere } }),
@@ -249,6 +250,12 @@ async function buildSummary(options: CliOptions): Promise<DemoValidationSummary>
       where: {
         ...demoInventoryMovementWhere,
         reasonType: InventoryReasonType.EXPIRATION
+      }
+    }),
+    prisma.inventoryMovement.count({
+      where: {
+        ...demoInventoryMovementWhere,
+        reasonType: InventoryReasonType.DAMAGE
       }
     }),
     prisma.inventoryMovement.count({ where: demoInventoryMovementWhere }),
@@ -277,7 +284,7 @@ async function buildSummary(options: CliOptions): Promise<DemoValidationSummary>
         product: demoProductWhere,
         warehouse: {
           OR: [
-            { name: { startsWith: `${DEMO_PREFIX} ` } },
+            { name: { in: ["Almacén Principal", "Almacén Norte"] } },
             { seller: demoUserWhere }
           ]
         }
@@ -289,7 +296,7 @@ async function buildSummary(options: CliOptions): Promise<DemoValidationSummary>
     prisma.inventoryMovement.aggregate({
       where: {
         ...demoInventoryMovementWhere,
-        reasonType: InventoryReasonType.EXPIRATION
+        reasonType: { in: [InventoryReasonType.EXPIRATION, InventoryReasonType.DAMAGE] }
       },
       _sum: { costAmount: true }
     })
@@ -312,6 +319,7 @@ async function buildSummary(options: CliOptions): Promise<DemoValidationSummary>
     payments,
     returns,
     expirationMovements,
+    damageMovements,
     inventoryMovements,
     transferRequests,
     adjustmentRequests,
@@ -409,11 +417,11 @@ async function buildSummary(options: CliOptions): Promise<DemoValidationSummary>
       expected: "aprobadas y pendientes"
     }),
     createCheck({
-      name: "merma por caducidad",
-      ok: expirationMovements > 0 && shrinkageAmount > 0,
-      message: "Debe existir merma para reportes de utilidad operativa y Pareto.",
-      observed: `${expirationMovements} movimientos, ${shrinkageAmount.toFixed(2)} costo`,
-      expected: "> 0"
+      name: "merma por caducidad y daños",
+      ok: expirationMovements > 0 && damageMovements > 0 && shrinkageAmount > 0,
+      message: "Debe existir merma por caducidad y daños para reportes de utilidad operativa y Pareto.",
+      observed: `${expirationMovements} caducidad, ${damageMovements} daños, ${shrinkageAmount.toFixed(2)} costo`,
+      expected: "> 0 en ambos motivos"
     }),
     createCheck({
       name: "auditoría demo",

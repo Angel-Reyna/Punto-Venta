@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { getApiErrorMessage } from "../../utils/apiError";
-import type { InventoryMovementForm } from "./inventoryShared";
+import { isInventoryShrinkageReason, type InventoryMovementForm } from "./inventoryShared";
 import {
   approveInventoryTransferRequest,
   createInventoryMovement,
@@ -159,7 +159,7 @@ export function useInventoryData() {
           warehouseId: form.warehouseId || undefined,
           quantity: form.quantity,
           reasonType: form.reasonType,
-          reason: form.reasonType === "EXPIRATION" ? undefined : form.reason.trim(),
+          reason: isInventoryShrinkageReason(form.reasonType) ? undefined : form.reason.trim(),
         });
 
         setMessage(

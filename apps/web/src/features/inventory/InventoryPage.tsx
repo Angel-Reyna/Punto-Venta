@@ -11,6 +11,7 @@ import {
   getWarehouseStockForProduct,
   initialInventoryMovementForm,
   isInventoryFormInvalid,
+  isInventoryShrinkageReason,
 } from "./inventoryShared";
 import type { InventoryView } from "./inventoryShared";
 import { InventoryAdjustmentForm } from "./InventoryAdjustmentForm";
@@ -21,11 +22,12 @@ import { InventoryTransferRequestsPanel } from "./InventoryTransferRequestsPanel
 import { useInventoryData } from "./useInventoryData";
 
 export function InventoryPage() {
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const [searchParams] = useSearchParams();
   const canAdjustInventory = can(PERMISSIONS.InventoryAdjust);
   const canReadTransferRequests = can(PERMISSIONS.InventoryTransferRequestRead);
-  const canCreateTransferRequest = can(PERMISSIONS.InventoryTransferRequestCreate);
+  const canCreateTransferRequest =
+    user?.role === "CASHIER" && can(PERMISSIONS.InventoryTransferRequestCreate);
   const canReviewTransferRequest = can(PERMISSIONS.InventoryTransferRequestReview);
 
   const {
@@ -83,7 +85,7 @@ export function InventoryPage() {
         ...current,
         reasonType: "OTHER",
         reason:
-          current.reasonType === "EXPIRATION" || !current.reason.trim()
+          isInventoryShrinkageReason(current.reasonType) || !current.reason.trim()
             ? DEFAULT_INVENTORY_ENTRY_REASON
             : current.reason,
       }));
@@ -94,7 +96,7 @@ export function InventoryPage() {
       setForm((current) => ({
         ...current,
         quantity: 0,
-        reasonType: current.reasonType === "EXPIRATION" ? "EXPIRATION" : "OTHER",
+        reasonType: isInventoryShrinkageReason(current.reasonType) ? current.reasonType : "OTHER",
         reason:
           current.reason.trim() === DEFAULT_INVENTORY_ENTRY_REASON
             ? ""

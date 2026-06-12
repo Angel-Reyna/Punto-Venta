@@ -185,7 +185,7 @@ export const REPORT_INFO_TEXT = {
   grossProfit:
     "Utilidad bruta antes de merma: venta neta menos costo histórico neto de los productos vendidos.",
   operatingProfit:
-    "Utilidad operativa estimada: utilidad bruta menos la merma por caducidad registrada en el periodo.",
+    "Utilidad operativa estimada: utilidad bruta menos la merma por caducidad o daños registrada en el periodo.",
   marginPercent:
     "Margen bruto del periodo: utilidad bruta antes de merma dividida entre venta neta.",
   operatingMarginPercent:
@@ -197,7 +197,7 @@ export const REPORT_INFO_TEXT = {
   productProfit:
     "Utilidad del producto dentro del periodo: venta neta menos costo histórico neto.",
   shrinkage:
-    "Costo estimado de las salidas de inventario marcadas como caducidad dentro del periodo consultado. Se resta de la utilidad operativa estimada."
+    "Costo estimado de las salidas de inventario marcadas como caducidad o daños dentro del periodo consultado. Se resta de la utilidad operativa estimada."
 } as const;
 
 export function formatMoney(value: number | null | undefined) {

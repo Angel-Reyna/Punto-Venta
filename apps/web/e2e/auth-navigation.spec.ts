@@ -25,7 +25,7 @@ test.describe("autenticación y navegación principal", () => {
     await expect(page.locator('a[href="/reports?preset=today&detail=historial"]')).toBeVisible();
     await expect(page.locator('a[href="/sales?view=adjustments&status=PENDING"]').first()).toBeVisible();
     await expect(page.locator('a[href="/inventory?view=stock&status=attention"]').first()).toBeVisible();
-    await expect(page.locator('a[href="/inventory?view=movements&search=Caducidad"]')).toBeVisible();
+    await expect(page.locator('a[href="/inventory?view=movements&search=merma"]')).toBeVisible();
     await expect(page.locator('a[href="/reports?preset=today&detail=vendedores"]')).toBeVisible();
 
     await expect(page.getByRole("link", { name: /Ver usuarios/i }).first()).toBeVisible();
@@ -57,7 +57,7 @@ test.describe("autenticación y navegación principal", () => {
     await expect(page.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
 
     const mobileNavigation = page.getByRole("navigation", { name: "Navegación principal móvil" });
-    await expect(mobileNavigation.getByRole("link", { name: /Nueva venta/i })).toBeVisible();
+    await expect(mobileNavigation.getByRole("link", { name: /Ventas/i })).toBeVisible();
     await expect(mobileNavigation.getByRole("link", { name: /Inicio/i })).toBeVisible();
     await expect(mobileNavigation.getByRole("link", { name: /Productos/i })).toBeVisible();
     await expect(mobileNavigation.getByRole("link", { name: /Inventario/i })).toBeVisible();

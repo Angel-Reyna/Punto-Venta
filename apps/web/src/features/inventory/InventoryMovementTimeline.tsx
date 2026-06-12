@@ -28,6 +28,7 @@ import {
   DEFAULT_INVENTORY_ENTRY_REASON,
   formatInventoryMoney,
   INVENTORY_REASON_TYPE_LABELS,
+  isInventoryShrinkageReason,
   type InventoryMetricColor,
   type Movement,
 } from "./inventoryShared";
@@ -53,8 +54,8 @@ function getMovementReasonText(movement: Movement) {
     return reason || DEFAULT_INVENTORY_ENTRY_REASON;
   }
 
-  if (movement.reasonType === "EXPIRATION") {
-    return reason || INVENTORY_REASON_TYPE_LABELS.EXPIRATION;
+  if (isInventoryShrinkageReason(movement.reasonType)) {
+    return reason || INVENTORY_REASON_TYPE_LABELS[movement.reasonType];
   }
 
   return reason || "Sin motivo capturado.";
@@ -227,8 +228,8 @@ export function InventoryMovementTimeline({
               movement.product?.name ?? `${movement.productName} (eliminado)`;
             const barcode = movement.product?.barcode;
             const reasonTypeLabel =
-              movement.type === "OUT" && movement.reasonType === "EXPIRATION"
-                ? INVENTORY_REASON_TYPE_LABELS.EXPIRATION
+              movement.type === "OUT" && isInventoryShrinkageReason(movement.reasonType)
+                ? INVENTORY_REASON_TYPE_LABELS[movement.reasonType]
                 : null;
             const warehouseLabel = getWarehouseLabel(movement);
             const reasonText = getMovementReasonText(movement);
