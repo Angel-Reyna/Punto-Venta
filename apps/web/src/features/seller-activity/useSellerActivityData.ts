@@ -8,7 +8,6 @@ import {
   filtersAreInvalid,
   formatRelativeLastUpdated,
   getActionLabel,
-  getDateRangeLabel,
   matchesSearch,
   type Seller,
   type SellerActivityFilters,
@@ -115,12 +114,11 @@ export function useSellerActivityData() {
   const autoRefreshIntervalSeconds = Math.round(SELLER_ACTIVITY_AUTO_REFRESH_INTERVAL_MS / 1000);
   const selectedSeller = sellers.find((seller) => seller.id === sellerId);
   const activeFilterLabels = [
-    `Periodo: ${getDateRangeLabel(from, to)}`,
-    `Vendedor: ${selectedSeller ? selectedSeller.name : "Todos"}`,
-    `Acción: ${getActionLabel(action)}`,
-    search.trim() ? `Texto: ${search.trim()}` : "Texto: sin búsqueda local",
-    `Límite: ${limit}`,
-  ];
+    selectedSeller ? `Vendedor: ${selectedSeller.name}` : null,
+    action ? `Acción: ${getActionLabel(action)}` : null,
+    search.trim() ? `Texto: ${search.trim()}` : null,
+    limit !== DEFAULT_SELLER_ACTIVITY_LIMIT ? `Límite: ${limit}` : null,
+  ].filter((label): label is string => Boolean(label));
   const invalidFilters = filtersAreInvalid(currentFilters);
 
   const resetFilters = useCallback(() => {

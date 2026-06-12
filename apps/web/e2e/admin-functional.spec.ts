@@ -205,17 +205,27 @@ test.describe("cobertura funcional administrativa", () => {
     await expect(byTestId(page, "seller-activity-shortcuts")).toContainText("Solo ventas");
     await expect(byTestId(page, "seller-activity-shortcuts")).toContainText("Accesos bloqueados");
     await expect(byTestId(page, "seller-activity-active-filters")).toContainText(
-      "Acción: Todas las acciones",
+      "Sin filtros avanzados",
     );
     await expect(byTestId(page, "seller-activity-results-heading")).toContainText(
-      "3 de 3 movimientos visibles",
+      "3 de 3 eventos encontrados",
     );
+    await expect(byTestId(page, "seller-activity-results-heading")).toContainText("Bandeja operativa");
+    await expect(byTestId(page, "seller-activity-section-tabs-card")).toContainText("Eventos recientes");
+    await expect(byTestId(page, "seller-activity-section-tabs-card")).toContainText("Vendedores");
+    await expect(byTestId(page, "seller-activity-section-tabs-card")).toContainText("Señales");
+
+    await clickByTestId(page, "seller-activity-section-signals");
     await expect(byTestId(page, "seller-activity-operational-insights")).toContainText("Señales operativas");
     await expect(byTestId(page, "seller-activity-operational-insights")).toContainText("Vendedor más activo");
     await expect(byTestId(page, "seller-activity-operational-insights")).toContainText("Bloqueos por cada 100 eventos");
+
+    await clickByTestId(page, "seller-activity-section-sellers");
     await expect(byTestId(page, "seller-activity-seller-focus")).toContainText("Actividad por vendedor");
     await expect(byTestId(page, "seller-activity-seller-focus")).toContainText("Vendedor E2E");
     await expect(byTestId(page, "seller-activity-seller-focus")).toContainText("Vendedor Inactivo E2E");
+
+    await clickByTestId(page, "seller-activity-section-events");
 
     await clickByTestId(page, "seller-activity-quick-sales");
     await expect(byTestId(page, "seller-activity-active-filters")).toContainText("Acción: Venta registrada");
@@ -223,9 +233,16 @@ test.describe("cobertura funcional administrativa", () => {
 
     await expect(byTestId(page, "seller-activity-log-seller-activity-1")).toBeVisible();
     await expect(byTestId(page, "seller-activity-log-seller-activity-3")).toHaveCount(0);
+
+    await clickByTestId(page, "seller-activity-section-signals");
     await expect(byTestId(page, "seller-activity-operational-insights")).toContainText("1 evento");
+
+    await clickByTestId(page, "seller-activity-section-sellers");
     await expect(byTestId(page, "seller-activity-seller-focus")).toContainText("1 vendedor en periodo");
 
+    await clickByTestId(page, "seller-activity-section-events");
+
+    await clickByTestId(page, "seller-activity-filters-toggle-button");
     await page.getByRole("combobox", { name: "Acción" }).click();
     await page.getByRole("option", { name: "Acceso bloqueado" }).click();
     await clickByTestId(page, "seller-activity-consult-button");
@@ -235,6 +252,9 @@ test.describe("cobertura funcional administrativa", () => {
 
     await fillByTestId(page, "seller-activity-search", "127.0.0.2");
 
+    await byTestId(page, "seller-activity-log-seller-activity-3")
+      .getByRole("button", { name: "Ver datos técnicos" })
+      .click();
     await expect(byTestId(page, "seller-activity-log-seller-activity-3")).toContainText("127.0.0.2");
     await expect(byTestId(page, "seller-activity-search")).toHaveValue("127.0.0.2");
 
