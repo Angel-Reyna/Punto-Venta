@@ -135,7 +135,7 @@ describe("dashboard.service", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           type: "OUT",
-          reasonType: "EXPIRATION"
+          reasonType: { in: ["EXPIRATION", "DAMAGE"] }
         }),
         _sum: {
           quantity: true,
