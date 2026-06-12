@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { PageHeader } from "../../components/PageHeader";
 import { StatusFeedback } from "../../components/StatusFeedback";
@@ -21,6 +22,7 @@ import { useInventoryData } from "./useInventoryData";
 
 export function InventoryPage() {
   const { can } = useAuth();
+  const [searchParams] = useSearchParams();
   const canAdjustInventory = can(PERMISSIONS.InventoryAdjust);
   const canReadTransferRequests = can(PERMISSIONS.InventoryTransferRequestRead);
   const canCreateTransferRequest = can(PERMISSIONS.InventoryTransferRequestCreate);
@@ -49,8 +51,30 @@ export function InventoryPage() {
     warehouses,
   } = useInventoryData();
 
-  const [activeView, setActiveView] = useState<InventoryView>("stock");
+  const initialView = useMemo<InventoryView>(() => {
+    const view = searchParams.get("view");
+
+    return view === "entries" || view === "exits" || view === "movements" || view === "transfers" || view === "stock"
+      ? view
+      : "stock";
+  }, [searchParams]);
+  const stockStatusFilter = useMemo(() => {
+    const status = searchParams.get("status");
+
+    return status === "out" || status === "low" || status === "attention" ? status : "all";
+  }, [searchParams]);
+  const [activeView, setActiveView] = useState<InventoryView>(initialView);
   const [form, setForm] = useState(initialInventoryMovementForm);
+
+  useEffect(() => {
+    setActiveView(initialView);
+
+    const query = searchParams.get("search");
+    if (initialView === "movements" && query) {
+      setMovementSearch(query);
+    }
+  }, [initialView, searchParams, setMovementSearch]);
+
   function changeView(view: InventoryView) {
     setActiveView(view);
 
@@ -160,6 +184,7 @@ export function InventoryPage() {
           <InventoryStockSection
             rows={stockRows}
             searchQuery={stockSearch}
+            initialStatusFilter={stockStatusFilter}
             onSearchChange={setStockSearch}
           />
         </>

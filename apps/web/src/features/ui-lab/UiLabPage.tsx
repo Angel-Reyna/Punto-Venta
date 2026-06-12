@@ -8,10 +8,10 @@ import {
   CardContent,
   Chip,
   Divider,
-  InputAdornment,
-  MenuItem,
+  LinearProgress,
   Stack,
-  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import {
@@ -21,16 +21,21 @@ import {
   useTheme,
 } from "@mui/material/styles";
 
-import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
-import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
-import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
-import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
+import ArrowForwardOutlinedIcon from "@mui/icons-material/ArrowForwardOutlined";
+import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
+import DashboardCustomizeOutlinedIcon from "@mui/icons-material/DashboardCustomizeOutlined";
+import DeleteSweepOutlinedIcon from "@mui/icons-material/DeleteSweepOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import LocalAtmOutlinedIcon from "@mui/icons-material/LocalAtmOutlined";
-import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
+import PointOfSaleOutlinedIcon from "@mui/icons-material/PointOfSaleOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
-import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
+import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
+import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
+import TimelineOutlinedIcon from "@mui/icons-material/TimelineOutlined";
+import TrendingDownOutlinedIcon from "@mui/icons-material/TrendingDownOutlined";
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 
@@ -38,7 +43,8 @@ import { pvVisualTokens } from "../../design-lab/pvVisualTokens";
 
 type Tone = "primary" | "success" | "warning" | "error" | "info" | "secondary";
 
-type ReportMetric = {
+type ExecutiveMetric = {
+  action: string;
   helper: string;
   icon: ElementType;
   label: string;
@@ -46,155 +52,112 @@ type ReportMetric = {
   value: string;
 };
 
-type SellerRow = {
+type AlertItem = {
+  action: string;
+  detail: string;
+  label: string;
+  severity: "critical" | "warning" | "info";
+  value: string;
+};
+
+type SellerSignal = {
   name: string;
-  net: number;
-  returns: number;
   sales: number;
+  total: number;
+  trend: string;
 };
 
-type ProductRow = {
-  margin: number;
-  name: string;
-  net: number;
-  sku: string;
-  units: number;
-};
-
-type TimelineRow = {
-  amount: number;
+type RecentSale = {
   folio: string;
   seller: string;
   status: string;
   time: string;
+  total: number;
 };
 
-type MovementRow = {
-  amount: number;
-  detail: string;
-  label: string;
-  tone: Tone;
-};
-
-const reportMetrics: ReportMetric[] = [
+const executiveMetrics: ExecutiveMetric[] = [
   {
-    helper: "Después de devoluciones del periodo.",
-    icon: PaidOutlinedIcon,
-    label: "Venta neta",
+    action: "Ver reportes",
+    helper: "Venta registrada hoy por todos los vendedores.",
+    icon: LocalAtmOutlinedIcon,
+    label: "Ventas de hoy",
     tone: "success",
-    value: "$18,420.00",
+    value: "$8,940.00",
   },
   {
-    helper: "Venta neta menos costo y merma.",
-    icon: TrendingUpOutlinedIcon,
-    label: "Utilidad operativa",
-    tone: "primary",
-    value: "$6,318.00",
+    action: "Revisar ajuste",
+    helper: "Devolución o cancelación esperando autorización del admin.",
+    icon: ReceiptLongOutlinedIcon,
+    label: "Ajuste pendiente",
+    tone: "info",
+    value: "1",
   },
   {
-    helper: "Caducidad registrada en inventario.",
+    action: "Revisar inventario",
+    helper: "Productos en mínimo o agotados.",
     icon: WarningAmberOutlinedIcon,
-    label: "Merma",
+    label: "Atención stock",
+    tone: "warning",
+    value: "9",
+  },
+  {
+    action: "Ver merma",
+    helper: "Pérdida registrada por caducidad hoy.",
+    icon: DeleteSweepOutlinedIcon,
+    label: "Merma hoy",
     tone: "error",
     value: "$412.00",
   },
+];
+
+const attentionItems: AlertItem[] = [
   {
-    helper: "Reembolsos y ventas devueltas.",
-    icon: AssignmentReturnOutlinedIcon,
-    label: "Devoluciones",
-    tone: "warning",
-    value: "$860.00",
+    action: "Reponer",
+    detail: "Agua Mineral 1 L quedó debajo del mínimo en Principal.",
+    label: "Stock bajo",
+    severity: "warning",
+    value: "4 / mínimo 10",
+  },
+  {
+    action: "Resolver",
+    detail: "Galleta vainilla paquete no tiene unidades disponibles.",
+    label: "Sin stock",
+    severity: "critical",
+    value: "0 unidades",
+  },
+  {
+    action: "Revisar",
+    detail: "María solicitó devolución de una venta y requiere autorización.",
+    label: "Ajuste pendiente",
+    severity: "info",
+    value: "1 solicitud",
   },
 ];
 
-const bridgeRows: MovementRow[] = [
-  {
-    amount: 19280,
-    detail: "Ventas no canceladas antes de devoluciones.",
-    label: "Venta bruta",
-    tone: "success",
-  },
-  {
-    amount: -860,
-    detail: "Reembolsos aplicados en el periodo.",
-    label: "Devoluciones",
-    tone: "warning",
-  },
-  {
-    amount: -10690,
-    detail: "Costo histórico de productos vendidos.",
-    label: "Costo neto",
-    tone: "error",
-  },
-  {
-    amount: -412,
-    detail: "Merma por caducidad registrada.",
-    label: "Merma",
-    tone: "error",
-  },
-  {
-    amount: 6318,
-    detail: "Resultado operativo estimado.",
-    label: "Utilidad operativa",
-    tone: "primary",
-  },
+const sellerSignals: SellerSignal[] = [
+  { name: "Ana López", sales: 18, total: 4120, trend: "+12%" },
+  { name: "Carlos Ruiz", sales: 14, total: 3310, trend: "+4%" },
+  { name: "María Torres", sales: 9, total: 1510, trend: "-8%" },
 ];
 
-const sellerRows: SellerRow[] = [
-  { name: "Ana López", net: 7420, returns: 180, sales: 22 },
-  { name: "Carlos Ruiz", net: 6120, returns: 0, sales: 18 },
-  { name: "María Torres", net: 4880, returns: 680, sales: 14 },
+const recentSales: RecentSale[] = [
+  { folio: "PV-000184", seller: "Ana López", status: "Completada", time: "Hoy · 18:42", total: 156 },
+  { folio: "PV-000183", seller: "Carlos Ruiz", status: "Completada", time: "Hoy · 17:10", total: 96 },
+  { folio: "PV-000182", seller: "María Torres", status: "Devuelta", time: "Hoy · 16:20", total: 68 },
 ];
 
-const productRows: ProductRow[] = [
-  {
-    margin: 42,
-    name: "Coca-Cola 600 ml",
-    net: 3180,
-    sku: "BEB-COCA-600",
-    units: 176,
-  },
-  {
-    margin: 38,
-    name: "Agua Mineral 1 L",
-    net: 2480,
-    sku: "AGUA-1L",
-    units: 155,
-  },
-  {
-    margin: 31,
-    name: "Harina de maíz 250 g",
-    net: 1840,
-    sku: "ABA-HARINA-250",
-    units: 72,
-  },
+const salesTrendDays = [
+  { amount: 3240, label: "Lun 03" },
+  { amount: 3960, label: "Mar 04" },
+  { amount: 3780, label: "Mié 05" },
+  { amount: 5580, label: "Jue 06" },
+  { amount: 5040, label: "Vie 07" },
+  { amount: 7380, label: "Sáb 08" },
+  { amount: 6660, label: "Dom 09" },
 ];
 
-const timelineRows: TimelineRow[] = [
-  {
-    amount: 156,
-    folio: "V-000184",
-    seller: "Ana López",
-    status: "Completada",
-    time: "Hoy · 18:42",
-  },
-  {
-    amount: 96,
-    folio: "V-000183",
-    seller: "Carlos Ruiz",
-    status: "Completada",
-    time: "Hoy · 17:10",
-  },
-  {
-    amount: 68,
-    folio: "D-000031",
-    seller: "María Torres",
-    status: "Devuelta",
-    time: "Hoy · 16:20",
-  },
-];
-
-const dailyTrend = [0.18, 0.32, 0.24, 0.56, 0.48, 0.72, 0.66];
+const salesTrendMax = 9000;
+const salesTrendGridLines = [9000, 6750, 4500, 2250];
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-MX", {
@@ -231,33 +194,28 @@ function Surface({
 
 function IconTile({
   icon: Icon,
-  size = 42,
-  tone,
+  tone = "primary",
 }: {
   icon: ElementType;
-  size?: number;
-  tone: Tone;
+  tone?: Tone;
 }) {
-  const theme = useTheme();
-  const color = toneMain(theme, tone);
-
   return (
     <Box
-      aria-hidden="true"
-      sx={{
-        background: `radial-gradient(circle at 30% 20%, ${alpha(color, 0.28)}, ${alpha(color, 0.08)} 68%)`,
+      sx={(theme) => ({
+        alignItems: "center",
+        backgroundColor: alpha(toneMain(theme, tone), theme.palette.mode === "dark" ? 0.18 : 0.1),
         border: "1px solid",
-        borderColor: alpha(color, 0.28),
-        borderRadius: size > 44 ? 3.25 : 2.4,
-        color,
-        display: "grid",
-        flex: `0 0 ${size}px`,
-        height: size,
-        placeItems: "center",
-        width: size,
-      }}
+        borderColor: alpha(toneMain(theme, tone), theme.palette.mode === "dark" ? 0.38 : 0.22),
+        borderRadius: 3,
+        color: toneMain(theme, tone),
+        display: "flex",
+        flexShrink: 0,
+        height: 48,
+        justifyContent: "center",
+        width: 48,
+      })}
     >
-      <Icon sx={{ fontSize: Math.round(size * 0.56) }} />
+      <Icon />
     </Box>
   );
 }
@@ -269,594 +227,325 @@ function SectionHeader({
   title,
 }: {
   action?: ReactNode;
-  description: string;
-  eyebrow: string;
+  description?: string;
+  eyebrow?: string;
   title: string;
 }) {
   return (
     <Stack
-      alignItems={{ xs: "stretch", md: "flex-start" }}
       direction={{ xs: "column", md: "row" }}
       justifyContent="space-between"
-      spacing={1.5}
+      spacing={1.2}
+      useFlexGap
     >
-      <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-        <Typography
-          color="primary.main"
-          fontWeight={850}
-          letterSpacing="0.08em"
-          textTransform="uppercase"
-          variant="caption"
-        >
-          {eyebrow}
-        </Typography>
-        <Typography
-          component="h2"
-          fontWeight={950}
-          letterSpacing="-0.04em"
-          variant="h4"
-        >
+      <Stack spacing={0.45}>
+        {eyebrow && (
+          <Typography color="primary.main" fontSize={12} fontWeight={900} letterSpacing={0.8} textTransform="uppercase">
+            {eyebrow}
+          </Typography>
+        )}
+        <Typography fontWeight={950} sx={{ fontSize: { xs: 22, md: 28 }, lineHeight: 1.05 }}>
           {title}
         </Typography>
-        <Typography color="text.secondary" sx={{ maxWidth: 760 }}>
-          {description}
-        </Typography>
+        {description && (
+          <Typography color="text.secondary" sx={{ maxWidth: 760 }} variant="body2">
+            {description}
+          </Typography>
+        )}
       </Stack>
       {action}
     </Stack>
   );
 }
 
-function ReportsHeroPrototype() {
+function ExecutiveMetricCard({ metric }: { metric: ExecutiveMetric }) {
+  const Icon = metric.icon;
+
   return (
     <Surface
-      sx={{
-        background: (theme) =>
-          `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.14)} 0%, ${alpha(
-            theme.palette.info.main,
-            0.09,
-          )} 46%, ${theme.palette.background.paper} 100%)`,
-        border: "1px solid",
-        borderColor: (theme) => alpha(theme.palette.primary.main, 0.18),
-      }}
+      sx={(theme) => ({
+        minHeight: 170,
+        position: "relative",
+        transition: "transform 160ms ease, box-shadow 160ms ease",
+        "&:hover": {
+          boxShadow: theme.shadows[6],
+          transform: "translateY(-2px)",
+        },
+      })}
     >
-      <Stack spacing={2.2}>
-        <Stack direction="row" flexWrap="wrap" gap={1}>
-          <Chip color="primary" label="Reportes" />
-          <Chip label="ADMIN" variant="outlined" />
-          <Chip label="PDF controlado" variant="outlined" />
-          <Chip label="Ventas · Devoluciones · Merma" variant="outlined" />
+      <Box
+        sx={(theme) => ({
+          color: alpha(toneMain(theme, metric.tone), theme.palette.mode === "dark" ? 0.16 : 0.1),
+          position: "absolute",
+          right: 14,
+          top: 10,
+          transform: "rotate(-8deg)",
+        })}
+      >
+        <Icon sx={{ fontSize: 92 }} />
+      </Box>
+      <Stack spacing={1.4} sx={{ minHeight: 130, position: "relative" }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <IconTile icon={metric.icon} tone={metric.tone} />
+          <Chip color={metric.tone === "error" ? "error" : metric.tone === "warning" ? "warning" : "default"} label={metric.action} size="small" />
         </Stack>
-
-        <Stack
-          alignItems={{ xs: "stretch", lg: "center" }}
-          direction={{ xs: "column", lg: "row" }}
-          justifyContent="space-between"
-          spacing={2.5}
-        >
-          <Stack direction="row" spacing={1.6} sx={{ minWidth: 0 }}>
-            <IconTile icon={AssessmentOutlinedIcon} size={58} tone="primary" />
-            <Box sx={{ minWidth: 0 }}>
-              <Typography
-                component="h1"
-                fontWeight={950}
-                letterSpacing="-0.05em"
-                variant="h3"
-              >
-                Centro de reportes
-              </Typography>
-              <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 720 }}>
-                Una vista ejecutiva para revisar venta neta, utilidad, merma, vendedores y productos
-                sin saturar la pantalla. El PDF queda como salida final después de consultar datos reales.
-              </Typography>
-            </Box>
-          </Stack>
-
-          <Box
-            sx={{
-              display: "grid",
-              gap: 1,
-              gridTemplateColumns: {
-                xs: "repeat(2, minmax(0, 1fr))",
-                sm: "repeat(4, minmax(0, 1fr))",
-                lg: "repeat(2, minmax(128px, 1fr))",
-              },
-              minWidth: { lg: 360 },
-            }}
-          >
-            <HeroMiniStat icon={PeopleAltOutlinedIcon} label="Vendedores" value="3" />
-            <HeroMiniStat icon={Inventory2OutlinedIcon} label="Productos" value="18" />
-            <HeroMiniStat icon={LocalAtmOutlinedIcon} label="Cobros" value="$19.2k" />
-            <HeroMiniStat icon={AssignmentReturnOutlinedIcon} label="Devuelto" value="$860" />
-          </Box>
-        </Stack>
-      </Stack>
-    </Surface>
-  );
-}
-
-function HeroMiniStat({
-  icon,
-  label,
-  value,
-}: {
-  icon: ElementType;
-  label: string;
-  value: string;
-}) {
-  return (
-    <Box
-      sx={{
-        bgcolor: (theme) => alpha(theme.palette.background.paper, 0.74),
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: 2.5,
-        minWidth: 0,
-        p: 1.25,
-      }}
-    >
-      <Stack alignItems="center" direction="row" spacing={0.9}>
-        <IconTile icon={icon} size={30} tone="primary" />
-        <Typography color="text.secondary" fontSize={12} fontWeight={850}>
-          {label}
-        </Typography>
-      </Stack>
-      <Typography fontSize={18} fontWeight={950} sx={{ mt: 0.7 }}>
-        {value}
-      </Typography>
-    </Box>
-  );
-}
-
-function ReportsControlPrototype() {
-  return (
-    <Surface>
-      <Stack spacing={1.7}>
-        <SectionHeader
-          action={
-            <Stack direction="row" flexWrap="wrap" gap={1}>
-              {["Hoy", "7 días", "Mes", "Mes anterior"].map((label) => (
-                <Chip clickable key={label} label={label} variant={label === "Mes" ? "filled" : "outlined"} />
-              ))}
-            </Stack>
-          }
-          description="Los filtros se colocan antes del análisis para evitar PDFs con datos viejos. La búsqueda local aparece después de consultar."
-          eyebrow="Consulta"
-          title="Periodo y salida del reporte"
-        />
-
-        <Box
-          sx={{
-            display: "grid",
-            gap: 1.25,
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "1fr 1fr",
-              lg: "150px 150px minmax(190px, 1fr) 160px",
-            },
-          }}
-        >
-          <TextField
-            InputLabelProps={{ shrink: true }}
-            label="Desde"
-            size="small"
-            type="date"
-            defaultValue="2026-06-01"
-          />
-          <TextField
-            InputLabelProps={{ shrink: true }}
-            label="Hasta"
-            size="small"
-            type="date"
-            defaultValue="2026-06-10"
-          />
-          <Button
-            fullWidth
-            startIcon={<CalendarMonthOutlinedIcon />}
-            sx={{ minHeight: 40 }}
-            variant="contained"
-          >
-            Consultar reporte
-          </Button>
-          <Button
-            fullWidth
-            startIcon={<FileDownloadOutlinedIcon />}
-            sx={{ minHeight: 40 }}
-            variant="outlined"
-          >
-            Descargar PDF
-          </Button>
-        </Box>
-
-        <Box
-          sx={{
-            display: "grid",
-            gap: 1.25,
-            gridTemplateColumns: {
-              xs: "1fr",
-              md: "minmax(260px, 1fr) auto",
-            },
-          }}
-        >
-          <TextField
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchOutlinedIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-            label="Buscar en resultados"
-            placeholder="Folio, vendedor, producto..."
-            size="small"
-          />
-          <Stack alignItems="center" direction="row" flexWrap="wrap" gap={1}>
-            <Chip color="success" label="Datos consultados" size="small" />
-            <Chip label="Periodo: 01 jun al 10 jun" size="small" variant="outlined" />
-          </Stack>
-        </Box>
-      </Stack>
-    </Surface>
-  );
-}
-
-function MetricCard({ metric }: { metric: ReportMetric }) {
-  return (
-    <Box
-      data-testid={`ui-lab-report-metric-${metric.label.toLowerCase().replaceAll(" ", "-")}`}
-      sx={{
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: 3,
-        height: "100%",
-        minWidth: 0,
-        p: 1.45,
-      }}
-    >
-      <Stack spacing={1.15}>
-        <Stack alignItems="center" direction="row" justifyContent="space-between" spacing={1}>
-          <Typography color="text.secondary" fontSize={12} fontWeight={850}>
+        <Box>
+          <Typography color="text.secondary" fontSize={12.5} fontWeight={800}>
             {metric.label}
           </Typography>
-          <IconTile icon={metric.icon} size={32} tone={metric.tone} />
-        </Stack>
-        <Typography
-          color={`${metric.tone}.main`}
-          fontSize={{ xs: 23, md: 27 }}
-          fontWeight={950}
-          letterSpacing="-0.04em"
-          sx={{ overflowWrap: "anywhere" }}
-        >
-          {metric.value}
-        </Typography>
-        <Typography color="text.secondary" fontSize={12.5}>
+          <Typography fontWeight={950} sx={{ fontSize: { xs: 28, md: 32 }, lineHeight: 1 }}>
+            {metric.value}
+          </Typography>
+        </Box>
+        <Typography color="text.secondary" variant="body2">
           {metric.helper}
         </Typography>
       </Stack>
-    </Box>
+    </Surface>
+  );
+}
+
+function DashboardHeroPrototype() {
+  return (
+    <Surface
+      sx={(theme) => ({
+        background:
+          theme.palette.mode === "dark"
+            ? `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.52)}, ${alpha(theme.palette.background.paper, 0.94)})`
+            : `linear-gradient(135deg, ${alpha(theme.palette.primary.light, 0.18)}, ${alpha(theme.palette.background.paper, 0.98)})`,
+      })}
+    >
+      <Stack spacing={2}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          justifyContent="space-between"
+          spacing={2}
+          useFlexGap
+        >
+          <Stack direction="row" spacing={1.4}>
+            <IconTile icon={DashboardCustomizeOutlinedIcon} />
+            <SectionHeader
+              description="Resumen operativo para decidir rápido: ventas del día, stock que requiere atención, actividad de vendedores y acciones inmediatas."
+              eyebrow="Inicio"
+              title="Centro operativo"
+            />
+          </Stack>
+
+          <Stack
+            alignItems={{ xs: "stretch", sm: "center" }}
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+          >
+            <Chip label="Actualizado hoy · 18:45" variant="outlined" />
+            <Button startIcon={<RefreshOutlinedIcon />} variant="contained">
+              Actualizar
+            </Button>
+          </Stack>
+        </Stack>
+
+        <Box
+          sx={{
+            display: "grid",
+            gap: 1,
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" },
+          }}
+        >
+          {[
+            ["Administradores", "2 activos", AdminPanelSettingsOutlinedIcon, "info" as Tone],
+            ["Vendedores", "6 activos", StorefrontOutlinedIcon, "success" as Tone],
+            ["Estado general", "3 alertas", ReportProblemOutlinedIcon, "warning" as Tone],
+          ].map(([label, value, icon, tone]) => {
+            const Icon = icon as ElementType;
+
+            return (
+              <Box
+                key={label as string}
+                sx={(theme) => ({
+                  alignItems: "center",
+                  backgroundColor: alpha(toneMain(theme, tone as Tone), theme.palette.mode === "dark" ? 0.12 : 0.06),
+                  border: "1px solid",
+                  borderColor: alpha(toneMain(theme, tone as Tone), theme.palette.mode === "dark" ? 0.3 : 0.18),
+                  borderRadius: 3,
+                  display: "flex",
+                  gap: 1,
+                  px: 1.25,
+                  py: 1.1,
+                })}
+              >
+                <Icon sx={{ color: (theme: Parameters<typeof toneMain>[0]) => toneMain(theme, tone as Tone) }} />
+                <Box>
+                  <Typography color="text.secondary" fontSize={12} fontWeight={800}>
+                    {label as string}
+                  </Typography>
+                  <Typography fontWeight={950}>{value as string}</Typography>
+                </Box>
+              </Box>
+            );
+          })}
+        </Box>
+      </Stack>
+    </Surface>
   );
 }
 
 function ExecutiveSummaryPrototype() {
   return (
-    <Surface>
-      <Stack spacing={1.7}>
-        <SectionHeader
-          description="Primero se muestran métricas accionables: resultado real, utilidad, pérdidas y devoluciones. Evita repetir tablas si el ADMIN solo necesita saber qué pasó."
-          eyebrow="Resumen"
-          title="Lectura ejecutiva"
-        />
-
-        <Box
-          sx={{
-            display: "grid",
-            gap: 1.25,
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, minmax(0, 1fr))",
-              lg: "repeat(4, minmax(0, 1fr))",
-            },
-          }}
-        >
-          {reportMetrics.map((metric) => (
-            <MetricCard key={metric.label} metric={metric} />
-          ))}
-        </Box>
-
-        <Box
-          sx={{
-            bgcolor: (theme) => alpha(theme.palette.warning.main, 0.08),
-            border: "1px solid",
-            borderColor: (theme) => alpha(theme.palette.warning.main, 0.24),
-            borderRadius: 3,
-            p: 1.4,
-          }}
-        >
-          <Stack alignItems={{ xs: "flex-start", md: "center" }} direction={{ xs: "column", md: "row" }} spacing={1.25}>
-            <IconTile icon={WarningAmberOutlinedIcon} size={38} tone="warning" />
-            <Box sx={{ minWidth: 0 }}>
-              <Typography fontWeight={900}>Atención del periodo</Typography>
-              <Typography color="text.secondary" variant="body2">
-                La merma se concentra en 2 productos y un vendedor tiene devoluciones por encima del promedio. Conviene revisar detalle antes de descargar PDF.
-              </Typography>
-            </Box>
-          </Stack>
-        </Box>
-      </Stack>
-    </Surface>
+    <Box
+      sx={{
+        display: "grid",
+        gap: 1.4,
+        gridTemplateColumns: {
+          xs: "1fr",
+          sm: "repeat(2, minmax(0, 1fr))",
+          lg: "repeat(4, minmax(0, 1fr))",
+        },
+      }}
+    >
+      {executiveMetrics.map((metric) => (
+        <ExecutiveMetricCard key={metric.label} metric={metric} />
+      ))}
+    </Box>
   );
 }
 
-function FinancialBridgePrototype() {
+function ActionCard({
+  description,
+  icon,
+  label,
+  tone,
+}: {
+  description: string;
+  icon: ElementType;
+  label: string;
+  tone: Tone;
+}) {
+  const Icon = icon;
+
+  return (
+    <Box
+      sx={(theme) => ({
+        alignItems: "center",
+        backgroundColor: alpha(toneMain(theme, tone), theme.palette.mode === "dark" ? 0.12 : 0.055),
+        border: "1px solid",
+        borderColor: alpha(toneMain(theme, tone), theme.palette.mode === "dark" ? 0.32 : 0.18),
+        borderRadius: 3,
+        cursor: "pointer",
+        display: "flex",
+        gap: 1.2,
+        p: 1.25,
+        transition: "transform 160ms ease, background-color 160ms ease",
+        "&:hover": {
+          backgroundColor: alpha(toneMain(theme, tone), theme.palette.mode === "dark" ? 0.18 : 0.09),
+          transform: "translateY(-1px)",
+        },
+      })}
+    >
+      <IconTile icon={Icon} tone={tone} />
+      <Box sx={{ minWidth: 0 }}>
+        <Typography fontWeight={900}>{label}</Typography>
+        <Typography color="text.secondary" variant="body2">
+          {description}
+        </Typography>
+      </Box>
+      <ArrowForwardOutlinedIcon sx={{ ml: "auto", color: "text.secondary" }} />
+    </Box>
+  );
+}
+
+function CommandCenterPrototype() {
   return (
     <Surface>
       <Stack spacing={1.6}>
         <SectionHeader
-          description="Muestra cómo se transforma la venta bruta en utilidad operativa. Es más transferible a la app real que una gráfica compleja y funciona bien en móvil."
-          eyebrow="Resultado"
-          title="Puente financiero"
+          description="Acciones directas desde Inicio. La tarjeta no solo informa: lleva al módulo donde se resuelve el pendiente."
+          eyebrow="Acciones"
+          title="Qué hacer ahora"
         />
-
         <Box
           sx={{
             display: "grid",
-            gap: 1,
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, minmax(0, 1fr))",
-              lg: "repeat(5, minmax(0, 1fr))",
-            },
+            gap: 1.2,
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
           }}
         >
-          {bridgeRows.map((row, index) => (
-            <Box
-              key={row.label}
-              sx={{
-                bgcolor: (theme) => alpha(theme.palette[row.tone].main, row.amount < 0 ? 0.08 : 0.1),
-                border: "1px solid",
-                borderColor: (theme) => alpha(theme.palette[row.tone].main, 0.22),
-                borderRadius: 2.6,
-                p: 1.25,
-              }}
-            >
-              <Stack spacing={0.75}>
-                <Chip color={row.tone} label={`${index + 1}. ${row.amount < 0 ? "Resta" : "Resultado"}`} size="small" variant="outlined" />
-                <Typography fontSize={13} fontWeight={900}>
-                  {row.label}
-                </Typography>
-                <Typography color={`${row.tone}.main`} fontSize={20} fontWeight={950}>
-                  {formatCurrency(row.amount)}
-                </Typography>
-                <Typography color="text.secondary" fontSize={12}>
-                  {row.detail}
-                </Typography>
-              </Stack>
-            </Box>
-          ))}
-        </Box>
-      </Stack>
-    </Surface>
-  );
-}
-
-function TrendPanel() {
-  const points = useMemo(() => {
-    return dailyTrend
-      .map((value, index) => {
-        const x = dailyTrend.length === 1 ? 50 : (index / (dailyTrend.length - 1)) * 100;
-        const y = 42 - value * 34;
-
-        return `${x.toFixed(2)},${y.toFixed(2)}`;
-      })
-      .join(" ");
-  }, []);
-
-  return (
-    <Surface sx={{ height: "100%" }}>
-      <Stack spacing={1.5}>
-        <SectionHeader
-          description="La tendencia diaria ayuda a detectar días atípicos antes de revisar tablas."
-          eyebrow="Tendencia"
-          title="Venta neta diaria"
-        />
-        <Box
-          component="svg"
-          role="img"
-          aria-label="Tendencia diaria de venta neta"
-          viewBox="0 0 100 46"
-          sx={{
-            color: "success.main",
-            height: { xs: 150, md: 182 },
-            overflow: "visible",
-            width: "100%",
-          }}
-        >
-          <line opacity="0.24" stroke="currentColor" strokeWidth="0.7" x1="0" x2="100" y1="42" y2="42" />
-          <polyline
-            fill="none"
-            points={points}
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2.3"
+          <ActionCard
+            description="Registrar una venta con stock asignado, sin caja obligatoria."
+            icon={PointOfSaleOutlinedIcon}
+            label="Nueva venta"
+            tone="success"
           />
-          {dailyTrend.map((value, index) => {
-            const x = dailyTrend.length === 1 ? 50 : (index / (dailyTrend.length - 1)) * 100;
-            const y = 42 - value * 34;
-
-            return <circle cx={x} cy={y} fill="currentColor" key={index} r="2.2" />;
-          })}
-        </Box>
-        <Stack direction="row" flexWrap="wrap" gap={1}>
-          {["Lun $1.8k", "Mar $3.1k", "Mié $2.4k", "Jue $5.6k", "Vie $4.8k", "Sáb $7.2k", "Dom $6.6k"].map((label) => (
-            <Chip key={label} label={label} size="small" variant="outlined" />
-          ))}
-        </Stack>
-      </Stack>
-    </Surface>
-  );
-}
-
-function SellerRankingPanel() {
-  const maxValue = Math.max(...sellerRows.map((row) => row.net));
-
-  return (
-    <Surface sx={{ height: "100%" }}>
-      <Stack spacing={1.5}>
-        <SectionHeader
-          description="Ranking por venta neta, manteniendo devoluciones visibles sin castigar visualmente al vendedor."
-          eyebrow="Equipo"
-          title="Vendedores"
-        />
-
-        {sellerRows.map((seller) => {
-          const width = `${Math.max(8, (seller.net / maxValue) * 100)}%`;
-
-          return (
-            <Box key={seller.name}>
-              <Stack direction="row" justifyContent="space-between" spacing={1}>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography fontSize={14} fontWeight={900} noWrap>
-                    {seller.name}
-                  </Typography>
-                  <Typography color="text.secondary" fontSize={12}>
-                    {seller.sales} ventas · {formatCurrency(seller.returns)} devuelto
-                  </Typography>
-                </Box>
-                <Typography fontSize={14} fontWeight={950}>
-                  {formatCurrency(seller.net)}
-                </Typography>
-              </Stack>
-              <Box
-                aria-hidden="true"
-                sx={{
-                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
-                  borderRadius: 999,
-                  height: 8,
-                  mt: 0.8,
-                  overflow: "hidden",
-                }}
-              >
-                <Box sx={{ bgcolor: "primary.main", height: "100%", width }} />
-              </Box>
-            </Box>
-          );
-        })}
-      </Stack>
-    </Surface>
-  );
-}
-
-function ProductPerformancePanel() {
-  return (
-    <Surface>
-      <Stack spacing={1.5}>
-        <SectionHeader
-          description="Productos que explican movimiento, venta y margen. Esta sección reemplaza tablas largas por filas compactas."
-          eyebrow="Catálogo"
-          title="Productos destacados"
-        />
-
-        <Box
-          sx={{
-            display: "grid",
-            gap: 1,
-            gridTemplateColumns: {
-              xs: "1fr",
-              md: "repeat(3, minmax(0, 1fr))",
-            },
-          }}
-        >
-          {productRows.map((product, index) => (
-            <Box
-              key={product.sku}
-              sx={{
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 3,
-                p: 1.35,
-              }}
-            >
-              <Stack spacing={1}>
-                <Stack alignItems="center" direction="row" justifyContent="space-between">
-                  <Chip label={`#${index + 1}`} size="small" variant="outlined" />
-                  <Chip color={product.margin >= 38 ? "success" : "warning"} label={`${product.margin}% margen`} size="small" />
-                </Stack>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography fontWeight={950} noWrap title={product.name}>
-                    {product.name}
-                  </Typography>
-                  <Typography color="text.secondary" fontSize={12} noWrap>
-                    {product.sku}
-                  </Typography>
-                </Box>
-                <Divider />
-                <Stack direction="row" justifyContent="space-between">
-                  <Box>
-                    <Typography color="text.secondary" fontSize={12} fontWeight={800}>
-                      Unidades
-                    </Typography>
-                    <Typography fontWeight={950}>{product.units}</Typography>
-                  </Box>
-                  <Box sx={{ textAlign: "right" }}>
-                    <Typography color="text.secondary" fontSize={12} fontWeight={800}>
-                      Venta neta
-                    </Typography>
-                    <Typography fontWeight={950}>{formatCurrency(product.net)}</Typography>
-                  </Box>
-                </Stack>
-              </Stack>
-            </Box>
-          ))}
+          <ActionCard
+            description="Ver productos sin stock o debajo del mínimo."
+            icon={Inventory2OutlinedIcon}
+            label="Revisar inventario"
+            tone="warning"
+          />
+          <ActionCard
+            description="Consultar ventas, utilidad, merma y devoluciones."
+            icon={TimelineOutlinedIcon}
+            label="Abrir reportes"
+            tone="primary"
+          />
+          <ActionCard
+            description="Gestionar vendedores y administradores activos."
+            icon={PeopleAltOutlinedIcon}
+            label="Ver usuarios"
+            tone="info"
+          />
         </Box>
       </Stack>
     </Surface>
   );
 }
 
-function TimelinePanel() {
+function AttentionPanelPrototype() {
   return (
     <Surface>
-      <Stack spacing={1.5}>
+      <Stack spacing={1.6}>
         <SectionHeader
-          action={
-            <TextField defaultValue={5} label="Por página" select size="small" sx={{ minWidth: 112 }}>
-              <MenuItem value={5}>5</MenuItem>
-              <MenuItem value={10}>10</MenuItem>
-            </TextField>
-          }
-          description="Historial resumido para validar folios recientes, vendedor y estado sin abrir otra pantalla."
-          eyebrow="Operación"
-          title="Movimientos recientes"
+          description="Alertas priorizadas. Rojo significa bloqueo operativo; amarillo indica riesgo antes de quedarse sin producto."
+          eyebrow="Atención"
+          title="Pendientes operativos"
         />
-
         <Stack spacing={1}>
-          {timelineRows.map((row) => (
+          {attentionItems.map((item) => (
             <Box
-              key={row.folio}
-              sx={{
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 2.5,
-                p: 1.2,
+              key={`${item.label}-${item.detail}`}
+              sx={(theme) => {
+                const tone: Tone = item.severity === "critical" ? "error" : item.severity === "warning" ? "warning" : "info";
+
+                return {
+                  border: "1px solid",
+                  borderColor: alpha(toneMain(theme, tone), theme.palette.mode === "dark" ? 0.34 : 0.2),
+                  borderRadius: 3,
+                  p: 1.25,
+                };
               }}
             >
-              <Stack alignItems={{ xs: "flex-start", sm: "center" }} direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1}>
-                <Stack direction="row" spacing={1.1}>
-                  <IconTile icon={ReceiptLongOutlinedIcon} size={34} tone={row.status === "Devuelta" ? "warning" : "success"} />
-                  <Box>
-                    <Typography fontWeight={950}>{row.folio}</Typography>
-                    <Typography color="text.secondary" fontSize={12}>
-                      {row.seller} · {row.time}
+              <Stack
+                alignItems={{ xs: "flex-start", sm: "center" }}
+                direction={{ xs: "column", sm: "row" }}
+                justifyContent="space-between"
+                spacing={1}
+              >
+                <Stack direction="row" spacing={1.1} sx={{ minWidth: 0 }}>
+                  <IconTile
+                    icon={item.severity === "critical" ? ReportProblemOutlinedIcon : item.severity === "warning" ? WarningAmberOutlinedIcon : AssignmentTurnedInOutlinedIcon}
+                    tone={item.severity === "critical" ? "error" : item.severity === "warning" ? "warning" : "info"}
+                  />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Typography fontWeight={900}>{item.label}</Typography>
+                      <Chip label={item.value} size="small" />
+                    </Stack>
+                    <Typography color="text.secondary" variant="body2">
+                      {item.detail}
                     </Typography>
                   </Box>
                 </Stack>
-                <Stack alignItems={{ xs: "flex-start", sm: "flex-end" }}>
-                  <Chip color={row.status === "Devuelta" ? "warning" : "success"} label={row.status} size="small" />
-                  <Typography fontWeight={950} sx={{ mt: 0.4 }}>
-                    {formatCurrency(row.amount)}
-                  </Typography>
-                </Stack>
+                <Button size="small" variant="outlined">
+                  {item.action}
+                </Button>
               </Stack>
             </Box>
           ))}
@@ -866,160 +555,342 @@ function TimelinePanel() {
   );
 }
 
-function ReportsWorkspacePrototype() {
-  const [activeSection, setActiveSection] = useState<"resumen" | "vendedores" | "productos" | "historial">("resumen");
+function SellerPerformancePanel() {
+  return (
+    <Surface>
+      <Stack spacing={1.6}>
+        <SectionHeader
+          description="Lectura rápida del equipo para detectar quién está vendiendo y quién necesita seguimiento."
+          eyebrow="Equipo"
+          title="Vendedores activos"
+        />
+        <Stack spacing={1}>
+          {sellerSignals.map((seller) => (
+            <Box key={seller.name}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                <Stack spacing={0.3} sx={{ minWidth: 0 }}>
+                  <Typography fontWeight={900} noWrap>{seller.name}</Typography>
+                  <Typography color="text.secondary" variant="caption">
+                    {seller.sales} ventas · {formatCurrency(seller.total)}
+                  </Typography>
+                </Stack>
+                <Chip
+                  color={seller.trend.startsWith("-") ? "warning" : "success"}
+                  icon={
+                    seller.trend.startsWith("-") ? (
+                      <TrendingDownOutlinedIcon />
+                    ) : (
+                      <TrendingUpOutlinedIcon />
+                    )
+                  }
+                  label={seller.trend}
+                  size="small"
+                  sx={{
+                    "& .MuiChip-icon": {
+                      fontSize: 16,
+                    },
+                  }}
+                  title={seller.trend.startsWith("-") ? "Ventas bajaron frente al periodo anterior" : "Ventas subieron frente al periodo anterior"}
+                />
+              </Stack>
+              <LinearProgress
+                value={Math.min(100, Math.round((seller.total / 4500) * 100))}
+                variant="determinate"
+                sx={{ borderRadius: 999, height: 7, mt: 0.8 }}
+              />
+            </Box>
+          ))}
+        </Stack>
+      </Stack>
+    </Surface>
+  );
+}
 
-  const sectionLabel = {
-    historial: "Historial",
-    productos: "Productos",
-    resumen: "Resumen",
-    vendedores: "Vendedores",
-  }[activeSection];
+function SalesTrendPanel() {
+  const [selectedIndex, setSelectedIndex] = useState(6);
+  const selectedDay = salesTrendDays[selectedIndex] ?? salesTrendDays[0];
+  const selectedAmount = selectedDay.amount;
 
   return (
     <Surface>
-      <Stack spacing={1.7}>
+      <Stack spacing={1.6}>
         <SectionHeader
-          action={
-            <Stack direction="row" flexWrap="wrap" gap={1}>
-              {[
-                ["resumen", "Resumen"],
-                ["vendedores", "Vendedores"],
-                ["productos", "Productos"],
-                ["historial", "Historial"],
-              ].map(([value, label]) => (
-                <Button
-                  key={value}
-                  onClick={() => setActiveSection(value as typeof activeSection)}
-                  size="small"
-                  variant={activeSection === value ? "contained" : "outlined"}
-                >
-                  {label}
-                </Button>
-              ))}
-            </Stack>
-          }
-          description={`Vista actual: ${sectionLabel}. La app real puede migrarlo como tabs o botones sin cambiar datos.`}
-          eyebrow="Detalle"
-          title="Análisis operativo"
+          description="Tendencia de 7 días con fechas visibles y líneas de referencia detrás de las barras para comparar montos sin saturar la gráfica."
+          eyebrow="Tendencia"
+          title="Ventas últimos 7 días"
+          action={<Chip label={`${selectedDay.label} · ${formatCurrency(selectedAmount)}`} />}
         />
-
-        {activeSection === "resumen" && (
+        <Box
+          sx={(theme) => ({
+            borderRadius: 3,
+            overflow: "hidden",
+            position: "relative",
+            px: { xs: 1, sm: 1.5 },
+            py: 1.4,
+            "&::before": {
+              background:
+                theme.palette.mode === "dark"
+                  ? alpha(theme.palette.common.white, 0.03)
+                  : alpha(theme.palette.common.black, 0.018),
+              content: '""',
+              inset: 0,
+              position: "absolute",
+            },
+          })}
+        >
           <Box
+            aria-hidden
             sx={{
-              display: "grid",
-              gap: 1.4,
-              gridTemplateColumns: {
-                xs: "1fr",
-                lg: "minmax(0, 1.35fr) minmax(320px, 0.65fr)",
-              },
+              bottom: 42,
+              left: { xs: 8, sm: 12 },
+              pointerEvents: "none",
+              position: "absolute",
+              right: { xs: 8, sm: 12 },
+              top: 8,
+              zIndex: 0,
             }}
           >
-            <TrendPanel />
-            <SellerRankingPanel />
-          </Box>
-        )}
+            {salesTrendGridLines.map((value, index) => {
+              const top = `${(index / (salesTrendGridLines.length - 1)) * 100}%`;
 
-        {activeSection === "vendedores" && <SellerRankingPanel />}
-        {activeSection === "productos" && <ProductPerformancePanel />}
-        {activeSection === "historial" && <TimelinePanel />}
+              return (
+                <Box
+                  key={value}
+                  sx={{
+                    alignItems: "center",
+                    display: "grid",
+                    gap: 0.8,
+                    gridTemplateColumns: "auto 1fr auto",
+                    left: 0,
+                    position: "absolute",
+                    right: 0,
+                    top,
+                    transform: "translateY(-50%)",
+                  }}
+                >
+                  <Typography color="text.secondary" fontSize={10} fontWeight={800}>
+                    ${Math.round(value / 1000)}k
+                  </Typography>
+                  <Box
+                    sx={(theme) => ({
+                      borderTop: "1px solid",
+                      borderColor: alpha(theme.palette.text.primary, index % 2 === 0 ? 0.2 : 0.12),
+                    })}
+                  />
+                  <Typography color="text.secondary" fontSize={10} fontWeight={800}>
+                    ${Math.round(value / 1000)}k
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+
+          <Box
+            sx={{
+              alignItems: "end",
+              display: "grid",
+              gap: { xs: 0.7, sm: 0.9 },
+              gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+              minHeight: 190,
+              position: "relative",
+              zIndex: 1,
+            }}
+          >
+            {salesTrendDays.map((day, index) => {
+              const ratio = day.amount / salesTrendMax;
+
+              return (
+                <Box
+                  key={day.label}
+                  component="button"
+                  onClick={() => setSelectedIndex(index)}
+                  sx={{
+                    appearance: "none",
+                    background: "transparent",
+                    border: 0,
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.7,
+                    justifyContent: "end",
+                    minWidth: 0,
+                    p: 0,
+                  }}
+                >
+                  <Typography color={index === selectedIndex ? "primary.main" : "text.secondary"} fontSize={10} fontWeight={900}>
+                    {formatCurrency(day.amount).replace(".00", "")}
+                  </Typography>
+                  <Box
+                    sx={(theme) => ({
+                      alignSelf: "center",
+                      background:
+                        index === selectedIndex
+                          ? `linear-gradient(180deg, ${theme.palette.primary.main}, ${theme.palette.success.main})`
+                          : alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.38 : 0.24),
+                      border: "1px solid",
+                      borderColor:
+                        index === selectedIndex
+                          ? alpha(theme.palette.primary.main, 0.52)
+                          : alpha(theme.palette.primary.main, 0.16),
+                      borderRadius: 1.2,
+                      boxShadow:
+                        index === selectedIndex
+                          ? `0 10px 24px ${alpha(theme.palette.primary.main, 0.22)}`
+                          : "none",
+                      height: `${Math.max(34, ratio * 138)}px`,
+                      position: "relative",
+                      transition: "height 160ms ease, opacity 160ms ease",
+                      width: { xs: "58%", sm: "52%" },
+                      zIndex: 1,
+                    })}
+                  />
+                  <Typography color={index === selectedIndex ? "primary.main" : "text.secondary"} fontSize={{ xs: 9.5, sm: 10.5 }} fontWeight={850} lineHeight={1.1}>
+                    {day.label}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
       </Stack>
     </Surface>
   );
 }
 
-function MobileReportsPreview() {
+function RecentSalesPanel() {
   return (
     <Surface>
       <Stack spacing={1.6}>
         <SectionHeader
-          description="En móvil se prioriza consultar periodo, ver métricas críticas y abrir detalle bajo demanda."
-          eyebrow="Responsive"
-          title="Vista móvil 390 × 844"
+          description="Últimos movimientos para saber qué acaba de pasar sin abrir Reportes."
+          eyebrow="Actividad"
+          title="Ventas recientes"
         />
+        <Stack divider={<Divider flexItem />} spacing={1}>
+          {recentSales.map((sale) => (
+            <Stack key={sale.folio} direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+              <Stack spacing={0.3} sx={{ minWidth: 0 }}>
+                <Typography fontWeight={900}>{sale.folio}</Typography>
+                <Typography color="text.secondary" variant="caption">
+                  {sale.seller} · {sale.time}
+                </Typography>
+              </Stack>
+              <Stack alignItems="flex-end" spacing={0.4}>
+                <Typography fontWeight={950}>{formatCurrency(sale.total)}</Typography>
+                <Chip
+                  color={sale.status === "Devuelta" ? "warning" : "success"}
+                  label={sale.status}
+                  size="small"
+                />
+              </Stack>
+            </Stack>
+          ))}
+        </Stack>
+      </Stack>
+    </Surface>
+  );
+}
 
+function DashboardWorkspacePrototype() {
+  const [section, setSection] = useState("atencion");
+
+  const content = useMemo(() => {
+    if (section === "equipo") return <SellerPerformancePanel />;
+    if (section === "ventas") return <RecentSalesPanel />;
+
+    return <AttentionPanelPrototype />;
+  }, [section]);
+
+  return (
+    <Surface>
+      <Stack spacing={1.8}>
+        <SectionHeader
+          description="Detalle elegible para no saturar Inicio. Primero muestra pendientes; luego permite revisar equipo o actividad."
+          eyebrow="Operación"
+          title="Panel de seguimiento"
+          action={
+            <ToggleButtonGroup
+              exclusive
+              onChange={(_, value) => value && setSection(value)}
+              size="small"
+              value={section}
+              sx={{
+                "& .MuiToggleButton-root": {
+                  borderRadius: "999px !important",
+                  fontWeight: 850,
+                  minWidth: { xs: 88, sm: 104 },
+                  px: { xs: 1.2, sm: 1.6 },
+                },
+              }}
+            >
+              <ToggleButton value="atencion">Atención</ToggleButton>
+              <ToggleButton value="equipo">Equipo</ToggleButton>
+              <ToggleButton value="ventas">Ventas</ToggleButton>
+            </ToggleButtonGroup>
+          }
+        />
+        {content}
+      </Stack>
+    </Surface>
+  );
+}
+
+function MobileDashboardPreview() {
+  return (
+    <Surface>
+      <Stack spacing={1.6}>
+        <SectionHeader
+          description="En móvil se prioriza vender y resolver alertas; el detalle queda debajo en tarjetas."
+          eyebrow="Responsive"
+          title="Vista móvil"
+        />
         <Box
-          sx={{
-            bgcolor: "background.default",
+          sx={(theme) => ({
+            backgroundColor: theme.palette.mode === "dark" ? alpha(theme.palette.common.black, 0.36) : "#f7f9fc",
             border: "1px solid",
             borderColor: "divider",
-            borderRadius: 4,
-            maxWidth: 390,
+            borderRadius: 5,
             mx: "auto",
-            overflow: "hidden",
+            maxWidth: 390,
             p: 1.2,
-          }}
+          })}
         >
           <Stack spacing={1.1}>
-            <Stack direction="row" spacing={1}>
-              <IconTile icon={AssessmentOutlinedIcon} size={38} tone="primary" />
-              <Box>
-                <Typography fontSize={18} fontWeight={950}>
-                  Reportes
-                </Typography>
-                <Typography color="text.secondary" fontSize={12}>
-                  01 jun al 10 jun
-                </Typography>
-              </Box>
-            </Stack>
-
             <Box
-              sx={{
-                display: "grid",
-                gap: 0.8,
-                gridTemplateColumns: "1fr 1fr",
-              }}
-            >
-              {reportMetrics.slice(0, 4).map((metric) => (
-                <Box
-                  key={metric.label}
-                  sx={{
-                    bgcolor: "background.paper",
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 2.5,
-                    p: 1,
-                  }}
-                >
-                  <Typography color="text.secondary" fontSize={11} fontWeight={850}>
-                    {metric.label}
-                  </Typography>
-                  <Typography color={`${metric.tone}.main`} fontSize={15} fontWeight={950}>
-                    {metric.value}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-
-            <Button fullWidth size="small" startIcon={<CalendarMonthOutlinedIcon />} variant="contained">
-              Consultar
-            </Button>
-
-            <Box
-              sx={{
-                bgcolor: "background.paper",
+              sx={(theme) => ({
+                backgroundColor: theme.palette.background.paper,
                 border: "1px solid",
                 borderColor: "divider",
-                borderRadius: 3,
-                p: 1,
-              }}
+                borderRadius: 4,
+                p: 1.2,
+              })}
             >
-              <Typography fontSize={13} fontWeight={950}>
-                Puente financiero
-              </Typography>
-              <Stack spacing={0.7} sx={{ mt: 1 }}>
-                {bridgeRows.slice(0, 4).map((row) => (
-                  <Stack direction="row" justifyContent="space-between" key={row.label}>
-                    <Typography color="text.secondary" fontSize={11.5}>
-                      {row.label}
-                    </Typography>
-                    <Typography color={`${row.tone}.main`} fontSize={11.5} fontWeight={900}>
-                      {formatCurrency(row.amount)}
-                    </Typography>
-                  </Stack>
-                ))}
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Typography fontWeight={950}>Inicio</Typography>
+                <Chip label="3 alertas" size="small" color="warning" />
               </Stack>
             </Box>
+            {executiveMetrics.slice(0, 2).map((metric) => (
+              <Box
+                key={metric.label}
+                sx={{
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 4,
+                  p: 1.2,
+                }}
+              >
+                <Typography color="text.secondary" fontSize={12} fontWeight={800}>{metric.label}</Typography>
+                <Typography fontSize={24} fontWeight={950}>{metric.value}</Typography>
+              </Box>
+            ))}
+            <ActionCard
+              description="Acceso principal para vendedor."
+              icon={PointOfSaleOutlinedIcon}
+              label="Nueva venta"
+              tone="success"
+            />
+            <AttentionPanelPrototype />
           </Stack>
         </Box>
       </Stack>
@@ -1029,17 +900,17 @@ function MobileReportsPreview() {
 
 function DesignTokenSummary() {
   const tokens = [
-    ["Control superior", "Periodo + PDF"],
-    ["Primer vistazo", "4 métricas críticas"],
-    ["Gráfica principal", "Puente financiero"],
-    ["Detalle", "Secciones elegibles"],
+    ["Primer vistazo", "4 métricas accionables"],
+    ["Alertas", "Con acción directa"],
+    ["Roles", "Admin y vendedores separados"],
+    ["Responsive", "Móvil prioriza vender"],
   ];
 
   return (
     <Surface>
       <Stack spacing={1.6}>
         <SectionHeader
-          description="Estos criterios reducen el riesgo de que el prototipo no se pueda migrar: mismos datos de la página real, controles equivalentes y visualizaciones hechas con MUI/SVG."
+          description="Criterios para migrar a Dashboard real: mismos datos disponibles, tarjetas clicables, sin caja obligatoria y sin saturar el primer vistazo."
           eyebrow="Tokens"
           title="Medidas para migración"
         />
@@ -1078,16 +949,23 @@ function DesignTokenSummary() {
   );
 }
 
-function ReportsEditablePrototype() {
+function DashboardEditablePrototype() {
   return (
     <Stack spacing={2}>
-      <ReportsHeroPrototype />
-      <ReportsControlPrototype />
+      <DashboardHeroPrototype />
       <ExecutiveSummaryPrototype />
-      <FinancialBridgePrototype />
-      <ReportsWorkspacePrototype />
-      <ProductPerformancePanel />
-      <MobileReportsPreview />
+      <CommandCenterPrototype />
+      <Box
+        sx={{
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: { xs: "1fr", lg: "1.1fr 0.9fr" },
+        }}
+      >
+        <DashboardWorkspacePrototype />
+        <SalesTrendPanel />
+      </Box>
+      <MobileDashboardPreview />
       <DesignTokenSummary />
     </Stack>
   );
@@ -1101,8 +979,8 @@ export function UiLabPage() {
       sx={{
         background:
           theme.palette.mode === "dark"
-            ? "radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 34%), #070f1d"
-            : "radial-gradient(circle at top left, rgba(59, 130, 246, 0.1), transparent 34%), #f6f8fb",
+            ? "radial-gradient(circle at top left, rgba(34, 197, 94, 0.16), transparent 34%), #070f1d"
+            : "radial-gradient(circle at top left, rgba(34, 197, 94, 0.1), transparent 34%), #f6f8fb",
         minHeight: "100vh",
         px: {
           xs: `${pvVisualTokens.layout.mobileContentPadding}px`,
@@ -1120,20 +998,20 @@ export function UiLabPage() {
           <Stack spacing={1.25}>
             <Stack direction="row" flexWrap="wrap" gap={1}>
               <Chip color="primary" label="UI Lab" />
-              <Chip label="Reportes" variant="outlined" />
+              <Chip label="Inicio / Dashboard" variant="outlined" />
               <Chip label="No toca backend" variant="outlined" />
               <Chip label="Diseño migrable" variant="outlined" />
               <Chip label="Dev-only" variant="outlined" />
             </Stack>
             <SectionHeader
-              description="Prototipo ejecutable para revisar Reportes antes de tocar la página real. Se basa en dashboards de ventas: filtro de periodo primero, métricas ejecutivas, visualización de resultado y detalle bajo demanda."
+              description="Prototipo ejecutable para revisar Inicio antes de tocar la página real. Se basa en dashboards operativos: decisión rápida, alertas accionables y navegación directa a los módulos relacionados."
               eyebrow="Punta Venta"
-              title="Laboratorio visual de Reportes"
+              title="Laboratorio visual de Inicio"
             />
           </Stack>
         </Surface>
 
-        <ReportsEditablePrototype />
+        <DashboardEditablePrototype />
       </Stack>
     </Box>
   );

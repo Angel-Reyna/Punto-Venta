@@ -1,10 +1,6 @@
-import { Alert, Button, LinearProgress, useMediaQuery, type Theme } from "@mui/material";
+import { Alert, Box, LinearProgress, useMediaQuery, type Theme } from "@mui/material";
 
-import RefreshIcon from "@mui/icons-material/Refresh";
-
-import { PERMISSIONS } from "../../auth/permissions";
 import { useAuth } from "../../auth/AuthContext";
-import { PageHeader } from "../../components/PageHeader";
 import { DashboardOperationalHero } from "./DashboardOperationalHero";
 import {
   DashboardDesktopScreen,
@@ -26,7 +22,7 @@ function getGeneratedAtLabel(value: string | null | undefined) {
 }
 
 export function DashboardPage() {
-  const { can, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const { error, isLoading, load, metrics } = useDashboardData();
   const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down("sm"));
   const isDesktop = useMediaQuery((theme: Theme) => theme.breakpoints.up("lg"));
@@ -34,30 +30,35 @@ export function DashboardPage() {
   const hasMetrics = Boolean(metrics);
   const hasCriticalStock = (metrics?.productSummary.outOfStockTotal ?? 0) > 0;
   const hasLowStock = (metrics?.productSummary.lowStockTotal ?? 0) > 0;
-  const salesDestination = can(PERMISSIONS.ReportsRead) ? "/reports" : "/sales";
+  const salesDestination = "/sales?view=history";
   const generatedAtLabel = getGeneratedAtLabel(metrics?.generatedAt);
 
   return (
-    <>
-      <PageHeader
-        title="Inicio"
-        subtitle={
-          isAdmin
-            ? "Vista clara del día: ventas, inventario que requiere atención y actividad reciente."
-            : "Tu punto de partida para vender, revisar inventario y consultar tus operaciones."
-        }
-        action={
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={load}
-            disabled={isLoading}
-            sx={{ width: { xs: "100%", sm: "auto" } }}
-          >
-            Actualizar
-          </Button>
-        }
-      />
+    <Box
+      sx={{
+        boxSizing: "border-box",
+        contain: "layout paint",
+        maxWidth: "100%",
+        minWidth: 0,
+        overflowX: "hidden",
+        width: "100%",
+        "& *": { boxSizing: "border-box" },
+        "& img, & svg, & canvas, & video": { maxWidth: "100%" },
+      }}
+    >
+      <Box component="h1" sx={{
+        border: 0,
+        clip: "rect(0 0 0 0)",
+        height: 1,
+        margin: -1,
+        overflow: "hidden",
+        padding: 0,
+        position: "absolute",
+        whiteSpace: "nowrap",
+        width: 1,
+      }}>
+        Inicio
+      </Box>
 
       {isLoading && <LinearProgress sx={{ mb: 2, borderRadius: 999 }} />}
 
@@ -71,7 +72,9 @@ export function DashboardPage() {
         generatedAtLabel={generatedAtLabel}
         hasCriticalStock={hasCriticalStock}
         hasLowStock={hasLowStock}
+        isLoading={isLoading}
         metrics={metrics}
+        onRefresh={load}
       />
 
       {!hasMetrics && isLoading ? (
@@ -111,6 +114,6 @@ export function DashboardPage() {
           )}
         </>
       )}
-    </>
+    </Box>
   );
 }

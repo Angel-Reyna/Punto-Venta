@@ -396,7 +396,18 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
       <Divider />
 
-      <Box sx={{ flex: 1, overflowY: "auto", py: 1.5 }}>
+      <Box
+        sx={{
+          flex: 1,
+          overflowY: "auto",
+          py: 1.5,
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          "&::-webkit-scrollbar": {
+            display: "none",
+          },
+        }}
+      >
         {visibleSections.map((section) => (
           <Box key={section.label} sx={{ mb: 1.25 }}>
             <Typography
@@ -435,6 +446,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
         display: "flex",
         minHeight: "100vh",
         bgcolor: "background.default",
+        overflowX: "hidden",
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
+        "&::-webkit-scrollbar": {
+          width: 0,
+          height: 0,
+          display: "none",
+        },
         backgroundImage: (muiTheme) =>
           muiTheme.palette.mode === "dark"
             ? `radial-gradient(circle at top left, ${alpha(
@@ -484,6 +503,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
           minHeight: "100vh",
           display: "flex",
           flexDirection: "column",
+          overflowX: "hidden",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          "&::-webkit-scrollbar": {
+            width: 0,
+            height: 0,
+            display: "none",
+          },
         }}
       >
         <AppBar
@@ -654,6 +681,13 @@ export function AppLayout({ children }: { children: ReactNode }) {
               md: 3,
             },
             overflowX: "hidden",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            "&::-webkit-scrollbar": {
+              width: 0,
+              height: 0,
+              display: "none",
+            },
           }}
         >
           <Box

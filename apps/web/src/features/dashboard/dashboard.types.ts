@@ -31,10 +31,18 @@ export type DashboardSalesPeriod = {
   averageTicket: number;
 };
 
+export type DashboardSalesDay = {
+  date: string;
+  label?: string;
+  count: number;
+  total: number;
+};
+
 export type DashboardSalesPeriodComparison = {
   current: DashboardSalesPeriod;
   previous: DashboardSalesPeriod;
   totalChangePercent: number;
+  daily?: DashboardSalesDay[];
 };
 
 export type DashboardSalesOutlook = {
@@ -65,6 +73,7 @@ export type DashboardMetrics = {
     averageTicket: number;
   };
   salesOutlook: DashboardSalesOutlook;
+  pendingAdjustmentRequestsTotal?: number;
   recentSales: DashboardRecentSale[];
 };
 

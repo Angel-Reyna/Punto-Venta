@@ -118,7 +118,7 @@ export type InventoryMovementForm = {
   reason: string;
 };
 
-export type StockStatusFilter = "all" | "available" | "low" | "out";
+export type StockStatusFilter = "all" | "available" | "attention" | "low" | "out";
 export type InventoryView = "stock" | "entries" | "exits" | "movements" | "transfers";
 
 export const DEFAULT_INVENTORY_ENTRY_REASON = "Reabastecimiento";
@@ -191,6 +191,7 @@ export function formatInventoryMoney(value: number | null | undefined) {
 export const STOCK_FILTER_LABELS: Record<StockStatusFilter, string> = {
   all: "Todos",
   available: "Disponibles",
+  attention: "Requiere atención",
   low: "Bajo stock",
   out: "Sin stock",
 };
@@ -291,6 +292,14 @@ export function filterStockRowsByStatus(
 ) {
   if (status === "available") {
     return rows.filter((item) => getProductStockLevel(item) === "available");
+  }
+
+  if (status === "attention") {
+    return rows.filter((item) => {
+      const level = getProductStockLevel(item);
+
+      return level === "low" || level === "out";
+    });
   }
 
   if (status === "low") {

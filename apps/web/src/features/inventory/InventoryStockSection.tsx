@@ -72,15 +72,22 @@ type StockPageSize = (typeof STOCK_PAGE_SIZE_OPTIONS)[number];
 export function InventoryStockSection({
   rows,
   searchQuery,
+  initialStatusFilter = "all",
   onSearchChange,
 }: {
   rows: StockItem[];
   searchQuery: string;
+  initialStatusFilter?: StockStatusFilter;
   onSearchChange: (query: string) => void;
 }) {
-  const [statusFilter, setStatusFilter] = useState<StockStatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StockStatusFilter>(initialStatusFilter);
   const [sortMode, setSortMode] = useState<StockSortMode>("name");
   const [showStockFilters, setShowStockFilters] = useState(false);
+  useEffect(() => {
+    setStatusFilter(initialStatusFilter);
+    setShowStockFilters(initialStatusFilter !== "all");
+  }, [initialStatusFilter]);
+
   const statusFilteredRows = useMemo(
     () => filterStockRowsByStatus(rows, statusFilter),
     [rows, statusFilter],
@@ -156,6 +163,7 @@ function InventoryStockOverview({
   }> = [
     { value: "all", count: summary.total, color: "default" },
     { value: "available", count: summary.available, color: "success" },
+    { value: "attention", count: summary.attention, color: "warning" },
     { value: "low", count: summary.lowStock, color: "warning" },
     { value: "out", count: summary.outOfStock, color: "error" },
   ];
@@ -925,6 +933,10 @@ function filterLocationsByStatus(
       return status.color === "success";
     }
 
+    if (statusFilter === "attention") {
+      return status.color === "warning" || status.color === "error";
+    }
+
     if (statusFilter === "low") {
       return status.color === "warning";
     }
@@ -963,6 +975,16 @@ function getDisplayStockStatus({
           ? "Ubicaciones con stock suficiente para venta."
           : "Inventario suficiente para venta.",
       label: "Disponible",
+    };
+  }
+
+  if (statusFilter === "attention") {
+    const hasCriticalLocation = visibleLocations.some((location) => location.quantity <= 0);
+
+    return {
+      color: hasCriticalLocation ? "error" as const : "warning" as const,
+      helper: "Productos sin stock o en el umbral de reposición.",
+      label: "Requiere atención",
     };
   }
 

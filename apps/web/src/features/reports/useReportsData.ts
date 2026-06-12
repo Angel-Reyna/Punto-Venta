@@ -1,6 +1,8 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { getApiErrorMessage } from "../../utils/apiError";
+import type { ReportDetailSection } from "./ReportsDetailSections";
 import {
   includesQuery,
   paymentMethodLabel,
@@ -30,6 +32,18 @@ function endOfPreviousMonth(referenceDate: Date) {
 
 function startOfPreviousMonth(referenceDate: Date) {
   return new Date(referenceDate.getFullYear(), referenceDate.getMonth() - 1, 1);
+}
+
+function normalizePreset(value: string | null): ReportDatePreset {
+  return value === "last7" || value === "month" || value === "previousMonth" || value === "today"
+    ? value
+    : "today";
+}
+
+function normalizeDetailSection(value: string | null): ReportDetailSection {
+  return value === "productos" || value === "historial" || value === "devoluciones" || value === "vendedores"
+    ? value
+    : "vendedores";
 }
 
 function resolvePresetRange(preset: ReportDatePreset) {
@@ -68,7 +82,12 @@ function resolvePresetRange(preset: ReportDatePreset) {
 }
 
 export function useReportsData() {
-  const initialRange = resolvePresetRange("today");
+  const [searchParams] = useSearchParams();
+  const initialPreset = normalizePreset(searchParams.get("preset"));
+  const initialDetailSection = normalizeDetailSection(searchParams.get("detail"));
+  const initialRange = resolvePresetRange(initialPreset);
+  const shouldAutoConsult = searchParams.has("preset");
+  const didAutoConsultRef = useRef(false);
 
   const [from, setFrom] = useState(initialRange.from);
   const [to, setTo] = useState(initialRange.to);
@@ -77,7 +96,7 @@ export function useReportsData() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") ?? "");
 
   const dateRangeIsInvalid = !from || !to || from > to;
   const reportQueryIsStale = Boolean(
@@ -186,7 +205,7 @@ export function useReportsData() {
     setTo(nextRange.to);
   }
 
-  async function consult() {
+  const consult = useCallback(async (options: { preserveSearch?: boolean } = {}) => {
     setError("");
 
     if (dateRangeIsInvalid) {
@@ -200,13 +219,25 @@ export function useReportsData() {
 
       setData(nextData);
       setLastSuccessfulReportQuery({ from, to });
-      setSearch("");
+      if (!options.preserveSearch) {
+        setSearch("");
+      }
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, "No se pudo consultar el reporte operativo."));
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [dateRangeIsInvalid, from, to]);
+
+
+  useEffect(() => {
+    if (didAutoConsultRef.current || !shouldAutoConsult || dateRangeIsInvalid) {
+      return;
+    }
+
+    didAutoConsultRef.current = true;
+    void consult({ preserveSearch: true });
+  }, [consult, dateRangeIsInvalid, shouldAutoConsult]);
 
   async function downloadPdf() {
     setError("");
@@ -255,6 +286,7 @@ export function useReportsData() {
     filteredTopProducts,
     from,
     hasReportActivity,
+    initialDetailSection,
     isDownloadingPdf,
     isLoading,
     pdfDownloadBlockedReason,

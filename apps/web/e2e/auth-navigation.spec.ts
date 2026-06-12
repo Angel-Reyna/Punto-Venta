@@ -13,21 +13,25 @@ test.describe("autenticación y navegación principal", () => {
 
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByTestId("dashboard-operational-hero")).toBeVisible();
-    await expect(page.getByText("Pulso operativo")).toBeVisible();
+    await expect(page.getByText("Centro operativo")).toBeVisible();
     const operationalInsights = page.getByTestId("dashboard-operational-insights");
-    await expect(operationalInsights).toContainText("Últimos 7 días");
+    await expect(operationalInsights).toContainText("Ventas últimos 7 días");
     await expect(page.getByTestId("dashboard-sales-current-month-signal")).toContainText("Mes actual");
     await expect(page.getByTestId("dashboard-inventory-risk-signal")).toContainText("Riesgo de inventario");
-    await expect(page.getByText("Administradores activos")).toBeVisible();
-    await expect(page.getByText("Vendedores activos")).toBeVisible();
+    await expect(page.getByText("Administradores activos").first()).toBeVisible();
+    await expect(page.getByText("Vendedores activos").first()).toBeVisible();
     await expect(page.getByText("Acciones rápidas")).toHaveCount(0);
 
-    const userMetricButtons = page.getByRole("button", { name: "Ver usuarios" });
-    await expect(userMetricButtons).toHaveCount(2);
-    await expect(userMetricButtons.first()).toBeVisible();
+    await expect(page.locator('a[href="/reports?preset=today&detail=historial"]')).toBeVisible();
+    await expect(page.locator('a[href="/sales?view=adjustments&status=PENDING"]').first()).toBeVisible();
+    await expect(page.locator('a[href="/inventory?view=stock&status=attention"]').first()).toBeVisible();
+    await expect(page.locator('a[href="/inventory?view=movements&search=Caducidad"]')).toBeVisible();
+    await expect(page.locator('a[href="/reports?preset=today&detail=vendedores"]')).toBeVisible();
 
-    await expect(page.getByRole("link", { name: /Usuarios/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Reportes/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Ver usuarios/i }).first()).toBeVisible();
+
+    await expect(page.getByRole("link", { name: "Usuarios Gestionar vendedores", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Reportes Analizar resultados", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: /Auditoría/i })).toBeVisible();
   });
 
@@ -38,7 +42,7 @@ test.describe("autenticación y navegación principal", () => {
 
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
-    await expect(page.getByText("Tu punto de partida para vender")).toBeVisible();
+    await expect(page.getByText("Centro operativo")).toBeVisible();
     await expect(page.getByRole("link", { name: /Usuarios/i })).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Reportes/i })).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Auditoría/i })).toHaveCount(0);

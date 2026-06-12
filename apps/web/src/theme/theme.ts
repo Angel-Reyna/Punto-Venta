@@ -101,15 +101,36 @@ export function createAppTheme(mode: AppColorMode) {
         styleOverrides: {
           html: {
             minWidth: 0,
-            backgroundColor: isDark ? "#070f1d" : "#f6f8fb"
+            overflowX: "hidden",
+            backgroundColor: isDark ? "#070f1d" : "#f6f8fb",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none"
           },
           body: {
             minWidth: 0,
             overflowX: "hidden",
-            backgroundColor: isDark ? "#070f1d" : "#f6f8fb"
+            backgroundColor: isDark ? "#070f1d" : "#f6f8fb",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none"
+          },
+          "*": {
+            scrollbarWidth: "none",
+            msOverflowStyle: "none"
+          },
+          "*::-webkit-scrollbar": {
+            width: 0,
+            height: 0,
+            display: "none"
+          },
+          "html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar": {
+            width: 0,
+            height: 0,
+            display: "none"
           },
           "#root": {
-            minHeight: "100vh"
+            minHeight: "100vh",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none"
           },
           "::selection": {
             backgroundColor: isDark

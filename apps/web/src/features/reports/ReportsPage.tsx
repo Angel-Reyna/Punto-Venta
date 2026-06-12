@@ -57,6 +57,7 @@ export function ReportsPage() {
               filteredReturns={report.filteredReturns}
               filteredSellers={report.filteredSellers}
               filteredTopProducts={report.filteredTopProducts}
+              initialSection={report.initialDetailSection}
             />
           </>
         )}

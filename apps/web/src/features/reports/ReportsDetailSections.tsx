@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Box, Button, Card, CardContent, Chip, Stack, Typography } from "@mui/material";
 
@@ -21,7 +21,7 @@ type ProductReportItem = OperationsReport["topProducts"][number];
 type RecentSaleItem = OperationsReport["sales"]["recent"][number];
 type ReturnReportItem = OperationsReport["returns"]["latest"][number];
 
-type ReportDetailSection = "vendedores" | "productos" | "historial" | "devoluciones";
+export type ReportDetailSection = "vendedores" | "productos" | "historial" | "devoluciones";
 
 const REPORT_DETAIL_SECTIONS: Array<{ label: string; value: ReportDetailSection }> = [
   { label: "Vendedores", value: "vendedores" },
@@ -34,14 +34,20 @@ export function ReportsDetailSections({
   filteredRecentSales,
   filteredReturns,
   filteredSellers,
-  filteredTopProducts
+  filteredTopProducts,
+  initialSection = "vendedores",
 }: {
   filteredRecentSales: RecentSaleItem[];
   filteredReturns: ReturnReportItem[];
   filteredSellers: SellerReportItem[];
   filteredTopProducts: ProductReportItem[];
+  initialSection?: ReportDetailSection;
 }) {
-  const [activeSection, setActiveSection] = useState<ReportDetailSection>("vendedores");
+  const [activeSection, setActiveSection] = useState<ReportDetailSection>(initialSection);
+
+  useEffect(() => {
+    setActiveSection(initialSection);
+  }, [initialSection]);
 
   return (
     <Stack spacing={2} sx={{ mb: 2 }}>

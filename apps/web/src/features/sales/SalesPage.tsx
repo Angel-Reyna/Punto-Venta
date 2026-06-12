@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Box, Button, Card, CardContent, Chip, Tab, Tabs, Typography } from "@mui/material";
+import { useSearchParams } from "react-router-dom";
 
 import RefreshIcon from "@mui/icons-material/Refresh";
 
@@ -43,6 +44,7 @@ type SalesRecordsView = "history" | "adjustments";
 
 export function SalesPage() {
   const { can, user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const canCreateSales = can(PERMISSIONS.SalesCreate);
   const canCancelSales = can(PERMISSIONS.SalesCancel);
@@ -72,7 +74,10 @@ export function SalesPage() {
   const [productSearch, setProductSearch] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
   const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
-  const [recordsView, setRecordsView] = useState<SalesRecordsView>("history");
+  const requestedRecordsView = searchParams.get("view");
+  const [recordsView, setRecordsView] = useState<SalesRecordsView>(
+    requestedRecordsView === "adjustments" ? "adjustments" : "history",
+  );
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -232,10 +237,29 @@ export function SalesPage() {
   }, [selectedWarehouseId, user?.role, visibleWarehouseOptions]);
 
   useEffect(() => {
-    if (!canShowAdjustmentRequestsPanel && recordsView === "adjustments") {
-      setRecordsView("history");
+    if (requestedRecordsView === "adjustments" && canShowAdjustmentRequestsPanel) {
+      setRecordsView("adjustments");
+      return;
     }
-  }, [canShowAdjustmentRequestsPanel, recordsView]);
+
+    setRecordsView("history");
+  }, [canShowAdjustmentRequestsPanel, requestedRecordsView]);
+
+  function changeRecordsView(value: SalesRecordsView) {
+    setRecordsView(value);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+
+      if (value === "adjustments") {
+        next.set("view", "adjustments");
+      } else {
+        next.delete("view");
+        next.delete("status");
+      }
+
+      return next;
+    }, { replace: true });
+  }
 
   function handleWarehouseChange(warehouseId: string) {
     if (warehouseId === selectedWarehouseId) {
@@ -600,7 +624,7 @@ export function SalesPage() {
           <CardContent sx={{ p: { xs: 1, sm: 1.25 } }}>
             <Tabs
               value={recordsView}
-              onChange={(_, value: SalesRecordsView) => setRecordsView(value)}
+              onChange={(_, value: SalesRecordsView) => changeRecordsView(value)}
               aria-label="Vista de seguimiento de ventas"
               variant="scrollable"
               allowScrollButtonsMobile
