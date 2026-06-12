@@ -233,6 +233,14 @@ function DashboardExecutiveMetricCard({ metric }: { metric: ExecutiveMetric }) {
   );
 }
 
+function getStockAttentionDestination(metrics: DashboardMetrics | null) {
+  const outOfStockTotal = metrics?.productSummary.outOfStockTotal ?? 0;
+
+  return outOfStockTotal > 0
+    ? "/inventory?view=stock&status=out"
+    : "/inventory?view=stock&status=low";
+}
+
 export function DashboardExecutiveSummary({
   hasCriticalStock,
   hasLowStock,
@@ -248,6 +256,7 @@ export function DashboardExecutiveSummary({
 }) {
   const stockTone: DashboardTone = hasCriticalStock ? "error" : hasLowStock ? "warning" : "warning";
   const pendingAdjustments = metrics?.pendingAdjustmentRequestsTotal ?? 0;
+  const stockAttentionDestination = getStockAttentionDestination(metrics);
   const cards: ExecutiveMetric[] = [
     {
       action: isAdmin ? "Ver reportes" : "Ver ventas",
@@ -279,7 +288,7 @@ export function DashboardExecutiveSummary({
       icon: WarningIcon,
       label: "Atención stock",
       tone: stockTone,
-      to: "/inventory?view=stock&status=attention",
+      to: stockAttentionDestination,
       value: formatNumber((metrics?.productSummary.lowStockTotal ?? 0) + (metrics?.productSummary.outOfStockTotal ?? 0)),
     },
     ...(isAdmin
@@ -319,7 +328,8 @@ export function DashboardExecutiveSummary({
   );
 }
 
-export function DashboardQuickActions({ isAdmin }: { isAdmin: boolean }) {
+export function DashboardQuickActions({ isAdmin, metrics }: { isAdmin: boolean; metrics: DashboardMetrics | null }) {
+  const stockAttentionDestination = getStockAttentionDestination(metrics);
   const actions: QuickAction[] = [
     {
       description: "Registrar una venta con stock asignado.",
@@ -333,7 +343,7 @@ export function DashboardQuickActions({ isAdmin }: { isAdmin: boolean }) {
       icon: InventoryIcon,
       label: "Revisar inventario",
       tone: "warning",
-      to: "/inventory?view=stock&status=attention",
+      to: stockAttentionDestination,
     },
     {
       description: "Consultar ventas, utilidad, merma y devoluciones.",

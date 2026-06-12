@@ -163,7 +163,6 @@ function InventoryStockOverview({
   }> = [
     { value: "all", count: summary.total, color: "default" },
     { value: "available", count: summary.available, color: "success" },
-    { value: "attention", count: summary.attention, color: "warning" },
     { value: "low", count: summary.lowStock, color: "warning" },
     { value: "out", count: summary.outOfStock, color: "error" },
   ];
@@ -933,9 +932,6 @@ function filterLocationsByStatus(
       return status.color === "success";
     }
 
-    if (statusFilter === "attention") {
-      return status.color === "warning" || status.color === "error";
-    }
 
     if (statusFilter === "low") {
       return status.color === "warning";
@@ -978,15 +974,6 @@ function getDisplayStockStatus({
     };
   }
 
-  if (statusFilter === "attention") {
-    const hasCriticalLocation = visibleLocations.some((location) => location.quantity <= 0);
-
-    return {
-      color: hasCriticalLocation ? "error" as const : "warning" as const,
-      helper: "Productos sin stock o en el umbral de reposición.",
-      label: "Requiere atención",
-    };
-  }
 
   if (statusFilter === "low") {
     return {

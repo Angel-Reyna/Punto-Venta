@@ -320,13 +320,13 @@ export function MetricCard({
 
       <CardContent sx={{ p: { xs: 2, md: 2.5 }, position: "relative", zIndex: 1 }}>
         <Box sx={{ minWidth: 0, pr: { xs: 5, md: 6 } }}>
-          <Typography color="text.secondary">
+          <Typography color="text.secondary" sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
             <LabelWithInfo label={label} info={info} ariaLabel={info} />
           </Typography>
           <Typography variant="h5" fontWeight={900} sx={{ mt: 0.5, overflowWrap: "anywhere" }}>
             {value}
           </Typography>
-          <Typography variant="body2" color="text.secondary" mt={0.5}>
+          <Typography variant="body2" color="text.secondary" mt={0.5} sx={{ overflowWrap: "anywhere" }}>
             {helper}
           </Typography>
         </Box>

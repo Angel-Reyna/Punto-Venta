@@ -24,7 +24,7 @@ test.describe("autenticación y navegación principal", () => {
 
     await expect(page.locator('a[href="/reports?preset=today&detail=historial"]')).toBeVisible();
     await expect(page.locator('a[href="/sales?view=adjustments&status=PENDING"]').first()).toBeVisible();
-    await expect(page.locator('a[href="/inventory?view=stock&status=attention"]').first()).toBeVisible();
+    await expect(page.locator('a[href="/inventory?view=stock&status=out"]').first()).toBeVisible();
     await expect(page.locator('a[href="/inventory?view=movements&search=merma"]')).toBeVisible();
     await expect(page.locator('a[href="/reports?preset=today&detail=vendedores"]')).toBeVisible();
 

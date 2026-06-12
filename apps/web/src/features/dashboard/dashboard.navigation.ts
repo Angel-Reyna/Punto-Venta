@@ -8,7 +8,8 @@ export function panelTitleActionLabel(to: string) {
       return "Ver productos";
     case "/inventory":
       if (to.includes("view=movements")) return "Ver movimientos";
-      if (to.includes("status=attention")) return "Ver atención";
+      if (to.includes("status=out")) return "Ver sin stock";
+      if (to.includes("status=low")) return "Ver bajo stock";
       return "Ver inventario";
     case "/sales":
       return to.includes("view=adjustments") ? "Revisar ajustes" : "Ver ventas";

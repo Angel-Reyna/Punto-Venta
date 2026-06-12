@@ -358,6 +358,7 @@ test.describe("cobertura funcional por módulos críticos", () => {
     await expect(entryMovement).not.toContainText("Otros");
 
     await page.getByLabel("Buscar movimientos").fill("merma");
+    await expect(byTestId(page, "inventory-movement-filter-shrinkage")).toHaveAttribute("data-selected", "true");
     const shrinkageResult = page.locator('[data-testid^="inventory-movement-"]').filter({ hasText: "Daños" }).first();
     await expect(shrinkageResult).toBeVisible();
 

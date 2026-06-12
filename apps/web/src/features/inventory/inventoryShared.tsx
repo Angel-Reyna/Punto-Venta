@@ -118,7 +118,7 @@ export type InventoryMovementForm = {
   reason: string;
 };
 
-export type StockStatusFilter = "all" | "available" | "attention" | "low" | "out";
+export type StockStatusFilter = "all" | "available" | "low" | "out";
 export type InventoryView = "stock" | "entries" | "exits" | "movements" | "transfers";
 
 export const DEFAULT_INVENTORY_ENTRY_REASON = "Reabastecimiento";
@@ -185,11 +185,11 @@ export function getInventoryTransferFormDisabledReason({
   form: InventoryTransferRequestForm;
   availableStock: number;
 }) {
-  if (!form.fromWarehouseId) return "Selecciona el almacÈn origen.";
+  if (!form.fromWarehouseId) return "Selecciona el almac√©n origen.";
   if (!form.productId) return "Selecciona un producto.";
   if (form.quantity <= 0) return "La cantidad debe ser mayor a cero.";
   if (form.quantity > availableStock) {
-    return `No puedes solicitar m·s de ${availableStock} unidades disponibles.`;
+    return `No puedes solicitar m√°s de ${availableStock} unidades disponibles.`;
   }
   if (!form.reason.trim() || form.reason.trim().length < 3) {
     return "Describe el motivo con al menos 3 caracteres.";
@@ -208,7 +208,6 @@ export function formatInventoryMoney(value: number | null | undefined) {
 export const STOCK_FILTER_LABELS: Record<StockStatusFilter, string> = {
   all: "Todos",
   available: "Disponibles",
-  attention: "Requiere atenciÛn",
   low: "Bajo stock",
   out: "Sin stock",
 };
@@ -297,7 +296,6 @@ export function getInventoryStockSummary(rows: StockItem[]) {
     available,
     lowStock,
     outOfStock,
-    attention: lowStock + outOfStock,
     categories,
     units,
   };
@@ -311,13 +309,6 @@ export function filterStockRowsByStatus(
     return rows.filter((item) => getProductStockLevel(item) === "available");
   }
 
-  if (status === "attention") {
-    return rows.filter((item) => {
-      const level = getProductStockLevel(item);
-
-      return level === "low" || level === "out";
-    });
-  }
 
   if (status === "low") {
     return rows.filter((item) => getProductStockLevel(item) === "low");
@@ -344,7 +335,7 @@ export function getStockStatus(item: StockItem) {
   if (level === "low") {
     return {
       color: "warning" as const,
-      helper: "El stock total esta en o debajo del minimo.",
+      helper: "El stock total est√° en o debajo del m√≠nimo.",
       label: "Bajo inventario",
     };
   }

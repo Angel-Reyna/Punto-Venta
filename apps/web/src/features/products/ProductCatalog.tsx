@@ -8,7 +8,6 @@ import {
   Chip,
   InputAdornment,
   LinearProgress,
-  Menu,
   MenuItem,
   Pagination,
   Stack,
@@ -19,7 +18,6 @@ import { alpha } from "@mui/material/styles";
 
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
@@ -682,6 +680,17 @@ type ProductCatalogProps = {
   totalCount: number;
 };
 
+function getProductFilterColor(
+  filter: ProductFilterOption,
+): "default" | "success" | "warning" | "error" | "info" {
+  if (filter === "Activos") return "success";
+  if (filter === "Bajo stock") return "warning";
+  if (filter === "Sin stock") return "error";
+  if (filter === "Con promoción") return "info";
+
+  return "default";
+}
+
 function ProductCatalogControls({
   onFilterChange,
   onSearchQueryChange,
@@ -703,34 +712,46 @@ function ProductCatalogControls({
   selectedSort: ProductSortOption;
   setPageSize: (pageSize: number) => void;
 }) {
-  const [filterMenuAnchor, setFilterMenuAnchor] = useState<null | HTMLElement>(
-    null,
-  );
-  const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(
-    null,
+  const [showProductFilters, setShowProductFilters] = useState(
+    selectedFilter !== "Todos",
   );
   const selectedSortLabel =
     PRODUCT_SORT_OPTIONS.find((option) => option.value === selectedSort)
       ?.label ?? "Nombre A-Z";
   const selectedFilterLabel =
     selectedFilter === "Todos" ? "Todos los productos" : selectedFilter;
-  const filterMenuOpen = Boolean(filterMenuAnchor);
-  const sortMenuOpen = Boolean(sortMenuAnchor);
 
-  function selectSort(sort: ProductSortOption) {
-    onSortChange(sort);
-    setSortMenuAnchor(null);
+  useEffect(() => {
+    if (selectedFilter !== "Todos") {
+      setShowProductFilters(true);
+    }
+  }, [selectedFilter]);
+
+  function cycleProductSort() {
+    const currentIndex = PRODUCT_SORT_OPTIONS.findIndex(
+      (option) => option.value === selectedSort,
+    );
+    const nextOption =
+      PRODUCT_SORT_OPTIONS[
+        (Math.max(currentIndex, 0) + 1) % PRODUCT_SORT_OPTIONS.length
+      ];
+
+    onSortChange(nextOption.value);
   }
 
-  function selectFilter(filter: ProductFilterOption) {
-    onFilterChange(filter);
-    setFilterMenuAnchor(null);
+  function toggleProductFilters() {
+    setShowProductFilters((current) => {
+      if (current) {
+        onFilterChange("Todos");
+      }
+
+      return !current;
+    });
   }
 
   const controlButtonSx = {
-    borderRadius: 2.35,
+    borderRadius: 2.5,
     flexShrink: 0,
-    fontSize: 12.5,
     fontWeight: 900,
     minHeight: 40,
     px: 1.35,
@@ -738,12 +759,17 @@ function ProductCatalogControls({
   } as const;
 
   return (
-    <Stack spacing={0.7}>
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        spacing={1}
-        alignItems={{ xs: "stretch", md: "center" }}
-        sx={{ minWidth: 0 }}
+    <Stack spacing={0.85}>
+      <Box
+        sx={{
+          alignItems: "center",
+          display: "grid",
+          gap: 1,
+          gridTemplateColumns: {
+            xs: "1fr",
+            lg: "minmax(280px, 1fr) auto auto auto",
+          },
+        }}
       >
         <TextField
           fullWidth
@@ -759,116 +785,100 @@ function ProductCatalogControls({
               </InputAdornment>
             ),
           }}
-          sx={{
-            flex: { xs: "1 1 100%", md: "0 1 320px", lg: "0 1 360px" },
-            maxWidth: { md: 360 },
-            minWidth: { md: 240 },
-          }}
         />
 
-        <Stack
-          alignItems="center"
-          direction="row"
-          flexWrap="wrap"
-          gap={0.85}
-          justifyContent={{ xs: "flex-start", md: "flex-end" }}
+        <TextField
+          select
+          size="small"
+          label="Por página"
+          value={pageSize}
+          onChange={(event) => setPageSize(Number(event.target.value))}
           sx={{
-            flex: "1 1 auto",
-            minWidth: 0,
+            minWidth: 118,
+            "& .MuiSelect-select": {
+              pr: "30px !important",
+            },
           }}
         >
-          <Button
-            aria-controls={sortMenuOpen ? "products-sort-menu" : undefined}
-            aria-expanded={sortMenuOpen ? "true" : undefined}
-            aria-haspopup="menu"
-            aria-label={`Ordenar productos. Orden actual: ${selectedSortLabel}`}
-            data-testid="products-sort-button"
-            endIcon={<ExpandMoreIcon />}
-            onClick={(event) => setSortMenuAnchor(event.currentTarget)}
-            startIcon={<SortIcon />}
-            sx={controlButtonSx}
-            title={`Orden actual: ${selectedSortLabel}`}
-            variant="outlined"
-          >
-            Ordenar
-          </Button>
-          <Menu
-            id="products-sort-menu"
-            anchorEl={sortMenuAnchor}
-            open={sortMenuOpen}
-            onClose={() => setSortMenuAnchor(null)}
-            MenuListProps={{ dense: true, "aria-label": "Ordenar productos" }}
-          >
-            {PRODUCT_SORT_OPTIONS.map((option) => (
-              <MenuItem
-                key={option.value}
-                selected={selectedSort === option.value}
-                onClick={() => selectSort(option.value)}
-                sx={{ fontWeight: selectedSort === option.value ? 900 : 600 }}
-              >
-                {option.label}
-              </MenuItem>
-            ))}
-          </Menu>
+          {PRODUCT_PAGE_SIZE_OPTIONS.map((option) => (
+            <MenuItem key={option} value={option}>
+              {option} productos
+            </MenuItem>
+          ))}
+        </TextField>
 
-          <Button
-            aria-controls={filterMenuOpen ? "products-filter-menu" : undefined}
-            aria-expanded={filterMenuOpen ? "true" : undefined}
-            aria-haspopup="menu"
-            aria-label={`Filtros de productos. Filtro actual: ${selectedFilterLabel}`}
-            color={selectedFilter === "Todos" ? "inherit" : "primary"}
-            data-testid="products-filter-button"
-            endIcon={<ExpandMoreIcon />}
-            onClick={(event) => setFilterMenuAnchor(event.currentTarget)}
-            startIcon={<FilterListIcon />}
-            sx={controlButtonSx}
-            title={`Filtro actual: ${selectedFilterLabel}`}
-            variant={selectedFilter === "Todos" ? "outlined" : "contained"}
+        <Button
+          aria-label={`Ordenar productos. Orden actual: ${selectedSortLabel}`}
+          data-testid="products-sort-button"
+          onClick={cycleProductSort}
+          startIcon={<SortIcon />}
+          sx={controlButtonSx}
+          title={`Orden actual: ${selectedSortLabel}`}
+          variant="outlined"
+        >
+          Ordenar: {selectedSortLabel}
+        </Button>
+
+        <Button
+          aria-controls="products-inline-filters"
+          aria-expanded={showProductFilters}
+          aria-label={`Filtros de productos. Filtro actual: ${selectedFilterLabel}`}
+          data-testid="products-filter-button"
+          onClick={toggleProductFilters}
+          startIcon={<FilterListIcon />}
+          sx={controlButtonSx}
+          title={`Filtro actual: ${selectedFilterLabel}`}
+          variant={showProductFilters ? "contained" : "outlined"}
+        >
+          Filtros
+        </Button>
+      </Box>
+
+      {showProductFilters && (
+        <Box
+          id="products-inline-filters"
+          sx={(theme) => ({
+            border: 1,
+            borderColor: alpha(theme.palette.primary.main, 0.12),
+            borderRadius: 2.5,
+            bgcolor: alpha(
+              theme.palette.primary.main,
+              theme.palette.mode === "dark" ? 0.045 : 0.026,
+            ),
+            px: { xs: 1.25, sm: 1.5 },
+            py: 1.15,
+          })}
+        >
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            flexWrap="wrap"
+            alignItems="center"
           >
-            Filtros
-          </Button>
-          <Menu
-            id="products-filter-menu"
-            anchorEl={filterMenuAnchor}
-            open={filterMenuOpen}
-            onClose={() => setFilterMenuAnchor(null)}
-            MenuListProps={{ dense: true, "aria-label": "Filtrar productos" }}
-          >
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              fontWeight={900}
+              sx={{ mr: 0.5 }}
+            >
+              Mostrar:
+            </Typography>
             {PRODUCT_FILTER_OPTIONS.map((filter) => (
-              <MenuItem
+              <Chip
                 key={filter}
-                selected={selectedFilter === filter}
-                onClick={() => selectFilter(filter)}
-                sx={{ fontWeight: selectedFilter === filter ? 900 : 600 }}
-              >
-                {filter}
-              </MenuItem>
+                clickable
+                color={getProductFilterColor(filter)}
+                variant={selectedFilter === filter ? "filled" : "outlined"}
+                label={filter === "Todos" ? "Todos los productos" : filter}
+                onClick={() => onFilterChange(filter)}
+                sx={{ fontWeight: 900 }}
+              />
             ))}
-          </Menu>
+          </Stack>
+        </Box>
+      )}
 
-          <TextField
-            select
-            size="small"
-            label="Por página"
-            value={pageSize}
-            onChange={(event) => setPageSize(Number(event.target.value))}
-            sx={{
-              flex: "0 0 100px",
-              minWidth: 100,
-              maxWidth: 108,
-              "& .MuiSelect-select": {
-                pr: "30px !important",
-              },
-            }}
-          >
-            {PRODUCT_PAGE_SIZE_OPTIONS.map((option) => (
-              <MenuItem key={option} value={option}>
-                {option}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Stack>
-      </Stack>
       {productSearchHelper && (
         <Typography color="text.secondary" variant="caption">
           {productSearchHelper}

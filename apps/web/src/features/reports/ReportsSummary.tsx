@@ -42,9 +42,9 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
     },
     {
       id: "shrinkage",
-      label: "Merma por caducidad o daños",
+      label: "Merma",
       value: formatMoney(shrinkageCost),
-      helper: `${shrinkageUnits} unidades dadas de baja.`,
+      helper: `Caducidad o daños: ${shrinkageUnits} unidad(es).`,
       info: REPORT_INFO_TEXT.shrinkage,
       icon: <WarningAmberOutlinedIcon />,
       tone: "error" as const
@@ -101,7 +101,7 @@ export function ReportsSummaryGrid({ data }: { data: OperationsReport }) {
               gridTemplateColumns: {
                 xs: "1fr",
                 sm: "repeat(2, minmax(0, 1fr))",
-                lg: "repeat(5, minmax(0, 1fr))"
+                lg: "repeat(auto-fit, minmax(170px, 1fr))"
               }
             }}
           >

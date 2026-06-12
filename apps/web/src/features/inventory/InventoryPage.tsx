@@ -63,7 +63,7 @@ export function InventoryPage() {
   const stockStatusFilter = useMemo(() => {
     const status = searchParams.get("status");
 
-    return status === "out" || status === "low" || status === "attention" ? status : "all";
+    return status === "out" || status === "low" || status === "available" ? status : "all";
   }, [searchParams]);
   const [activeView, setActiveView] = useState<InventoryView>(initialView);
   const [form, setForm] = useState(initialInventoryMovementForm);

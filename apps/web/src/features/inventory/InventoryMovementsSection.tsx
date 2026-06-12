@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
@@ -29,6 +29,13 @@ export function InventoryMovementsSection({
   onSearchChange: (query: string) => void;
 }) {
   const [movementFilter, setMovementFilter] = useState<MovementFilter>("all");
+
+  useEffect(() => {
+    if (isShrinkageSearchQuery(searchQuery)) {
+      setMovementFilter("shrinkage");
+    }
+  }, [searchQuery]);
+
   const filteredMovements = useMemo(
     () =>
       movementFilter === "all"
@@ -70,6 +77,8 @@ export function InventoryMovementsSection({
               key={option.value}
               clickable
               color={movementFilter === option.value ? "primary" : "default"}
+              data-selected={movementFilter === option.value ? "true" : "false"}
+              data-testid={`inventory-movement-filter-${option.value}`}
               label={option.label}
               variant={movementFilter === option.value ? "filled" : "outlined"}
               onClick={() => setMovementFilter(option.value)}
@@ -82,4 +91,14 @@ export function InventoryMovementsSection({
       <InventoryMovementTimeline movements={filteredMovements} searchQuery={searchQuery} />
     </>
   );
+}
+
+function isShrinkageSearchQuery(query: string) {
+  const normalized = query
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  return ["merma", "caducidad", "danos", "danios", "damage"].includes(normalized);
 }

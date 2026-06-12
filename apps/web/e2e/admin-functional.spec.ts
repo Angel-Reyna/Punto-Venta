@@ -70,7 +70,7 @@ test.describe("cobertura funcional administrativa", () => {
 
     await expect(reportMetric(page, "net-sales")).toContainText("Venta neta");
     await expect(reportMetric(page, "net-sales")).toContainText("$470.00");
-    await expect(reportMetric(page, "shrinkage")).toContainText("Merma por caducidad");
+    await expect(reportMetric(page, "shrinkage")).toContainText("Merma");
     await expect(reportMetric(page, "shrinkage")).toContainText("$48.00");
     await expect(reportMetric(page, "operating-profit")).toContainText("Utilidad operativa");
     await expect(reportMetric(page, "operating-profit")).toContainText("$187.00");

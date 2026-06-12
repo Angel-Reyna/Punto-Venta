@@ -29,7 +29,7 @@ function DashboardMainWorkspace(props: DashboardScreenProps) {
         salesDestination={props.salesDestination}
       />
 
-      <DashboardQuickActions isAdmin={props.isAdmin} />
+      <DashboardQuickActions isAdmin={props.isAdmin} metrics={props.metrics} />
 
       <Box
         sx={{
