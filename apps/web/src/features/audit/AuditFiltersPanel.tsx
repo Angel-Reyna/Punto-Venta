@@ -98,7 +98,7 @@ function getAuditDatePresets(today = new Date()) {
     },
     {
       key: "last-7-days",
-      label: "7 días",
+      label: "Últimos 7 días",
       helper: "Última semana operativa",
       dateFrom: formatDateInput(addDays(today, -6)),
       dateTo: formatDateInput(today),

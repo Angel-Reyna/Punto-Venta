@@ -116,7 +116,7 @@ export function SellerActivityOperationalInsights({
                 </Typography>
               </Stack>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Resumen del periodo consultado calculado por el servidor, no solo por los eventos visibles en pantalla.
+                Resumen del periodo consultado calculado por el servidor, no solo por los eventos cargados en la lista.
               </Typography>
             </Box>
             <Chip size="small" variant="outlined" color="primary" label={pluralize(totalEvents, "evento", "eventos")} />

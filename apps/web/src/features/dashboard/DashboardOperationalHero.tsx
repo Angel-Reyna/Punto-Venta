@@ -160,7 +160,7 @@ export function DashboardOperationalHero({
                 Centro operativo
               </Typography>
               <Typography color="text.secondary" sx={{ maxWidth: 760, mt: 0.75 }} variant="body2">
-                Inicio concentra ventas del día, inventario que requiere atención, equipo activo y acciones directas sin depender de caja.
+                Inicio concentra ventas del día, inventario que requiere atención, equipo activo y accesos directos al detalle.
               </Typography>
             </Box>
           </Stack>

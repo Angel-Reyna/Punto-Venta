@@ -30,7 +30,7 @@ test.describe("autenticación y navegación principal", () => {
 
     await expect(page.getByRole("link", { name: /Ver usuarios/i }).first()).toBeVisible();
 
-    await expect(page.getByRole("link", { name: "Usuarios Gestionar vendedores", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Usuarios Gestionar accesos", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Reportes Analizar resultados", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: /Auditoría/i })).toBeVisible();
   });

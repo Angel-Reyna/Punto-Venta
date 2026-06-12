@@ -196,7 +196,7 @@ function EmptyInsight() {
         bgcolor: "background.default",
       }}
     >
-      <Typography fontWeight={950}>Sin eventos visibles</Typography>
+      <Typography fontWeight={950}>Sin eventos para mostrar</Typography>
       <Typography variant="body2" color="text.secondary">
         Ajusta filtros o consulta un periodo con actividad.
       </Typography>

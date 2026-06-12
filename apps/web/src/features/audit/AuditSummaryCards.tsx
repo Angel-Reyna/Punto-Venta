@@ -129,10 +129,10 @@ export function AuditSummaryCards({
         <Stack spacing={1.25}>
           <Box>
             <Typography variant="subtitle1" fontWeight={950}>
-              Resumen ejecutivo
+              Lectura rápida
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Lee primero estos datos antes de abrir detalles.
+              Resumen breve antes de revisar eventos.
             </Typography>
           </Box>
           {metrics.map((metric) => (

@@ -75,14 +75,14 @@ export function buildNavigationSections(can: CanAccess): NavigationSection[] {
       items: [
         {
           label: "Usuarios",
-          description: "Gestionar vendedores",
+          description: "Gestionar accesos",
           to: "/users",
           icon: <PeopleIcon />,
           visible: can(PERMISSIONS.UsersRead),
         },
         {
-          label: "Actividad vendedores",
-          description: "Supervisar desempeño",
+          label: "Actividad de vendedores",
+          description: "Supervisar actividad",
           to: "/seller-activity",
           icon: <ManageSearchIcon />,
           visible: can(PERMISSIONS.SellerActivityRead),
