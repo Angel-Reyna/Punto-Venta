@@ -13,8 +13,9 @@ test.describe("cobertura funcional administrativa", () => {
 
     await expect(page.getByRole("heading", { name: "Usuarios y vendedores", level: 1 })).toBeVisible();
     await expect(page.getByText("Control de accesos interno")).toBeVisible();
-    await expect(byTestId(page, "users-hero-chips")).toContainText("activos");
-    await expect(byTestId(page, "users-active-filters")).toContainText("Rol: Todos los roles");
+    await expect(byTestId(page, "users-hero-chips")).toContainText("Activos");
+    await expect(byTestId(page, "users-control-panel")).toContainText("Encontrar accesos");
+    await expect(byTestId(page, "users-active-filters")).toContainText("Sin filtros activos");
     await expect(byTestId(page, "users-results-heading")).toContainText("3 de 3 usuarios visibles");
     await expect(byTestId(page, "users-role-sections")).toContainText("Administradores");
     await expect(byTestId(page, "users-role-sections")).toContainText("Vendedores");
