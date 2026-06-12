@@ -17,9 +17,9 @@ test.describe("autenticación y navegación principal", () => {
     const operationalInsights = page.getByTestId("dashboard-operational-insights");
     await expect(operationalInsights).toContainText("Ventas últimos 7 días");
     await expect(page.getByTestId("dashboard-sales-current-month-signal")).toContainText("Mes actual");
-    await expect(page.getByTestId("dashboard-inventory-risk-signal")).toContainText("Riesgo de inventario");
-    await expect(page.getByText("Administradores activos").first()).toBeVisible();
-    await expect(page.getByText("Vendedores activos").first()).toBeVisible();
+    await expect(page.getByTestId("dashboard-inventory-risk-signal")).toContainText("Riesgo de inventario");  const dashboardHero = page.getByTestId("dashboard-operational-hero");
+  await expect(dashboardHero).toContainText("Administradores activos");
+  await expect(dashboardHero).toContainText("Vendedores activos");
     await expect(page.getByText("Acciones rápidas")).toHaveCount(0);
 
     await expect(page.locator('a[href="/reports?preset=today&detail=historial"]')).toBeVisible();
